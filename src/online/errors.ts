@@ -13,7 +13,7 @@
 import { ENGINE_VERSION } from '@engine/version'
 import { useStore } from '@game/store'
 import { onlineConfig } from './config'
-import { functionUrl } from './transport'
+import { functionUrl, timedFetch } from './transport'
 import { loadRecord, updateRecord } from './localState'
 import { errorReportsOn } from './core/errorPref'
 import { ERROR_EVENT, takeEarlySignals, type ErrorSignal } from './core/errorSignal'
@@ -32,6 +32,24 @@ import {
   type ErrorState,
   type ReportKind,
 } from './core/errorReport'
+
+/** The request limit the Edge Function holds every body to (`MAX_BODY_BYTES` in server/validate.ts; a test keeps them equal). */
+export const BODY_BUDGET = 16384
+
+/**
+ * The next batch to post: the queue's first reports, at most `REPORTS_PER_POST`, while the request stays within
+ * `BODY_BUDGET` bytes. Each report is within its caps, but the caps count characters and JSON escapes a control
+ * character to six bytes, so five of the largest could pass the limit, and the server refuses (and the device drops)
+ * the whole batch (docs/QA.md round 3, R8-5). One report always goes: alone it is well inside the limit.
+ */
+export function batchOf(queue: readonly ErrorReport[]): ErrorReport[] {
+  const out: ErrorReport[] = []
+  for (const r of queue.slice(0, REPORTS_PER_POST)) {
+    if (out.length && new TextEncoder().encode(JSON.stringify({ op: 'errors.report', reports: [...out, r] })).length > BODY_BUDGET) break
+    out.push(r)
+  }
+  return out
+}
 
 /** What the reporter needs from the page, injected so the tests drive it with no DOM. */
 export interface ReporterEnv {
@@ -101,7 +119,7 @@ export function createReporter(env: ReporterEnv): Reporter {
         if (s && s.queue.length && env.now() < s.nextAt) schedule(s.nextAt - env.now())
         return
       }
-      const batch = s.queue.slice(0, REPORTS_PER_POST)
+      const batch = batchOf(s.queue)
       let status = 0
       try {
         status = await env.post(batch)
@@ -200,6 +218,8 @@ export function installErrorReporting(): Reporter | null {
   const cfg = onlineConfig()
   if (!cfg) return null
   const url = functionUrl(cfg)
+  // A post that never settles would hold `flushing` (and so every later report) for the rest of the page's life
+  const post = timedFetch((...a) => fetch(...a), 30000)
   const env: ReporterEnv = {
     origin: location.origin,
     userAgent: navigator.userAgent,
@@ -215,7 +235,7 @@ export function installErrorReporting(): Reporter | null {
     post: async (reports) => {
       try {
         // A guest call: the publishable key alone, never the session's JWT, so no report is tied to an account
-        const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', apikey: cfg.key }, body: JSON.stringify({ op: 'errors.report', reports }), keepalive: true })
+        const r = await post(url, { method: 'POST', headers: { 'content-type': 'application/json', apikey: cfg.key }, body: JSON.stringify({ op: 'errors.report', reports }), keepalive: true })
         await r.body?.cancel().catch(() => undefined)
         return r.status
       } catch {

@@ -25,7 +25,7 @@ import { LATER_SLOTS, progressKey, saveMeta, slotContents, slotIdentity, SLOT_ID
 import { planSlot, type LocalSlot, type RemoteSlot, type SlotPlan } from './core/syncPlan'
 import type { OnlineRecord } from './localState'
 import type { CloudRow, OnlineTransport } from './transport'
-import { OnlineError } from './transport'
+import { isTransient, OnlineError } from './transport'
 import type { OnlineState, SyncConflict } from './state'
 
 export interface SyncView extends SyncSource {
@@ -423,7 +423,17 @@ export class SyncEngine {
     const now = this.d.now()
     const path = `${this.d.userId}/${slot}/${now}-${enc.hash.slice(0, 16)}.json.gz`
     await this.d.transport.upload(path, gz)
-    const res = await this.d.transport.claim({ slot, baseRevision, gameId: slotIdentity(v), contentHash: enc.hash, objectPath: path, bytes: gz.length, rawBytes: enc.text.length, meta: saveMeta(v, this.d.meta), deviceId: rec.deviceId, clientSavedAt: new Date(this.changedAt[slot] ?? now).toISOString(), asPrevious })
+    let res: Awaited<ReturnType<OnlineTransport['claim']>>
+    try {
+      res = await this.d.transport.claim({ slot, baseRevision, gameId: slotIdentity(v), contentHash: enc.hash, objectPath: path, bytes: gz.length, rawBytes: enc.text.length, meta: saveMeta(v, this.d.meta), deviceId: rec.deviceId, clientSavedAt: new Date(this.changedAt[slot] ?? now).toISOString(), asPrevious })
+    } catch (e) {
+      // A claim the database refused (the hourly limits, a bad slot, a signed-out session) rolled back, so no row
+      // points at the object: it goes now, or each retry would leave another until the folder's 16-object cap refused
+      // every upload (the sweep runs only every tenth claim, which a refused claim never counts). A claim with no
+      // answer (network, 5xx) may have landed, so its object is left for the sweep, which skips anything a row names.
+      if (e instanceof OnlineError && (e.kind === 'rate' || !isTransient(e))) await this.removeQuietly([path])
+      throw e
+    }
     this.bumpClaims()
     if (res.status === 'conflict') {
       // Never retried blindly: the uploaded object goes, and the next pass pulls and plans again

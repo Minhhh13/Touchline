@@ -48,7 +48,9 @@ Then run `npm ci`, `npm run typecheck`, `npm test` and `npm run build`.
 
 **A2. The Daily rotation is live too** (PR #87, squash 1df6a32): `touchline-e7` was redeployed at 17:56 UTC pinning `verifier-533df0bd10128be8.js`. Nothing left to do for it.
 
-**B. Integrate the waiting branches** (all based on `release-e7`).
+**B0. Round 8 is integrated in PR #88** (`claude/youthful-mccarthy-a57idu`, batch5): every `claude/r8-*` branch except `r8-a11y` (still running when this was written; merge it next), with `45f5754` reverted and held for engine 8. It renames the edge bundle to `verifier-ecc269657e48639b.js`: after #88 is live, rebuild the loader from `main` at the deployed commit and redeploy `touchline-e7` (Verify JWT off), as in A2. The first-download budget was raised to 330 KB JS and 56 KB CSS (`budget.test.ts`, docs/PERFORMANCE.md); splitting `week.ts` and this round's styles out of the first download would win it back.
+
+**B. Integrate the waiting branches** (done for all but `r8-a11y`; kept for reference) (all based on `release-e7`).
 
 Make one batch branch from the latest `main` and real-merge the branches in this order. Look for commits titled `SEVERE:` first and ship those soonest.
 

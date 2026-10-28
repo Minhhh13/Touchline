@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useStore, slotOf } from '@game/store'
+import { slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
 import { rememberTeamName, useTeamName } from '../teamName'
-import { ARENA_FIELDS, arenaNeedsAllLeagues, colourClubs, CUP_SQUAD, cupGameSettings, DEFAULT_CUP_SIZE, DEFAULT_DECADE, GAUNTLET_SQUAD, GAUNTLET_SQUAD_CAP, gauntletGameSettings, latestCompleteSeason, summariseArena } from '@game/logic/arena'
+import { ARENA_FIELDS, arenaNeedsAllLeagues, colourClubs, CUP_SQUAD, cupGameSettings, DEFAULT_CUP_SIZE, DEFAULT_DECADE, GAUNTLET_BONUS_AFTER, GAUNTLET_SQUAD, GAUNTLET_SQUAD_CAP, gauntletGameSettings, latestCompleteSeason, summariseArena } from '@game/logic/arena'
 import { arenaFormatText } from '../i18n/modeText'
 import { rich, B } from '../i18n/rich'
 import { translator } from '../i18n'
@@ -12,8 +13,10 @@ import { arena } from '../i18n/en/arena'
 const t = translator(arena)
 import { getFormation } from '@engine/formations'
 import type { ArenaField } from '@engine/knockout'
-import { CUP_FIELD_TARGET, cupDecades, type CupSize } from '@engine/cup'
-import { GAUNTLET_CEILING } from '@engine/gauntlet'
+import { CUP_FIELD_TARGET, cupDecades, cupRoundCount, cupRoundName, type CupSize } from '@engine/cup'
+import { GAUNTLET_BANDS, GAUNTLET_CEILING, GAUNTLET_RUNGS, gauntletHome } from '@engine/gauntlet'
+import { ChevronRight, Gift, Trophy } from 'lucide-react'
+import { gauntletBandText } from '../arenaText'
 import { randomSeed } from '@engine/rng'
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
@@ -53,7 +56,7 @@ function eraRange(era: Era, first: number): { fromSeason?: number; toSeason?: nu
 
 /** Setup for an arena format (the Cup, its one-off final, or the Gauntlet). Its own screen, so the quick and season Setup stays untouched. */
 export function ArenaSetup() {
-  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, arenaSetupFormat } = useStore()
+  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, arenaSetupFormat } = useStorePick('universe', 'startGame', 'go', 'ensureLeagues', 'loadingLeagues', 'loadedLeagues', 'game', 'parked', 'arenaSetupFormat')
   const [format, setFormat] = useState<'cup' | 'gauntlet'>(arenaSetupFormat)
   const gauntlet = format === 'gauntlet'
   // An invented club name, or the one this viewer last typed (teamName.ts)
@@ -198,10 +201,10 @@ export function ArenaSetup() {
                     <h3>
                       {t(final ? 'opponent' : 'field')}{' '}
                       <Info label={t('aboutField')}>
-                        {t('fieldInfo', { hint: ARENA_FIELDS.find((f) => f.value === field)?.hint, final: final ? 'yes' : 'no' })}
+                        {t('fieldInfo', { hint: t(`fieldHint_${field}`), final: final ? 'yes' : 'no' })}
                       </Info>
                     </h3>
-                    <Segmented value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: f.label, hint: f.hint }))} />
+                    <Segmented value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: t(`field_${f.value}`), hint: t(`fieldHint_${f.value}`) }))} />
                     {field === 'decade' && (
                       <select className="input" value={decade} onChange={(e) => setDecade(Number(e.target.value))} data-testid="arena-decade">
                         {cupDecades(u.firstSeason, u.lastSeason).map((d) => (
@@ -213,6 +216,7 @@ export function ArenaSetup() {
                     )}
                   </div>
                 )}
+                {!advanced && <RoadAhead gauntlet={gauntlet} size={size} />}
                 <div className="setup-opt setup-wide-opt setup-more" ref={moreRef} data-testid="arena-more">
                   <button type="button" className="fold-head" onClick={() => toggleAdvanced(!advanced)} aria-expanded={advanced}>
                     <h3>{t('moreOptions')}</h3>
@@ -335,6 +339,57 @@ export function ArenaSetup() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * The road ahead, under the format's choices while More options is closed (the box's foot was empty): the Cup's rounds
+ * to the final, or the Gauntlet's fifteen rungs from the weakest tenth of the wheel to its strongest 5%, the rungs that
+ * earn a bonus spin marked. Display only: the draw and the ladder are made when the run starts.
+ */
+function RoadAhead({ gauntlet, size }: { gauntlet: boolean; size: CupSize }) {
+  if (gauntlet)
+    return (
+      <div className="setup-opt setup-wide-opt road-ahead" data-testid="arena-road">
+        <h3>{t('roadAhead')}</h3>
+        <ol className="road-rungs" aria-label={t('rungsLabel')}>
+          {Array.from({ length: GAUNTLET_RUNGS }, (_, i) => {
+            const rung = i + 1
+            const bonus = GAUNTLET_BONUS_AFTER.includes(rung)
+            const tip = t('roadRungTip', { n: rung, band: gauntletBandText(rung), home: gauntletHome(rung) ? 'yes' : 'no', bonus: bonus ? 'yes' : 'no' })
+            return (
+              <li key={rung} className={`road-rung${rung > GAUNTLET_BANDS ? ' top' : ''}${bonus ? ' bonus' : ''}`} title={tip} style={{ '--rung': Math.min(rung, GAUNTLET_BANDS + 2) } as CSSProperties}>
+                <span className="sr-only">{tip}</span>
+                <span aria-hidden="true">{rung}</span>
+                {bonus && <Gift size={12} aria-hidden="true" />}
+              </li>
+            )
+          })}
+        </ol>
+        <p className="help">{t('roadGauntletLine', { top: GAUNTLET_BANDS + 1 })}</p>
+      </div>
+    )
+  const rounds = cupRoundCount(size)
+  return (
+    <div className="setup-opt setup-wide-opt road-ahead" data-testid="arena-road">
+      <h3>{t('roadAhead')}</h3>
+      <ol className="road-rounds" aria-label={t('roadRounds')}>
+        {Array.from({ length: rounds }, (_, r) => {
+          const { code, name } = cupRoundName(size, r)
+          // In brackets, so the catalogue test reads the template's prefix as a use of the round_ keys
+          const key = (`round_${code}`)
+          const last = r === rounds - 1
+          return (
+            <li key={code} className={`road-round${last ? ' final' : ''}`}>
+              {last && <Trophy size={14} aria-hidden="true" />}
+              <span>{t.has(key) ? t(key) : name}</span>
+              {!last && <ChevronRight size={14} aria-hidden="true" className="road-arrow" />}
+            </li>
+          )
+        })}
+      </ol>
+      <p className="help">{t('roadCupLine', { n: rounds })}</p>
     </div>
   )
 }

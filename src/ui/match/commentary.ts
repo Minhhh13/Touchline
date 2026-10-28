@@ -128,16 +128,16 @@ function zoneOf(k: BallKeyframe): string {
 export const PLAY_LOOKBACK = 0.5
 export const PLAY_LOOKAHEAD = 0.2
 
-/** One line of play for a minute with nothing on the log, from the keyframes around its start. */
-export function playLine(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined): CommentaryLine {
-  return playLineOf(feed, mpath, minute, names, getName).line
-}
-
-/** The line of play and whether a tagged play (a set piece, a switch, a tackle) made it, so a word on the mood never replaces one. */
-function playLineOf(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined): { line: CommentaryLine; tagged: boolean } {
-  const h = hashString(`${feed.key}-${minute}`)
+/** Every keeper who appears in the path's epochs (built once per match, not once per quiet minute). */
+export function keepersOf(mpath: MatchPath): Set<string> {
   const keepers = new Set<string>()
   for (const e of mpath.epochs) for (const p of [...e.home, ...e.away]) if (p.position === 'GK') keepers.add(p.psId)
+  return keepers
+}
+
+/** One quiet minute's line of play, from the keyframes around its start, and whether a tagged play (a set piece, a switch, a tackle) made it, so a word on the mood never replaces one. */
+function playLineOf(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined, keepers: Set<string>): { line: CommentaryLine; tagged: boolean } {
+  const h = hashString(`${feed.key}-${minute}`)
   const name = (id: string | undefined) => (id ? getName(id) : undefined) ?? 'a team-mate'
   const tagged: Array<{ rank: number; text: string; side: Side }> = []
   const options: Array<{ text: string; side: Side }> = []
@@ -260,9 +260,10 @@ export function commentaryUpTo(feed: MatchFeed, mpath: MatchPath, minute: number
   if (feed.addedTime > 0 && minute >= 90) lines.push({ minute: 90, text: boardText(feed.addedTime), kind: 'board', weight: KIND_WEIGHT.board, seq: 2 })
   const quietTo = Math.min(minute, feed.lastMinute)
   let lastMood = -MOOD_GAP
+  const keepers = keepersOf(mpath)
   for (let m = 1; m <= quietTo; m++) {
     if (busy.has(m)) continue
-    const { line, tagged } = playLineOf(feed, mpath, m, names, getName)
+    const { line, tagged } = playLineOf(feed, mpath, m, names, getName, keepers)
     // Now and then (about one untagged minute in four, never two within `MOOD_GAP`) the line is the mood of the match instead
     const mood = !tagged && m - lastMood >= MOOD_GAP && flavourChance(`${feed.key}|mood|${m}`, 1, 4) ? moodLine(feed.key, m, scoreAt(feed.events, m - 1), redsBefore(feed.events, m), momentumSide(feed, m), names) : null
     if (mood) lastMood = m

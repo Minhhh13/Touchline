@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Dices, Ghost, Package, Trophy } from 'lucide-react'
+import { Dices, Ghost, Package, Swords, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
@@ -15,10 +16,10 @@ import { HoverTips } from '../components/PowerUpButton'
 import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
-import { fitGroups } from '../draftFit'
+import { fitGroups, fitsFirst } from '../draftFit'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
-import { MODE_INFO, SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
+import { SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
@@ -38,7 +39,8 @@ import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
-import { costLabel, slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { slotRating } from '@game/logic/slotRating'
+import { costText, fitText, slotRatingText } from '../slotRatingText'
 import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
@@ -54,21 +56,17 @@ import { playSound } from '../sound/synth'
 import { askConfirm } from '../confirm'
 import { pickBand } from '../sound/cues'
 import { prefersReducedMotion } from '../motion'
+import { modeCardLine, modeCardTitle, ruleTagText } from '../i18n/engineText'
 
 const t = translator(draft)
 
-const GROUPS: Array<{ label: string; positions: Position[] }> = [
-  { label: 'Goalkeepers', positions: ['GK'] },
-  { label: 'Defenders', positions: ['CB', 'LB', 'RB'] },
-  { label: 'Midfielders', positions: ['DM', 'CM', 'AM'] },
-  { label: 'Forwards', positions: ['LW', 'RW', 'ST'] },
-]
+const GROUPS: Array<{ positions: Position[] }> = [{ positions: ['GK'] }, { positions: ['CB', 'LB', 'RB'] }, { positions: ['DM', 'CM', 'AM'] }, { positions: ['LW', 'RW', 'ST'] }]
 
 /** The bonus spins already heard in this visit (`game id:picks made`), so a revisit or a re-render rings nothing. */
 const bonusHeard = new Set<string>()
 
 export function Draft() {
-  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
+  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStorePick('universe', 'game', 'spin', 'respin', 'chooseSlot', 'pickPlayer', 'autoDraftRest', 'speedrunPick', 'finishDraft', 'pickManager', 'go', 'showToast', 'upgradePlayer')
   // A manager's first draft ever (nothing finished yet): one plain line under the first spin
   const firstDraft = useStore((s) => resultsFinished(s.profile) === 0)
   // An arena run's first field pass is finished in slices with the busy state painted (useArenaWarmup.ts)
@@ -122,6 +120,8 @@ export function Draft() {
   useEffect(() => setClock(SPEEDRUN_SECONDS), [pickNo])
   // The "revealed" moment: a pick made without seeing his rating flips it in on the pitch and in the log, once, in this view
   const [revealId, setRevealId] = useState<string | null>(null)
+  // Every pick lands with a pop on his pitch disc and his new log row (presentation only, gone after the moment)
+  const [landedId, setLandedId] = useState<string | null>(null)
   const picksSeen = useRef(pickNo)
   useEffect(() => {
     const before = picksSeen.current
@@ -133,7 +133,11 @@ export function Draft() {
     if (picked && !ratingHidden(d.rules, 'squad')) playSound({ id: 'pick-band', band: pickBand(picked.overall), reduced: prefersReducedMotion() })
     else playSound({ id: 'pick' })
     setRevealId(last?.pickedId && revealsOnPick(d.rules, last.twist) ? last.pickedId : null)
-    const timer = window.setTimeout(() => setRevealId(null), 1200)
+    setLandedId(last?.pickedId ?? null)
+    const timer = window.setTimeout(() => {
+      setRevealId(null)
+      setLandedId(null)
+    }, 1200)
     return () => window.clearTimeout(timer)
   }, [pickNo])
   // A bonus spin to draft (the Gauntlet's, a Dynasty summer's): its bells once per spin owed, in this visit
@@ -287,7 +291,12 @@ export function Draft() {
             <span>
               {game.settings.teamName} · {formationName(game.settings.formationId)}
             </span>
-            {challenge && <span className="chip info">{t('vsChallenger', { name: challenge.name, headline: challengeHeadline(challenge, game.settings.arena?.format) })}</span>}
+            {challenge && (
+              <span className="chip challenge-chip" data-testid="challenge-playing">
+                <Swords size={14} aria-hidden="true" />
+                {rich(t('playingDraft', { name: challenge.name, headline: challengeHeadline(challenge, game.settings.arena?.format) }), B)}
+              </span>
+            )}
             {d.rules.onlyClub && <span className="chip">{t('clubOnly', { club: clubName(u, d.rules.onlyClub) })}</span>}
             {nation && <span className="chip">{rich(t('nationOnly'), { nation: () => nationLabel })}</span>}
             {(d.rules.fromSeason || d.rules.toSeason) && (
@@ -297,7 +306,7 @@ export function Draft() {
             )}
             {tags.map((tag) => (
               <span key={tag} className="chip">
-                {tag}
+                {ruleTagText(tag)}
               </span>
             ))}
             {d.rules.classic && <span className="chip">{t('classicSeasons')}</span>}
@@ -310,8 +319,8 @@ export function Draft() {
               {modeCards.map((c) => {
                 const Icon = MODE_ICON[c]
                 return (
-                  <span key={c} className="chip" title={MODE_INFO[c].line}>
-                    <Icon size={12} aria-hidden="true" /> {MODE_INFO[c].title}
+                  <span key={c} className="chip" title={modeCardLine(c)}>
+                    <Icon size={12} aria-hidden="true" /> {modeCardTitle(c)}
                   </span>
                 )
               })}
@@ -328,15 +337,15 @@ export function Draft() {
             <span className="draft-count" data-testid="pick-count" role="img" aria-label={signings ? t('signingCountLabel', { n: Math.min(made - signings.base + 1, RUN_IN_SPINS), of: RUN_IN_SPINS }) : places && !fillingStarters ? t('benchCountLabel', { n: d.bench.length, of: places }) : t('pickCountLabel', { n: Math.min(made + 1, total), of: total })}>
               {signings ? (
                 <>
-                  <span className="eyebrow">{t('signing')}</span> <b>{Math.min(made - signings.base + 1, RUN_IN_SPINS)}</b> / {RUN_IN_SPINS}
+                  <span className="eyebrow">{t('signing')}</span> <b key={made} className="count-tick">{Math.min(made - signings.base + 1, RUN_IN_SPINS)}</b> / {RUN_IN_SPINS}
                 </>
               ) : places && !fillingStarters ? (
                 <>
-                  <span className="eyebrow">{t('bench')}</span> <b>{d.bench.length}</b> / {places}
+                  <span className="eyebrow">{t('bench')}</span> <b key={made} className="count-tick">{d.bench.length}</b> / {places}
                 </>
               ) : (
                 <>
-                  <span className="eyebrow">{t('pick')}</span> <b>{Math.min(made + 1, total)}</b> / {total}
+                  <span className="eyebrow">{t('pick')}</span> <b key={made} className="count-tick">{Math.min(made + 1, total)}</b> / {total}
                 </>
               )}
             </span>
@@ -419,7 +428,7 @@ export function Draft() {
                     {target ? t('filling', { pos: target.position }) : t('positionFirst')}
                   </div>
                 )}
-                <button ref={spinRef} className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
+                <button ref={spinRef} className={`btn primary spin-btn display${d.current ? ' waiting' : ''}`} disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
                   {d.current ? t(spinning ? 'spinning' : 'pickAPlayer') : choosing ? (target ? t('spinFor', { pos: target.position }) : t('chooseSlot')) : t(made === 0 || (isDynastySummer && !d.history.length) ? 'spinWheel' : places && !fillingStarters ? 'spinBench' : 'spinAgain')}
                 </button>
                 {firstDraft && made === 0 && !d.current && !spinning && !choosing && (
@@ -436,7 +445,7 @@ export function Draft() {
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
                     {t('respin', { n: d.respinsLeft })}
                   </button>
-                  <button className="btn sm ghost" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
+                  <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
                     {t('autoComplete')}
                   </button>
                 </div>
@@ -469,8 +478,8 @@ export function Draft() {
               </div>
               {puLog.length > 0 && (
                 <div className="col pu-log" data-testid="power-up-log" style={{ gap: 2 }}>
-                  {puLog.map((l, i) => (
-                    <div key={i} className="row small" style={{ gap: 8 }}>
+                  {puLog.map((l) => (
+                    <div key={`${l.at}:${l.kind}:${l.text}`} className="row small" style={{ gap: 8 }}>
                       <PowerUpIcon kind={l.kind} size={14} />
                       <span>{l.text}</span>
                     </div>
@@ -493,7 +502,7 @@ export function Draft() {
                   const at = d.history.length - 1 - i
                   const prevId = d.rules.chain ? d.history.slice(0, at).reverse().find((x) => x.pickedId)?.pickedId : undefined
                   return (
-                    <li key={i}>
+                    <li key={at} className={p && at === d.history.length - 1 && p.id === landedId ? 'fresh' : undefined}>
                       {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} role="img" aria-label={t('iconsCollection')}>★</span> : <ClubBadge clubId={h.clubId} size={22} />}
                       <span className="who">
                         <span className={p ? 'name' : 'muted'}>{p ? p.name : t(h.skipped ? 'skipped' : 'respun')}</span>
@@ -618,15 +627,15 @@ export function Draft() {
                     {rich(t('whereDoes', { name: selected.name }), B)}
                   </div>
                   <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
-                    {draftSlotChoices(d, selected).map((c) => {
+                    {fitsFirst(draftSlotChoices(d, selected)).map((c) => {
                       // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
                       const r = slotRating(selected, c.position)
                       return (
-                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingLine(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${c.fit}` : `${slotRatingLine(r, c.label)}, ${c.fit}`}>
-                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {c.fit}
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingText(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${fitText(c.fit)}` : `${slotRatingText(r, c.label)}, ${fitText(c.fit)}`}>
+                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {fitText(c.fit)}
                           {!hide && r.cost > 0 && (
                             <span className="slot-cost" data-testid="slot-cost">
-                              {' '}{t('slotCost', { n: r.overall, cost: costLabel(r) })}
+                              {' '}{t('slotCost', { n: r.overall, cost: costText(r) })}
                             </span>
                           )}
                         </button>
@@ -685,7 +694,7 @@ export function Draft() {
               <h3>{formationName(game.settings.formationId)}</h3>
               <span className={`chip ${Object.keys(d.lineup).length === 11 ? 'good' : ''}`}>{t('starters', { n: Object.keys(d.lineup).length })}</span>
             </div>
-            <Pitch formation={d.formation} lineup={runInXI ?? d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hideSquad} revealId={revealId} />
+            <Pitch formation={d.formation} lineup={runInXI ?? d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hideSquad} revealId={revealId} landedId={landedId} />
             {runInXI && <p className="small muted" style={{ margin: '6px 0 0' }} data-testid="runin-xi-note">{t('runInXI')}</p>}
             {selected && suggestSlot(d, selected) && suggestSlot(d, selected) !== 'bench' && (
               <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(suggestSlot(d, selected) as string)}>

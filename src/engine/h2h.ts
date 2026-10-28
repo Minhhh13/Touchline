@@ -39,7 +39,8 @@ function activeManagers(h: H2HDraft): Array<0 | 1> {
 /** The pool a head-to-head spin draws from: club-seasons useful to everyone still drafting, else the first picker's wheel. */
 function h2hPool(u: LoadedUniverse, h: H2HDraft, active: Array<0 | 1>, firstIdx: 0 | 1): ClubSeason[] {
   const pools = active.map((i) => wheelPool(u, h.drafts[i]))
-  const both = pools.length === 2 ? pools[0].filter((cs) => pools[1].some((x) => x.clubId === cs.clubId && x.season === cs.season)) : pools[0]
+  const second = pools.length === 2 ? new Set(pools[1].map((x) => `${x.clubId}@${x.season}`)) : null
+  const both = second ? pools[0].filter((cs) => second.has(`${cs.clubId}@${cs.season}`)) : pools[0]
   return both.length ? both : pools[active.indexOf(firstIdx)]
 }
 

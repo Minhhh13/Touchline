@@ -1,18 +1,21 @@
-import { useState, type ReactNode } from 'react'
-import { Star, Trophy } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Trophy } from 'lucide-react'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { useStore } from '@game/store'
-import { formSeries, positionMap, seasonSeries, shortSeason } from '@game/logic/playerCard'
-import { isEstimated } from '@game/logic/era'
+import { formSeries, positionMap, seasonSeries } from '@game/logic/playerCard'
+import { roleSuitability } from '@game/logic/playerProfile'
 import { MoraleFace } from '../matchday/MoraleFace'
 import { AttributePanel } from './AttributePanel'
 import { FormGraph, FormPills, PositionMap, SeasonChart } from './PlayerCharts'
-import { Bar, ClubBadge, EstimatedChip, Flag, Modal, Pos, Rating } from './bits'
-import { clubName, conditionColour, fixed, meterValue, money, moraleWord, seasonLabel } from '../format'
+import { BestSeasons, CareerTable, RoleList, SimilarList } from './PlayerProfile'
+import { Bar, EstimatedChip, Flag, Modal, Pos, Rating } from './bits'
+import { clubName, conditionColour, fixed, meterValue, moraleWord, seasonLabel } from '../format'
 import { translator } from '../i18n'
 import { explore } from '../i18n/en/explore'
+import { playerCard } from '../i18n/en/playerCard'
 
 const t = translator(explore)
+const tc = translator(playerCard)
 import { onTabListKey } from '../a11y'
 
 export interface PlayerCardProps {
@@ -32,6 +35,8 @@ export interface PlayerCardProps {
   actions?: ReactNode
   /** Extra cards from other features (Happiness, Contract), each a tab beside Career in the third box, so the box keeps one scroller. */
   panels?: Array<{ id: string; label: string; content: ReactNode }>
+  /** Opens another player's card (Explore): makes the Similar tab's rows buttons. */
+  onPlayer?: (playerId: string) => void
 }
 
 /**
@@ -40,11 +45,18 @@ export interface PlayerCardProps {
  * table, the card's only scroller). It fits one screen on a desktop; on a phone it is a full-height
  * sheet whose boxes stack and scroll together.
  */
-export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtra, actions, panels }: PlayerCardProps) {
-  const { universe: u, shortlist, toggleShortlist } = useStore()
+export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtra, actions, panels, onPlayer }: PlayerCardProps) {
+  const u = useStore((s) => s.universe)
+  const shortlist = useStore((s) => s.shortlist)
+  const toggleShortlist = useStore((s) => s.toggleShortlist)
   const [tab, setTab] = useState('career')
+  const bestRole = useMemo(() => roleSuitability(p, 1)[0], [p])
   if (!u) return null
   const extra = panels?.find((x) => x.id === tab)
+  // Career first, then the card's own deeper tabs (only with seasons to read), then the other features' panels
+  const own = seasons.length ? [{ id: 'best', label: tc('tabBest') }, { id: 'roles', label: tc('tabRoles') }, { id: 'similar', label: tc('tabSimilar') }] : []
+  const tabs = [{ id: 'career', label: t('career') }, ...own, ...(panels ?? []).map((x) => ({ id: x.id, label: x.label }))]
+  const shownTab = tabs.some((x) => x.id === tab) ? tab : 'career'
   const points = seasonSeries(u, seasons)
   const peak = points.reduce((m, x) => Math.max(m, x.overall), 0)
   const titles = seasons.filter((s) => s.accolades.includes('Champion')).length
@@ -52,7 +64,8 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
   const anyEstimated = points.some((x) => x.estimated)
   const form = state ? formSeries(state) : []
   const avg = state && state.seasonStats.apps ? state.seasonStats.ratingSum / state.seasonStats.apps : null
-  const peakSeasonId = points.find((x) => x.peak)
+  const peakPoint = points.find((x) => x.peak)
+  const peakRow = peakPoint ? seasons.find((s) => s.season === peakPoint.season && s.overall === peak) : undefined
   return (
     <div className={`player-card ${state ? 'squad' : 'career'}`} data-testid="player-card">
       <div className="pc-head">
@@ -76,6 +89,11 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
         {seasons.length > 0 && (
           <span className="chip">
             {t('seasonsClubs', { seasons: points.length, clubs })}
+          </span>
+        )}
+        {bestRole && (
+          <span className="chip info" data-testid="card-best-role" title={`${bestRole.position} · ${bestRole.rating}`}>
+            {tc('bestRole', { role: bestRole.name })}
           </span>
         )}
         {anyEstimated && <EstimatedChip compact />}
@@ -126,67 +144,26 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
 
         <section className="pc-box pc-career" aria-label={t('career')}>
           <div className="pc-career-main">
-            {panels?.length ? (
-              <div className="pc-tabs" role="tablist" aria-label={t('careerMore')} onKeyDown={onTabListKey}>
-                {[{ id: 'career', label: t('career') }, ...panels].map((x) => (
-                  <button key={x.id} type="button" role="tab" aria-selected={(extra?.id ?? 'career') === x.id} tabIndex={(extra?.id ?? 'career') === x.id ? 0 : -1} className={(extra?.id ?? 'career') === x.id ? 'active' : ''} onClick={() => setTab(x.id)} data-testid={`card-tab-${x.id}`}>
-                    {x.label}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <h3 className="pc-title">{t('career')}</h3>
-            )}
+            <div className="pc-tabs" role="tablist" aria-label={t('careerMore')} onKeyDown={onTabListKey}>
+              {tabs.map((x) => (
+                <button key={x.id} type="button" role="tab" aria-selected={shownTab === x.id} tabIndex={shownTab === x.id ? 0 : -1} className={shownTab === x.id ? 'active' : ''} onClick={() => setTab(x.id)} data-testid={`card-tab-${x.id}`}>
+                  {x.label}
+                </button>
+              ))}
+            </div>
             <div className="pc-career-scroll" data-testid="career-table">
               {extra ? (
                 <div className="pc-panel">{extra.content}</div>
               ) : seasons.length === 0 ? (
                 <p className="small muted pc-empty">{t('notInDatabase')}</p>
+              ) : shownTab === 'best' ? (
+                <BestSeasons u={u} seasons={seasons} />
+              ) : shownTab === 'roles' ? (
+                <RoleList p={p} />
+              ) : shownTab === 'similar' ? (
+                <SimilarList u={u} p={p} onPlayer={onPlayer} />
               ) : (
-                <table className="tbl pc-tbl">
-                  <thead>
-                    <tr>
-                      <th className="c-season">{t('colSeason')}</th>
-                      <th>{t('colClub')}</th>
-                      <th className="num c-age">{t('colAge')}</th>
-                      <th className="num c-ovr">{t('colOvr')}</th>
-                      <th className="num c-value">{t('colValue')}</th>
-                      <th className="c-star">{t('shortlist')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {seasons.map((s) => {
-                      const on = shortlist.includes(s.id)
-                      const best = !!peakSeasonId && s.season === peakSeasonId.season && s.overall === peak
-                      return (
-                        <tr key={s.id} className={`${s.id === p.id ? 'me' : ''} ${best ? 'best' : ''}`} title={`${seasonLabel(s.season)} · ${clubName(u, s.clubId)} · ${s.overall} · ${money(s.value)}`}>
-                          <td>
-                            <span className="pc-season-long">{seasonLabel(s.season)}</span>
-                            <span className="pc-season-short">{shortSeason(s.season)}</span>
-                          </td>
-                          <td>
-                            <span className="pc-club">
-                              <ClubBadge clubId={s.clubId} size={18} />
-                              <span className="pc-club-name">{clubName(u, s.clubId)}</span>
-                              {s.accolades.includes('Champion') && <Trophy size={13} className="gold-ic" role="img" aria-label={t('champions')} />}
-                            </span>
-                          </td>
-                          <td className="num">{s.age}</td>
-                          <td className="num">
-                            <Rating value={s.overall} />
-                            {isEstimated(u, s.id) && <> <EstimatedChip compact /></>}
-                          </td>
-                          <td className="num c-value">{money(s.value)}</td>
-                          <td className="c-star">
-                            <button type="button" className={`pc-star ${on ? 'on' : ''}`} onClick={() => toggleShortlist(s.id)} title={t(on ? 'onShortlist' : 'shortlistSeason')} aria-label={t(on ? 'removeShortlist' : 'shortlistSeason')} aria-pressed={on}>
-                              <Star size={16} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                <CareerTable u={u} seasons={seasons} current={p.id} peakId={peakRow?.id} shortlist={shortlist} onStar={toggleShortlist} />
               )}
             </div>
           </div>

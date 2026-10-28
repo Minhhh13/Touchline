@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Link, Medal, Minus, Plus, PoundSterling, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { nextSeasonLeagues } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
 import { FirstNext } from '../components/FirstNext'
+import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { continentalRun } from '@game/logic/week'
-import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
-import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
+import { USER_TEAM, seasonTable } from '@engine/season'
+import { isQuickLike, isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
 import { modeText } from '../i18n/modeText'
 import { B, rich } from '../i18n/rich'
 import { realityLine, storyForGame } from '@game/logic/story'
@@ -35,7 +36,7 @@ import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, clubShort, money, nationName, ordinal, seasonLabel, signedValue, tierName } from '../format'
 import { LeagueFlag, NationFlag, QuickLeagueFlag } from '../components/Flag'
-import { isSuperLeague, quickLeagueName, sideNamer, superTierBlurb } from '@game/logic/superLeague'
+import { isSuperLeague, quickLeagueName, sideNamer } from '@game/logic/superLeague'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
@@ -50,7 +51,6 @@ import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { januaryGambleLine } from '@game/logic/januaryGamble'
-import { tierName as rarityName } from '@game/logic/rarity'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
@@ -71,17 +71,23 @@ import { draftGradeLine } from '@game/logic/draftRecap'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
-import { Mic } from 'lucide-react'
+import { Mic, PartyPopper } from 'lucide-react'
+import { useFlash } from '../useFlash'
+import { copyText } from '../shareSheet'
 import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
 import { askConfirm } from '../confirm'
+import { inviteFor, inviteKindOf, oneMore, shareWithInvite, tidyShareText, versusOf } from '@game/logic/shareInvite'
+import { shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
+import { tierBlurbText, tierText } from '../i18n/tierText'
+import { reelTierName, ruleTagText } from '../i18n/engineText'
 
 const t = translator(summary)
 
 export function Summary() {
-  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
-  const [copied, setCopied] = useState(false)
+  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStorePick('universe', 'game', 'go', 'startGame', 'nextSeason', 'abandonGame', 'showToast', 'acceptJob', 'loadingLeagues', 'profile')
+  const [copied, flashCopied] = useFlash()
   const [link, setLink] = useState<string | null>(null)
   const [cardUrl, setCardUrl] = useState<string | null>(null)
   // The game whose highlights are open, by matchweek
@@ -142,6 +148,7 @@ export function Summary() {
   const allBoxes = useBoxes(SUMMARY)
   if (!u || !game || !record) return null
   // The first result ever (a quick-like season): where to go next; null on every later summary
+  const firstEver = resultsFinished(profile) === 1 && isQuickLike(game.settings.mode)
   const firstNext = firstResultNext(profile, game.settings.mode, !!profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`], resultsFinished(profile) === 1 && !!game.quickResult && (['cup', 'continental'] as const).some((c) => quickCupStatus(game, u, c).state === 'open'))
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
@@ -217,7 +224,7 @@ export function Summary() {
   // Head-to-head against the ghost this game was played against
   const mine = claimOf(game)
   if (challenge && mine) extraLines.push(verdictLine(challenge, mine))
-  const text = shareText({
+  const rawText = shareText({
     teamName: game.settings.teamName,
     tier,
     row,
@@ -235,11 +242,14 @@ export function Summary() {
     bootGoals: q ? q.topScorer?.goals : game.awards?.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
     extraLines: extraLines.length ? extraLines : undefined,
   }, APP_NAME)
+  // Emoji-light, and the last line asks a friend in: the challenge link once made, else where to play
+  const invite = inviteFor(inviteKindOf(game), { points: record.points, code: shortCode })
+  const text = shareWithInvite(rawText, invite, link)
+  const versus = challenge && mine ? versusOf(challenge.name, mine, challenge.claim) : undefined
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      flashCopied()
     } catch {
       showToast(t('copyFailed'))
     }
@@ -269,6 +279,15 @@ export function Summary() {
       setLinkShown((n) => n + 1)
     }
   }
+  // A Season or a Dynasty has no wheel to pack into a link: the result goes out through the share sheet with its invitation
+  const inviteFriend = async () => {
+    const url = `${location.origin}${location.pathname}`
+    const outcome = await shareOrCopy({ title: APP_NAME, text: `${tidyShareText(rawText)}\n${invite.title}`, url })
+    if (outcome === 'copied') showToast(t('inviteCopied'))
+    else if (outcome === 'failed') showToast(t('copyFailed'))
+  }
+  // One more: this quick season against the best record (which already counts it); nothing to measure on a first season
+  const more = q && !replay.playing && profile.seasonsSimulated > 1 ? oneMore(profile.quickBests?.bestRecord, record) : null
   const runItBack = () => {
     const d = game.draft
     if (!d || !mine) return
@@ -299,11 +318,14 @@ export function Summary() {
         lineup: game.lineup,
         getPlayer: get,
         footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
+        mode: modeLabel(game, 'short'),
+        beatMe: invite,
+        ...(versus ? { versus } : {}),
         // The Treble or a Double in gold under the record
         ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : cupWins ? { honour: cupWins } : {}),
         ...(gradeLine ? { grade: gradeLine } : {}),
         strip: story?.strip,
-        moment: story?.moment,
+        moment: story?.moment ? tidyShareText(story.moment) : undefined,
         // A chained draft prints its chain of club codes under the record
         ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${countPhrase(record.points, 'points')} · finished ${ordinal(record.position)}`, ...codes] } : {}),
       })
@@ -409,15 +431,20 @@ export function Summary() {
           </div>
         ) : (
           <div className="tier-wrap">
-            <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} />
+            <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} first={firstEver} />
+            {firstEver && (
+              <span className="chip good first-season-chip" data-testid="first-season">
+                <PartyPopper size={13} aria-hidden="true" /> {t('firstSeasonDone')}
+              </span>
+            )}
             <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-              {tierName(tier, record.position, superOn)}
+              {tierText(tier, record.position, superOn)}
             </div>
           </div>
         )}
         {!replay.playing && (
           <p className="tier-blurb" data-testid="tier-blurb">
-            {superOn ? superTierBlurb(tier, record.position, table.length || 20) : tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+            {superOn ? tierBlurbText(tier, record.position, table.length || 20, { superLeague: true }) : tierBlurbText(tier, record.position, table.length || 20, { sacked: !!season?.sacked })}
           </p>
         )}
         {!replay.playing && story && (
@@ -473,7 +500,7 @@ export function Summary() {
           )}
           {!replay.playing && honour === 'double' && (
             <span className="chip gold icon-chip honour-chip" data-testid="banner-double" title={honourDetail(honourCups)}>
-              <Trophy size={12} aria-hidden="true" /> {t(honourLabel(honour, honourCups) === 'The Double' ? 'double' : 'leagueContinentalDouble')}
+              <Trophy size={12} aria-hidden="true" /> {honourCups.includes('cup') ? t('double') : t('leagueContinentalDouble')}
             </span>
           )}
           {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, t('cupWinners'), 'gold')}</span>}
@@ -491,9 +518,9 @@ export function Summary() {
               {c.key === 'cap' ? <PoundSterling size={12} aria-hidden="true" /> : <Link size={12} aria-hidden="true" />} {c.text}
             </span>
           ))}
-          {tags.map((t) => (
-            <span key={t} className="chip">
-              {t}
+          {tags.map((tag) => (
+            <span key={tag} className="chip">
+              {ruleTagText(tag)}
             </span>
           ))}
           {game.settings.rules.onlyNation && (
@@ -511,25 +538,36 @@ export function Summary() {
           )}
         </div>
         <div className="banner-actions">
-          <button className={`btn ${continuing || (q && !replay.playing && summaryMainCall(game, u) !== 'copy') ? '' : 'primary'}`} onClick={copy} data-testid="summary-copy">
+          {/* Challenge a friend leads whenever there is a wheel to send and no cup to play first */}
+          {canChallenge && (
+            <button className={`btn ${!replay.playing && summaryMainCall(game, u) === 'copy' ? 'primary' : ''}`} onClick={() => void makeChallenge()} data-testid="challenge-friend" title={t('challengeFriendTip')}>
+              <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
+            </button>
+          )}
+          {isManage && !replay.playing && (
+            <button className="btn" onClick={() => void inviteFriend()} data-testid="invite-friend" title={t('inviteTip')}>
+              <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
+            </button>
+          )}
+          <button className={`btn ${continuing || canChallenge || (q && !replay.playing && summaryMainCall(game, u) !== 'copy') ? '' : 'primary'}`} onClick={copy} data-testid="summary-copy">
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
           </button>
           <button className="btn" onClick={makeCard}>
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title="The same setup on a new wheel" data-testid="draft-again">
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title={t('draftAgainTip')} data-testid="draft-again">
               <Dices size={16} aria-hidden="true" /> {t('draftAgain')}
-            </button>
-          )}
-          {canChallenge && (
-            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend" title="A link to this wheel: your friend drafts the same spins and plays against your result">
-              <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
             </button>
           )}
           {canChallenge && (
             <button className="btn" onClick={runItBack} data-testid="run-it-back" title={t('runItBackTip')}>
               <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
+            </button>
+          )}
+          {game.settings.mode === 'season' && !replay.playing && (
+            <button className="btn" onClick={() => go('setup', 'season')} data-testid="another-season">
+              <RotateCcw size={16} aria-hidden="true" /> {t('anotherSeason')}
             </button>
           )}
           {continuing && <LeagueRetry needs={nextSeasonLeagues(game, u.available.map((l) => l.id))} />}
@@ -547,6 +585,11 @@ export function Summary() {
             <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>
+        {more && (
+          <p className="small muted one-more" data-testid="one-more">
+            {more.kind === 'best' ? t('oneMoreBest', { target: perfectTarget(games) }) : more.kind === 'short' ? t('oneMoreShort', { n: more.wins, best: recordLabel(bests.bestRecord?.won ?? 0, bests.bestRecord?.drawn ?? 0, bests.bestRecord?.lost ?? 0) }) : t('oneMoreDefeats')}
+          </p>
+        )}
       </div>
 
       {/* Everything under the result: on a desktop one panel that scrolls inside itself */}
@@ -554,6 +597,59 @@ export function Summary() {
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
       {!replay.playing && <CasualStatus game={game} />}
+      {challenge && mine && !replay.playing && (
+        <div className="panel" data-testid="head-to-head">
+          <div className="panel-head">
+            <span className="head-title">
+              <h3>{t('headToHead', { name: challenge.name })}</h3>
+              <Info label={t('aboutChallenge')}>
+                {t('sameSeed')}{' '}
+                {challenge.verified === 'yes' && t('verifiedInfo', { name: challenge.name, pts: challenge.claim.pts })}
+                {challenge.verified === 'unverified' && t('unverifiedInfo', { reason: challenge.reason ?? t('differentData') })}
+                {challenge.verified === 'no' && t('notVerifiedInfo', { reason: challenge.reason ?? t('noReplay') })}
+              </Info>
+            </span>
+            <span className={`chip icon-chip ${challenge.verified === 'yes' ? 'good' : challenge.verified === 'no' ? 'bad' : ''}`}>
+              {challenge.verified === 'yes' ? <ShieldCheck size={12} aria-hidden="true" /> : <ShieldQuestion size={12} aria-hidden="true" />}
+              {t(challenge.verified === 'yes' ? 'verified' : challenge.verified === 'no' ? 'notVerified' : 'unverified')}
+            </span>
+          </div>
+          <div className="grid two">
+            <div className="col">
+              <div className="row between wrap">
+                <b>{challenge.name}</b>
+                <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
+                  {t('claimLine', { pts: challenge.claim.pts, tier: tierText(challenge.claim.t, undefined, superOn), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` })}
+                </span>
+              </div>
+              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
+              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{t('picksUnresolved', { name: challenge.name })}</div>}
+            </div>
+            <div className="col">
+              <div className="row between wrap">
+                <b>{game.settings.teamName}</b>
+                <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
+                  {t('claimLine', { pts: mine.pts, tier: tierText(mine.t, undefined, superOn), record: `${mine.w}-${mine.d}-${mine.l}` })}
+                </span>
+              </div>
+              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
+            </div>
+          </div>
+          <div className="row between wrap h2h-verdict" style={{ marginTop: 'var(--space-3)' }}>
+            <div className={`notice ${versus?.won === true ? 'good' : versus?.won === false ? 'danger' : ''}`} data-testid="verdict">
+              {tidyShareText(verdictLine(challenge, mine))}
+            </div>
+            {canChallenge && (
+              <button className="btn primary" onClick={() => void makeChallenge()} data-testid="send-it-back" title={t('sendBackTip', { name: challenge.name })}>
+                <Send size={16} aria-hidden="true" /> {t('sendBack', { name: challenge.name })}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!replay.playing && <BadgeUnlocks />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
       {firstNext && !replay.playing && <FirstNext steps={firstNext} onDaily={() => go('setup', 'daily')} onSetup={() => go('setup', 'quick')} />}
       {q && results.length > 0 && on('games') && (
@@ -583,7 +679,7 @@ export function Summary() {
         <div className="panel" data-testid="january-summary">
           <div className="panel-head">
             <h3>{t('januaryBusiness')}</h3>
-            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+            <span className="small muted">{t('afterMatchweek', { week: game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2) })}</span>
           </div>
           <div className="small">
             {q.january.kind === 'sign' ? t('januarySigned', { inName: q.january.inName, fee: q.january.fee, outName: q.january.outName }) : t('januarySwapped', { inName: q.january.inName, outName: q.january.outName })}
@@ -595,13 +691,13 @@ export function Summary() {
         <div className="panel" data-testid="january-gamble-summary">
           <div className="panel-head">
             <h3>{t(q.januaryGamble.kind === 'spin' ? 'januarySpin' : 'januaryUpgrader')}</h3>
-            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+            <span className="small muted">{t('afterMatchweek', { week: game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2) })}</span>
           </div>
           <div className="small">
             {q.januaryGamble.kind === 'spin'
               ? q.januaryGamble.outName
-                ? t('caseLandedIn', { inName: q.januaryGamble.inName, tier: rarityName(q.januaryGamble.tier), outName: q.januaryGamble.outName })
-                : t('caseLandedKept', { inName: q.januaryGamble.inName, tier: rarityName(q.januaryGamble.tier) })
+                ? t('caseLandedIn', { inName: q.januaryGamble.inName, tier: reelTierName(q.januaryGamble.tier), outName: q.januaryGamble.outName })
+                : t('caseLandedKept', { inName: q.januaryGamble.inName, tier: reelTierName(q.januaryGamble.tier) })
               : t('upgraderLine', { name: q.januaryGamble.name, chance: q.januaryGamble.chance, boost: q.januaryGamble.boost, won: q.januaryGamble.won ? 'yes' : 'no', delta: q.januaryGamble.delta })}
           </div>
         </div>
@@ -629,8 +725,8 @@ export function Summary() {
       {season?.continental?.groups && !replay.playing && on('europe') && (
         <div className="panel" data-testid="season-europe">
           <div className="panel-head">
-            <h3>Continental Cup</h3>
-            <span className={`chip ${season.continental.won ? 'gold' : ''}`}>{season.continental.won ? 'Winners' : `Out in the ${{ G: 'group stage', R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'G']}`}</span>
+            <h3>{t('cupTitle_continental')}</h3>
+            <span className={`chip ${season.continental.won ? 'gold' : ''}`}>{season.continental.won ? t('winners') : t('outInThe', { round: euroRound(continentalRun(season) ?? 'G') })}</span>
           </div>
           <GroupTables groups={seasonGroupViews(season.continental.groups)} nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))} badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={16} /> : <ClubBadge clubId={id} size={16} />)} userId={USER_TEAM} testId="season-europe-groups" />
           <div style={{ marginTop: 10 }}>
@@ -675,55 +771,10 @@ export function Summary() {
           <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} data-testid="challenge-link-url" />
           {shortCode && <div className="small muted" style={{ marginTop: 6 }}>{t('shortCodeLine', { code: shortCode })}</div>}
           {longLink && (
-            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void navigator.clipboard?.writeText(longLink).then(() => showToast(t('longLinkCopied')), () => setLink(longLink))}>
+            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void copyText(longLink).then((out) => (out === 'copied' ? showToast(t('longLinkCopied')) : setLink(longLink)))}>
               {t('copyLongLink')}
             </button>
           )}
-        </div>
-      )}
-
-      {challenge && mine && (
-        <div className="panel" data-testid="head-to-head">
-          <div className="panel-head">
-            <span className="head-title">
-              <h3>{t('headToHead', { name: challenge.name })}</h3>
-              <Info label={t('aboutChallenge')}>
-                {t('sameSeed')}{' '}
-                {challenge.verified === 'yes' && t('verifiedInfo', { name: challenge.name, pts: challenge.claim.pts })}
-                {challenge.verified === 'unverified' && t('unverifiedInfo', { reason: challenge.reason ?? t('differentData') })}
-                {challenge.verified === 'no' && t('notVerifiedInfo', { reason: challenge.reason ?? t('noReplay') })}
-              </Info>
-            </span>
-            <span className={`chip icon-chip ${challenge.verified === 'yes' ? 'good' : challenge.verified === 'no' ? 'bad' : ''}`}>
-              {challenge.verified === 'yes' ? <ShieldCheck size={12} aria-hidden="true" /> : <ShieldQuestion size={12} aria-hidden="true" />}
-              {t(challenge.verified === 'yes' ? 'verified' : challenge.verified === 'no' ? 'notVerified' : 'unverified')}
-            </span>
-          </div>
-          <div className="grid two">
-            <div className="col">
-              <div className="row between wrap">
-                <b>{challenge.name}</b>
-                <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
-                  {t('claimLine', { pts: challenge.claim.pts, tier: tierName(challenge.claim.t, undefined, superOn), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` })}
-                </span>
-              </div>
-              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
-              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{t('picksUnresolved', { name: challenge.name })}</div>}
-            </div>
-            <div className="col">
-              <div className="row between wrap">
-                <b>{game.settings.teamName}</b>
-                <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
-                  {t('claimLine', { pts: mine.pts, tier: tierName(mine.t, undefined, superOn), record: `${mine.w}-${mine.d}-${mine.l}` })}
-                </span>
-              </div>
-              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
-              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
-            </div>
-          </div>
-          <div className="notice" style={{ marginTop: 'var(--space-3)' }} data-testid="verdict">
-            {verdictLine(challenge, mine)}
-          </div>
         </div>
       )}
 
@@ -921,7 +972,7 @@ export function Summary() {
               <QuickLeagueFlag settings={game.settings} label={leagueName} /> {game.settings.mode === 'quick' ? t('finalTable') : t('finalTableSeason', { season: seasonLabel(game.settings.leagueSeason) })}
             </h3>
             <div className="tbl-wrap">
-              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} />
+              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} zones />
             </div>
           </div>
           )}
@@ -971,7 +1022,7 @@ export function Summary() {
                           <td className="num">{h.points}</td>
                           <td>
                             <span className="row" style={{ gap: 4 }}>
-                              {tierName(h.tier, h.position)}
+                              {tierText(h.tier, h.position)}
                               {h.cupWon && (
                                 <span className="chip gold icon-chip" title={t('cupWinners')}>
                                   <Medal size={12} aria-hidden="true" /> {t('cupChip')}

@@ -166,7 +166,9 @@ export function foreseeStop(game: Game, u: LoadedUniverse): { label: string; mat
   for (const k of knockouts) {
     if (k.out) continue
     const tie = k.ties.find((t) => !t.result && (t.round === 'SF' || t.round === 'F') && t.afterMatchweek > season.matchweek && (t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM))
-    if (tie) found.push({ label: describeImportance(u, season.hostClubId, '', null, tie.afterMatchweek, tie.round, k.comp).label ?? 'Cup tie', matchweek: tie.afterMatchweek })
+    // A two-legged tie (engine 7's Continental Cup) stops at its first leg while that is still to play, as `nextStop` does
+    const at = tie?.firstLeg && !tie.firstLeg.result && tie.firstLeg.afterMatchweek > season.matchweek ? tie.firstLeg.afterMatchweek : tie?.afterMatchweek
+    if (tie && at) found.push({ label: describeImportance(u, season.hostClubId, '', null, at, tie.round, k.comp).label ?? 'Cup tie', matchweek: at })
   }
   const half = Math.floor(season.matchweeks / 2)
   if (!game.window && season.matchweek < half) found.push({ label: 'the January window', matchweek: half })

@@ -2,8 +2,8 @@ name: CI
 
 # Push runs only on main (Render deploys main once this passes); every other branch is checked through its pull request,
 # so a branch with an open PR is not built twice. Concurrency cancels a superseded run of the same ref. The full test
-# suite (most of the run's minutes) runs on the pull request, which tests the merged tree; the push to main that merging
-# makes runs everything else, so a release is not tested twice.
+# suite (most of the run's minutes) runs on the pull request, which tests the merged tree, in three shards beside the
+# build job; the push to main that merging makes runs the build job only, so a release is not tested twice.
 on:
   push:
     branches: [main]
@@ -25,8 +25,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
-        if: github.event_name == 'pull_request'
       - run: npm run build
       # The phone's first download: the entry chunk and the stylesheet under their gzip budgets (docs/PERFORMANCE.md)
       - run: npx vitest run src/ui/__tests__/budget.test.ts
@@ -35,3 +33,23 @@ jobs:
       - run: npm run check:dist-keys
       - run: npm run build:verifier
       - run: npm run check:verifier
+
+  # The whole suite, split three ways by file (vitest --shard); each shard runs its files on every core, longest first
+  # (SLOW_FILES in vitest.config.ts). Together the three shards are exactly `npm test`.
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: test (${{ matrix.shard }}/3)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --shard=${{ matrix.shard }}/3

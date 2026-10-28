@@ -1,4 +1,5 @@
-import { slotOf, useStore } from '@game/store'
+import { slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { isArenaPayload } from '@engine/challenge'
 import { cupRoundName } from '@engine/cup'
@@ -21,7 +22,7 @@ import { askConfirm } from '../confirm'
  * banner states the challenger's run and how far it verified.
  */
 export function ArenaChallengeSetup() {
-  const { universe: u, pendingChallenge, startGame, go, game, parked, loadingLeagues } = useStore()
+  const { universe: u, pendingChallenge, startGame, go, game, parked, loadingLeagues } = useStorePick('universe', 'pendingChallenge', 'startGame', 'go', 'game', 'parked', 'loadingLeagues')
   // An invented club name, or the one this viewer last typed (teamName.ts)
   const team = useTeamName()
   if (!u || !pendingChallenge || !isArenaPayload(pendingChallenge.payload)) return null
@@ -42,7 +43,7 @@ export function ArenaChallengeSetup() {
   return (
     <div className="page">
       <div className="row between wrap" style={{ marginBottom: 12 }}>
-        <h1>{t('challengeTitle', { format: arenaFormatText(settings.arena) })}</h1>
+        <h1 data-testid="challenge-title">{t('playingRun', { name: ch.name, format: arenaFormatText(settings.arena) })}</h1>
         <button className="btn ghost" onClick={() => go('home')}>
           {t('back')}
         </button>

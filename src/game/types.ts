@@ -57,6 +57,12 @@ export interface GameSettings {
   matchPlay?: 'watch' | 'auto' | 'sim'
   /** Quick Draft and the Daily: the season stops after the halfway matchweek for a January window. Absent (older saves) is off. */
   january?: boolean
+  /**
+   * Season and Dynasty: player power (`src/game/logic/transferRequests.ts`). On, unhappy players may hand in transfer
+   * requests on their own, rolled on forks of a copy of the stream. Absent (the default) or false, nobody asks to leave
+   * unless the manager broke a promise to him, and a game nobody manages through the office plays exactly as before.
+   */
+  playerPower?: boolean
   /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
   challenge?: ChallengeSettings
   /** The arena format of a mode `arena` game (absent for every other mode). */
@@ -219,6 +225,11 @@ export interface Contract {
   loan?: boolean
   /** Squad status: how much football he expects (section 10 of the design doc); rotation when absent. */
   status?: SquadStatus
+  /**
+   * The highest status the Club tab has raised his wage to (`setSquadStatus`), when a demotion has left it above his
+   * status: moving him back up raises the wage only past it. Absent reads as `status`; contract talks clear it.
+   */
+  paidStatus?: SquadStatus
   /** Terms agreed in contract talks (`src/game/logic/contracts.ts`); absent on every contract nobody has negotiated. */
   clauses?: ContractClauses
   /** A sell-on clause agreed when he was signed: the selling club takes `pct` of the fee when he is sold on. */
@@ -456,6 +467,119 @@ export interface Game {
   youthFacilities?: number
   /** The data hub: expected goals, expected assists and attempts for the user's players this season, from full-detail matches. */
   dataHub?: Record<string, { xg: number; xa: number; shots: number }>
+  /**
+   * The manager's office (Football Manager depth, round 8: `src/game/logic/office.ts`): promises, transfer requests,
+   * transfer talks with clubs, personal terms, counter-offers, instalments and the week's press conference. Absent until
+   * the manager first uses one of them (or player power lodges a request), and read as empty; everything in it is keyed
+   * by real player id, so a Dynasty summer needs no remap.
+   */
+  office?: OfficeState
+}
+
+/** A promise to one player, kept or broken by what happens over the weeks it runs (`src/game/logic/promises.ts`). */
+export interface OfficePromise {
+  kind: 'minutes' | 'contract' | 'signing'
+  /** Real player id. */
+  playerId: string
+  name: string
+  /** Game year and matchweek it was made in. */
+  year: number
+  madeAt: number
+  /** The matchweek it falls due (the season's last at the latest). */
+  due: number
+  /** Minutes: the share of the minutes on offer he was promised, and his season minutes when it was made. */
+  share?: number
+  minutesAt?: number
+  /** Contract: the seasons left on his contract when it was made. */
+  yearsAt?: number
+  /** Signing: the position to strengthen, the overall a signing must reach, the real ids already in the squad, and whether the window it waits on has opened. */
+  position?: Position
+  overall?: number
+  squadAt?: string[]
+  windowSeen?: boolean
+  state: 'open' | 'kept' | 'broken'
+  /** Matchweek it was settled in. */
+  settledAt?: number
+}
+
+/** A transfer request: he wants out, and why. */
+export interface TransferRequest {
+  /** Real player id; the record is kept under it. */
+  playerId: string
+  name: string
+  reason: 'minutes' | 'morale' | 'promise' | 'interest' | 'results'
+  year: number
+  /** Matchweek it was handed in. */
+  at: number
+  /** open: waiting on the manager; listed: he may go; refused: told to stay; withdrawn: talked round. */
+  stage: 'open' | 'listed' | 'refused' | 'withdrawn'
+  /** Talks that failed to change his mind, and the matchweek of the last one. */
+  failedTalks?: number
+  talkedAt?: number
+  /** Matchweek the stage last changed. */
+  settledAt?: number
+  /** Matchweeks it has waited with the manager at the desk (weeks inside a multi-week sim do not count), and the last one counted. */
+  waits?: number
+  seen?: number
+}
+
+/** Fee talks with a selling club for one listing in the open window (`src/game/logic/transferTalks.ts`). */
+export interface FeeTalk {
+  /** The window they belong to (`windowKey`). */
+  window: string
+  rounds: number
+  /** Our last proposal and their answer. */
+  last?: { fee: number; sellOn: number; instalments: 1 | 2 | 3 }
+  counter?: number
+  /** Agreed: personal terms come next. */
+  agreed?: { fee: number; sellOn: number; instalments: 1 | 2 | 3 }
+  /** Talks over: they will not deal again this window. */
+  closed?: boolean
+  /** Personal terms the player turned down. */
+  termsFailed?: number
+}
+
+/** Our counter to an AI club's bid for one of our players. */
+export interface SellTalk {
+  window: string
+  /** Their final offer after our counter, GBP millions; absent once they have walked. */
+  final?: number
+  walked?: boolean
+}
+
+/** A fee being paid in instalments: what is still owed, paid as each later window opens. */
+export interface Instalment {
+  name: string
+  clubId: string
+  /** GBP millions per payment. */
+  amount: number
+  left: number
+  /** The window the last payment fell in. */
+  window: string
+}
+
+/** This week's press conference: the questions asked and the answers given. */
+export interface PressConference {
+  year: number
+  week: number
+  questions: string[]
+  answers: Record<string, string>
+}
+
+export interface OfficeState {
+  /** `${year}:${matchweek}` the office last caught up on. */
+  tick?: string
+  promises?: OfficePromise[]
+  /** By real player id. */
+  requests?: Record<string, TransferRequest>
+  /** Promises broken to each player (real id), this game: he believes the next one less. */
+  broken?: Record<string, number>
+  /** By the listing's player-season id. */
+  feeTalks?: Record<string, FeeTalk>
+  /** By `offerKey`. */
+  sellTalks?: Record<string, SellTalk>
+  instalments?: Instalment[]
+  press?: PressConference
 }
 
 /**
@@ -857,6 +981,40 @@ export interface Cabinet {
    * its best honour. Optional (absent on cabinets before the bracket); read with `??`, filled by `normaliseCabinet`.
    */
   honours?: HonourEntry[]
+  /**
+   * The r8 feats (`src/game/logic/feats.ts`): engine 7's Continental Cup groups and comebacks, the Dynasty's length and
+   * academy, titles by season, under a cap and in classic seasons, perfect drafts and the Run-in of the week. Optional
+   * (absent on cabinets before them); read through `featsOf`, backfilled once from the leaderboard (`featsFromBoard`).
+   */
+  feats?: CabinetFeats
+}
+
+/** Counts the r8 milestones read; every list holds distinct keys, so a replay never counts twice. */
+export interface CabinetFeats {
+  /** Continental Cup groups finished top (engine 7). */
+  groupsWon: number
+  /** Group stages won with every match won. */
+  groupsPerfect: number
+  /** Two-legged ties won after losing the first leg. */
+  comebacks: number
+  /** The most seasons finished in one Dynasty. */
+  dynastyBest: number
+  /** Academy prospects promoted and still in the squad at the season's end. */
+  graduates: number
+  /** League titles in classic seasons (before 2008-09), every one, not only the leaderboard's 50. */
+  classicTitles: number
+  /** League titles drafted under a salary cap. */
+  cappedTitles: number
+  /** Titles under a cap with at least a quarter of it left unspent. */
+  thriftyTitles: number
+  /** The real seasons (start years) you have won a league in, each once, ascending. */
+  seasonsTitled: number[]
+  /** Seeds of drafts where every pick took an A (`pickGrades`), each once (at most `FEAT_LIST_CAP`). */
+  perfectDrafts: string[]
+  /** Run-in of the week keys (`2026-W44`) whose brief was met, each once (at most `FEAT_LIST_CAP`). */
+  runInWeeks: string[]
+  /** Post-season cups already read for feats (`resultId:comp`), so a cup is counted once (the last `FEAT_LIST_CAP`). */
+  seen: string[]
 }
 
 /** A Treble (league, Cup and Continental Cup) or a Double (the league and one cup), on the Trophy Room's honours board. */

@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
+    "test:fast": "vitest run --config vitest.fast.config.ts",
     "test:watch": "vitest",
     "lint": "tsc -b --noEmit",
     "check:dist-keys": "node scripts/online/check-dist-keys.mjs dist",

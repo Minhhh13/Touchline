@@ -55,18 +55,18 @@ Rules of thumb: put new code in new files, keep diffs surgical, never reflow lon
 
 ## 5. Checks before pushing
 
-CI (`.github/workflows/ci.yml`) runs only on pull requests and on pushes to `main`: a branch without a pull request is not built at all, a newer push to a pull request cancels the run still going, and the full `npm test` (most of the run's minutes) runs on the pull request only, since it tests the merged tree; the push to `main` that merging makes runs the rest (typecheck, build, the first-download budget, `check:dist-keys`, `build:verifier`, `check:verifier`), which Render waits for. So:
+CI (`.github/workflows/ci.yml`) runs only on pull requests and on pushes to `main`: a branch without a pull request is not built at all, a newer push to a pull request cancels the run still going, and the full test suite runs on the pull request only (three shards beside the build job), since it tests the merged tree; the push to `main` that merging makes runs the rest (typecheck, build, the first-download budget, `check:dist-keys`, `build:verifier`, `check:verifier`), which Render waits for. So:
 
 - **Run the checks locally first** and treat CI as the confirmation, not the test runner.
 - **Push in batches.** Commit as often as you like, but push a pull request's branch when a batch is ready, not after every commit: each push to an open pull request starts a full run. A release is one pull request (usually from `claude/touchline-preview`) with one full run, plus one short run on `main` after the merge.
-- A slow seeded sweep can hit Vitest's 5 s timeout on a loaded machine; rerun that file alone (or the whole suite with `--testTimeout=180000`) before suspecting it.
+- **Run tests fast while you work, all of them before you push.** `npm run test:fast` skips the long seeded sweeps (`SLOW_FILES` in `vitest.config.ts`) and gives a verdict in about four minutes on 4 cores; `npx vitest run src/game/__tests__/thatFile.test.ts` runs one file; `npm test` (about eight minutes) is the gate and what CI runs, in three shards (`npx vitest run --shard=1/3` reproduces one). Every test has 60 s unless it names its own timeout; a seeded sweep that runs for more than about ten seconds yields with `await breathe()` (`src/engine/__tests__/helpers.ts`) every few seeds and goes in `SLOW_FILES`. `loadTestUniverse` is shared within a file: never change the universe it returns; take `freshTestUniverse` for that (`TL_FREEZE_UNIVERSE=1 npm test` finds a test that does).
 
 Run all of these locally before you push:
 
 ```bash
 npm ci                 # after pulling a lockfile change
 npm run typecheck      # tsc strict: no any, no unused symbols
-npm test               # Vitest, real data packs, about four minutes
+npm test               # Vitest, real data packs, about eight minutes (npm run test:fast while you work)
 npm run build          # what Render runs
 ```
 

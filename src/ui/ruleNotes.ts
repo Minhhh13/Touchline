@@ -1,4 +1,5 @@
-import { MODE_INFO } from '@engine/modes'
+import { MODE_INFO, type ModeCard } from '@engine/modes'
+import { modeCardLine } from './i18n/engineText'
 import type { RuleChip } from '@game/logic/setup'
 import { translator } from './i18n'
 import { setup } from './i18n/en/setup'
@@ -12,7 +13,7 @@ const tr = translator(setup)
  */
 export function ruleChipNote(chip: RuleChip): string | undefined {
   const t = chip.text
-  if (chip.icon && chip.icon in MODE_INFO) return MODE_INFO[chip.icon as keyof typeof MODE_INFO].line
+  if (chip.icon && chip.icon in MODE_INFO) return modeCardLine(chip.icon as ModeCard)
   if (/re-spins?$/.test(t)) return /^No re-spins$|: no re-spins$/.test(t) ? tr('noteNoRespins') : tr('noteRespins')
   if (t === 'Ratings on') return tr('noteRatingsOn')
   if (t === 'Ratings hidden') return tr('noteRatingsHidden')

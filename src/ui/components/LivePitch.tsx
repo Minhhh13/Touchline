@@ -26,6 +26,7 @@
  * rings one man and keeps his name on (the Squad strip's selection).
  */
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react'
+import { useBallSounds, type BallSoundOptions } from '../sound/useBallSounds'
 import type { Appearance } from '@engine/match'
 import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
 import { GOAL_FLIGHT_MS, skipHold, timeline, useLiveClock, type GoalHold } from '../match/clockStore'
@@ -38,11 +39,15 @@ import { epochAt, type MatchPath } from '../match/epochs'
 import { celebrationEnvelope, confetti, flightProgress, netBulge, scorerRun } from '../match/celebration'
 import { finishOf, goalFlightAt } from '../match/finish'
 import { ballSprite, ballView } from '../match/flight'
-import { capFrame, frameCap, wakeCap } from '../match/frameCap'
+import { capFrame, frameCap, wakeCap, type FrameCap } from '../match/frameCap'
 import { cornerDelivery, dotName, passFlash, shotMarks, shotTrailAt, xgBand, type ShotMark } from '../match/overlays'
 import { BUILD_UP, CAMERA, REPLAY, buildUpAt, cameraTransform, celebrationMs, focusAt, focusMoments, replayFrame, shooterRing, type FocusMoment, type ReplayFrame, type ViewBox } from '../match/keyMoments'
 import { shotXg } from '@engine/matchStats'
 import { minuteLabel, textColourFor } from '../format'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 export interface PitchSide {
   name: string
@@ -72,6 +77,10 @@ export interface LivePitchProps {
   keyMoments?: boolean
   /** A man to pick out (the Squad strip's selection): a ring on his dot and his name always shown. */
   highlightId?: string | null
+  /** Drawn over the pitch beside the goal celebration (the match day's half-time and full-time card); presentation only. */
+  overlay?: ReactNode
+  /** The ball's sounds (kicks, saves, the woodwork, the crowd's swells and bed: sound/ball.ts), on the shared live clock; absent for none. */
+  sounds?: Omit<BallSoundOptions, 'path' | 'enabled'>
 }
 
 export function useMediaQuery(query: string): boolean {
@@ -340,10 +349,29 @@ function writeTag(text: SVGTextElement | null, bg: SVGRectElement | null, name: 
 }
 
 /** The camera this frame: eased towards where it wants to be, as a transform on the pitch's group. */
-interface Camera {
+export interface Camera {
   x: number
   y: number
   s: number
+}
+/**
+ * What the loop keeps across its restarts on one pitch (a substitution's new placements, a new path, a new feed): the
+ * frame-time record and the cap belong to the device, so a slow phone stays in lite mode instead of warming up again
+ * for 90 frames at every change; the camera belongs to the picture, so it carries on unless the orientation or the
+ * match changed (it used to snap out to the whole pitch and lean in again).
+ */
+export interface LoopKeep {
+  perf: { mean: number; frames: number; lite: boolean }
+  cap: FrameCap
+  cam: Camera
+  view: string
+}
+export function loopKeep(prev: LoopKeep | null, portrait: boolean, seed: string): LoopKeep {
+  const view = `${portrait ? 'p' : 'l'}|${seed}`
+  if (prev && prev.view === view) return prev
+  const box = viewBoxOf(portrait)
+  const cam: Camera = { x: box.x + box.w / 2, y: box.y + box.h / 2, s: 1 }
+  return prev ? { ...prev, cam, view } : { perf: { mean: 16.7, frames: 0, lite: false }, cap: frameCap(), cam, view }
 }
 function aimCamera(cam: Camera, want: Camera, dt: number, snap: boolean): void {
   if (snap) {
@@ -357,7 +385,7 @@ function aimCamera(cam: Camera, want: Camera, dt: number, snap: boolean): void {
   cam.s = approach(cam.s, want.s, dt, want.s > cam.s ? 320 : 420)
 }
 
-export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers, keyMoments = false, highlightId = null }: LivePitchProps) {
+export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers, keyMoments = false, highlightId = null, overlay, sounds }: LivePitchProps) {
   const portrait = useMediaQuery('(max-width: 720px)')
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   const clock = useLiveClock((s) => s.clock)
@@ -431,12 +459,14 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const codes = useMemo(() => ({ home: home.shortName, away: away.shortName }), [home.shortName, away.shortName])
   // The overlays' inputs: each man's name tag, every shot's xG band, the moments the camera leans in on
   const names = useMemo(() => new Map([...placed].map(([key, p]) => [key, dotName(getPlayer(p.psId)?.name)])), [placed, getPlayer])
+  useBallSounds({ path, enabled: !!sounds && !reduced, bed: sounds?.bed ?? 0, ...(sounds?.goals ? { goals: sounds.goals } : {}) })
   const ranges = useMemo(() => (track && track.epochs.length ? track.epochs.map((e) => ({ from: e.from, to: e.to })) : [{ from, to }]), [track, from, to])
   const marks = useMemo(() => shotMarks(path, events, ranges), [path, events, ranges])
   // The big moments: the build-up marks them at every speed, the camera (Key moments) leans in on them
   const chances = useMemo(() => focusMoments(events, ranges), [events, ranges])
   const moments = useMemo(() => (keyMoments ? chances : []), [keyMoments, chances])
   const markKey = useMemo(() => (highlightId ? [...placed.keys()].find((k) => placed.get(k)!.psId === highlightId) : undefined), [highlightId, placed])
+  const keepRef = useRef<LoopKeep | null>(null)
 
   // The animation: one frame reads the shared clock, works out where everything should be and
   // eases what is on screen towards it. It runs while the clock does (a goal's hold counts):
@@ -458,15 +488,16 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     let id = 0
     let caption = ''
     const box = viewBoxOf(portrait)
-    const cam: Camera = { x: box.x + box.w / 2, y: box.y + box.h / 2, s: 1 }
+    const keep = (keepRef.current = loopKeep(keepRef.current, portrait, seed))
+    const cam = keep.cam
     let tag = ''
     let markTag = ''
     let inReplay = false
     let leftReplay = -1
     // A device that cannot keep up drops the camera and the pass lines while it struggles (liteMode: a running mean of the frame time, with hysteresis)
-    const perf = { mean: 16.7, frames: 0, lite: false }
+    const perf = keep.perf
     // One that keeps missing 60 fps draws every other frame (frameCap.ts): the same picture at fewer moments
-    const cap = frameCap()
+    const cap = keep.cap
     const at = (x: number, y: number) => {
       const [sx, sy] = map(x, y)
       return `translate(${sx.toFixed(2)} ${sy.toFixed(2)})`
@@ -736,7 +767,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const homeOn = onPitchAt(homePlaced, minute)
   const awayOn = onPitchAt(awayPlaced, minute)
   const booked = useMemo(() => new Set(events.filter((e) => e.type === 'yellow' && e.minute <= minute && e.playerId).map((e) => dotKey(e.side, e.playerId!))), [events, minute])
-  const flashes = events.filter((e) => (e.type === 'red' || e.type === 'injury' || e.type === 'substitution') && e.minute <= minute && (minute < e.minute + 3 || minute >= to) && e.minute > minute - 6 && e.playerId)
+  const flashes = events.filter((e) => (e.type === 'red' || e.type === 'yellow' || e.type === 'injury' || e.type === 'substitution') && e.minute <= minute && (minute < e.minute + 3 || minute >= to) && e.minute > minute - 6 && e.playerId)
   // Reduced motion: once a minute, the ball on its last keyframe and everyone where the shape has them then
   const stillT = Math.min(to, minute) + 0.99
   const stillBall = reduced ? ballAt(path, stillT, true) : null
@@ -767,7 +798,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           <text y="0.85" textAnchor="middle" fontSize={label !== undefined ? 2.5 : 2.3} fontWeight="700" fill={textColourFor(colour)}>
             {label !== undefined ? String(label) : initials(name)}
           </text>
-          {booked.has(key) && <rect x="1.7" y="-3.9" width="1.5" height="2.1" rx="0.2" fill="var(--gold)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.2" />}
+          {booked.has(key) && <rect className="dot-card" x="1.7" y="-3.9" width="1.5" height="2.1" rx="0.2" fill="var(--gold)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.2" />}
         </g>
       </g>
     )
@@ -781,7 +812,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       <div className="pitch-svg-box">
       <PitchSvg
         portrait={portrait}
-        label={`${home.name} against ${away.name}, minute ${minute}`}
+        label={tx('pitchAria', { home: home.name, away: away.name, minute })}
         camera={cameraRef}
         overlay={!reduced && <rect ref={cutRef} className="pitch-cut" x="-3" y="-3" width={portrait ? 74 : 111} height={portrait ? 111 : 74} opacity="0" pointerEvents="none" />}
       >
@@ -837,7 +868,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
             const [sx, sy] = map(p.x, p.y)
             return (
               <g key={`${e.type}-${e.minute}-${i}`} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`}>
-                <g className="live-flash">
+                <g className={`live-flash ${e.type}`}>
+                  {e.type === 'yellow' && <rect x="-1.4" y="-6.8" width="2.8" height="3.8" rx="0.3" fill="var(--gold)" stroke="#fff" strokeWidth="0.3" />}
                   {e.type === 'red' && <rect x="-1.4" y="-6.8" width="2.8" height="3.8" rx="0.3" fill="var(--danger)" stroke="#fff" strokeWidth="0.3" />}
                   {e.type === 'injury' && (
                     <g stroke="#fff" strokeWidth="0.8" strokeLinecap="round">
@@ -886,12 +918,13 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       {!reduced && keyMoments && <ReplayBadge innerRef={replayRef} onSkip={skipReplay} />}
       </div>
       {burst && <GoalBurst key={`${burst.key}-${celebrating}`} hold={burst} events={events} home={home} away={away} reduced={reduced} />}
+      {overlay}
       <div className="live-legend small">
         <span className="row" style={{ gap: 6 }}>
           <span className="swatch" style={{ background: home.colour }} />
           {home.shortName} <span className="muted">{portrait ? '↑' : '→'}</span>
         </span>
-        <span className="muted">{portrait ? 'attacking up' : 'attacking right'}</span>
+        <span className="muted">{tx(portrait ? 'attackingUp' : 'attackingRightWord')}</span>
         <span className="row" style={{ gap: 6 }}>
           <span className="muted">{portrait ? '↓' : '←'}</span> {away.shortName}
           <span className="swatch" style={{ background: away.colour }} />
@@ -905,9 +938,9 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
 function ReplayBadge({ innerRef, onSkip }: { innerRef: Ref<HTMLDivElement>; onSkip: () => void }) {
   return (
     <div ref={innerRef} className="pitch-replay" data-testid="pitch-replay">
-      <span className="pitch-replay-label">Replay</span>
+      <span className="pitch-replay-label">{tx('replay')}</span>
       <button type="button" className="pitch-replay-skip" onClick={onSkip} data-testid="replay-skip">
-        Skip
+        {tx('skip')}
       </button>
     </div>
   )
@@ -1027,8 +1060,8 @@ function GoalBurst({ hold, events, home, away, reduced }: { hold: { key: string;
   const colour = hold.side === 'home' ? home.colour : away.colour
   const ink = textColourFor(colour)
   const pieces = hold.tone !== 'theirs' && !reduced ? confetti([colour, '#ffffff', ink === '#fff' ? '#ffd54a' : '#111111']) : []
-  const title = ev.type === 'own_goal' ? 'OWN GOAL!' : ev.type === 'penalty' ? 'GOAL! (PEN)' : 'GOAL!'
-  const who = ev.type === 'own_goal' ? `${ev.playerName ?? 'A defender'} (og)` : ev.playerName ?? (hold.side === 'home' ? home.shortName : away.shortName)
+  const title = tx(ev.type === 'own_goal' ? 'ownGoalTitle' : ev.type === 'penalty' ? 'penGoalTitle' : 'goalTitle')
+  const who = ev.type === 'own_goal' ? tx('ownGoalBy', { name: ev.playerName ?? tx('aDefender') }) : ev.playerName ?? (hold.side === 'home' ? home.shortName : away.shortName)
   const style = { '--burst': colour, '--burst-ink': ink, '--burst-ms': `${celebrationMs(hold)}ms`, '--flight': `${reduced ? 0 : GOAL_FLIGHT_MS}ms` } as CSSProperties
   return (
     <div className={`goal-burst ${hold.tone} ${reduced ? 'still' : ''}`} style={style} data-testid="goal-burst" data-tone={hold.tone} role="status" aria-live="polite">

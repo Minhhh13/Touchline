@@ -45,3 +45,17 @@ describe('the Profile achievements list', () => {
     expect(orderAchievements(all, {}).map((x) => x.id)).toEqual(['a', 'b', 'c', 'd'])
   })
 })
+
+describe('the career record against the cabinet', () => {
+  it('counts a first place as the cabinet counts a title: a sacked season filed relegated is not one', () => {
+    const o = careerOverview({ leaderboard: [entry('top', { position: 1, tier: 'CHAMPIONS', mode: 'season' }), entry('sacked', { position: 1, tier: 'RELEGATED', mode: 'season' })] }, { byMode: { season: 2 }, league: 1 })
+    expect(o.firstPlaces).toBe(1)
+    expect(o.kept).toBe(2)
+  })
+
+  it('keeps the league modes the cabinet keeps, and nothing else', () => {
+    const o = careerOverview({ leaderboard: [entry('q', { mode: 'quick' }), entry('w', { mode: 'weekly' }), entry('r', { mode: 'runin' }), entry('a', { mode: 'arena' })] }, { byMode: { quick: 1, weekly: 1, runin: 1, arena: 1 }, league: 0 })
+    expect(o.kept).toBe(2)
+    expect(o.results).toBe(4)
+  })
+})

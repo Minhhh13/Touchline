@@ -6,12 +6,17 @@
  */
 import { shotXg } from '@engine/matchStats'
 import type { MatchEvent } from '@engine/types'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 export type HighlightLevel = 'full' | 'extended' | 'key'
 export const HIGHLIGHT_LEVELS: Array<{ id: HighlightLevel; label: string; hint: string }> = [
-  { id: 'full', label: 'Full match', hint: 'Every minute at the chosen speed' },
-  { id: 'extended', label: 'Extended', hint: 'Goals, chances, cards, injuries and changes at the chosen speed; the rest fast. Winds down to Key at three goals up or down' },
-  { id: 'key', label: 'Key moments', hint: 'Goals, penalties, big chances, red cards and injuries at the chosen speed; the rest fast' },
+  // Getters: the words are read through t() when shown, not once at import
+  { id: 'full', get label() { return t('levelFull') }, get hint() { return t('levelFullHint') } },
+  { id: 'extended', get label() { return t('levelExtended') }, get hint() { return t('levelExtendedHint') } },
+  { id: 'key', get label() { return t('levelKey') }, get hint() { return t('levelKeyHint') } },
 ]
 
 /** How much faster the clock runs through a quiet minute. */

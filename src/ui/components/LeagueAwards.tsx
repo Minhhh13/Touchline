@@ -14,7 +14,8 @@ const t = translator(dugout)
  * marked. Derived (`src/game/logic/leagueAwards.ts`), never saved.
  */
 export function LeagueAwards() {
-  const { universe: u, game } = useStore()
+  const u = useStore((s) => s.universe)
+  const game = useStore((s) => s.game)
   if (!u || !game?.season || (game.settings.mode !== 'season' && game.settings.mode !== 'dynasty')) return null
   const a = leagueAwards(game, u)
   if (!a) return null

@@ -19,7 +19,8 @@ describe('the fixed-rules chips draw Lucide icons', () => {
 
   it('Setup renders the chips with RULE_ICON, never an emoji beside the words', () => {
     const setup = readFileSync(join(__dirname, '..', 'screens/Setup.tsx'), 'utf8')
-    expect(setup).toContain('describeRuleChips(u, fixed.rules)')
+    // Through ruleChipsText, the chips of describeRuleChips in the viewer's language (copyMirror.test.ts)
+    expect(setup).toContain('ruleChipsText(u, fixed.rules)')
     expect(setup).toContain('RULE_ICON[c.icon]')
     expect(setup).not.toMatch(/describeRules\(u, fixed\.rules\)/)
   })

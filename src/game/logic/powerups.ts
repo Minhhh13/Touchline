@@ -46,12 +46,14 @@ export function powerUpLog(d: DraftState, nameOf: (playerSeasonId: string) => st
 
 /** "🧰 ⬆️+5 🔁 👁️ 🔀 ©️ 🔒" for the share text: the tray's icon and each power-up used, in tray order. Null when none was. */
 export function powerUpsShareLine(d: DraftState | null | undefined): string | null {
+  // The Upgrader carries its result: "⬆️+5", "⬆️±0🔒", "⬆️-3"
+  const iconOf = (k: PowerUp, up: DraftState['upgrade']) => (k === 'upgrader' && up ? `${POWER_UP_INFO.upgrader.icon}${up.won ? `+${up.delta}` : up.locked ? '±0🔒' : up.delta}` : POWER_UP_INFO[k].icon)
   // A draft without the tray that unpacked power-ups from the locker: "🎒 Locker 🔀 👁️", those it used
   if (d && !d.rules.powerUps && d.locker?.length) {
-    const used = POWER_UPS.filter((k) => d.locker!.includes(k) && powerUpUsed(d, k)).map((k) => (k === 'upgrader' && d.upgrade ? `${POWER_UP_INFO.upgrader.icon}${d.upgrade.won ? `+${d.upgrade.delta}` : d.upgrade.locked ? '±0🔒' : d.upgrade.delta}` : POWER_UP_INFO[k].icon))
+    const used = POWER_UPS.filter((k) => d.locker!.includes(k) && powerUpUsed(d, k)).map((k) => iconOf(k, d.upgrade))
     return used.length ? `🎒 Locker ${used.join(' ')}` : '🎒 Locker unpacked, unused'
   }
   if (!d?.rules.powerUps) return null
-  const used = POWER_UPS.filter((k) => powerUpUsed(d, k)).map((k) => (k === 'upgrader' && d.upgrade ? `${POWER_UP_INFO.upgrader.icon}${d.upgrade.won ? `+${d.upgrade.delta}` : d.upgrade.locked ? '±0🔒' : d.upgrade.delta}` : POWER_UP_INFO[k].icon))
+  const used = POWER_UPS.filter((k) => powerUpUsed(d, k)).map((k) => iconOf(k, d.upgrade))
   return used.length ? `${POWER_UPS_ICON} Power-ups ${used.join(' ')}` : `${POWER_UPS_ICON} Power-ups unused`
 }

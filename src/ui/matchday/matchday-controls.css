@@ -450,6 +450,7 @@
   padding: 0 3px;
   border-radius: 4px;
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 10px; /* px: on the substitution pitch */
   font-weight: 700;
   line-height: 14px;
@@ -626,6 +627,7 @@
 }
 .matchday .md-strip-squad .mono b {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-meta);
   color: var(--text);
 }
@@ -660,15 +662,6 @@
 }
 
 /* ------------------------------------------------------------------ stop panels */
-.matchday .md-stop {
-  border-color: var(--primary);
-  box-shadow: inset 0 3px 0 var(--primary);
-  padding: 10px 12px;
-}
-.matchday .md-stop .panel-head h2 {
-  font-family: var(--font-display);
-  letter-spacing: 0.02em;
-}
 .matchday .md-stop-grid > .col {
   padding: 8px;
   border-radius: 6px;

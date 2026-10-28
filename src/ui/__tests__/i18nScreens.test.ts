@@ -23,6 +23,8 @@ import { setLocaleMessages } from '../i18n'
 import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
 import { openFiltered, show } from './qaSsr'
 import { App } from '../App'
+import { surname } from '../match/shirts'
+import { surname as shortSurname } from '@game/logic/slotSheet'
 import { Home } from '../screens/Home'
 import { HowTo } from '../screens/HowTo'
 import { ProfileScreen } from '../screens/ProfileScreen'
@@ -40,12 +42,15 @@ import { Arena } from '../screens/Arena'
 import { ArenaSetup } from '../screens/ArenaSetup'
 import { ArenaSummary } from '../screens/ArenaSummary'
 import { RunInSetup } from '../screens/RunInSetup'
+import { ClubView, CompareView, LeagueView, SearchView } from '../screens/ExploreViews'
+import { PlayerStatsTable, TeamStats } from '../screens/StatsTables'
+import { BLANK_SEARCH } from '@game/logic/exploreFilter'
 
 const u = loadTestUniverse(['england'])
 
 // Data on screen is never English to translate: names of players, clubs, nations and leagues, and the test's teams
 const DATA = new Set<string>(['QA XI', 'QA United', 'QAX', 'QAU', 'Ann', 'Bob', 'Touchline XI', 'TouchLine'])
-for (const p of Object.values(u.index)) DATA.add(p.name)
+for (const p of Object.values(u.index)) [p.name, surname(p.name), shortSurname(p.name)].forEach((n) => DATA.add(n))
 for (const c of Object.values(u.clubById)) [c.name, c.shortName].forEach((n) => n && DATA.add(n))
 for (const n of Object.values(u.nations)) DATA.add(n.name)
 for (const l of u.available) DATA.add(l.name)
@@ -117,35 +122,41 @@ function quickSettings(seed: string, mode: Mode = 'quick'): GameSettings {
  * the Weekly's date-seeded puzzles. Lower a ceiling when a screen gets cleaner; raising one means a string skipped `t()`.
  */
 const CEILING: Record<string, number> = {
-  'App home': 3,
+  'App home': 2,
   'App howto': 2,
   'App profile': 2,
   'App explore': 2,
   'App privacy': 2,
   'App h2h': 2,
-  'Home': 3,
+  'Home': 2,
   'HowTo': 11,
   'Profile': 2,
   'Explore': 2,
+  'Explore clubs': 2,
+  'Explore league': 10,
+  'Explore search': 3,
+  'Explore compare': 2,
+  'Stats players': 2,
+  'Stats team': 2,
   'Privacy': 2,
   'H2H setup': 4,
-  'Setup quick': 15,
-  'Setup daily': 7,
-  'Setup season': 6,
-  'Setup dynasty': 6,
-  'Setup weekly': 5,
-  'Arena setup': 11,
-  'Run-in setup': 28,
-  'Draft': 24,
-  'Kick-off': 45,
-  'Season playback': 27,
-  'Summary': 29,
-  'Dugout': 42,
-  'Match': 39,
-  'Arena': 27,
-  'Arena summary': 26,
-  'H2H draft': 3,
-  'H2H result': 46,
+  'Setup quick': 7,
+  'Setup daily': 3,
+  'Setup season': 5,
+  'Setup dynasty': 5,
+  'Setup weekly': 2,
+  'Arena setup': 3,
+  'Run-in setup': 3,
+  'Draft': 3,
+  'Kick-off': 2,
+  'Season playback': 7,
+  'Summary': 8,
+  'Dugout': 3,
+  'Match': 3,
+  'Arena': 4,
+  'Arena summary': 3,
+  'H2H draft': 2,
+  'H2H result': 3,
 }
 
 describe('the pseudo-locale renders every migrated screen', () => {
@@ -160,6 +171,15 @@ describe('the pseudo-locale renders every migrated screen', () => {
       show({ ...base, screen: 'setup', setupMode: mode })
       check({ name: `Setup ${mode}`, C: Setup as ComponentType<never> })
     }
+    // Explore's deeper views (r8 audit: they skipped t() and only the browse view was rendered here)
+    show({ ...base, screen: 'explore' })
+    const noop = () => {}
+    check({ name: 'Explore clubs', C: ClubView as ComponentType<never>, props: { leagueId: 'england', clubId: 'everton', onClub: noop, onPlayer: noop } })
+    check({ name: 'Explore league', C: LeagueView as ComponentType<never>, props: { leagueId: 'england', onClub: noop, onPlayer: noop } })
+    check({ name: 'Explore search', C: SearchView as ComponentType<never>, props: { form: BLANK_SEARCH, setForm: noop, onPlayer: noop, compare: [], toggleCompare: noop } })
+    check({ name: 'Explore search', C: SearchView as ComponentType<never>, props: { form: { ...BLANK_SEARCH, query: 'kane' }, setForm: noop, onPlayer: noop, compare: [], toggleCompare: noop } })
+    const kane = Object.values(u.index).find((p) => p.name === 'Harry Kane')?.playerId
+    check({ name: 'Explore compare', C: CompareView as ComponentType<never>, props: { ids: kane ? [kane] : [], setIds: noop, onPlayer: noop } })
     show({ ...base, screen: 'setup', setupMode: 'arena' })
     check({ name: 'Arena setup', C: ArenaSetup as ComponentType<never> })
     show({ ...base, screen: 'setup', setupMode: 'runin' })
@@ -209,6 +229,8 @@ describe('the pseudo-locale renders every migrated screen', () => {
     }
     if (st().digest) st().dismissDigest()
     check({ name: 'Dugout', C: Dugout as ComponentType<never>, props: NOOP })
+    check({ name: 'Stats players', C: PlayerStatsTable as ComponentType<never> })
+    check({ name: 'Stats team', C: TeamStats as ComponentType<never> })
   }, 60_000)
 
   it('an arena final and a head-to-head', () => {

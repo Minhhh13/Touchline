@@ -21,6 +21,8 @@ import { advanceStreak, fileStreakResult, streakDay } from './logic/streaks'
 import { dailyArenaResult } from './logic/arenaDaily'
 import { weeklyGameSettings, weeklyPlan } from './logic/weekly'
 import { alreadyCredited, creditArena, creditGame, creditH2H, creditH2HOnline, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
+import { cabinetWithFeats, creditCupFeats, creditGameFeats, creditRunInFeatsOn, withFeats } from './logic/feats'
+import { isPerfectDraft } from './logic/perfectDraft'
 import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
@@ -32,12 +34,13 @@ import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
 import { januaryGambleMade } from './logic/januaryGamble'
-import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonStale } from './logic/quickSeam'
+import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, markQuickSeasonFresh, quickSeasonStale } from './logic/quickSeam'
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { availableStopChanges } from './logic/stopChanges'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, runSteps, simWeeksSteps, startSeasonProper, WEEK_END, type GameBox, type WeekStep } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
+import { restTired as restTiredStarters, startPromised as startPromisedMan } from './logic/seasonPlay'
 import { playerLookup } from './logic/players'
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
@@ -46,6 +49,7 @@ import { fullScout, setAssignment, setRecruitFocus } from './logic/scouting'
 import { proposeContract, setShopped, type ContractOffer } from './logic/contracts'
 import { makeRequest, shiftWages, type RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
+import { withTick, type OfficeTick } from './logic/officeSteps'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, letContractGo, postRenewals, type OffseasonReport } from './logic/dynasty'
@@ -59,15 +63,16 @@ import { getFormation } from '@engine/formations'
 import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
-import { simToNextStop, simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
+import { simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
 import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
-import { withTipSeen, type TipId } from './logic/tips'
+import { withAllTipsSeen, withTipSeen, type TipId } from './logic/tips'
 import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { passQuickCup } from './logic/summaryCall'
 import { leaguesBeforeSkip } from './logic/cupSkip'
+import { lifelineChanges, LIFELINE_SAME_NOTE } from './logic/lifeline'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, playMatchweekAsSteps, type MatchPlayMode } from './logic/assistant'
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
@@ -75,7 +80,6 @@ async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUnivers
   return tidyUniverseNames(await loadRawPacks(ids, classic)).universe
 }
 
-/** localStorage key the whole game is persisted under. */
 /** A plain, unfrozen copy of part of a game being produced (JSON data), for an engine loop that reads it many times. */
 function plainCopy<T extends object>(x: T): T {
   return structuredClone(isDraft(x) ? (current(x as Draft<T>) as T) : x)
@@ -87,6 +91,7 @@ function* playWeekSteps(g: Game, u: LoadedUniverse, mode: MatchPlayMode): Genera
   yield* playMatchweekAsSteps(g, u, mode)
 }
 
+/** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
 /** Persist version of the saved state (a change needs a `migrate`). */
 export const SAVE_VERSION = 1
@@ -94,9 +99,9 @@ export const SAVE_VERSION = 1
 const SAVE_DELAY_MS = 250
 /** How long `playWeekSoon` plays the week before it gives the page a task (about a frame). */
 const WEEK_SLICE_MS = 16
-/** Shown when the browser refuses to store the save. */
 /** The banner that stays up while the browser refuses every save write. */
 export const SAVE_FAILING_LINE = 'Not saving: storage full'
+/** Shown when the browser refuses to store the save. */
 export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
 
 export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h' | 'world' | 'privacy' | 'account' | 'room'
@@ -166,7 +171,6 @@ interface Store {
   playback: { from: number } | null
 
   loadData: () => Promise<void>
-  /** Make sure these league packs are loaded and merged into the universe. */
   /** Load any of the given leagues not loaded yet, with every loaded league's classic seasons when `classic`. Resolves true when all of them are available. */
   ensureLeagues: (ids: string[], classic?: boolean) => Promise<boolean>
   /** Load the classic seasons of the loaded leagues; `quiet` drops the toast when they cannot load (a screen that only shows them). */
@@ -320,6 +324,10 @@ interface Store {
   /** The slot picker's tap: assign, then toast what moved ('Saka in at RW, Bowen to the bench'). */
   playInSlot: (playerSeasonId: string, slotId: string | 'bench') => void
   autoPick: () => void
+  /** Rest the tired starters a fresher man would beat in their slot (only `playerSeasonId` when given); returns the swaps made. */
+  restTired: (playerSeasonId?: string) => number
+  /** Put the man promised a start into the XI, in the slot where he costs it least. */
+  startPromised: () => void
   setTeamTalk: (t: TeamTalk) => void
   setTraining: (t: TrainingFocus) => void
   setCaptain: (id: string) => void
@@ -349,6 +357,13 @@ interface Store {
   proposeContract: (playerSeasonId: string, offer: ContractOffer) => { accepted: boolean; message: string }
   /** Have his agent find a buyer, or stop. */
   setShopped: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
+  /**
+   * One office action (Football Manager depth, round 8): `fn` is a function of `src/game/logic/office.ts` and its
+   * modules, run on the game like any action and its result returned. The office's code is not in the first download:
+   * the screens reach it through `src/game/officeActions.ts`, in the Dugout's chunk.
+   */
+  runOffice: <T>(fn: (game: Game, u: LoadedUniverse) => T, fallback: T, opts?: { unlock?: boolean }) => T
+  setPlayerPower: (on: boolean) => void
   boardRequest: (kind: RequestKind) => { ok: boolean; accepted: boolean; message: string }
   /** The wage-to-transfer slider: +1 turns £10k a week of wages into £2M of budget, −1 the other way. */
   shiftWages: (dir: 1 | -1) => { ok: boolean; message: string }
@@ -372,6 +387,8 @@ interface Store {
   setTheme: (t: Profile['theme']) => void
   /** A coach mark's 'Got it': it never shows again on this profile. */
   dismissTip: (id: TipId) => void
+  /** A tip's 'No more tips': every coach mark dismissed at once. */
+  dismissAllTips: () => void
   /** 'Show tips again' on the Profile screen: every coach mark shows once more. */
   resetTips: () => void
 
@@ -442,16 +459,45 @@ export function persistedState(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 
   return out
 }
 
+/** A parked game's compacted form, by the (frozen) game: a parked game is compacted once, not on every write. */
+const compactedParked = new WeakMap<Game, Game>()
+
 function persistedOf(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>) {
   const parked: Record<string, Game> = {}
-  for (const [slot, g] of Object.entries(s.parked)) parked[slot] = compactGame(g)
+  for (const [slot, g] of Object.entries(s.parked)) {
+    let c = compactedParked.get(g)
+    if (!c) compactedParked.set(g, (c = compactGame(g)))
+    parked[slot] = c
+  }
   return { game: s.game ? compactGame(s.game) : null, parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }
+}
+
+/**
+ * The office's tick (`officeTick` in `src/game/logic/office.ts`), registered when its module loads (the Dugout's chunk,
+ * or on demand the first time a game with office state is changed), so the office stays out of the first download.
+ * Until then nothing ticks, and the first tick after it loads catches up: every part of it is idempotent.
+ */
+let officeHook: OfficeTick | null = null
+let officeLoading = false
+export function registerOfficeTick(fn: OfficeTick): void {
+  officeHook = fn
 }
 
 export const useStore = create<Store>()(
   persist(
     (set, get) => {
       /** Run a mutation on the current game with the loaded universe. */
+      /** The office's tick when it is loaded; a game that uses the office loads it and catches up once it has. */
+      const tickOffice: OfficeTick = (g, u, sim) => {
+        if (officeHook) return officeHook(g, u, sim)
+        if ((g.office || g.settings.playerPower) && !officeLoading) {
+          officeLoading = true
+          void import('./logic/office').then((m) => {
+            officeHook = m.officeTick
+            mutate(() => {})
+          })
+        }
+      }
       const mutate = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const { game, universe } = get()
         if (!game || !universe) return
@@ -459,6 +505,8 @@ export const useStore = create<Store>()(
           set({
             game: produce(game, (g) => {
               fn(g, universe)
+              // The office catches up after every action (a no-op for a game that never used it)
+              tickOffice(g, universe)
             }),
           })
         } catch (e) {
@@ -478,9 +526,15 @@ export const useStore = create<Store>()(
           let slice = performance.now()
           for (;;) {
             const r = steps.next()
-            if (r.done) return { next: finishDraft(box.g), value: r.value }
+            if (r.done) {
+              tickOffice(box.g, u0)
+              return { next: finishDraft(box.g), value: r.value }
+            }
             // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
-            if (r.value === WEEK_END) box.g = createDraft(finishDraft(box.g))
+            if (r.value === WEEK_END) {
+              tickOffice(box.g, u0, true)
+              box.g = createDraft(finishDraft(box.g))
+            }
             if (performance.now() - slice < sliceMs) continue
             await nextTask()
             if (get().game !== g0 || get().universe !== u0) return 'moved'
@@ -523,7 +577,6 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
           }
         })
-      /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
       /**
        * A window drawn by an earlier engine (a season kicked off before a release): draw it again on this one, with the
        * reason, before anything plays the season again. True when it did.
@@ -535,6 +588,7 @@ export const useStore = create<Store>()(
         set({ toast: JANUARY_REDRAWN_NOTE })
         return true
       }
+      /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
       const closeWindow = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const before = get().game
         if (before?.phase !== 'january' || !before.quickJanuary) return
@@ -570,12 +624,15 @@ export const useStore = create<Store>()(
           return
         }
         if (get().game?.phase === 'summary') {
+          markQuickSeasonFresh(get().game!)
           set({ playback: { from } })
           if (get().game?.quickOpen) return
           unlockFromGame()
           get().recordResult()
         }
       }
+      /** A `simWeeksSoon` or `simToNextBigMatchSoon` is under way (the Dugout's own busy flag resets if it remounts). */
+      let simRunning = false
       /** League loads run one after another so two callers never overwrite each other's universe. */
       let pendingLoad: Promise<unknown> = Promise.resolve()
       /**
@@ -596,6 +653,7 @@ export const useStore = create<Store>()(
       /** After a kick-off: the playback from the first game, and a season with no bench recorded at once. */
       const afterKickOff = () => {
         const { game } = get()
+        if (game) markQuickSeasonFresh(game)
         if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
         // A season with a bench stays open to changes until the playback closes, and is recorded then
         if (game?.phase === 'summary' && !game.quickOpen) {
@@ -818,19 +876,21 @@ export const useStore = create<Store>()(
         },
         resumeGame: (slot) => {
           settleQuickSeason()
-          const { game: current, parked } = get()
-          const target = parked[slot]
+          const target = get().parked[slot]
           if (!target) return
-          const next = { ...parked }
-          delete next[slot]
-          if (current && current.phase !== 'summary') next[slotOf(current)] = current
           const ids = leaguesFor(target, (get().universe?.available ?? []).map((l) => l.id))
           // Load what the game needs before showing it, so the squad is never rendered against a half-loaded universe
           void get()
             .ensureLeagues(ids, needsClassic(target))
             .then((ok) => {
+              // The games as they are now: one started (or resumed) while the leagues loaded is parked, never dropped
+              const { game: current, parked } = get()
+              if (!ok || parked[slot] !== target) return
+              const next = { ...parked }
+              delete next[slot]
+              if (current && current.phase !== 'summary') next[slotOf(current)] = current
               // The assistant takes a resumed match's stops only under its own Auto-play, never because the last game had him on
-              if (ok) set({ game: target, parked: next, screen: 'game', digest: null, playback: null, liveAuto: assistantTakesStops(target) })
+              set({ game: target, parked: next, screen: 'game', digest: null, playback: null, liveAuto: assistantTakesStops(target) })
             })
         },
         discardParked: (slot) => {
@@ -1061,6 +1121,9 @@ export const useStore = create<Store>()(
             return
           }
           mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
+          // Just played by this engine: the next change's staleness check need not play it again
+          const after = get().game
+          if (after && after !== game) markQuickSeasonFresh(after)
         },
 
         playCup: async (comp) => {
@@ -1082,7 +1145,9 @@ export const useStore = create<Store>()(
           const profile = get().profile
           // The Trophy Room's cabinet takes the cup (and a Treble or Double on the honours board), `trophies` mirrors its five counts for older builds
           const cab = normaliseCabinet(profile.cabinet ?? rebuildCabinet(profile))
-          const cabinet = creditCupRun(cab, before.quickResult, get().game!, comp, new Date().toISOString().slice(0, 10))
+          const credited = withFeats(creditCupRun(cab, before.quickResult, get().game!, comp, new Date().toISOString().slice(0, 10)), profile)
+          // The r8 feats: the cup's group stage and two-legged comebacks, once per season and cup
+          const cabinet = { ...credited, feats: creditCupFeats(credited.feats, get().game!, comp) }
           set({ profile: { ...profile, cabinet, trophies: trophiesOf(cabinet) } })
           unlockFromGame()
           return true
@@ -1209,32 +1274,47 @@ export const useStore = create<Store>()(
         simWeeks: (n) => {
           // Plain numbers from the saved game, read before the mutation so the digest compares before with after
           const before = digestSnapshot(get().game)
-          mutate((g, u) => runSteps(simWeeksSteps({ g }, u, n)))
+          mutate((g, u) => {
+            const box = { g }
+            runSteps(withTick(box, u, simWeeksSteps(box, u, n), tickOffice))
+          })
           afterSimWeeks(before)
         },
         simWeeksSoon: async (n, opts) => {
           const { game: g0, universe: u0 } = get()
-          if (!g0 || !u0) return
-          const out = await sliced(g0, u0, (box) => simWeeksSteps(box, u0, n), opts?.sliceMs ?? WEEK_SLICE_MS)
-          if (out === 'moved') return get().simWeeks(n)
-          if (out === 'failed') return
-          afterSimWeeks(digestSnapshot(g0), { game: out.next })
+          // One run at a time: a second tap would see the first's game as 'moved' and sim n weeks more
+          if (!g0 || !u0 || simRunning) return
+          simRunning = true
+          try {
+            const out = await sliced(g0, u0, (box) => simWeeksSteps(box, u0, n), opts?.sliceMs ?? WEEK_SLICE_MS)
+            if (out === 'moved') return get().simWeeks(n)
+            if (out === 'failed') return
+            afterSimWeeks(digestSnapshot(g0), { game: out.next })
+          } finally {
+            simRunning = false
+          }
         },
         simToEnd: () => get().simWeeks(40),
         simToNextBigMatch: () => {
           const out: { stop: StopReason | null } = { stop: null }
           mutate((g, u) => {
-            out.stop = simToNextStop(g, u)
+            const box = { g }
+            out.stop = runSteps(withTick(box, u, simToNextStopSteps(box, u), tickOffice))
           })
           afterSimToStop(out.stop)
         },
         simToNextBigMatchSoon: async (opts) => {
           const { game: g0, universe: u0 } = get()
-          if (!g0 || !u0) return
-          const out = await sliced(g0, u0, (box) => simToNextStopSteps(box, u0), opts?.sliceMs ?? WEEK_SLICE_MS)
-          if (out === 'moved') return get().simToNextBigMatch()
-          if (out === 'failed') return
-          afterSimToStop(out.value, { game: out.next })
+          if (!g0 || !u0 || simRunning) return
+          simRunning = true
+          try {
+            const out = await sliced(g0, u0, (box) => simToNextStopSteps(box, u0), opts?.sliceMs ?? WEEK_SLICE_MS)
+            if (out === 'moved') return get().simToNextBigMatch()
+            if (out === 'failed') return
+            afterSimToStop(out.value, { game: out.next })
+          } finally {
+            simRunning = false
+          }
         },
         closeMatch: () => {
           mutate((g, u) => (g.arena ? closeArenaMatch(g) : closeLiveMatch(g, u)))
@@ -1297,6 +1377,12 @@ export const useStore = create<Store>()(
         },
         changeTheDraw: () => {
           let out = { ok: false, message: 'No game' }
+          // A lifeline that would bring the same side back is refused before it is spent (`lifeline.ts`)
+          const a = get().game?.arena
+          if (a?.format === 'gauntlet' && a.lifelineUsed === undefined && !lifelineChanges(a)) {
+            set({ toast: LIFELINE_SAME_NOTE })
+            return
+          }
           mutate((g, u) => {
             out = changeTheDraw(g, u)
           })
@@ -1351,6 +1437,18 @@ export const useStore = create<Store>()(
           if (note) set({ toast: note })
         },
         autoPick: () => mutate((g, u) => autoPick(g, u, false)),
+        restTired: (id) => {
+          const out = { n: 0 }
+          mutate((g, u) => {
+            out.n = restTiredStarters(g, u, id ? [id] : undefined).length
+            if (out.n) byHand(g)
+          })
+          return out.n
+        },
+        startPromised: () =>
+          mutate((g, u) => {
+            if (startPromisedMan(g, u)) byHand(g)
+          }),
         setTeamTalk: (t) =>
           mutate((g) => {
             g.teamTalk = t
@@ -1468,6 +1566,19 @@ export const useStore = create<Store>()(
           })
           return out
         },
+        runOffice: (fn, fallback, opts) => {
+          let out = fallback
+          mutate((g, u) => {
+            out = fn(g, u)
+          })
+          if (opts?.unlock) unlockFromGame()
+          return out
+        },
+        setPlayerPower: (on) =>
+          mutate((g) => {
+            if (on) g.settings.playerPower = true
+            else delete g.settings.playerPower
+          }),
         boardRequest: (kind) => {
           let out = { ok: false, accepted: false, message: 'No game' }
           mutate((g, u) => {
@@ -1531,7 +1642,7 @@ export const useStore = create<Store>()(
           if (game.settings.mode === 'runin') {
             const row = runInEntry(game, universe, new Date().toISOString().slice(0, 10))
             if (!row || alreadyCredited(profile, row.id) || profile.runIns?.some((e) => e.id === row.id)) return
-            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, RUN_IN_LOG_CAP), cabinet: creditRunIn(profile.cabinet ?? rebuildCabinet(profile), game, row.met) } })
+            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, RUN_IN_LOG_CAP), cabinet: creditRunInFeatsOn(creditRunIn(cabinetWithFeats(profile), game, row.met), game, row.met) } })
             return
           }
           const rec = finishedRecord(game)
@@ -1590,7 +1701,9 @@ export const useStore = create<Store>()(
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
           if (weekly && weekly.streak >= 4 && !achievements['weekly-streak-4']) achievements['weekly-streak-4'] = new Date().toISOString().slice(0, 10)
           // Trophy Room: the cabinet takes the credit, `trophies` mirrors its five counts for older builds
-          const cabinet = creditGame(profile.cabinet ?? rebuildCabinet(profile), game, { newDaily, newWeekly, date: entry.date })
+          // A perfect draft (every pick an A) is read here, where the universe is; the cabinet keeps its seed once
+          const perfectDraft = isPerfectDraft(game, universe, playerLookup(game, universe))
+          const cabinet = creditGameFeats(creditGame(cabinetWithFeats(profile), game, { newDaily, newWeekly, date: entry.date }), game, { perfectDraft })
           // The 38-0 chase: best record, longest perfect run and perfect seasons of every quick season (Quick Draft, the Daily, the Weekly)
           const q = game.quickResult
           const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests
@@ -1657,6 +1770,11 @@ export const useStore = create<Store>()(
           const next = withTipSeen(profile, id, new Date().toISOString().slice(0, 10))
           if (next !== profile) set({ profile: next })
         },
+        dismissAllTips: () => {
+          const { profile } = get()
+          const next = withAllTipsSeen(profile, new Date().toISOString().slice(0, 10))
+          if (next !== profile) set({ profile: next })
+        },
         resetTips: () => set({ profile: { ...get().profile, seenTips: {} } }),
 
         importCloudGame: async (slot, raw, mode) => {
@@ -1709,7 +1827,7 @@ export const useStore = create<Store>()(
         const saved = p.profile ? normaliseProfile(p.profile, defaultProfile) : null
         // A profile from before the Trophy Room gets its cabinet rebuilt once, from the trophies and the leaderboard
         // (read from the persisted profile itself: the defaults `normaliseProfile` spreads under it carry an empty cabinet)
-        const profile = saved ? { ...saved, cabinet: p.profile?.cabinet ? reconcileTrophies(normaliseCabinet(p.profile.cabinet), saved.trophies) : rebuildCabinet(saved) } : current.profile
+        const profile = saved ? { ...saved, cabinet: withFeats(p.profile?.cabinet ? reconcileTrophies(normaliseCabinet(p.profile.cabinet), saved.trophies) : rebuildCabinet(saved), saved) } : current.profile
         return { ...current, ...p, profile, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },

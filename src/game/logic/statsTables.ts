@@ -200,3 +200,47 @@ export function teamRank(rows: TeamStatRow[], teamId: string, key: TeamStatKey):
   const lower = LOWER_IS_BETTER.has(key)
   return 1 + rows.filter((r) => (lower ? teamStatValue(r, key) < v : teamStatValue(r, key) > v)).length
 }
+
+/** The Overview's league leaderboard: one figure, the top men. */
+export type LeaderStat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
+/** The leaderboard's length. */
+export const LEADERS = 25
+/** The leaderboard's average rating counts a man from this many appearances (the sortable table ranks from `AVG_MIN_APPS`). */
+export const LEADER_MIN_APPS = 5
+
+export interface LeaderRow {
+  id: string
+  teamId: string
+  s: SquadPlayer
+  p: PlayerSeason
+  /** The figure ranked: goals, assists, average rating, clean sheets (keepers only) or man of the match awards. */
+  v: number
+}
+
+/** The league's leaders in one figure (the user's squad and every AI club's men with an appearance), best first; equal figures go to the man with more appearances. */
+export function statLeaders(squad: Record<string, SquadPlayer>, season: Pick<SeasonState, 'ai'>, get: (id: string) => PlayerSeason | undefined, stat: LeaderStat): LeaderRow[] {
+  const value = (s: SquadPlayer, p: PlayerSeason): number => {
+    switch (stat) {
+      case 'goals':
+        return s.seasonStats.goals
+      case 'assists':
+        return s.seasonStats.assists
+      case 'rating':
+        return s.seasonStats.apps >= LEADER_MIN_APPS ? s.seasonStats.ratingSum / s.seasonStats.apps : -1
+      case 'cleanSheets':
+        return p.positions[0] === 'GK' ? s.seasonStats.cleanSheets : -1
+      case 'motm':
+        return s.seasonStats.motm
+    }
+  }
+  const out: LeaderRow[] = []
+  const add = (id: string, teamId: string, s: SquadPlayer) => {
+    const p = get(id)
+    if (!p) return
+    const v = value(s, p)
+    if (v > 0) out.push({ id, teamId, s, p, v })
+  }
+  for (const [id, s] of Object.entries(squad)) add(id, USER_TEAM, s)
+  for (const club of Object.values(season.ai)) for (const [id, s] of Object.entries(club.state)) if (s.seasonStats.apps > 0) add(id, club.id, s)
+  return out.sort((a, b) => b.v - a.v || b.s.seasonStats.apps - a.s.seasonStats.apps).slice(0, LEADERS)
+}

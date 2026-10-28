@@ -33,17 +33,27 @@ export function withViewTransition(update: () => void): void {
   }
   const root = doc.documentElement
   root.classList.add('vt')
+  transitionsRunning++
+  // A second tap inside a transition skips the first, whose `finished` then settles while the second still runs: the
+  // class stays until the last one running has finished, so the nav pill still slides on the second
+  const done = () => {
+    transitionsRunning = Math.max(0, transitionsRunning - 1)
+    if (transitionsRunning === 0) root.classList.remove('vt')
+  }
   try {
     const t = doc.startViewTransition(() => flushSync(update))
     // A transition the browser aborts (the viewport resized, as a phone's does when it turns or its bars move) rejects
     // these promises; the change itself has still been made, so the rejection is only the lost animation
     t.ready.catch(() => undefined)
-    void t.finished.catch(() => undefined).then(() => root.classList.remove('vt'))
+    void t.finished.catch(() => undefined).then(done)
   } catch {
-    root.classList.remove('vt')
+    done()
     update()
   }
 }
+
+/** View Transitions started and not yet finished (the `vt` class on the root stays while any is). */
+let transitionsRunning = 0
 
 /** Ease-out cubic on 0..1: quick at the start, settling at the end. */
 export function easeOutCubic(t: number): number {
@@ -78,10 +88,13 @@ export function useCountUp(target: number, duration: number = DURATION.slow): { 
   return { value, counting: value !== target }
 }
 
-/** What a revealed tier earns: confetti for the perfect season, a gold flare for the other titles, nothing otherwise. */
-export function celebrationFor(tier: SeasonTier): 'confetti' | 'flare' | null {
+/**
+ * What a revealed tier earns: confetti for the perfect season, a gold flare for the other titles, nothing otherwise;
+ * a manager's first result ever (`first`) earns the flare whatever the tier.
+ */
+export function celebrationFor(tier: SeasonTier, first = false): 'confetti' | 'flare' | null {
   if (tier === 'PERFECT') return 'confetti'
-  if (tier === 'INVINCIBLE' || tier === 'CHAMPIONS') return 'flare'
+  if (tier === 'INVINCIBLE' || tier === 'CHAMPIONS' || first) return 'flare'
   return null
 }
 
@@ -133,29 +146,5 @@ export function useFirstReveal(key: string, replayed: boolean): boolean {
   useEffect(() => {
     celebrated.add(key)
   }, [key])
-  return play
-}
-
-let heroKicked = false
-const HERO_KEY = 'touchline-hero-kick'
-
-/** The hero's ball slides in once per visit (a tab's session); blocked storage still limits it to once per page load. */
-export function useOncePerVisit(): boolean {
-  const [play] = useState(() => {
-    if (heroKicked) return false
-    try {
-      return sessionStorage.getItem(HERO_KEY) !== '1'
-    } catch {
-      return true
-    }
-  })
-  useEffect(() => {
-    heroKicked = true
-    try {
-      sessionStorage.setItem(HERO_KEY, '1')
-    } catch {
-      // Storage blocked: the module flag keeps it to once per page load
-    }
-  }, [])
   return play
 }

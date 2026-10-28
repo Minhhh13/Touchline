@@ -80,11 +80,13 @@ function hadGesture(): boolean {
 /** Creates the context (or resumes a suspended one). Call only from a user gesture; does nothing while sound is off, or before the page has had a real one. */
 export function unlockAudio(): void {
   if (!soundOn() || !hadGesture()) return
+  let fresh = false
   try {
     if (!ctx) {
       const C = audioCtor()
       if (!C) return
       ctx = new C()
+      fresh = true
       master = ctx.createGain()
       master.gain.value = gainNow()
       master.connect(safetyNet(ctx))
@@ -98,8 +100,12 @@ export function unlockAudio(): void {
     }
     if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined)
   } catch {
+    // A context this call made before the failure is closed, so a retry on the next gesture never piles up contexts
+    if (!fresh) return
+    if (ctx && ctx.state !== 'closed') void ctx.close().catch(() => undefined)
     ctx = null
     master = null
+    bank = null
   }
 }
 
@@ -117,9 +123,13 @@ export function armAudio(): void {
   for (const type of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(type, onGesture, { capture: true, passive: true })
   window.addEventListener('click', clickSound, { capture: true, passive: true })
   const follow = () => {
+    // Sound switched on (the switch is pressed inside a gesture): make or resume the context now, not on the next tap
+    if (soundOn() && (!ctx || ctx.state === 'suspended')) unlockAudio()
     if (!ctx || !master) return
     master.gain.cancelScheduledValues(ctx.currentTime)
     master.gain.setValueAtTime(gainNow(), ctx.currentTime)
+    // Sound off: the context stops running too (a silent context still keeps the device's audio busy)
+    if (!soundOn() && ctx.state === 'running') void ctx.suspend().catch(() => undefined)
   }
   subscribeSound(follow)
   subscribeVolume(follow)

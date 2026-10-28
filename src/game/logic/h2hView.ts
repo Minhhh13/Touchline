@@ -12,3 +12,11 @@ export function nextFirstPicker(h: Pick<H2HDraft, 'drafts' | 'first'>): 0 | 1 | 
   const other: 0 | 1 = h.first === 0 ? 1 : 0
   return isComplete(h.drafts[other]) ? null : other
 }
+
+/**
+ * The turn a selection on the head-to-head pitch belongs to: the spin and the manager picking on it. Both managers pick
+ * on the same spin, so a player one of them tapped (and then let the assistant pick past) never stays selected for the other.
+ */
+export function h2hTurnKey(h: Pick<H2HDraft, 'spins' | 'picking'> | undefined): string | null {
+  return h && h.picking !== null ? `${h.spins}:${h.picking}` : null
+}

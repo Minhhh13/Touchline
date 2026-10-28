@@ -26,6 +26,7 @@ import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { VerticalPitch } from '../VerticalPitch'
 import { translator } from '../../i18n'
+import { roleName } from '../../i18n/engineText'
 import { match } from '../../i18n/en/match'
 
 const tx = translator(match)
@@ -107,7 +108,11 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   })
   const [hover, setHover] = useState<string | null>(null)
   const [say, setSay] = useState('')
+  // The dragged man's ghost: mounted once when a drag starts, then moved by writing its transform straight to the
+  // element (`ghostRef`), so a pointer move does not re-render the board and recompute its team ratings every frame
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null)
+  const ghostRef = useRef<HTMLDivElement>(null)
+  const ghostAt = useRef<{ x: number; y: number } | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const drag = useRef<{ kind: Kind; id: string; pointerId: number; x0: number; y0: number; started: boolean } | null>(null)
   const swallowClick = useRef(false)
@@ -191,7 +196,10 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
       setSay(tx('sayDragging', { who: d.kind === 'bench' ? nameOf(d.id) : nameOf(shownAt(d.id)) }))
     }
     e.preventDefault()
-    setGhost({ x: e.clientX, y: e.clientY })
+    const at = { x: e.clientX, y: e.clientY }
+    ghostAt.current = at
+    if (ghostRef.current) ghostRef.current.style.transform = `translate(${at.x}px, ${at.y}px)`
+    else if (!ghost) setGhost(at)
     const t = targetAt(e.clientX, e.clientY, d.kind)
     setHover((h) => (h === t ? h : t))
   }
@@ -204,6 +212,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     swallowClick.current = true
     window.setTimeout(() => (swallowClick.current = false), 0)
     const t = targetAt(e.clientX, e.clientY, d.kind)
+    ghostAt.current = null
     setGhost(null)
     if (t) drop(d, { kind: d.kind === 'bench' ? 'slot' : 'bench', id: t })
     else setSay(tx('sayDroppedNowhere'))
@@ -213,6 +222,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   const cancel = () => {
     if (!drag.current) return
     drag.current = null
+    ghostAt.current = null
     setGhost(null)
     letGo(true)
   }
@@ -283,7 +293,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     const pOn = get(on)
     if (!slot || !offId || !pOn) return null
     const trial = stageSub(queue, { off: offId, on }, { onPitch: hand.onPitch, bench: hand.bench, cap: room })
-    return { slot, role: slotRole(tactics, slot).name, off: get(offId), on: pOn, fit: fitGlow(pOn, slot.position), team: trial.refused ? null : teamRating(tactics, lineupAfter(men, trial.subs), get, state), refused: trial.refused }
+    return { slot, role: roleName(slotRole(tactics, slot)), off: get(offId), on: pOn, fit: fitGlow(pOn, slot.position), team: trial.refused ? null : teamRating(tactics, lineupAfter(men, trial.subs), get, state), refused: trial.refused }
   })()
   const num = (n: number | null | undefined, digits = 0) => (hideRatings || n === null || n === undefined ? '?' : n.toFixed(digits))
   const delta = (a: number, b: number) => (b > a + 0.05 ? 'up' : b < a - 0.05 ? 'down' : 'same')
@@ -316,7 +326,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 data-fit={glow ?? undefined}
                 disabled={!takeable}
                 aria-pressed={isHeld}
-                aria-label={`${slotName(slot)}, ${slotRole(tactics, slot).name}: ${p?.name ?? tx('empty')}${isStaged ? tx('comingOn') : ''}${pending ? tx('comingOnStop') : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : tx('roleRating', { r: rr })}` : ''}`}
+                aria-label={`${slotName(slot)}, ${roleName(slotRole(tactics, slot))}: ${p?.name ?? tx('empty')}${isStaged ? tx('comingOn') : ''}${pending ? tx('comingOnStop') : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : tx('roleRating', { r: rr })}` : ''}`}
                 {...handlers('slot', slot.id)}
               >
                 <span className="sub-slot-shirt">
@@ -460,7 +470,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
         {say}
       </div>
       {ghost && held?.via === 'drag' && heldMan && (
-        <div className="sub-ghost" style={{ transform: `translate(${ghost.x}px, ${ghost.y}px)` }} aria-hidden>
+        <div className="sub-ghost" ref={ghostRef} style={{ transform: `translate(${(ghostAt.current ?? ghost).x}px, ${(ghostAt.current ?? ghost).y}px)` }} aria-hidden>
           <Shirt colour={heldMan.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[heldMan.id]} size={26} />
           <span>{surname(heldMan.name)}</span>
         </div>

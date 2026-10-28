@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Crown, Hourglass, Link2, Shuffle, TrendingDown } from 'lucide-react'
 import { QUICK_CONTINENTAL_PLACES } from '@game/logic/quickCups'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { playerLookup } from '@game/logic/players'
 import { getFormation } from '@engine/formations'
 import { ratingHidden } from '@game/logic/ratingVisibility'
@@ -16,16 +16,16 @@ import { perfectTarget } from '@game/logic/perfect'
 import { quickSeasonGames } from '@game/logic/quick'
 import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { quickManagerOptions } from '@game/logic/managers'
-import { edgeHint, edgeLine, managerEdge } from '@game/logic/managerEdge'
+import { managerEdge } from '@game/logic/managerEdge'
 import { squadReport, VETERAN_AGE, type ReportMan } from '@game/logic/squadReport'
 import { ManagerChip, ManagerPick } from '../components/ManagerPick'
-import { MANAGER_STYLE_HELP } from '@engine/managers'
 import { caseIconIn, kickoffStep } from '@game/logic/endCase'
 import { ManagerSpin } from '../components/ManagerSpin'
 import { EndCase } from '../components/EndCase'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { B, rich } from '../i18n/rich'
+import { edgeHintText, edgeText, styleHelp } from '../i18n/engineText'
 
 const t = translator(season)
 
@@ -36,7 +36,7 @@ const t = translator(season)
  * defaults" plays it with the default tactics instead.
  */
 export function KickOff() {
-  const { universe: u, game, setTactics, setCaptain, kickOffSoon, kickingOff: kicking, warmKickOff, pickManager } = useStore()
+  const { universe: u, game, setTactics, setCaptain, kickOffSoon, kickingOff: kicking, warmKickOff, pickManager } = useStorePick('universe', 'game', 'setTactics', 'setCaptain', 'kickOffSoon', 'kickingOff', 'warmKickOff', 'pickManager')
   const [showTactics, setShowTactics] = useState(false)
   const [showManagers, setShowManagers] = useState(false)
   // The season plays in a worker (the store's kickOffSoon), "Simulating" on the button meanwhile; its packs load now,
@@ -57,9 +57,9 @@ export function KickOff() {
   const s = game.settings
   const report = squadReport(formation, game.lineup, get, hide)
   const edge = game.manager ? managerEdge(game, game.manager.style, get) : null
-  const hint = game.manager && edge ? edgeHint(game.manager.style, edge) : null
+  const hint = game.manager && edge ? edgeHintText(game.manager.style, edge) : null
   return (
-    <div className="page fit" data-testid="kickoff">
+    <div className="page fit kickoff" data-testid="kickoff">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{t('squadComplete')}</h1>
@@ -116,10 +116,10 @@ export function KickOff() {
                 <div className="col" style={{ gap: 4 }}>
                   <span className="sc-kicker">{t('inTheDugout')}</span>
                   <ManagerChip manager={game.manager} />
-                  <span className="help">{MANAGER_STYLE_HELP[game.manager.style]}</span>
+                  <span className="help">{styleHelp(game.manager.style)}</span>
                   {edge && (
                     <span className="small" data-testid="kickoff-manager-edge">
-                      {rich(t('onYourXi', { edge: edgeLine(edge) }), B)}
+                      {rich(t('onYourXi', { edge: edgeText(edge) }), B)}
                       {hint ? ` · ${hint}` : ''}
                     </span>
                   )}

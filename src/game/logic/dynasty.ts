@@ -65,9 +65,9 @@ export function ageOneYear(p: PlayerSeason, rng: Rng, year: number): PlayerSeaso
   return next
 }
 
-/** Terms that travel with a contract into the next season: the clauses and a sell-on (an agent stops shopping him in the summer). */
+/** Terms that travel with a contract into the next season: the clauses, a sell-on and the status his wage is paid for (an agent stops shopping him in the summer). */
 function carried(c: Contract): Partial<Contract> {
-  return { ...(c.clauses ? { clauses: c.clauses } : {}), ...(c.sellOn ? { sellOn: c.sellOn } : {}) }
+  return { ...(c.clauses ? { clauses: c.clauses } : {}), ...(c.sellOn ? { sellOn: c.sellOn } : {}), ...(c.paidStatus ? { paidStatus: c.paidStatus } : {}) }
 }
 
 export interface OffseasonReport {
@@ -155,6 +155,10 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   }
   game.squad = newSquad
   game.contracts = newContracts
+  // Every man carries a new id into the new season: the copies made for the old ids (last summer's ageing, the
+  // season's development and wage changes, the men who left) are read by nothing now, and would pile up a squad a year
+  const inUse = new Set([...Object.keys(newSquad), ...(game.youthIntake?.candidates ?? [])])
+  for (const id of Object.keys(game.customPlayers)) if (!inUse.has(id)) delete game.customPlayers[id]
   game.lineup = {}
   game.bench = []
   game.consecutiveMissed = {}
@@ -259,6 +263,7 @@ export function settleRenewals(game: Game, u: LoadedUniverse): { renewed: string
   const rank = all.map((x) => x.p).sort((a, b) => b.overall - a.overall || a.id.localeCompare(b.id))
   const top = new Set(rank.slice(0, RENEW_TOP).map((p) => p.id))
   const keepers = new Set(rank.filter((p) => p.positions[0] === 'GK').slice(0, 2).map((p) => p.id))
+  const terms: string[] = []
   for (const id of ids) {
     const p = get(id)
     const s = game.squad[id]
@@ -270,15 +275,18 @@ export function settleRenewals(game: Game, u: LoadedUniverse): { renewed: string
     if (willing && worth && p.age <= RENEW_MAX_AGE) {
       const status = c.status ?? 'rotation'
       const demand = contractDemand(game, u, id, status)
-      if (demand) kept = proposeContract(game, u, id, { wage: demand.wage, years: Math.min(demand.maxYears, p.age >= 32 ? 1 : 2), status, signingFee: 0, release: c.clauses?.release, appearance: c.clauses?.appearance ?? 0, goal: c.clauses?.goal ?? 0 }).accepted
+      if (demand) kept = proposeContract(game, u, id, { wage: demand.wage, years: Math.min(demand.maxYears, p.age >= 32 ? 1 : 2), status, signingFee: 0, release: c.clauses?.release, appearance: c.clauses?.appearance ?? 0, goal: c.clauses?.goal ?? 0 }, { quiet: true }).accepted
     }
-    if (kept) out.renewed.push(p.name)
-    else {
+    // The terms ride in the one summary item (the renewals post nothing of their own)
+    if (kept) {
+      out.renewed.push(p.name)
+      terms.push(`${p.name} (£${get(id)?.wage ?? p.wage}k, ${game.contracts[id]?.years ?? 1} season${(game.contracts[id]?.years ?? 1) === 1 ? '' : 's'})`)
+    } else {
       releasePlayer(game, u, id)
       out.left.push(p.name)
     }
   }
-  const lines = [out.renewed.length ? `Renewed by the assistant: ${out.renewed.join(', ')}.` : '', out.left.length ? `Left on a free: ${out.left.join(', ')}.` : ''].filter(Boolean)
+  const lines = [out.renewed.length ? `Renewed by the assistant: ${terms.join(', ')}.` : '', out.left.length ? `Left on a free: ${out.left.join(', ')}.` : ''].filter(Boolean)
   postNews(game, { matchweek: 0, kind: 'transfer', title: 'Contracts settled', body: lines.join(' ') })
   return out
 }

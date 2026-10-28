@@ -1,10 +1,11 @@
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
-import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
+import { POWER_UPS } from '@engine/powerups'
 import { canUnpackFromLocker, lockerCount, lockerOn } from '@game/logic/endCase'
 import { LOCKER_ICON, PowerUpIcon } from './icons'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
+import { powerUpLine, powerUpTitle } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -14,7 +15,8 @@ const t = translator(draft)
  * tray's. Nothing shows when the locker is empty or closed (the Daily, a challenge link, a draft with the tray).
  */
 export function LockerBar({ game, busy }: { game: Game; busy: boolean }) {
-  const { profile, unpackPowerUp } = useStore()
+  const profile = useStore((s) => s.profile)
+  const unpackPowerUp = useStore((s) => s.unpackPowerUp)
   if (!lockerOn(game)) return null
   const held = POWER_UPS.filter((k) => lockerCount(profile, k) > 0)
   if (!held.length) return null
@@ -25,8 +27,8 @@ export function LockerBar({ game, busy }: { game: Game; busy: boolean }) {
         {t('locker')}
       </b>
       {held.map((k) => (
-        <button key={k} type="button" className="btn sm locker-btn" disabled={busy || !canUnpackFromLocker(game, profile, k)} onClick={() => unpackPowerUp(k)} title={t('unpackTip', { line: POWER_UP_INFO[k].line })} data-testid={`locker-${k}`}>
-          <PowerUpIcon kind={k} size={14} /> {POWER_UP_INFO[k].title} <span className="n">×{lockerCount(profile, k)}</span>
+        <button key={k} type="button" className="btn sm locker-btn" disabled={busy || !canUnpackFromLocker(game, profile, k)} onClick={() => unpackPowerUp(k)} title={t('unpackTip', { line: powerUpLine(k) })} data-testid={`locker-${k}`}>
+          <PowerUpIcon kind={k} size={14} /> {powerUpTitle(k)} <span className="n">×{lockerCount(profile, k)}</span>
         </button>
       ))}
       <span className="help">{t('lockerHelp')}</span>

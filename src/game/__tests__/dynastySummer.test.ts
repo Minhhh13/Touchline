@@ -77,3 +77,27 @@ describe('the dynasty summer', () => {
     expect(retirements).toBeGreaterThan(3)
   }, 120_000)
 })
+
+describe('the dynasty summer and the game-made players', () => {
+  it("keeps only the copies the new season's squad (and the academy) still use, so the save does not grow a squad a year", () => {
+    for (const seed of ['summer-copies-1', 'summer-copies-2']) {
+      const g = firstSeason(seed, 20)
+      const sizes: number[] = []
+      for (let year = 0; year < 2; year++) {
+        advanceToNextSeason(g, u)
+        const keep = new Set([...Object.keys(g.squad), ...(g.youthIntake?.candidates ?? [])])
+        expect(Object.keys(g.customPlayers).filter((id) => !keep.has(id)), seed).toEqual([])
+        // Every man of the new season still resolves, as himself
+        for (const id of Object.keys(g.squad)) expect(playerLookup(g, u)(id)?.id, seed).toBe(id)
+        sizes.push(Object.keys(g.customPlayers).length)
+        const rng = Rng.fromState(g.rngState)
+        autoDraft(u, g.draft!, rng)
+        g.rngState = rng.getState()
+        beginSeason(g, u)
+        startSeasonProper(g, u)
+        while (g.phase !== 'summary') playMatchweek(g, u, true)
+      }
+      expect(sizes[1], seed).toBeLessThanOrEqual(SQUAD_CAP + 3)
+    }
+  })
+})

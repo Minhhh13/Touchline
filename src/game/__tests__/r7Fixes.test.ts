@@ -12,7 +12,7 @@ vi.hoisted(() => {
   })
 })
 vi.setConfig({ testTimeout: 60_000 })
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { BUDGET_FLOOR, QUICK_RULES, canBench, canSpin, capRoom, capSpent, eligibleSlots, isComplete, openSlots, spinClubSeason } from '@engine/draft'
 import { wheelSeasons } from '@engine/era'
 import { useStore } from '../store'
@@ -195,16 +195,18 @@ describe('R7-4: a capped Quick Draft with a bench never strands its XI', () => {
     return { stranded: false, owedOk }
   }
 
-  it('the drafts that ran dry with XI slots open (a keeper unaffordable) now fill their XI', () => {
+  it('the drafts that ran dry with XI slots open (a keeper unaffordable) now fill their XI', async () => {
     // Each of these ran dry on release-e6 with XI slots open and no money left for them (a keeper unaffordable)
     for (const [seed, preset, bench] of [['r7-strand-6', 'shoestring', 3], ['r7-strand-9', 'shoestring', 5], ['r7-strand-18', 'moneyball', 5], ['r7-strand-20', 'shoestring', 3], ['r7-strand-21', 'shoestring', 5]] as const) {
+      await breathe()
       const r = draftBenchingEarly(seed, preset, bench)
       expect(r, seed).toEqual({ stranded: false, owedOk: true })
     }
   })
 
-  it('a bench pick while XI slots are open keeps the floor for every one of them; an XI pick for the others', () => {
+  it('a bench pick while XI slots are open keeps the floor for every one of them; an XI pick for the others', async () => {
     for (let i = 0; i < 12; i++) {
+      await breathe()
       const r = draftBenchingEarly(`r7-cap-floor-${i}`, i % 2 ? 'moneyball' : 'shoestring', i % 3 ? 5 : 3)
       expect(r.stranded).toBe(false)
       expect(r.owedOk).toBe(true)
@@ -212,5 +214,32 @@ describe('R7-4: a capped Quick Draft with a bench never strands its XI', () => {
     const d = st().game!.draft!
     // What the cap chip shows: the money left after the floor for the open XI slots after this one
     if (openSlots(d).length) expect(capRoom(d)).toBeCloseTo(d.rules.budget! - capSpent(d) - BUDGET_FLOOR * (openSlots(d).length - 1), 5)
+  })
+})
+
+describe('r8 audit: a season this page just played is not played again to check it', () => {
+  /** A universe that notes any read: a staleness check that plays the season reads it. */
+  const watched = () => {
+    let reads = 0
+    const proxy = new Proxy(u, { get: (t, k, r) => (reads++, Reflect.get(t, k, r)) })
+    return { proxy, reads: () => reads }
+  }
+
+  it('after a kick-off, a bench change and the January close the check reads nothing; an altered season still reads as stale', () => {
+    for (const january of [false, true]) {
+      quickGame(`r8-seam-fresh-${january}`, january)
+      if (january) {
+        const w0 = watched()
+        expect(januaryStale(st().game!, w0.proxy)).toBe(false)
+        expect(w0.reads()).toBe(0)
+        st().closeJanuary(null)
+      }
+      expect(st().game!.phase).toBe('summary')
+      const w = watched()
+      expect(quickSeasonStale(st().game!, w.proxy)).toBe(false)
+      expect(w.reads()).toBe(0)
+      playedByEarlierEngine()
+      expect(quickSeasonStale(st().game!, u)).toBe(true)
+    }
   })
 })

@@ -167,5 +167,13 @@ describe('the summer review in words', () => {
     expect(t.lines.map((l) => l.id)).toEqual(['finish', 'goals', 'cups', 'awards'])
     expect(t.lines[0].text).toBe('1st on 88 points, won 27, drew 7, lost 4.')
     expect(t.lines[2].text).toBe('Won the Cup and reached the Continental Cup semi-final.')
+    // QA r8: engine 7's group stage reads as out in the groups, not "reached the knockouts"
+    const g = summerText({ record: { ...record, cupWon: false, continentalRun: 'G' }, previous: null, headline: 'steady', climb: null, titles: 0, seasons: 1, legend: null }, u, 'g1')
+    expect(g.lines.find((l) => l.id === 'cups')?.text).toBe('Went out in the Continental Cup group stage.')
+  })
+
+  it('names an engine 7 run that went out in the groups, not "the knockouts"', () => {
+    const t = summerText({ record: { ...record, cupWon: true, continentalRun: 'G' }, previous: null, headline: 'champions', climb: null, titles: 1, seasons: 1, legend: null }, u, 'g1')
+    expect(t.lines.find((l) => l.id === 'cups')?.text).toBe('Won the Cup and went out in the Continental Cup group stage.')
   })
 })

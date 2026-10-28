@@ -12,7 +12,7 @@ import { ClubBadge, Modal, TeamBadge, Tabs } from './bits'
 import { GroupTables } from './GroupTables'
 import { TrebleArt, TrophyArt } from './TrophyArt'
 import { confettiPieces, prefersReducedMotion } from '../motion'
-import { revealDelay, userInPlay } from '../cupReveal'
+import { nightStepDelay, userInPlay } from '../cupReveal'
 import { playSound } from '../sound/synth'
 import { useFocusOnLanding } from '../a11y'
 import { translator } from '../i18n'
@@ -20,8 +20,6 @@ import { summary } from '../i18n/en/summary'
 
 const t = translator(summary)
 
-/** A group matchday's moment in the reveal (engine 7's Continental Cup). */
-const GROUP_STEP_MS = 900
 const CUP_PIECES = confettiPieces(36)
 const TREBLE_PIECES = confettiPieces(56)
 
@@ -43,15 +41,16 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
   const shown = Math.max(0, all - groupSteps)
   const inGroups = !done && all < groupSteps
   const [pane, setPane] = useState<'groups' | 'bracket'>('bracket')
-  const setShown = (f: (n: number) => number) => setShownAll((n) => groupSteps + f(Math.max(0, n - groupSteps)))
   // The trophy moment: only after a reveal (a later look at the bracket goes straight to it)
   const lifted = run.reached === 'W'
   const [celebrating, setCelebrating] = useState(reveal && lifted)
+  // One step at a time, keyed on `all`: through the groups `shown` stays 0, so keying on it stalled the reveal on matchday 1
+  const delay = nightStepDelay(view, steps, all, groupSteps)
   useEffect(() => {
-    if (done) return
-    const timer = setTimeout(() => (inGroups ? setShownAll((n) => n + 1) : setShown((n) => n + 1)), inGroups ? GROUP_STEP_MS : revealDelay(view, steps, shown))
+    if (delay === null) return
+    const timer = setTimeout(() => setShownAll((n) => n + 1), delay)
     return () => clearTimeout(timer)
-  }, [done, shown, view, steps, inGroups])
+  }, [all, delay])
   useEffect(() => {
     if (done) onRevealEnd?.()
   }, [done, onRevealEnd])

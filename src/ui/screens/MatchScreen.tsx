@@ -3,6 +3,7 @@ import { ArrowLeftRight, Bandage, ImageDown } from 'lucide-react'
 import { BoxesMenu, useBoxes, type Boxes } from '../components/Boxes'
 import { REPORT } from '../boxSets'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { Bar, ClubBadge, Rating, Tabs, TeamBadge, Tip } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import type { PitchSide } from '../components/LivePitch'
@@ -65,14 +66,15 @@ function safely(fn: () => void): void {
 }
 
 export function MatchScreen() {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'matchView', 'setMatchView', 'closeMatch', 'advanceLive', 'completeLive', 'finishLiveNow', 'go', 'nextLiveMatch')
   const { universe: u, game, matchView, setMatchView, closeMatch } = store
   const [which, setWhich] = useState<'league' | 'cup'>('league')
   /** When a cup tie follows the league match, hold it until the league result has been seen. */
   const [holdLive, setHoldLive] = useState(false)
   const reportBoxes = useBoxes(REPORT)
-  if (!u || !game) return null
-  const get = playerLookup(game, u)
+  // One lookup per game state: the report's stats series is memoised on it
+  const get = useMemo(() => (u && game ? playerLookup(game, u) : null), [u, game])
+  if (!u || !game || !get) return null
   const live = game.live && !holdLive ? game.live : null
 
   // Live: the dashboard plays each segment the engine has decided, through both stops and the held last twenty minutes
@@ -220,7 +222,7 @@ export function MatchScreen() {
 type ChartTab = 'shots' | 'flow' | 'possession' | 'tactics'
 type PeopleTab = 'ours' | 'theirs' | 'notes'
 
-function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { boxes: Boxes; res: FullMatchResult; ctx: MatchContext; names: { home: string; away: string; homeShort: string; awayShort: string }; outcome: string; verdict: Outcome; get: (id: string) => ReturnType<ReturnType<typeof playerLookup>>; colours: { home: string; away: string } }) {
+function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { boxes: Boxes; res: FullMatchResult; ctx: MatchContext; names: { home: string; away: string; homeShort: string; awayShort: string }; outcome: string; verdict: Outcome; get: ReturnType<typeof playerLookup>; colours: { home: string; away: string } }) {
   const u = useStore((s) => s.universe)
   const game = useStore((s) => s.game)
   const { home: homeName, away: awayName } = names

@@ -16,3 +16,12 @@ export function fitGroups(p: Pick<PlayerSeason, 'positions'>, slotPositions: Pos
   }
   return { fits, covers }
 }
+
+/**
+ * The "Where does he play?" chips in the order a player reads them: the slots he fits first, then the ones he only
+ * covers, each group in the formation's order (a stable partition, so a winger offered LW, ST and RW leads with ST).
+ * Display only: the choices are the logic's own (`draftSlotChoices`), none added or dropped. Pure.
+ */
+export function fitsFirst<T extends { fit: string }>(choices: readonly T[]): T[] {
+  return [...choices.filter((c) => c.fit === 'fits'), ...choices.filter((c) => c.fit !== 'fits')]
+}

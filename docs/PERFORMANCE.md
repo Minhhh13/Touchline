@@ -129,6 +129,9 @@ software rasteriser. A phone's GPU takes much of that off the main thread.
    2026-10-27): the Continental Cup's group stage and two legs and the Dynasty opener are Season-loop rules the store
    reaches synchronously (about 6.5 KB gzip); the integration moved about 3 KB of new online code to on-demand imports
    (`api.ts`'s board readers and chase actions, the store's `startRunInWeek`), and the entry measured 310.5 KB.
+   Batch 5 (the round 8 branches, 2026-10-28) raised the budgets to 330 KB and 56 KB: each branch stayed under 315 and
+   50 on its own, together they measured 323.0 KB of JS and 53.0 KB of CSS; splitting `week.ts` and the round's styles
+   out of the first download would take them back under the old figures.
 
 No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pass untouched, ENGINE_VERSION is `'4'`.
 

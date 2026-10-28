@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
+import { lifelineChanges } from '@game/logic/lifeline'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE, getRole } from '@engine/roles'
 import { clubIdOfKey } from '@engine/knockout'
@@ -9,7 +10,7 @@ import type { Position } from '@engine/types'
 import { arenaClubShortName, arenaStepInfo, isBigCup, nextArenaOpponent } from '@game/logic/arena'
 import { cupRoundCount, cupRoundName } from '@engine/cup'
 import { USER_TEAM } from '@engine/season'
-import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
+import { TRAINING, type TrainingFocus } from '@engine/training'
 import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
 import { GAUNTLET_RUNGS, rungLabels } from '@engine/gauntlet'
@@ -26,13 +27,17 @@ import { distinctLabels } from '../screenText'
 import { gauntletBandText, splitSeason } from '../arenaText'
 import { TacticsTab } from './Dugout'
 import { askConfirm } from '../confirm'
+import { useAfterPaint } from '../afterPaint'
+import { useStorePick } from '../useStorePick'
+import { slotTapMove } from '../slotTap'
 import { fixed } from '../format'
 import { translator } from '../i18n'
 import { arena } from '../i18n/en/arena'
+import { trainingBlurb, trainingLabel } from '../i18n/engineText'
 
 const t = translator(arena)
 
-type ArenaTab = 'team' | 'tactics' | 'draw'
+type ArenaTab = 'team' | 'tactics'
 
 const ORDER: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']
 /** The match screen's ball path and samples built between playing a step and showing it (presentation only). */
@@ -48,10 +53,12 @@ const prepareStep = (next: Game): Promise<void> => {
  * tie" in the Cup, "Sim this rung" on the Gauntlet, "Sim the final".
  */
 export function Arena() {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'assign', 'autoPick', 'changeTheDraw', 'playArenaStepSoon', 'playingWeek', 'setCaptain', 'setTeamTalk', 'setTraining', 'simArenaToEnd')
   const { universe: u, game } = store
   const [tab, setTab] = useState<ArenaTab>('team')
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  // Sim to the end plays every step left in one pass: the button says so in the frame it is tapped, then the steps play
+  const [simming, afterPaint] = useAfterPaint()
   // On a phone the action bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
@@ -91,10 +98,9 @@ export function Arena() {
   const onSlotClick = (slotId: string) => {
     if (selectedSlot === slotId) return setSelectedSlot(null)
     if (selectedSlot) {
-      const x = game.lineup[selectedSlot]
-      const y = game.lineup[slotId]
-      if (x) store.assign(x, slotId)
-      if (y && x) store.assign(y, selectedSlot)
+      // One assign: it swaps the displaced man into the first slot (an empty first slot takes the man tapped second)
+      const move = slotTapMove(game.lineup, selectedSlot, slotId)
+      if (move) store.assign(move.id, move.slot)
       return setSelectedSlot(null)
     }
     setSelectedSlot(slotId)
@@ -113,7 +119,7 @@ export function Arena() {
         <div className="row" style={{ gap: 10 }}>
           <TeamBadge code={game.settings.shortName} size={40} />
           <div>
-            <h1 style={{ fontSize: 26 }}>{game.settings.teamName}</h1>
+            <h1>{game.settings.teamName}</h1>
             <div className="screen-meta" data-testid="arena-head">
               {/* The format and the match, once each: a Final's "Cup Final" and "Cup final" read as one chip */}
               {distinctLabels([arenaFormatText(game.settings.arena), info.label]).map((l, i) => (
@@ -127,7 +133,7 @@ export function Arena() {
         </div>
         <div className="stat-strip arena-stats">
           <Stat label={t('teamRating')} value={fixed(strength.overall, 1)} sub={t('balance', { n: Math.round(strength.balance * 100) })} />
-          <Stat label={t('squad')} value={squad.length} sub={game.settings.difficulty} />
+          <Stat label={t('squad')} value={squad.length} sub={t(game.settings.difficulty === 'realistic' ? 'realistic' : 'calibrated')} />
         </div>
       </div>
 
@@ -144,13 +150,13 @@ export function Arena() {
                 <div className="row" style={{ gap: 10 }}>
                   <ClubBadge clubId={clubIdOfKey(opp.key)} size={40} />
                   {/* The season stays on one line: a narrow box broke "2023-24" at its hyphen */}
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>
+                  <div className="arena-opp-name">
                     {oppName?.club}
                     {oppName?.season && <> <span style={{ whiteSpace: 'nowrap' }}>{oppName.season}</span></>}
                   </div>
                 </div>
                 {gauntlet && (
-                  <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined} data-testid="arena-lifeline" title={t('lifelineTip')}>
+                  <button className="btn sm arena-lifeline" onClick={changeDraw} disabled={a.lifelineUsed !== undefined || !lifelineChanges(a)} data-testid="arena-lifeline" title={t(a.lifelineUsed === undefined && !lifelineChanges(a) ? 'lifelineSame' : 'lifelineTip')}>
                     {t(a.lifelineUsed !== undefined ? 'lifelineUsed' : 'changeDraw')}
                   </button>
                 )}
@@ -275,12 +281,12 @@ export function Arena() {
             {(gauntlet || cup) && (
               <label className="field" data-testid="arena-training">
                 <span>
-                  {t('trainingFocus')} <Info label={t('aboutTraining')}>{t('trainingInfo', { blurb: TRAINING[game.training].blurb })}</Info>
+                  {t('trainingFocus')} <Info label={t('aboutTraining')}>{t('trainingInfo', { blurb: trainingBlurb(game.training) })}</Info>
                 </span>
                 <select className="input" value={game.training} onChange={(e) => store.setTraining(e.target.value as TrainingFocus)} data-testid="arena-training-select">
                   {(Object.keys(TRAINING) as TrainingFocus[]).map((k) => (
                     <option key={k} value={k}>
-                      {TRAINING_LABEL[k]}
+                      {trainingLabel(k)}
                     </option>
                   ))}
                 </select>
@@ -311,8 +317,8 @@ export function Arena() {
                 {t(cup ? 'simTie' : gauntlet ? 'simRung' : 'simFinal')}
               </button>
               {(gauntlet || cup) && (
-                <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp || store.playingWeek} data-testid="arena-sim-end" title={t(cup ? 'simEndCupTip' : 'simEndTip')}>
-                  {t('simEnd')}
+                <button className="btn ghost" onClick={() => void askConfirm(t(cup ? 'simEndCupConfirm' : 'simEndConfirm'), { ok: t('simEnd') }).then((ok) => { if (ok) afterPaint(() => store.simArenaToEnd()) })} disabled={!opp || store.playingWeek || simming} aria-busy={simming || undefined} data-testid="arena-sim-end" title={t(cup ? 'simEndCupTip' : 'simEndTip')}>
+                  {t(simming ? 'simming' : 'simEnd')}
                 </button>
               )}
             </div>

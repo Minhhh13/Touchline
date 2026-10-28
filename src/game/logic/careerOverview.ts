@@ -1,5 +1,6 @@
 import type { Cabinet, Mode, Profile } from '../types'
 import { MODE_TITLE } from './modes'
+import { countsAsLeagueSeason, isTitle } from './cabinet'
 
 /**
  * The Profile page's career overview (display only, pure): what the manager has played, mode by mode, and the
@@ -20,7 +21,7 @@ export interface CareerOverview {
   winRate: number | null
   /** Points per game across them, to one decimal; null with no games. */
   pointsPerGame: number | null
-  /** Seasons finished first among them. */
+  /** Seasons finished first among them: titles, as the cabinet counts them (a sacked season is filed relegated, whatever the table said). */
   firstPlaces: number
   /** League titles in the cabinet against league seasons played (every one, not just those kept), in whole per cent. */
   titleRate: number | null
@@ -28,7 +29,8 @@ export interface CareerOverview {
   regulars: Array<{ clubId: string; seasons: number }>
 }
 
-const LEAGUE_MODES: Mode[] = ['quick', 'daily', 'weekly', 'season', 'dynasty']
+/** The modes whose result is a league season, in `MODE_TITLE`'s order: the cabinet's own list (`countsAsLeagueSeason`). */
+const LEAGUE_MODES = (Object.keys(MODE_TITLE) as Mode[]).filter(countsAsLeagueSeason)
 
 export function careerOverview(profile: Pick<Profile, 'leaderboard'>, cabinet: Pick<Cabinet, 'byMode' | 'league'>): CareerOverview {
   const byMode = (Object.keys(MODE_TITLE) as Mode[])
@@ -58,7 +60,7 @@ export function careerOverview(profile: Pick<Profile, 'leaderboard'>, cabinet: P
     record,
     winRate: record.games ? Math.round((record.won / record.games) * 100) : null,
     pointsPerGame: record.games ? Math.round((points / record.games) * 10) / 10 : null,
-    firstPlaces: board.filter((e) => e.position === 1).length,
+    firstPlaces: board.filter((e) => isTitle(e.position, e.tier)).length,
     titleRate: leagueSeasons ? Math.min(100, Math.round((cabinet.league / leagueSeasons) * 100)) : null,
     regulars,
   }

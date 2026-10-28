@@ -52,7 +52,8 @@ describe('the second pass’s cues', () => {
     for (const req of CUE_REQUESTS) {
       expect(level(req), name(req)).toBeLessThanOrEqual(CUE_MAX_LEVEL)
       expect(level(req), name(req)).toBeLessThan(goal)
-      expect(len(req), name(req)).toBeLessThan(2)
+      // The crowd's bed is the one long cue: laid end over end under the play (useBallSounds), never a moment
+      expect(len(req), name(req)).toBeLessThan(req.id === 'crowd-bed' ? 5 : 2)
     }
     // The arena's kicks sit under the match's crowd, even a goal of theirs
     for (const req of CUE_REQUESTS.filter((r) => r.id === 'kick')) expect(level(req)).toBeLessThan(theirs + 0.05)

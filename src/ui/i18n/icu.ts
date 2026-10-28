@@ -66,10 +66,20 @@ export function parseMessage(src: string): Message {
           text += "'"
           i += 2
         } else if (next === '{' || next === '}' || next === '<' || (inPlural && next === '#')) {
-          const end = src.indexOf("'", i + 1)
-          if (end < 0) fail('unclosed quote')
-          text += src.slice(i + 1, end)
-          i = end + 1
+          // A quoted run up to the next lone apostrophe; a doubled one inside it is one apostrophe ('{it''s}' is {it's})
+          i++
+          for (;;) {
+            const end = src.indexOf("'", i)
+            if (end < 0) fail('unclosed quote')
+            text += src.slice(i, end)
+            if (src[end + 1] === "'") {
+              text += "'"
+              i = end + 2
+            } else {
+              i = end + 1
+              break
+            }
+          }
         } else {
           text += c
           i++
@@ -80,7 +90,7 @@ export function parseMessage(src: string): Message {
       } else if (c === '{') {
         flush()
         i++
-        out.push(argument(depth))
+        out.push(argument(depth, inPlural))
       } else if (c === '#' && inPlural) {
         flush()
         out.push({ kind: 'hash' })
@@ -98,7 +108,7 @@ export function parseMessage(src: string): Message {
     flush()
     return out
   }
-  const argument = (depth: number): Part => {
+  const argument = (depth: number, inPlural: boolean): Part => {
     const name = word()
     if (src[i] === '}') {
       i++
@@ -117,7 +127,8 @@ export function parseMessage(src: string): Message {
         const key = word()
         if (src[i] !== '{') fail(`expected { after ${key}`)
         i++
-        options[key] = parts(type !== 'select', depth + 1)
+        // A select inside a plural keeps its `#`: it is still the plural's number, as in ICU
+        options[key] = parts(type !== 'select' || inPlural, depth + 1)
         if (src[i] !== '}') fail('unclosed option')
         i++
         ws()

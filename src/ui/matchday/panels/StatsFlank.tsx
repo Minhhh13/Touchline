@@ -16,7 +16,7 @@ export function StatsFlank({ d, side }: PanelProps & { side: 'home' | 'away' }) 
   const since = shouted ? sinceMinute(d.series, 70, d.minute) : null
   const mine = since ? (side === 'home' ? since.home : since.away) : null
   return (
-    <aside className={`md-flank ${side}`} aria-label={`${view.name} stats`}>
+    <aside className={`md-flank ${side}`} aria-label={tx('statsOf', { name: view.name })}>
       <div className="md-flank-head" style={{ borderColor: view.colour }}>
         {view.code}
       </div>

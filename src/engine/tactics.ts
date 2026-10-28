@@ -97,7 +97,7 @@ export function tacticalModifiers(ours: Tactics, ourSlots: SlotEvaluation[], the
   const theirComposure = avg(theirSlots.filter((s) => s.position !== 'GK').map((s) => s.player.attributes.mentality))
   if (ours.pressing === 'high') {
     const edge = clamp((78 - theirComposure) / 100, -0.06, 0.08)
-    // Aggression adds up to ±1.5 points of bite; work rate ±2.5 (attack) and ∓1.25 (defence)
+    // Aggression adds up to ±1.5 points of bite; work rate +2.5 to −2 (attack) and −1.25 to +1 (defence)
     const bite = clamp((ourAggression - 60) / 1000, -0.015, 0.015)
     attack *= 1.05 + edge + bite + 0.1 * wr
     defence *= 1.03 - edge * 0.5 - 0.05 * wr

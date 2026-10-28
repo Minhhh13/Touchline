@@ -16,6 +16,8 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { Fixture, PlayerSeason, SquadPlayer, TableRow } from '@engine/types'
 import type { AiClub, CupTie, SeasonState } from '@engine/season'
 import { computeTable, USER_TEAM } from '@engine/season'
+import { legAt } from '@engine/continental'
+import type { MatchResult } from '@engine/types'
 import { aiLookup } from '@engine/reserve'
 import type { Game, SeasonRecord } from '../types'
 import { squadPlayers } from './players'
@@ -46,6 +48,9 @@ export type Stake =
   | { kind: 'final' }
   | { kind: 'semi' }
   | { kind: 'knockout'; round: CupTie['round'] }
+  /** Engine 7's Continental Cup: a group match, and the first leg of a two-legged tie (the second decides it). */
+  | { kind: 'group'; group: string }
+  | { kind: 'first-leg'; round: CupTie['round'] }
 
 export interface Watch {
   playerId: string
@@ -77,6 +82,9 @@ export interface MatchPreview {
   matchweek: number
   /** A tie's round. */
   round?: CupTie['round']
+  /** Engine 7's Continental Cup: the leg of a two-legged tie, or the group of a group match. */
+  leg?: 1 | 2
+  group?: string
   /** League form, the last five, oldest first; empty for a side outside the league. */
   form: { ours: FormLetter[]; theirs: FormLetter[] }
   /** League places and points, when both sides are in the league. */
@@ -237,14 +245,19 @@ export function oldBoysOf(game: Game, u: LoadedUniverse, clubId: string): OldBoy
     .map((x) => ({ playerId: x.p.id, name: x.p.name, season: x.p.season }))
 }
 
-function tieMeeting(t: CupTie, comp: PreviewComp, opp: string): Meeting | null {
-  if (!t.result) return null
-  const home = t.homeTeamId === USER_TEAM
-  if (!(home ? t.awayTeamId === opp : t.homeTeamId === opp && t.awayTeamId === USER_TEAM)) return null
-  const gf = home ? t.result.homeGoals : t.result.awayGoals
-  const ga = home ? t.result.awayGoals : t.result.homeGoals
-  const p = t.result.penalties
-  return { comp, matchweek: t.afterMatchweek, home, gf, ga, pens: p ? { ours: home ? p.home : p.away, theirs: home ? p.away : p.home } : undefined }
+/**
+ * The meetings in a tie with `opp`, from the user's side: a single match, or both legs of a two-legged tie (engine 7:
+ * the second leg's `result` keeps its own sides, the tie's away side at home). A shoot-out goes with the deciding match.
+ */
+function tieMeetings(t: CupTie, comp: PreviewComp, opp: string): Meeting[] {
+  const userHome = t.homeTeamId === USER_TEAM
+  if (!(userHome ? t.awayTeamId === opp : t.homeTeamId === opp && t.awayTeamId === USER_TEAM)) return []
+  const meet = (r: MatchResult, home: boolean, matchweek: number, pens?: { home: number; away: number }): Meeting => ({ comp, matchweek, home, gf: home ? r.homeGoals : r.awayGoals, ga: home ? r.awayGoals : r.homeGoals, pens: pens ? { ours: userHome ? pens.home : pens.away, theirs: userHome ? pens.away : pens.home } : undefined })
+  const out: Meeting[] = []
+  if (t.firstLeg?.result) out.push(meet(t.firstLeg.result, userHome, t.firstLeg.afterMatchweek))
+  // The shoot-out from the tie's sides: an engine 7 tie's aggregate, or an older single tie's result
+  if (t.result) out.push(meet(t.result, t.firstLeg ? !userHome : userHome, t.afterMatchweek, t.agg?.pens ?? t.result.penalties))
+  return out
 }
 
 /** Every meeting with `opp` already played this season, in the order played. */
@@ -258,14 +271,17 @@ export function meetingsWith(season: SeasonState, opp: string): Meeting[] {
     const ga = home ? f.result.awayGoals : f.result.homeGoals
     out.push({ comp: 'league', matchweek: f.matchweek, home, gf, ga })
   }
-  for (const t of season.cup) {
-    const m = tieMeeting(t, 'cup', opp)
-    if (m) out.push(m)
+  for (const t of season.cup) out.push(...tieMeetings(t, 'cup', opp))
+  // Engine 7's group stage, then the Continental Cup's ties
+  for (const g of season.continental?.groups ?? []) {
+    for (const m of g.matches) {
+      if (!m.result) continue
+      const home = m.homeTeamId === USER_TEAM
+      if (!(home ? m.awayTeamId === opp : m.homeTeamId === opp && m.awayTeamId === USER_TEAM)) continue
+      out.push({ comp: 'continental', matchweek: m.matchweek, home, gf: home ? m.result.homeGoals : m.result.awayGoals, ga: home ? m.result.awayGoals : m.result.homeGoals })
+    }
   }
-  for (const t of season.continental?.ties ?? []) {
-    const m = tieMeeting(t, 'continental', opp)
-    if (m) out.push(m)
-  }
+  for (const t of season.continental?.ties ?? []) out.push(...tieMeetings(t, 'continental', opp))
   // A tie after matchweek n is played after that week's league game
   return out.sort((a, b) => a.matchweek - b.matchweek || (a.comp === 'league' ? 0 : 1) - (b.comp === 'league' ? 0 : 1))
 }
@@ -306,7 +322,7 @@ function formOf(table: TableRow[], id: string): FormLetter[] {
  * The preview of the user's next league match (`comp` league) or of a midweek tie. `matchweek` is the week it is
  * played in, or after for a tie. Null without a season or an opponent.
  */
-export function matchPreview(game: Game, u: LoadedUniverse, fixture: { opponentId: string; home: boolean; matchweek: number; comp: PreviewComp; round?: CupTie['round'] }): MatchPreview | null {
+export function matchPreview(game: Game, u: LoadedUniverse, fixture: TieFixture): MatchPreview | null {
   const season = game.season
   if (!season) return null
   const opp = fixture.opponentId
@@ -322,10 +338,12 @@ export function matchPreview(game: Game, u: LoadedUniverse, fixture: { opponentI
     home: fixture.home,
     matchweek: fixture.matchweek,
     round: fixture.round,
+    ...(fixture.leg ? { leg: fixture.leg } : {}),
+    ...(fixture.group ? { group: fixture.group } : {}),
     form: { ours: formOf(table, USER_TEAM), theirs: inLeague ? formOf(table, opp) : [] },
     table: us && them ? { ours: us.pos, theirs: them.pos, oursPts: us.row.points, theirsPts: them.row.points } : undefined,
     meetings: meetingsWith(season, opp),
-    stake: fixture.comp === 'league' ? leagueStake(table, opp, played) : tieStake(fixture.round ?? 'R16'),
+    stake: fixture.comp === 'league' ? leagueStake(table, opp, played) : fixture.group ? { kind: 'group', group: fixture.group } : fixture.leg === 1 ? { kind: 'first-leg', round: fixture.round ?? 'QF' } : tieStake(fixture.round ?? 'R16'),
     watch: { ours: ourWatch(game, u), theirs: club ? theirWatch(u, club) : undefined },
     derby: fixture.comp === 'continental' ? null : derbyOf(u, season.hostClubId, opp),
     oldBoys: oldBoysOf(game, u, opp),
@@ -343,23 +361,55 @@ export function nextLeagueFixture(game: Game): { opponentId: string; home: boole
   return { opponentId: home ? f.awayTeamId : f.homeTeamId, home, matchweek: mw, comp: 'league' }
 }
 
-/** The user's tie played midweek after the next matchweek, in either cup, or null. */
-export function nextTieFixture(game: Game): { opponentId: string; home: boolean; matchweek: number; comp: PreviewComp; round: CupTie['round'] } | null {
+/** A match to preview: the league's (`comp` league), or a midweek tie's with its round, and on engine 7's Continental Cup its leg or group. */
+export interface TieFixture {
+  opponentId: string
+  home: boolean
+  matchweek: number
+  comp: PreviewComp
+  round?: CupTie['round']
+  leg?: 1 | 2
+  group?: string
+}
+
+/**
+ * The user's match played midweek after the next matchweek, in either cup, or null. Engine 7's Continental Cup plays
+ * a group matchday or a leg there, each at its own ground (the second leg at the tie's away side's).
+ */
+export function nextTieFixture(game: Game): TieFixture | null {
   const season = game.season
   if (!season || season.sacked) return null
   const mw = season.matchweek + 1
   const find = (ties: CupTie[], comp: PreviewComp) => {
-    const t = ties.find((x) => !x.result && x.afterMatchweek === mw && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
-    if (!t) return null
-    const home = t.homeTeamId === USER_TEAM
-    return { opponentId: home ? t.awayTeamId : t.homeTeamId, home, matchweek: mw, comp, round: t.round }
+    for (const t of ties) {
+      if (t.homeTeamId !== USER_TEAM && t.awayTeamId !== USER_TEAM) continue
+      const leg = legAt(t, mw)
+      if (!leg || (leg.leg === 1 ? t.firstLeg?.result : t.result)) continue
+      const home = leg.homeTeamId === USER_TEAM
+      return { opponentId: home ? leg.awayTeamId : leg.homeTeamId, home, matchweek: mw, comp, round: t.round }
+    }
+    return null
   }
   if (!season.cupEliminated && !season.cupWon) {
     const c = find(season.cup, 'cup')
     if (c) return c
   }
   const k = season.continental
-  if (k && !k.eliminated && !k.won) return find(k.ties, 'continental')
+  if (!k || k.eliminated || k.won) return null
+  if (!k.groups) return find(k.ties, 'continental')
+  for (const g of k.groups) {
+    const m = g.matches.find((x) => x.matchweek === mw && !x.result && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
+    if (!m) continue
+    const home = m.homeTeamId === USER_TEAM
+    return { opponentId: home ? m.awayTeamId : m.homeTeamId, home, matchweek: mw, comp: 'continental', group: g.name }
+  }
+  for (const t of k.ties) {
+    if (t.homeTeamId !== USER_TEAM && t.awayTeamId !== USER_TEAM) continue
+    const leg = legAt(t, mw)
+    if (!leg || (leg.leg === 1 ? t.firstLeg?.result : t.result)) continue
+    const home = leg.homeTeamId === USER_TEAM
+    return { opponentId: home ? leg.awayTeamId : leg.homeTeamId, home, matchweek: mw, comp: 'continental', round: t.round, ...(leg.leg ? { leg: leg.leg } : {}) }
+  }
   return null
 }
 

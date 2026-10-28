@@ -33,15 +33,3 @@ function byTier(u: LoadedUniverse, leagues: readonly string[], outcomes: Readonl
   for (const o of outcomes) by[tiers[`${o.cs.clubId}@${o.cs.season}`] ?? 'blue'] += o.p
   return DISPLAY_TIERS.filter((t) => t !== 'icons' || withIcons).map((tier) => ({ tier, p: by[tier] }))
 }
-
-/**
- * A chance as the panel prints it: one decimal under 10% (0.4%, 7.5%), whole above (23%); "<0.1%" for a chance too
- * small to print but not zero, so a tier that can come up never reads as 0%.
- */
-export function formatOdds(p: number): string {
-  if (p <= 0) return '0%'
-  const pct = p * 100
-  if (pct < 0.05) return '<0.1%'
-  if (pct < 9.95) return `${pct.toFixed(1)}%`
-  return `${Math.round(pct)}%`
-}

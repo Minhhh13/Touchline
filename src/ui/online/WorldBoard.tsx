@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useStore, slotOf } from '@game/store'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useStore, slotOf, todaysDailySeed } from '@game/store'
 import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
@@ -7,14 +7,18 @@ import * as api from '../../online/api'
 import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, CasualKind, CasualRow, CasualSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
 import { PAGE } from '../../online/boards'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
-import { weeklyStartSettings } from '../../online/daily'
+import { dailyStartSettings, weeklyStartSettings } from '../../online/daily'
 import { PIN_NOTE, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
-import { RUN_IN_TEMPLATE_LABEL } from '@game/logic/runin'
+import { dailyArenaGameSettings, dailyArenaSettings } from '@game/logic/arenaDaily'
+import { weeklyPlan } from '@game/logic/weekly'
+import { weeklyThemeText } from '../i18n/weeklyThemeText'
+import { arenaDailySeed, weeklySeed } from '@engine/rng'
+import { levelRows, podiumOf, signedGd } from '../boardRows'
 import { isWeeklyRunIn, runInWeekSeed, weeklyRunInJob, weeklyRunInPlan } from '@game/logic/runinWeekly'
 import { Info, Segmented } from '../components/bits'
-import { seasonLabel } from '../format'
+import { formationName, seasonLabel } from '../format'
 import { CountryFlag, CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
 import { onlineErrorText } from '../../online/postText'
@@ -23,6 +27,7 @@ import { onTabListKey } from '../a11y'
 import { translator } from '../i18n'
 import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
+import { templateText } from '../runInText'
 
 const tr = translator(online)
 
@@ -53,28 +58,36 @@ const tierText = (t: string) => TIER_LABEL[t as SeasonTier] ?? t
 function Flag({ code }: { code: string | null }) {
   if (!code) return null
   return (
-    <span title={countryName(code)} style={{ marginRight: 4 }}>
+    <span className="board-flag" title={countryName(code)}>
       <CountryFlag code={code} size={18} />
     </span>
   )
 }
 
-function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boardKey: string; country: string | null; title: string }) {
-  const openChallenge = useStore((s) => s.openChallenge)
+/**
+ * One board's rows and summary, a page at a time. It loads again on a new key, a sign-in or out, Try again, and by
+ * itself when the connection comes back after a failed load.
+ */
+function useBoard<R, S>(key: string, page: (offset: number) => Promise<R[]>, summary: () => Promise<S>) {
   const session = useOnline((s) => s.session)
-  const [rows, setRows] = useState<BoardRow[] | null>(null)
-  const [summary, setSummary] = useState<BoardSummary | null>(null)
+  const [rows, setRows] = useState<R[] | null>(null)
+  const [sum, setSum] = useState<S | null>(null)
   const [more, setMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const [busy, setBusy] = useState(false)
+  // The readers change every render; the effect reads the latest through a ref and reloads only on what it names
+  const readers = useRef({ page, summary })
+  readers.current = { page, summary }
   useEffect(() => {
     let live = true
     setRows(null)
     setError(null)
-    Promise.all([api.board(kind, boardKey, country), api.boardSummary(kind, boardKey, country)]).then(
+    Promise.all([readers.current.page(0), readers.current.summary()]).then(
       ([r, s]) => {
         if (!live) return
         setRows(r)
-        setSummary(s)
+        setSum(s)
         setMore(r.length === PAGE)
       },
       (e: unknown) => live && setError(onlineErrorText(e)),
@@ -82,22 +95,117 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
     return () => {
       live = false
     }
-  }, [kind, boardKey, country, session])
+  }, [key, session, attempt])
+  useEffect(() => {
+    if (!error || typeof window === 'undefined') return
+    const back = () => setAttempt((a) => a + 1)
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  }, [error])
   const loadMore = async () => {
-    if (!rows) return
-    let next: typeof rows
+    if (!rows || busy) return
+    setBusy(true)
+    let next: R[]
     try {
-      next = await api.board(kind, boardKey, country, rows.length)
+      next = await readers.current.page(rows.length)
     } catch (e) {
       // A dropped connection keeps the rows shown and says why the next page did not come
       setError(onlineErrorText(e))
+      setBusy(false)
       return
     }
+    setBusy(false)
+    setError(null)
     setRows([...rows, ...next])
     setMore(next.length === PAGE)
   }
+  return { rows, summary: sum, more, error, busy, loadMore, retry: () => setAttempt((a) => a + 1) }
+}
+
+/** A board's state above its table: the error with Try again, loading, or nobody yet (with what to do about it). */
+function BoardState({ rows, error, retry, empty }: { rows: unknown[] | null; error: string | null; retry: () => void; empty: string }) {
+  return (
+    <>
+      {error && (
+        <div className="notice warn row between wrap board-error" data-testid="board-error" role="status">
+          <span>{tr('boardError', { error })}</span>
+          <button type="button" className="btn sm" onClick={retry} data-testid="board-retry">
+            {tr('tryAgain')}
+          </button>
+        </div>
+      )}
+      {!rows && !error && (
+        <div className="board-loading" aria-busy="true" data-testid="board-loading">
+          <span className="sr-only">{tr('loading')}</span>
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="board-skeleton" aria-hidden="true" />
+          ))}
+        </div>
+      )}
+      {rows && rows.length === 0 && (
+        <div className="empty-state board-empty" data-testid="board-empty">
+          <p className="muted">{empty}</p>
+        </div>
+      )}
+    </>
+  )
+}
+
+/** A row's place: the podium's three in their colours, and a mark when only the time of posting split it from a neighbour. */
+function RankCell({ position, level }: { position: number; level: boolean }) {
+  const podium = podiumOf(position)
+  return (
+    <td className="num board-rank">
+      <span className={`rank-pill${podium ? ` p${podium}` : ''}`}>{position}</span>
+      {level && (
+        <span className="rank-level" title={tr('levelTip')}>
+          <span aria-hidden="true">=</span>
+          <span className="sr-only">{tr('levelTip')}</span>
+        </span>
+      )}
+    </td>
+  )
+}
+
+/** The manager's flag, name and, on your own row, the You chip. */
+function ManagerCell({ name, country, isMe }: { name: string; country: string | null; isMe: boolean }) {
+  return (
+    <td className="board-manager">
+      <Flag code={country} />
+      <span className="board-name">{name}</span>
+      {isMe && <span className="chip info board-you">{tr('you')}</span>}
+    </td>
+  )
+}
+
+/** The rows' class: your own row lit, the podium marked. */
+const rowClass = (r: { isMe: boolean; position: number }, extra = '') => [r.isMe ? 'me' : '', podiumOf(r.position) ? 'podium' : '', extra].filter(Boolean).join(' ')
+
+/** Your place pinned at the board's foot while your row is not among those shown. */
+function MineFoot({ children }: { children: ReactNode }) {
+  return (
+    <div className="fit-foot notice row between board-mine" data-testid="board-mine">
+      {children}
+    </div>
+  )
+}
+
+/** The Show more button, busy while the next page loads. */
+function MoreButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
+  return (
+    <button type="button" className="btn sm ghost board-more" onClick={onClick} disabled={busy} aria-busy={busy || undefined}>
+      {tr(busy ? 'loading' : 'showMore')}
+    </button>
+  )
+}
+
+function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boardKey: string; country: string | null; title: string }) {
+  const openChallenge = useStore((s) => s.openChallenge)
+  const b = useBoard<BoardRow, BoardSummary | null>(`${kind}|${boardKey}|${country}`, (offset) => api.board(kind, boardKey, country, offset), () => api.boardSummary(kind, boardKey, country))
+  const { rows, summary } = b
   const meShown = !!rows?.some((r) => r.isMe)
   const race = !!rows?.some((r) => r.revealed && r.payload)
+  const level = levelRows((rows ?? []).map((r) => `${r.points}|${r.lost}|${r.goalDiff}|${r.goalsFor}`))
   return (
     <section className="panel fit-panel" data-testid={`board-${kind}`}>
       <div className="panel-head">
@@ -107,11 +215,9 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
         </span>
       </div>
       <div className="fit-scroll">
-        {error && <div className="notice warn" data-testid="board-error">{tr('boardError', { error })}</div>}
-        {!rows && !error && <div className="muted small">{tr('loading')}</div>}
-        {rows && rows.length === 0 && <div className="muted small">{tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })}</div>}
+        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
         {rows && rows.length > 0 && (
-          <table className="tbl sticky-head">
+          <table className="tbl sticky-head board-table">
             <thead>
               <tr>
                 <th className="num">#</th>
@@ -125,25 +231,17 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={`${r.position}-${r.name}`} className={r.isMe ? 'me' : ''}>
-                  <td className="num">{r.position}</td>
-                  <td>
-                    <Flag code={r.country} />
-                    {r.name}
-                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>{tr('you')}</span>}
-                  </td>
-                  <td>{r.team}</td>
-                  <td className="num" style={{ fontWeight: 700 }}>
-                    {r.points}
-                  </td>
+              {rows.map((r, i) => (
+                <tr key={`${r.position}-${r.name}`} className={rowClass(r)} aria-current={r.isMe || undefined}>
+                  <RankCell position={r.position} level={level[i]} />
+                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                  <td className="board-team">{r.team}</td>
+                  <td className="num board-score">{r.points}</td>
                   <td className="num">
-                    {r.won}-{r.drawn}-{r.lost}
+                    <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />
                   </td>
-                  <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
-                  <td className="small">
-                    {tr('resultLine', { tier: tierText(r.tier), pos: r.leaguePosition })}
-                  </td>
+                  <td className="num">{signedGd(r.goalDiff)}</td>
+                  <td className="small">{tr('resultLine', { tier: tierText(r.tier), pos: r.leaguePosition })}</td>
                   {race && (
                     <td className="end">
                       {r.revealed && r.payload && (
@@ -158,17 +256,13 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
             </tbody>
           </table>
         )}
-        {more && (
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
-            {tr('showMore')}
-          </button>
-        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
       </div>
       {!meShown && summary?.myPosition && (
-        <div className="fit-foot notice row between" data-testid="board-mine">
+        <MineFoot>
           <b>{tr('youAt', { pos: summary.myPosition })}</b>
           <span>{tr('pts', { n: summary.myPoints })}</span>
-        </div>
+        </MineFoot>
       )}
     </section>
   )
@@ -176,40 +270,10 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
 
 function AlltimeTable({ country, order }: { country: string | null; order: AlltimeOrder }) {
   const session = useOnline((s) => s.session)
-  const [rows, setRows] = useState<AlltimeRow[] | null>(null)
-  const [mine, setMine] = useState<AlltimeMine | null>(null)
-  const [more, setMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let live = true
-    setRows(null)
-    setError(null)
-    Promise.all([api.alltime(order, country), api.alltimeMine(order, country)]).then(
-      ([r, m]) => {
-        if (!live) return
-        setRows(r)
-        setMine(m)
-        setMore(r.length === PAGE)
-      },
-      (e: unknown) => live && setError(onlineErrorText(e)),
-    )
-    return () => {
-      live = false
-    }
-  }, [order, country, session])
-  const loadMore = async () => {
-    if (!rows) return
-    let next: typeof rows
-    try {
-      next = await api.alltime(order, country, rows.length)
-    } catch (e) {
-      // A dropped connection keeps the rows shown and says why the next page did not come
-      setError(onlineErrorText(e))
-      return
-    }
-    setRows([...rows, ...next])
-    setMore(next.length === PAGE)
-  }
+  const b = useBoard<AlltimeRow, AlltimeMine | null>(`${order}|${country}`, (offset) => api.alltime(order, country, offset), () => api.alltimeMine(order, country))
+  const { rows } = b
+  const mine = b.summary
+  const level = levelRows((rows ?? []).map((r) => (order === 'points' ? `${r.totalPoints}|${r.bestStreak}` : `${r.bestStreak}|${r.totalPoints}`)))
   return (
     <section className="panel fit-panel" data-testid="board-alltime">
       <div className="panel-head">
@@ -217,11 +281,9 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
         <span className="small muted">{tr(order === 'points' ? 'byPoints' : 'byStreak')}</span>
       </div>
       <div className="fit-scroll">
-        {error && <div className="notice warn" data-testid="board-error">{tr('boardError', { error })}</div>}
-        {!rows && !error && <div className="muted small">{tr('loading')}</div>}
-        {rows && rows.length === 0 && <div className="muted small">{tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })}</div>}
+        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
         {rows && rows.length > 0 && (
-          <table className="tbl sticky-head">
+          <table className="tbl sticky-head board-table">
             <thead>
               <tr>
                 <th className="num">#</th>
@@ -234,43 +296,27 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={`${r.position}-${r.name}`} className={r.isMe ? 'me' : ''}>
-                  <td className="num">{r.position}</td>
-                  <td>
-                    <Flag code={r.country} />
-                    {r.name}
-                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>{tr('you')}</span>}
-                  </td>
-                  <td className="num" style={{ fontWeight: order === 'points' ? 700 : 400 }}>
-                    {r.totalPoints.toLocaleString()}
-                  </td>
+              {rows.map((r, i) => (
+                <tr key={`${r.position}-${r.name}`} className={rowClass(r)} aria-current={r.isMe || undefined}>
+                  <RankCell position={r.position} level={level[i]} />
+                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                  <td className={`num${order === 'points' ? ' board-score' : ''}`}>{r.totalPoints.toLocaleString()}</td>
                   <td className="num">{r.played}</td>
                   <td className="num">{r.average}</td>
-                  <td className="num" style={{ fontWeight: order === 'streak' ? 700 : 400 }}>
-                    {r.bestStreak}
-                  </td>
+                  <td className={`num${order === 'streak' ? ' board-score' : ''}`}>{r.bestStreak}</td>
                   <td className="num">{r.currentStreak}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-        {more && (
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
-            {tr('showMore')}
-          </button>
-        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
       </div>
       {mine && !rows?.some((r) => r.isMe) && (
-        <div className="fit-foot notice row between wrap" data-testid="board-mine">
-          <b>
-            {tr('youOf', { pos: mine.position, total: mine.players.toLocaleString() })}
-          </b>
-          <span>
-            {tr('mineLine', { pts: mine.totalPoints.toLocaleString(), n: mine.played, streak: mine.bestStreak })}
-          </span>
-        </div>
+        <MineFoot>
+          <b>{tr('youOf', { pos: mine.position, total: mine.players.toLocaleString() })}</b>
+          <span>{tr('mineLine', { pts: mine.totalPoints.toLocaleString(), n: mine.played, streak: mine.bestStreak })}</span>
+        </MineFoot>
       )}
       {!session && <div className="fit-foot small muted">{tr('signInAlltime')}</div>}
     </section>
@@ -317,44 +363,12 @@ function Wdl({ won, drawn, lost }: { won: number; drawn: number; lost: number })
 function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: string | null; week: string }) {
   const openChallenge = useStore((s) => s.openChallenge)
   const u = useStore((s) => s.universe)
-  const session = useOnline((s) => s.session)
-  const [rows, setRows] = useState<ChaseRow[] | null>(null)
-  const [summary, setSummary] = useState<ChaseSummary | null>(null)
-  const [more, setMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let live = true
-    setRows(null)
-    setError(null)
-    Promise.all([api.chaseBoard(scope, week, country), api.chaseSummary(scope, week, country)]).then(
-      ([r, s]) => {
-        if (!live) return
-        setRows(r)
-        setSummary(s)
-        setMore(r.length === PAGE)
-      },
-      (e: unknown) => live && setError(onlineErrorText(e)),
-    )
-    return () => {
-      live = false
-    }
-  }, [scope, week, country, session])
-  const loadMore = async () => {
-    if (!rows) return
-    let next: typeof rows
-    try {
-      next = await api.chaseBoard(scope, week, country, rows.length)
-    } catch (e) {
-      // A dropped connection keeps the rows shown and says why the next page did not come
-      setError(onlineErrorText(e))
-      return
-    }
-    setRows([...rows, ...next])
-    setMore(next.length === PAGE)
-  }
+  const b = useBoard<ChaseRow, ChaseSummary | null>(`${scope}|${week}|${country}`, (offset) => api.chaseBoard(scope, week, country, offset), () => api.chaseSummary(scope, week, country))
+  const { rows, summary } = b
   const league = (id: string) => u?.available.find((l) => l.id === id)?.shortName ?? id
   const meShown = !!rows?.some((r) => r.isMe)
   const rec = summary?.record
+  const level = levelRows((rows ?? []).map((r) => `${r.dropped}|${r.lost}|${r.goalDiff}|${r.goalsFor}`))
   return (
     <section className="panel fit-panel" data-testid="board-chase">
       <div className="panel-head">
@@ -371,11 +385,9 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
         </div>
       )}
       <div className="fit-scroll">
-        {error && <div className="notice warn" data-testid="board-error">{tr('boardError', { error })}</div>}
-        {!rows && !error && <div className="muted small">{tr('loading')}</div>}
-        {rows && rows.length === 0 && <div className="muted small">{tr('nobodyChase', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })}</div>}
+        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyChase', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
         {rows && rows.length > 0 && (
-          <table className="tbl sticky-head">
+          <table className="tbl sticky-head board-table">
             <thead>
               <tr>
                 <th className="num">#</th>
@@ -389,26 +401,22 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={`${r.position}-${r.name}`} className={`${r.isMe ? 'me' : ''}${r.perfect ? ' chase-perfect' : ''}`}>
-                  <td className="num">{r.position}</td>
-                  <td>
-                    <Flag code={r.country} />
-                    {r.name}
-                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>{tr('you')}</span>}
-                  </td>
-                  <td>{r.team}</td>
+              {rows.map((r, i) => (
+                <tr key={`${r.position}-${r.name}`} className={rowClass(r, r.perfect ? 'chase-perfect' : '')} aria-current={r.isMe || undefined}>
+                  <RankCell position={r.position} level={level[i]} />
+                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                  <td className="board-team">{r.team}</td>
                   <td className="small" title={tr('chaseRowTip', { ratings: tr(r.ratings === 'prime' ? 'prime' : 'season'), bench: r.benchPicks ? tr('benchOf', { n: r.benchPicks }) : tr('noBench') })}>
                     {league(r.leagueId)}
                     {r.ratings === 'prime' ? tr('primeSuffix') : ''}
                   </td>
-                  <td className="num" style={{ fontWeight: 700 }} title={r.dropped ? tr('shortOf', { n: r.dropped, max: r.games * 3 }) : tr('everyPoint')}>
+                  <td className="num board-score" title={r.dropped ? tr('shortOf', { n: r.dropped, max: r.games * 3 }) : tr('everyPoint')}>
                     {r.points}
                   </td>
                   <td className="num">
                     <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />
                   </td>
-                  <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
+                  <td className="num">{signedGd(r.goalDiff)}</td>
                   <td className="end">
                     {r.perfect && (
                       <span className="chip good" data-testid="chase-flawless">
@@ -426,19 +434,15 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
             </tbody>
           </table>
         )}
-        {more && (
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
-            {tr('showMore')}
-          </button>
-        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
       </div>
       {!meShown && summary?.myPosition && summary.my && (
-        <div className="fit-foot notice row between" data-testid="board-mine">
+        <MineFoot>
           <b>{tr('youAt', { pos: summary.myPosition })}</b>
           <span>
             {recordLabel(summary.my.won, summary.my.drawn, summary.my.lost)} · {tr('pts', { n: summary.my.points })}
           </span>
-        </div>
+        </MineFoot>
       )}
     </section>
   )
@@ -547,45 +551,13 @@ function ChasePlay() {
 /** A casual board (the Daily Arena, the Weekly Challenge, the Run-in of the week): its rows, your place pinned at the foot. */
 function CasualTable({ board, boardKey, country, title }: { board: CasualKind; boardKey: string; country: string | null; title: string }) {
   const openChallenge = useStore((s) => s.openChallenge)
-  const session = useOnline((s) => s.session)
-  const [rows, setRows] = useState<CasualRow[] | null>(null)
-  const [summary, setSummary] = useState<CasualSummary | null>(null)
-  const [more, setMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let live = true
-    setRows(null)
-    setError(null)
-    Promise.all([api.casualBoard(board, boardKey, country), api.casualSummary(board, boardKey, country)]).then(
-      ([r, s]) => {
-        if (!live) return
-        setRows(r)
-        setSummary(s)
-        setMore(r.length === PAGE)
-      },
-      (e: unknown) => live && setError(onlineErrorText(e)),
-    )
-    return () => {
-      live = false
-    }
-  }, [board, boardKey, country, session])
-  const loadMore = async () => {
-    if (!rows) return
-    let next: typeof rows
-    try {
-      next = await api.casualBoard(board, boardKey, country, rows.length)
-    } catch (e) {
-      // A dropped connection keeps the rows shown and says why the next page did not come
-      setError(onlineErrorText(e))
-      return
-    }
-    setRows([...rows, ...next])
-    setMore(next.length === PAGE)
-  }
+  const b = useBoard<CasualRow, CasualSummary | null>(`${board}|${boardKey}|${country}`, (offset) => api.casualBoard(board, boardKey, country, offset), () => api.casualSummary(board, boardKey, country))
+  const { rows, summary } = b
   const arena = board === 'arena'
   const meShown = !!rows?.some((r) => r.isMe)
   // An arena or Weekly run is a link anyone can race once posting has closed; a run-in has no link
   const race = board !== 'runin' && !!rows?.some((r) => r.revealed && r.payload)
+  const level = levelRows((rows ?? []).map((r) => `${r.score}|${r.won}|${r.drawn}|${r.lost}|${r.goalDiff}|${r.goalsFor}|${r.goalsAgainst}`))
   return (
     <section className="panel fit-panel" data-testid={`board-${board}`}>
       <div className="panel-head">
@@ -595,11 +567,9 @@ function CasualTable({ board, boardKey, country, title }: { board: CasualKind; b
         </span>
       </div>
       <div className="fit-scroll">
-        {error && <div className="notice warn" data-testid="board-error">{tr('boardError', { error })}</div>}
-        {!rows && !error && <div className="muted small">{tr('loading')}</div>}
-        {rows && rows.length === 0 && <div className="muted small">{tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })}</div>}
+        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
         {rows && rows.length > 0 && (
-          <table className="tbl sticky-head">
+          <table className="tbl sticky-head board-table">
             <thead>
               <tr>
                 <th className="num">#</th>
@@ -613,22 +583,16 @@ function CasualTable({ board, boardKey, country, title }: { board: CasualKind; b
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={`${r.position}-${r.name}`} className={r.isMe ? 'me' : ''}>
-                  <td className="num">{r.position}</td>
-                  <td>
-                    <Flag code={r.country} />
-                    {r.name}
-                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>{tr('you')}</span>}
-                  </td>
-                  {board !== 'runin' && <td>{r.team}</td>}
-                  <td className="num" style={{ fontWeight: 700 }}>
-                    {r.score}
-                  </td>
+              {rows.map((r, i) => (
+                <tr key={`${r.position}-${r.name}`} className={rowClass(r, r.trophy ? 'board-trophy' : '')} aria-current={r.isMe || undefined}>
+                  <RankCell position={r.position} level={level[i]} />
+                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                  {board !== 'runin' && <td className="board-team">{r.team}</td>}
+                  <td className="num board-score">{r.score}</td>
                   <td className="num">{arena ? `${r.goalsFor}-${r.goalsAgainst}` : <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />}</td>
-                  <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
+                  <td className="num">{signedGd(r.goalDiff)}</td>
                   <td className="small">
-                    {r.trophy && <span className="chip good" style={{ marginRight: 4 }}>{tr('casualTrophy', { board })}</span>}
+                    {r.trophy && <span className="chip good board-trophy-chip">{tr('casualTrophy', { board })}</span>}
                     {arena ? r.detail : board === 'runin' ? tr('runInResult', { pos: r.leaguePosition ?? 0, outcome: r.trophy ? 'met' : r.detail === 'SACKED' ? 'sacked' : 'missed' }) : tr('resultLine', { tier: tierText(r.detail), pos: r.leaguePosition ?? 0 })}
                   </td>
                   {race && (
@@ -645,19 +609,106 @@ function CasualTable({ board, boardKey, country, title }: { board: CasualKind; b
             </tbody>
           </table>
         )}
-        {more && (
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
-            {tr('showMore')}
-          </button>
-        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
       </div>
       {!meShown && summary?.myPosition && (
-        <div className="fit-foot notice row between" data-testid="board-mine">
+        <MineFoot>
           <b>{tr('youAt', { pos: summary.myPosition })}</b>
           <span>{tr(arena ? 'wonN' : 'pts', { n: summary.myScore })}</span>
-        </div>
+        </MineFoot>
       )}
     </section>
+  )
+}
+
+/** A side-panel card: what the board is for, your standing on it today, and the one button to play it. */
+function PlayCard({ title, line, done, action, onClick, disabled, testId }: { title: string; line: ReactNode; done: string | null; action: string; onClick: () => void; disabled?: boolean; testId: string }) {
+  return (
+    <div className="col world-weekly world-play" data-testid={testId}>
+      <div>
+        <b>{title}</b>
+        <div className="small muted">{line}</div>
+        {done && <div className="small world-play-done" data-testid={`${testId}-done`}>{done}</div>}
+      </div>
+      <button type="button" className={`btn block${done ? '' : ' primary'}`} onClick={onClick} disabled={disabled} data-testid={`${testId}-go`}>
+        {action}
+      </button>
+    </div>
+  )
+}
+
+/** Today's Daily from its board: it continues where it was left, else opens the Daily's setup (as Home's card does). */
+function DailyPlay() {
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues } = useStore()
+  const pin = useOnline((st) => (st.pins.day === new Date().toISOString().slice(0, 10) ? st.pins.daily : null))
+  if (!u || !loadedLeagues.includes('england')) return null
+  const seed = todaysDailySeed()
+  // Online and pinned: the ranked puzzle, as Home's card reads it
+  const s = dailyStartSettings(u, seed, 'Touchline XI', pin).settings
+  const isToday = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === seed && g.phase !== 'summary'
+  const result = profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`]
+  const underWay = isToday(game) || isToday(parked.quick)
+  const play = () => (isToday(game) ? go('game') : isToday(parked.quick) ? resumeGame('quick') : go('setup', 'daily'))
+  return (
+    <PlayCard
+      testId="world-play-daily"
+      title={tr('playTodayDaily')}
+      line={rich(tr('dailyCardLine', { formation: formationName(s.formationId), club: u.clubById[s.hostClubId]?.name ?? s.hostClubId, season: seasonLabel(s.leagueSeason) }), B)}
+      done={result && !underWay ? tr('playedToday', { n: result.points, tier: tierText(result.tier) }) : null}
+      action={tr(underWay ? 'continueDailyWorld' : result ? 'playAgainPractice' : 'playDailyWorld')}
+      onClick={play}
+    />
+  )
+}
+
+/** Today's Daily Arena from its board: the run continues wherever it is; another unfinished arena run is only dropped on a yes. */
+function ArenaDailyPlay() {
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues, startGame } = useStore()
+  if (!u || !loadedLeagues.includes('england')) return null
+  const seed = arenaDailySeed()
+  const today = dailyArenaSettings(seed)
+  const done = profile.arenaDaily?.results[seed]
+  const isToday = (g: typeof game) => !!g && !!g.settings.arena?.daily && g.settings.seed === seed && g.phase !== 'summary'
+  const underWay = isToday(game) ? 'active' : isToday(parked.arena) ? 'parked' : null
+  const play = async () => {
+    if (underWay === 'active') return go('game')
+    if (underWay === 'parked') return resumeGame('arena')
+    const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
+    if (open && !(await askConfirm(tr('arenaAbandonWorld', { team: open.settings.teamName }), { ok: tr('startOk'), danger: true }))) return
+    if (!open && done && !(await askConfirm(tr('arenaAgainWorld', { label: done.label }), { ok: tr('playAgainOk') }))) return
+    startGame(dailyArenaGameSettings(u, seed))
+  }
+  return (
+    <PlayCard
+      testId="world-play-arena"
+      title={tr('playTodayArena')}
+      line={tr(today.format === 'gauntlet' ? 'arenaCardGauntlet' : 'arenaCardCup', { size: today.size ?? 16, wheel: u.available.find((l) => l.id === today.leagueId)?.name ?? today.leagueId })}
+      done={done && !underWay ? tr('playedArenaToday', { label: done.label }) : null}
+      action={tr(underWay ? 'continueArenaWorld' : done ? 'playAgainPractice' : 'playArenaWorld')}
+      onClick={() => void play()}
+    />
+  )
+}
+
+/** This week's Weekly Challenge from its board: under way it continues, else its setup opens (the week's packs load there). */
+function ThemedWeekPlay() {
+  const { universe: u, game, parked, go, resumeGame, profile } = useStore()
+  if (!u) return null
+  const seed = weeklySeed()
+  const plan = weeklyPlan(u, seed)
+  const done = profile.weekly?.results[seed]
+  const isThisWeek = (g: typeof game) => !!g && g.settings.mode === 'weekly' && g.settings.seed === seed && g.phase !== 'summary'
+  const underWay = isThisWeek(game) || isThisWeek(parked.quick)
+  const play = () => (isThisWeek(game) ? go('game') : isThisWeek(parked.quick) ? resumeGame('quick') : go('setup', 'weekly'))
+  return (
+    <PlayCard
+      testId="world-play-themed"
+      title={tr('playThemedWeek')}
+      line={plan ? tr('themedCardLine', { theme: weeklyThemeText(plan.theme) }) : tr('themedCardFallback')}
+      done={done && !underWay ? tr('playedThemed', { n: done.points, tier: tierText(done.tier) }) : null}
+      action={tr(underWay ? 'continueThemed' : done ? 'playAgainPractice' : 'playThemedGo')}
+      onClick={play}
+    />
   )
 }
 
@@ -688,7 +739,7 @@ function RunInWeekPlay() {
         <div className="small muted">
           {job ? (
             <>
-              {rich(tr('runInWeekJob', { brief: RUN_IN_TEMPLATE_LABEL[job.template], club: u.clubById[job.clubId]?.name ?? job.clubId, season: seasonLabel(job.season), pos: job.projected.position, week: job.takeover }), B)}{' '}
+              {rich(tr('runInWeekJob', { brief: templateText(job.template), club: u.clubById[job.clubId]?.name ?? job.clubId, season: seasonLabel(job.season), pos: job.projected.position, week: job.takeover }), B)}{' '}
             </>
           ) : (
             tr('runInWeekLoading')
@@ -780,12 +831,16 @@ export function WorldBoard() {
             <div className="fit-scroll col">
               <div className="world-boards" role="tablist" aria-label={tr('boards')} onKeyDown={onTabListKey}>
                 {BOARDS.map((b) => (
-                  <button key={b.id} type="button" role="tab" aria-selected={tab === b.id} tabIndex={tab === b.id ? 0 : -1} className={`world-board-pick${tab === b.id ? ' active' : ''}`} onClick={() => setTab(b.id)} data-testid={`world-tab-${b.id}`}>
+                  <button key={b.id} type="button" role="tab" aria-selected={tab === b.id} tabIndex={tab === b.id ? 0 : -1} className={`world-board-pick${tab === b.id ? ' active' : ''}`} title={b.meta()} onClick={() => setTab(b.id)} data-testid={`world-tab-${b.id}`}>
                     <b>{b.label()}</b>
                     <span>{b.meta()}</span>
                   </button>
                 ))}
               </div>
+              {/* The board's Play card first, so what to do next sits under the boards (the weekly's and the run-in's stay with their week switch) */}
+              {tab === 'daily' && day === today && <DailyPlay />}
+              {tab === 'arena' && arenaDay === today && <ArenaDailyPlay />}
+              {tab === 'themed' && casualWeek === thisWeek && <ThemedWeekPlay />}
               <div className="field">
                 {tr('country')}
                 <CountrySelect value={country} onChange={setCountry} emptyLabel={tr('everywhere')} testId="board-country" />

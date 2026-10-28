@@ -5,7 +5,7 @@
  * runs through quickly. Presentation only, pure and tested; nothing here reads the game's RNG.
  */
 import { USER_TEAM } from '@engine/season'
-import { inTie, tieAtStep, type BracketView } from '@game/logic/bracket'
+import { inTie, revealCount, tieAtStep, type BracketView } from '@game/logic/bracket'
 
 /** Milliseconds: a tie of the field, one once the user is out, the user's tie in play, the hold after it, a new round's draw. */
 export const CUP_REVEAL = { step: 340, fast: 200, live: 1400, hold: 850, round: 650 } as const
@@ -39,6 +39,18 @@ export function revealLength(view: BracketView, steps: number[][], userId: strin
   let total = 0
   for (let n = 0; tieAtStep(steps, n); n++) total += revealDelay(view, steps, n, userId)
   return total
+}
+
+/** A group matchday's moment in the reveal (engine 7's Continental Cup: the draw, then one matchday a step). */
+export const GROUP_STEP_MS = 900
+
+/**
+ * How long the cup night waits before its next step when `all` steps are shown: the `groupSteps` group steps first,
+ * then the bracket's ties; null once everything is shown. The night counts one step at a time through all of them.
+ */
+export function nightStepDelay(view: BracketView, steps: number[][], all: number, groupSteps: number, userId: string = USER_TEAM): number | null {
+  if (all >= groupSteps + revealCount(view)) return null
+  return all < groupSteps ? GROUP_STEP_MS : revealDelay(view, steps, all - groupSteps, userId)
 }
 
 /** The user's tie is the one in play at step `n` (the moment before its score lands). */

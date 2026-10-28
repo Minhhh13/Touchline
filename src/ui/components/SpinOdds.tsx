@@ -1,8 +1,8 @@
-import { DISPLAY_TIER_INFO } from '@game/logic/rarity'
 import type { TierOdds } from '@game/logic/tierOdds'
 import { shownOdds } from '@game/logic/oddsDisplay'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
+import { oddsNote, reelTierName, tierColour } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -16,11 +16,11 @@ export function SpinOdds({ odds, label }: { odds: readonly TierOdds[]; label: st
   if (!odds.length) return null
   const shown = shownOdds(odds.map((o) => o.p))
   return (
-    <div className="spin-odds" data-testid="spin-odds" data-exact={shown.exact ? 'yes' : 'no'} role="img" aria-label={`${label}, ${shown.note}: ${odds.map((o, i) => `${DISPLAY_TIER_INFO[o.tier].colour} ${shown.labels[i]}`).join(', ')}`}>
+    <div className="spin-odds" data-testid="spin-odds" data-exact={shown.exact ? 'yes' : 'no'} role="img" aria-label={`${label}, ${oddsNote(shown.exact)}: ${odds.map((o, i) => `${tierColour(o.tier)} ${shown.labels[i]}`).join(', ')}`}>
       <div className="spin-odds-head">
         <span className="lbl">{label}</span>
         <span className="muted small" data-testid="spin-odds-note" title={t(shown.exact ? 'oddsExactTip' : 'oddsRoundedTip')}>
-          {shown.note}
+          {oddsNote(shown.exact)}
         </span>
       </div>
       <div className="spin-odds-bar" aria-hidden="true">
@@ -28,9 +28,9 @@ export function SpinOdds({ odds, label }: { odds: readonly TierOdds[]; label: st
       </div>
       <div className="spin-odds-list">
         {odds.map((o, i) => (
-          <span key={o.tier} className={`spin-odds-item${o.p > 0 ? '' : ' zero'}`} data-tier={o.tier} data-testid={`odds-${o.tier}`} title={`${DISPLAY_TIER_INFO[o.tier].colour} · ${DISPLAY_TIER_INFO[o.tier].label}`}>
+          <span key={o.tier} className={`spin-odds-item${o.p > 0 ? '' : ' zero'}`} data-tier={o.tier} data-testid={`odds-${o.tier}`} title={reelTierName(o.tier)}>
             <i aria-hidden="true" />
-            {DISPLAY_TIER_INFO[o.tier].colour} <b>{shown.labels[i]}</b>
+            {tierColour(o.tier)} <b>{shown.labels[i]}</b>
           </span>
         ))}
       </div>

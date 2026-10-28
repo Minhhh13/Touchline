@@ -124,9 +124,14 @@ export function BoxesMenu({ groups, resets, className = '', iconOnly = false }: 
   }, [open])
   const listed = groups.filter((g) => g.present.length > 0)
   const off = listed.reduce((n, g) => n + g.present.filter((b) => !g.visible.includes(b.id)).length, 0)
+  // The first box takes the focus once the checklist is placed: until then it is `visibility: hidden`, which a focus
+  // cannot land in (the open click's effects run before the placement's render)
+  const placed = place !== null
+  useEffect(() => {
+    if (open && placed) pop.current?.querySelector<HTMLInputElement>('input:not(:disabled)')?.focus()
+  }, [open, placed])
   useEffect(() => {
     if (!open) return
-    pop.current?.querySelector<HTMLInputElement>('input:not(:disabled)')?.focus()
     const onDown = (e: PointerEvent) => {
       if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false)
     }
