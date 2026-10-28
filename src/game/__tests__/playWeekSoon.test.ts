@@ -42,6 +42,8 @@ async function playThrough(start: Game, split: boolean, weeks: number, sliceMs?:
     if (useStore.getState().game!.live) useStore.getState().finishLiveNow()
     if (useStore.getState().game!.phase === 'match') useStore.getState().closeMatch()
     out.push(JSON.stringify(useStore.getState().game))
+    // Yield between weeks so a long plain run never starves the Vitest worker's RPC
+    await new Promise((r) => setTimeout(r, 0))
   }
   expect(useStore.getState().playingWeek).toBe(false)
   return out
@@ -134,6 +136,7 @@ describe('Play matchweek in parts (playWeekSoon)', () => {
       const start = preseason(`sim-steps-${i}`, i % 2 ? 'dynasty' : 'season')
       // From pre-season: five weeks, the run to the next big match, and the whole season
       for (const what of ['five', 'big', 'end'] as const) {
+        await new Promise((r) => setTimeout(r, 0))
         const plain = await run(start, false, what)
         const got = await run(start, true, what)
         expect(got, `sim-steps-${i} ${what}`).toBe(plain)
