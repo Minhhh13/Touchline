@@ -16872,3 +16872,83 @@ table.tbl td.strong {
     display: none;
   }
 }
+/* The keyboard: while a text field has the focus on a phone, the dock and the screen's bottom bars stand down, so a
+   window the keyboard has shrunk (Android) gives its height to the field and not to bars riding on the keyboard */
+@media (max-width: 720px) {
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) {
+    --dock-h: 0px;
+    --dock-safe: var(--safe-bottom);
+  }
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) > .topbar nav,
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .bottom-bar,
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .cta-bar {
+    visibility: hidden;
+  }
+}
+/* The bottom sheet's grip (components/bits.tsx `Modal`, sheetDrag.ts): a closable sheet is pulled down from it or its
+   header on a phone; it replaces the drawn bar, and the sheet follows the finger with no transition while held */
+.sheet-grip {
+  display: none;
+}
+@media (max-width: 720px) {
+  .modal:has(> .sheet-grip)::before {
+    display: none;
+  }
+  .modal > .sheet-grip {
+    display: block;
+    position: sticky;
+    top: calc(-1 * var(--space-3));
+    z-index: 2;
+    flex: none;
+    height: 28px;
+    margin: calc(-1 * var(--space-3)) calc(-1 * var(--gutter)) 0;
+    touch-action: none;
+    cursor: grab;
+    background: var(--panel);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .modal > .sheet-grip::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 10px;
+    width: 40px;
+    height: 5px;
+    margin-left: -20px;
+    border-radius: var(--radius-pill);
+    background: var(--line-2);
+  }
+  .modal > .panel-head {
+    touch-action: pan-x;
+  }
+  .modal.dragging {
+    transition: none;
+    user-select: none;
+  }
+  .modal:not(.dragging) {
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal:not(.dragging) {
+    transition: none;
+  }
+}
+/* Head-to-head's Start on a phone: it sits at the foot of a long setup, so it sticks to the bottom of the screen (on
+   the dock) while the managers' cards scroll past, like the other setups' start bars */
+@media (max-width: 720px) {
+  .h2h-start {
+    position: sticky;
+    bottom: var(--dock-h);
+    z-index: 5;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 10px var(--gutter) calc(10px + var(--dock-safe));
+    background: var(--panel);
+    border-top: var(--border-strong);
+  }
+  .h2h-start .btn {
+    width: 100%;
+  }
+}
