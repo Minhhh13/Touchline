@@ -41,3 +41,10 @@ describe('the phone dock', () => {
     expect(css).toMatch(/@media \(hover: none\) \{\n {2}\.topbar nav button:not\(\.active\):hover \{/)
   })
 })
+
+describe('a small phone on its side', () => {
+  it("puts the Dugout's call bar back in its card rather than over a 320 px screen", () => {
+    const at = css.indexOf('@media (max-width: 720px) and (max-height: 500px) {\n  .cta-bar {\n    position: static;')
+    expect(at).toBeGreaterThan(css.indexOf('  .cta-bar {\n    position: fixed;'))
+  })
+})

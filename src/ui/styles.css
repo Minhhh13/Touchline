@@ -16757,8 +16757,12 @@ table.tbl td.strong {
   }
   .app:not(.dock-off) > .topbar nav button {
     min-height: 50px;
+    padding: 4px 1px;
     justify-content: center;
     border-radius: var(--radius-m);
+  }
+  .app:not(.dock-off) > .topbar nav button .nav-tiny {
+    text-overflow: ellipsis;
   }
   .app:not(.dock-off) > .topbar nav button.active {
     color: var(--primary);
@@ -16784,8 +16788,9 @@ table.tbl td.strong {
     bottom: var(--dock-h);
     padding-bottom: calc(10px + var(--dock-safe));
   }
-  .app:not(.dock-off) > .page {
-    scroll-padding-bottom: var(--dock-h);
+  /* A control scrolled into view (the focus, a landed squad) stops clear of the dock; the document is what scrolls */
+  html:has(> body .app:not(.bar-hidden):not(.dock-off)) {
+    scroll-padding-bottom: calc(58px + var(--safe-bottom) + var(--space-2));
   }
   .toast {
     bottom: calc(22px + var(--dock-h) + var(--dock-safe));
@@ -16951,4 +16956,36 @@ table.tbl td.strong {
   .h2h-start .btn {
     width: 100%;
   }
+}
+/* A small phone on its side (568x320, 667x375): a fixed bar over a 320 px screen left the page a strip. The Dugout's
+   call bar goes back into its card near the top of the page (where it stands in the markup), and a setup's start bar
+   keeps its line of choices (and its change link) over a 44 px button */
+@media (max-width: 720px) and (max-height: 500px) {
+  .cta-bar {
+    position: static;
+    padding: var(--space-2) 0 0;
+    background: none;
+    border-top: 0;
+    box-shadow: none;
+  }
+  .page.dugout-page.has-bottom-bar {
+    padding-bottom: calc(80px + var(--safe-bottom));
+  }
+  .setup-start.bottom-bar {
+    gap: 6px;
+    padding-top: 8px;
+    padding-bottom: calc(8px + var(--dock-safe));
+  }
+  .setup-start.bottom-bar > .btn.primary.big {
+    min-height: 44px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+/* The Gauntlet's lifeline keeps its label inside its border on a phone: the opponent's name wraps instead */
+.arena-lifeline {
+  flex: none;
+  max-width: 45%;
+  white-space: normal;
+  text-align: center;
 }
