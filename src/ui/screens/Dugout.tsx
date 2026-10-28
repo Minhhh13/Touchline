@@ -21,7 +21,7 @@ import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
-import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
+import { foreseeStop, nextStop, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, surname, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { slotRating } from '@game/logic/slotRating'
@@ -72,6 +72,7 @@ import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
 import { rich } from '../i18n/rich'
 import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, trainingBlurb, trainingLabel } from '../i18n/engineText'
+import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
 
 const t = translator(dugout)
 
@@ -320,10 +321,10 @@ export function Dugout() {
                 <span className="icon" aria-hidden="true">
                   <BriefingIcon item={headline} size={15} />
                 </span>
-                <span className="text">{headline.text}</span>
+                <span className="text">{briefingLineText(headline)}</span>
                 {headline.action && headline.action.op !== 'friendly' && (
                   <button className="btn sm" onClick={() => act(headline.action!)}>
-                    {headline.action.label}
+                    {briefingActionText(headline.action.label)}
                   </button>
                 )}
               </div>
@@ -350,7 +351,7 @@ export function Dugout() {
                 {next && playMode !== 'watch' && <span className="mode-tag">{t(playMode === 'auto' ? 'autoPlay' : 'simResult')}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatchSoon())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? t('bigTip', { label: bigNext.label }) : t('bigTipNone')}>
-                <span className="lbl-long">{bigNext ? t('bigNext', { label: bigNext.label }) : simToLabel(game, u)}</span>
+                <span className="lbl-long">{bigNext ? t('bigNext', { label: bigNext.label }) : simToText(foreseeStop(game, u))}</span>
                 <span className="lbl-short">{t(bigNext ? 'bigNextShort' : 'toBigShort')}</span>
               </button>
               <button className="btn" onClick={() => afterPaint(() => store.simWeeksSoon(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title={t('sim5Tip')} data-testid="sim-5">
@@ -953,6 +954,11 @@ function FxName({ full, short }: { full: string; short: string }) {
  * (styles.css) only the first line shows, with a "+n more" button that opens the rest over the tab rather than
  * pushing the tab's box down; elsewhere the toggle is hidden and every line shows.
  */
+/** The sim button's label (`simToLabel` in seasonHighlights.ts): names the target when one is in sight. */
+function simToText(seen: { label: string; matchweek: number } | null): string {
+  return seen ? t('simToStop', { label: seen.label, n: seen.matchweek }) : t('simToNextBig')
+}
+
 function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
@@ -962,13 +968,13 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
         <BriefingIcon item={item} size={15} />
       </span>
       <span className="text">
-        {item.text}
-        {item.hint && <Info label={t('aboutItem', { text: item.text })}>{item.hint}</Info>}
+        {briefingLineText(item)}
+        {item.hint && <Info label={t('aboutItem', { text: briefingLineText(item) })}>{briefingHintText(item)}</Info>}
       </span>
       {/* Play friendly is the panel's own button, so the checklist line does not repeat it */}
       {item.action && item.action.op !== 'friendly' ? (
         <button className="btn sm" onClick={() => onAction(item.action!)}>
-          {item.action.label}
+          {briefingActionText(item.action.label)}
         </button>
       ) : (
         <span />

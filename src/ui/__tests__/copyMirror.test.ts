@@ -222,3 +222,46 @@ describe('Home’s Daily Arena line, the league gate and the empty wheel', () =>
     expect(ts('emptyWheel')).toBe(EMPTY_WHEEL_LABEL)
   })
 })
+
+describe('the briefing’s fixed words', () => {
+  it('read as briefing.ts writes them, for a pre-season and a Dynasty summer', async () => {
+    const { loadTestUniverse } = await import('../../engine/__tests__/helpers')
+    const { weeklyBriefing } = await import('@game/logic/briefing')
+    const { createGame } = await import('@game/logic/setup')
+    const { autoDraft, SEASON_RULES } = await import('@engine/draft')
+    const { Rng } = await import('@engine/rng')
+    const { beginSeason } = await import('@game/logic/setup')
+    const { briefingActionText, briefingHintText, briefingLineText } = await import('../briefingText')
+    const u = loadTestUniverse(['england'])
+    let seen = 0
+    for (const seed of ['brief-a', 'brief-b', 'brief-c']) {
+      const game = createGame({ mode: 'season', seed, formationId: '4-3-3', teamName: 'Brief XI', shortName: 'BXI', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2024, rules: { ...SEASON_RULES, leagues: ['england'] }, jobSecurity: true, difficulty: 'calibrated', continental: false })
+      const rng = Rng.fromState(game.rngState)
+      autoDraft(u, game.draft!, rng)
+      game.rngState = rng.getState()
+      beginSeason(game, u)
+      for (const item of weeklyBriefing(game, u)) {
+        seen++
+        expect(briefingLineText(item)).toBe(item.text)
+        if (item.hint) expect(briefingHintText(item)).toBe(item.hint)
+        if (item.action) expect(briefingActionText(item.action.label)).toBe(item.action.label)
+      }
+    }
+    expect(seen).toBeGreaterThan(5)
+    for (const label of ['Auto-pick', 'Choose', 'Club', 'Contracts', 'Decide', 'Market', 'Medical', 'Play friendly', 'Squad', 'Tactics', 'View']) expect(briefingActionText(label)).toBe(label)
+    expect(briefingLineText({ id: 'renewals', text: 'Contracts: 3 out' })).toBe('Contracts: 3 out')
+    expect(briefingLineText({ id: 'captain', text: 'Captain: H. Kane' })).toBe('Captain: H. Kane')
+  })
+})
+
+describe('the Dugout’s sim button', () => {
+  it('reads as simToLabel', async () => {
+    const { translator } = await import('../i18n')
+    const { dugout } = await import('../i18n/en/dugout')
+    const t = translator(dugout)
+    expect(t('simToStop', { label: 'Derby day', n: 7 })).toBe('Sim to Derby day (MW 7)')
+    expect(t('simToNextBig')).toBe('Sim to the next big match')
+    const src = (await import('node:fs')).readFileSync(new URL('../../game/logic/seasonHighlights.ts', import.meta.url), 'utf8')
+    expect(src).toContain("`Sim to ${seen.label} (MW ${seen.matchweek})` : 'Sim to the next big match'")
+  })
+})
