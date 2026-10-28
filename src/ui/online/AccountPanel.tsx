@@ -80,7 +80,12 @@ function FlagPicker({ value, onChange }: { value: string | null; onChange: (c: s
   return (
     <div className="field" data-testid="account-country">
       <span>
-        {tr('flag')} {value && <span className="small muted">· {countryName(value)}</span>}
+        {tr('flag')}{' '}
+        {value && (
+          <span className="small muted flag-chosen" data-testid="account-country-chosen">
+            · <CountryFlag code={value} size={16} /> {countryName(value)}
+          </span>
+        )}
       </span>
       <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr('searchCountry')} aria-label={tr('searchCountry')} data-testid="account-country-search" />
       <div className="flag-list" role="listbox" aria-label={tr('countries')}>
@@ -276,6 +281,7 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
               {tr('anotherEmail')}
             </button>
           </div>
+          <p className="help" data-testid="signin-code-hint">{tr('codeHint')}</p>
         </form>
       )}
       {msg && (

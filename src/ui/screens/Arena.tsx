@@ -119,7 +119,7 @@ export function Arena() {
         <div className="row" style={{ gap: 10 }}>
           <TeamBadge code={game.settings.shortName} size={40} />
           <div>
-            <h1 style={{ fontSize: 26 }}>{game.settings.teamName}</h1>
+            <h1>{game.settings.teamName}</h1>
             <div className="screen-meta" data-testid="arena-head">
               {/* The format and the match, once each: a Final's "Cup Final" and "Cup final" read as one chip */}
               {distinctLabels([arenaFormatText(game.settings.arena), info.label]).map((l, i) => (
@@ -150,7 +150,7 @@ export function Arena() {
                 <div className="row" style={{ gap: 10 }}>
                   <ClubBadge clubId={clubIdOfKey(opp.key)} size={40} />
                   {/* The season stays on one line: a narrow box broke "2023-24" at its hyphen */}
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>
+                  <div className="arena-opp-name">
                     {oppName?.club}
                     {oppName?.season && <> <span style={{ whiteSpace: 'nowrap' }}>{oppName.season}</span></>}
                   </div>

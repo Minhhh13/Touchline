@@ -4,6 +4,7 @@ import path from 'node:path'
 import { loadTestUniverse } from '@engine/__tests__/helpers'
 import type { LeaguesFile } from '@engine/universe'
 import { FALLBACK_FLAG, flagCodeFromEmoji, leagueFlagCode, nationFlagCode } from '../format'
+import { COUNTRY_CODES } from '../online/countries'
 
 const ROOT = path.resolve(__dirname, '..', '..', '..')
 const FLAGS = path.join(ROOT, 'public', 'flags')
@@ -56,12 +57,18 @@ describe('drawn flags', () => {
     expect(nationFlagCode(null, 'BEL')).toBe(FALLBACK_FLAG)
   })
 
+  it('draws every country an account may carry (the World boards, the account chip), never its two letters', () => {
+    const missing = COUNTRY_CODES.map((c) => c.toLowerCase()).filter((c) => !existsSync(svg(c)))
+    expect(COUNTRY_CODES.length).toBeGreaterThan(200)
+    expect(missing).toEqual([])
+  })
+
   it('ships no stray or active SVG, the fallback of our own and the MIT notice', () => {
     const u = loadTestUniverse(ALL)
-    const needed = new Set([...Object.keys(u.nations).map((n) => nationFlagCode(u, n)), ...[...ALL, 'europe'].map(leagueFlagCode), FALLBACK_FLAG])
+    const needed = new Set([...Object.keys(u.nations).map((n) => nationFlagCode(u, n)), ...[...ALL, 'europe'].map(leagueFlagCode), ...COUNTRY_CODES.map((c) => c.toLowerCase()), FALLBACK_FLAG])
     const files = readdirSync(FLAGS)
     for (const f of files.filter((x) => x.endsWith('.svg'))) {
-      expect(needed.has(f.replace(/\.svg$/, '')), `${f} is not needed by any nation or league`).toBe(true)
+      expect(needed.has(f.replace(/\.svg$/, '')), `${f} is not needed by any nation, league or account country`).toBe(true)
       const text = readFileSync(path.join(FLAGS, f), 'utf8')
       expect(text.startsWith('<svg'), f).toBe(true)
       expect(/<script|<foreignObject|\son[a-z]+\s*=|javascript:/i.test(text), `${f} has active content`).toBe(false)

@@ -36,6 +36,8 @@ import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { fixed } from '../format'
+import { personalBest } from '../arenaText'
+import { resultId } from '@game/logic/cabinet'
 
 const t = translator(arena)
 
@@ -149,6 +151,8 @@ export function ArenaSummary() {
 
   // A step won is the logic's rule (a draw settled on penalties counts): the screen never words its own
   const won = stepWon
+  // A run that beats (or ties) the manager's best of its kind says so under the banner; a trophy says it already
+  const best = a.won ? null : personalBest(profile.arenaRuns ?? [], { id: resultId(game), format: a.format, size: a.size, score: a.log.filter(won).length })
   return (
     // Main's summary layout: the result box on the left, everything else in a box beside it that scrolls inside itself
     <div className="page summary arena-summary" data-testid="summary">
@@ -172,6 +176,11 @@ export function ArenaSummary() {
             {banner}
           </div>
         </div>
+        {best && (
+          <span className={`chip ${best.kind === 'best' ? 'good' : 'info'} arena-best`} data-testid="arena-best">
+            {t(best.kind === 'best' ? 'newBest' : 'equalBest', { gauntlet: gauntlet ? 'yes' : 'no', n: a.log.filter(won).length, was: best.was })}
+          </span>
+        )}
         {winner && (
           <p className="tier-blurb" data-testid="cup-winner">
             {t('wonBy', { name: winner })}

@@ -3,11 +3,13 @@ import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { postKey, useOnline } from '../../online/state'
 import { casualBoardOf, casualUnrankedReason } from '../../online/casual'
-import { countryName } from './countries'
 import { APP_NAME } from '../brand'
+import { CountryFlag } from './AccountPanel'
+import { countryName } from './countries'
 import { rememberWorldTab } from './WorldBoard'
 import { sentence } from '../../online/postText'
 import { translator } from '../i18n'
+import { rich } from '../i18n/rich'
 import { online } from '../i18n/en/online'
 
 const t = translator(online)
@@ -46,11 +48,13 @@ export function CasualStatus({ game }: { game: Game }) {
   else if (post.state === 'waiting' && post.reason === 'retry') line = <>{t('casualRetry')}</>
   else if (post.state === 'waiting') line = <>{t('casualPosting', { where })}</>
   else if (post.state === 'posted') {
-    const country = post.country && post.countryPosition ? t('countryRank', { pos: post.countryPosition, total: post.countryTotal ?? 0, country: countryName(post.country) }) : ''
+    // The country's rank carries its drawn flag (a `<flag></flag>` tag in the message, `rich` below)
+    const country = post.country && post.countryPosition ? t('casualCountryRank', { pos: post.countryPosition, total: post.countryTotal ?? 0, country: countryName(post.country) }) : ''
     const result = post.detail && !/^[A-Z_ ]+$/.test(post.detail) ? post.detail : t('casualPts', { n: post.points })
     const total = post.total.toLocaleString()
-    share = t('shareRank', { pos: post.position, total, where, app: APP_NAME })
-    line = <>{t(post.already ? 'casualFirst' : post.claimMatched ? 'casualPosted' : 'casualPostedOfficial', { where, pos: post.position, total, result, country })}</>
+    share = t('shareRank', { pos: post.position, total, where, app: APP_NAME }) + ` (${result})`
+    const code = post.country
+    line = <>{rich(t(post.already ? 'casualFirst' : post.claimMatched ? 'casualPosted' : 'casualPostedOfficial', { where, pos: post.position, total, result, country }), { flag: () => (code ? <CountryFlag code={code} size={16} /> : null) })}</>
   } else if (post.state === 'unranked') line = <>{t('casualNotOn', { where, reason: sentence(post.reason) })}</>
   else if (post.state === 'rejected') line = <>{t('notRanked', { reason: sentence(post.reason) })}</>
   else line = <>{t('boardClosed')}</>

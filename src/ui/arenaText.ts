@@ -9,6 +9,26 @@ import { arena } from './i18n/en/arena'
 
 const t = translator(arena)
 
+/** An arena run as the personal-best check reads it: `profile.arenaRuns`' entries carry these. */
+export interface RunMark {
+  id: string
+  format: 'cup' | 'gauntlet'
+  size?: number
+  score: number
+}
+
+/**
+ * How a finished run stands against the manager's own earlier runs of the same kind (the Gauntlet, or a Cup of the
+ * same size): `best` when it beats every one of them, `equal` when it ties the best, null when it falls short, when
+ * there is no earlier run to beat, or when it scored nothing. The run itself (`id`) is left out of the earlier runs.
+ */
+export function personalBest(runs: readonly RunMark[], run: RunMark): { kind: 'best' | 'equal'; was: number } | null {
+  const same = runs.filter((r) => r.id !== run.id && r.format === run.format && (run.format === 'gauntlet' || (r.size ?? 2) === (run.size ?? 2)))
+  if (same.length === 0 || run.score === 0) return null
+  const was = Math.max(...same.map((r) => r.score))
+  return run.score > was ? { kind: 'best', was } : run.score === was ? { kind: 'equal', was } : null
+}
+
 /**
  * A knockout match's word on the report's scoreboard and its W/D/L colour: a tie settled on penalties reads "Won on
  * pens" or "Lost on pens" (a "Draw" under a Cup final the side has just won or lost read as a mistake); without

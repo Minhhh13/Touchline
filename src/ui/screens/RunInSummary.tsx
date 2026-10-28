@@ -17,6 +17,9 @@ import { inviteFor, shareWithInvite, tidyShareText } from '@game/logic/shareInvi
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { shareOrCopy } from '../shareSheet'
 import { APP_NAME, BRAND_COLOURS } from '../brand'
+import { Celebrate } from '../components/Celebrate'
+import { prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 import { templateText } from '../runInText'
@@ -29,6 +32,12 @@ export function RunInSummary() {
   const [copied, setCopied] = useState(false)
   const table = useMemo(() => (game?.season ? seasonTable(game.season) : []), [game?.season])
   const story = useMemo(() => (game && u ? storyForGame(game, u) : null), [game, u])
+  // A brief met: the flourish behind the chip and the fanfare, the first time this summary shows in a visit (as the arena's)
+  const met = useMemo(() => (game && u && game.season ? !!runInVerdict(game, u)?.met : false), [game, u])
+  const first = useFirstReveal(`runin-met:${game?.id}`, false)
+  useEffect(() => {
+    if (met && first) playSound({ id: 'fanfare', treble: false, reduced: prefersReducedMotion() }, 0.6)
+  }, [met, first])
   // "Copied" reverts after a moment; the timer goes with the screen
   useEffect(() => {
     if (!copied) return
@@ -91,6 +100,7 @@ export function RunInSummary() {
           <span className="bm-rest">{t('modeLine', { template: templateText(v.template) })}</span>
         </div>
         <div className="tier-wrap">
+          {v.met && <Celebrate tier="CHAMPIONS" resultKey={`${game.id}:runin`} replayed={false} />}
           <div className={`tier ${v.met ? 'CHAMPIONS' : 'RELEGATED'}`} data-testid="runin-chip">
             {v.chip}
           </div>

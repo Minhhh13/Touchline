@@ -35,6 +35,9 @@ import { onlineAvailable } from '../../online/api'
 import { RoomSetup } from '../online/Rooms'
 import { askConfirm } from '../confirm'
 import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
+import { Celebrate } from '../components/Celebrate'
+import { prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
 import { formationBlurb } from '../i18n/engineText'
@@ -540,6 +543,13 @@ export interface H2HResultViewProps {
 export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label: labelProp, rematchLabel = t('rematch'), shareLabel = 'Head-to-head', you, testId }: H2HResultViewProps) {
   const { universe: u, showToast } = useStorePick('universe', 'showToast')
   const [copied, flashCopied] = useFlash()
+  // A decided result is celebrated once per visit: always on the hot seat (somebody won), online only on the winner's device
+  const cheer = r.winner !== null && (you === undefined || you === r.winner)
+  const celebrateKey = `h2h:${seed}:${m[0].name}:${m[1].name}`
+  const first = useFirstReveal(celebrateKey, false)
+  useEffect(() => {
+    if (cheer && first) playSound({ id: 'fanfare', treble: false, reduced: prefersReducedMotion() }, 0.4)
+  }, [cheer, first])
   if (!u) return null
   const label = labelProp ?? t('title')
   // The share text stays English (it travels to whoever reads it)
@@ -597,7 +607,10 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
             {estimated && <> <EstimatedChip compact /></>}
           </span>
         </div>
-        <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`} data-testid="h2h-verdict">{r.winner === null ? t('deadHeat') : you !== undefined && r.winner === you ? t('youWin') : t('wins', { name: m[r.winner].name })}</div>
+        <div className="tier-wrap">
+          {cheer && <Celebrate tier="CHAMPIONS" resultKey={celebrateKey} replayed={false} />}
+          <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`} data-testid="h2h-verdict">{r.winner === null ? t('deadHeat') : you !== undefined && r.winner === you ? t('youWin') : t('wins', { name: m[r.winner].name })}</div>
+        </div>
         <div className="h2h-sides">
           {([0, 1] as const).map((i) => (
             <div key={i} className={`h2h-side ${r.winner === i ? 'won' : ''}`}>

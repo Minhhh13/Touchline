@@ -5250,6 +5250,77 @@ dl.kv {
 .setup-rules .setup-opt + .setup-opt {
   margin-top: 0;
 }
+/* The arena setup's road ahead (r8): the Cup's rounds as a row of steps to the final, the Gauntlet's fifteen rungs */
+.road-ahead .help {
+  margin: var(--space-2) 0 0;
+}
+.road-rounds,
+.road-rungs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.road-round {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+.road-round > span {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border);
+  background: var(--panel-2);
+}
+.road-round.final > span {
+  border-color: var(--medal-gold);
+  color: var(--gold-text);
+  background: var(--gold-soft);
+}
+.road-round.final > svg {
+  color: var(--gold-text);
+}
+.road-arrow {
+  color: var(--text-3);
+}
+.road-rungs {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: var(--space-1);
+  align-items: end;
+}
+.road-rung {
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: 2px;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  border: var(--border);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  /* The rungs rise, each a little taller than the last, so the row reads as a climb (--rung from the markup) */
+  min-height: calc(28px + var(--rung, 0) * 2px);
+}
+.road-rung.top {
+  border-color: var(--medal-gold);
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+.road-rung.bonus svg {
+  color: var(--good);
+}
+@media (max-width: 520px) {
+  .road-rungs {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
 .setup-more {
   gap: var(--space-3);
 }
@@ -6330,6 +6401,18 @@ dl.kv {
   100% {
     transform: none;
     filter: none;
+  }
+}
+/* The arena summary's personal best (r8): a chip under the banner, popped in once */
+.arena-best {
+  align-self: center;
+  margin-top: var(--space-1);
+  animation: tier-pop var(--dur-4) var(--ease-spring) backwards;
+  animation-delay: var(--dur-3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-best {
+    animation: none;
   }
 }
 .tier-banner .tier.pop {
@@ -9175,6 +9258,16 @@ table.tbl.match-stats th {
 .h2h-start .btn {
   width: min(420px, 100%);
 }
+/* On a desktop the setup's body scrolls as a whole: Start stays in view at its foot (r8; it sat below the fold at 1280x720) */
+@media (min-width: 1100px) {
+  .app.shell .screen-body.scroll-whole > .grid > .h2h-start {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: var(--space-3) 0 var(--space-1);
+    background: linear-gradient(to bottom, transparent, var(--bg) 40%);
+  }
+}
 .howto-section.wide {
   grid-column: 1 / -1;
 }
@@ -11393,11 +11486,27 @@ table.tbl.match-stats th {
   .world-grid .world-help {
     display: none;
   }
+  /* ...and the boards are their names alone, two to a row (each line is the button's tip), so the board's Play card shows below them */
+  .world-grid .world-boards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+  .world-board-pick {
+    padding: var(--space-1) var(--space-2);
+    min-height: 40px;
+    justify-content: center;
+    font-size: var(--fs-sm);
+  }
+  .world-board-pick span {
+    display: none;
+  }
 }
 /* A phone: the four boards as a two-column grid of names (their lines and the long help go to the head's tip), so the
    board itself starts within the first screen */
 @media (max-width: 720px) {
-  .world-boards {
+  /* Scoped to the grid: the base .world-boards rule comes later in this file and would win (r8) */
+  .world-grid .world-boards {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -11573,6 +11682,116 @@ table.tbl tr.chase-perfect td:first-child {
 .chase-pick > .field {
   flex: 1 1 110px;
   min-width: 0;
+}
+/*
+ * The World boards' rows (r8): the place as a pill, the podium's three in the medal colours, a "=" where only the time of
+ * posting split two rows, your own row lit with a primary bar on its edge, the score in bold; skeleton rows while a
+ * board loads, Try again on an error, a plain empty state.
+ */
+.board-table td.board-rank {
+  white-space: nowrap;
+  width: 1%;
+}
+.rank-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.rank-pill.p1,
+.rank-pill.p2,
+.rank-pill.p3 {
+  color: var(--on-status);
+}
+.rank-pill.p1 {
+  background: var(--medal-gold);
+}
+.rank-pill.p2 {
+  background: var(--medal-silver);
+}
+.rank-pill.p3 {
+  background: var(--medal-bronze);
+}
+.rank-level {
+  margin-left: 2px;
+  color: var(--text-3);
+  font-weight: 700;
+  cursor: help;
+}
+.board-table td.board-manager {
+  white-space: nowrap;
+}
+.board-flag {
+  display: inline-flex;
+  margin-right: var(--space-1);
+  vertical-align: middle;
+}
+.board-name {
+  font-weight: 600;
+}
+.board-you {
+  margin-left: var(--space-2);
+}
+.board-table td.board-score {
+  font-weight: 700;
+  color: var(--text);
+}
+table.tbl.board-table tr.me td {
+  background: var(--primary-soft);
+}
+table.tbl.board-table tr.me td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+table.tbl.board-table tr.chase-perfect td:first-child {
+  box-shadow: inset 3px 0 0 var(--good);
+}
+.board-trophy-chip {
+  margin-right: var(--space-1);
+}
+.board-error {
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.board-loading {
+  display: grid;
+  gap: var(--space-2);
+}
+.board-skeleton {
+  display: block;
+  height: 30px;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-3);
+  border-radius: var(--radius-s);
+}
+.board-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 7%, transparent), transparent);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+.board-empty {
+  padding: var(--space-5) var(--space-3);
+  text-align: center;
+}
+.board-more {
+  margin-top: var(--space-2);
+}
+.world-play-done {
+  margin-top: var(--space-1);
+  color: var(--good);
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-skeleton::after {
+    animation: none;
+  }
 }
 .plain-list {
   margin: 0;
@@ -12927,6 +13146,14 @@ table.tbl.contracts-overview .link-btn.name {
 /* The arena hub: the head, then the opponent, the team sheet and the pitch with the calls as three boxes (`.page.fit`) */
 .arena-stats {
   grid-template-columns: repeat(2, auto);
+}
+/* The hub's team name and the opponent's on the type scale (they were 26 px and 18 px inline) */
+.arena-hub .fit-head h1 {
+  font-size: calc(var(--fs-h2) + 2px);
+}
+.arena-opp-name {
+  font-weight: 700;
+  font-size: calc(var(--fs-h3) - 1px);
 }
 @media (min-width: 1100px) and (min-height: 600px) {
   .fit-grid.arena-grid {
