@@ -32,7 +32,7 @@ import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
 import { januaryGambleMade } from './logic/januaryGamble'
-import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonStale } from './logic/quickSeam'
+import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, markQuickSeasonFresh, quickSeasonStale } from './logic/quickSeam'
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { availableStopChanges } from './logic/stopChanges'
@@ -576,6 +576,7 @@ export const useStore = create<Store>()(
           return
         }
         if (get().game?.phase === 'summary') {
+          markQuickSeasonFresh(get().game!)
           set({ playback: { from } })
           if (get().game?.quickOpen) return
           unlockFromGame()
@@ -604,6 +605,7 @@ export const useStore = create<Store>()(
       /** After a kick-off: the playback from the first game, and a season with no bench recorded at once. */
       const afterKickOff = () => {
         const { game } = get()
+        if (game) markQuickSeasonFresh(game)
         if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
         // A season with a bench stays open to changes until the playback closes, and is recorded then
         if (game?.phase === 'summary' && !game.quickOpen) {
@@ -1071,6 +1073,9 @@ export const useStore = create<Store>()(
             return
           }
           mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
+          // Just played by this engine: the next change's staleness check need not play it again
+          const after = get().game
+          if (after && after !== game) markQuickSeasonFresh(after)
         },
 
         playCup: async (comp) => {

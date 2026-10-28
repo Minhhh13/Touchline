@@ -32,13 +32,26 @@ export interface WeeklyRecord {
 
 const record = (e: Pick<LeaderboardEntry, 'won' | 'drawn' | 'lost'>) => `${e.won}-${e.drawn}-${e.lost}`
 
+/**
+ * The leaderboard row of the counted (first) run: the earliest with its points and tier. A later run on the same
+ * points sorts first on the board when it lost fewer, so the first match is not enough; when two runs that day share
+ * the points with different records, which one counted cannot be told, and none is named.
+ */
+function countedRun(runs: LeaderboardEntry[], first: { points: number; tier: LeaderboardEntry['tier'] }): LeaderboardEntry | undefined {
+  const same = runs.filter((e) => e.points === first.points && e.tier === first.tier)
+  if (!same.length) return undefined
+  const day = same.reduce((d, e) => (e.date < d ? e.date : d), same[0].date)
+  const earliest = same.filter((e) => e.date === day)
+  return earliest.every((e) => record(e) === record(earliest[0])) ? earliest[0] : undefined
+}
+
 export function weeklyRecord(profile: Pick<Profile, 'weekly' | 'leaderboard'>, seed: string, previousOf: (s: string) => string | null): WeeklyRecord {
   const book = profile.weekly
   const results = book?.results ?? {}
   const runs = profile.leaderboard.filter((e) => e.mode === 'weekly' && e.seed === seed)
   const top = runs.reduce<LeaderboardEntry | null>((b, e) => (!b || e.points > b.points || (e.points === b.points && e.lost < b.lost) ? e : b), null)
   const first = results[seed]
-  const same = first ? runs.find((e) => e.points === first.points) : undefined
+  const same = first ? countedRun(runs, first) : undefined
   const counted: WeeklyRun | null = first ? { points: first.points, tier: first.tier, ...(same ? { record: record(same) } : {}) } : null
   const best: WeeklyRun | null = top && (!first || top.points > first.points) ? { points: top.points, tier: top.tier, record: record(top) } : null
   const prev = previousOf(seed)

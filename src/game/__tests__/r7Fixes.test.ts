@@ -214,3 +214,30 @@ describe('R7-4: a capped Quick Draft with a bench never strands its XI', () => {
     if (openSlots(d).length) expect(capRoom(d)).toBeCloseTo(d.rules.budget! - capSpent(d) - BUDGET_FLOOR * (openSlots(d).length - 1), 5)
   })
 })
+
+describe('r8 audit: a season this page just played is not played again to check it', () => {
+  /** A universe that notes any read: a staleness check that plays the season reads it. */
+  const watched = () => {
+    let reads = 0
+    const proxy = new Proxy(u, { get: (t, k, r) => (reads++, Reflect.get(t, k, r)) })
+    return { proxy, reads: () => reads }
+  }
+
+  it('after a kick-off, a bench change and the January close the check reads nothing; an altered season still reads as stale', () => {
+    for (const january of [false, true]) {
+      quickGame(`r8-seam-fresh-${january}`, january)
+      if (january) {
+        const w0 = watched()
+        expect(januaryStale(st().game!, w0.proxy)).toBe(false)
+        expect(w0.reads()).toBe(0)
+        st().closeJanuary(null)
+      }
+      expect(st().game!.phase).toBe('summary')
+      const w = watched()
+      expect(quickSeasonStale(st().game!, w.proxy)).toBe(false)
+      expect(w.reads()).toBe(0)
+      playedByEarlierEngine()
+      expect(quickSeasonStale(st().game!, u)).toBe(true)
+    }
+  })
+})

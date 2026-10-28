@@ -9,11 +9,26 @@ import { isEstimated } from './era'
  * position map, the attribute columns, the form graph and the squad row's form arrow.
  */
 
+/** Every player's seasons by player id, built once per universe (the player modal asks on every render). */
+const careersByUniverse = new WeakMap<LoadedUniverse, Map<string, PlayerSeason[]>>()
+
+function careersOf(u: LoadedUniverse): Map<string, PlayerSeason[]> {
+  let byPlayer = careersByUniverse.get(u)
+  if (byPlayer) return byPlayer
+  byPlayer = new Map()
+  for (const p of Object.values(u.index)) {
+    const list = byPlayer.get(p.playerId)
+    if (list) list.push(p)
+    else byPlayer.set(p.playerId, [p])
+  }
+  for (const list of byPlayer.values()) list.sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
+  careersByUniverse.set(u, byPlayer)
+  return byPlayer
+}
+
 /** Every database season of one real player across the loaded leagues, oldest first. */
 export function careerSeasons(u: LoadedUniverse, playerId: string): PlayerSeason[] {
-  return Object.values(u.index)
-    .filter((p) => p.playerId === playerId)
-    .sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
+  return [...(careersOf(u).get(playerId) ?? [])]
 }
 
 export interface SeasonPoint {
