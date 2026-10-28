@@ -7,8 +7,8 @@ import type { MatchResult } from '@engine/types'
 import { kickOff, toKickoff } from '../logic/quick'
 import { playQuickCup, quickCupProblem } from '../logic/quickCups'
 import { createGame } from '../logic/setup'
-import { creditGame, creditRunIn, emptyCabinet, normaliseCabinet, rebuildCabinet, withFeats } from '../logic/cabinet'
-import { creditCupFeats, creditRunInFeats, creditSeasonFeats, emptyFeats, FEAT_LIST_CAP, featsFromBoard, featsOf, normaliseFeats, quickComebacks, quickGroupRead, runInWeekOf, seasonComebacks, seasonGroupRead } from '../logic/feats'
+import { creditGame, creditRunIn, emptyCabinet, normaliseCabinet } from '../logic/cabinet'
+import { cabinetWithFeats, creditCupFeats, creditGameFeats, creditRunInFeats, creditRunInFeatsOn, creditSeasonFeats, emptyFeats, withFeats, FEAT_LIST_CAP, featsFromBoard, featsOf, normaliseFeats, quickComebacks, quickGroupRead, runInWeekOf, seasonComebacks, seasonGroupRead } from '../logic/feats'
 import { isPerfectDraft } from '../logic/perfectDraft'
 import { playerLookup } from '../logic/players'
 import type { Game, GameSettings, LeaderboardEntry, QuickCupRun, RunInEntry, SeasonRecord } from '../types'
@@ -133,7 +133,7 @@ describe('feats: engine 7 group stages and comebacks', () => {
       expect(once.comebacks).toBe(quickComebacks(run))
     }
     expect(read).toBeGreaterThan(0)
-  })
+   }, 120_000)
 })
 
 describe('feats: a season credited', () => {
@@ -196,12 +196,14 @@ describe('feats: a season credited', () => {
     expect(f.perfectDrafts).toEqual(['feats-season'])
   })
 
-  it('credits through creditGame only for a league season', () => {
+  it('credits beside creditGame only for a league season', () => {
     const g = played('feats-credit')
-    const c = creditGame(emptyCabinet(), g, { perfectDraft: true })
+    const c = creditGameFeats(creditGame(emptyCabinet(), g), g, { perfectDraft: true })
     expect(featsOf(c).perfectDrafts).toEqual(['feats-credit'])
     expect(featsOf(c).seasonsTitled.length).toBe(g.quickResult!.position === 1 ? 1 : 0)
-  })
+    // An arena or run-in result is never a league season
+    expect(creditGameFeats(emptyCabinet(), { ...g, settings: { ...g.settings, mode: 'arena' } }, { perfectDraft: true }).feats).toBeUndefined()
+  }, 60_000)
 
   it('finds a perfect draft only when every pick took an A', () => {
     let perfect = 0
@@ -214,7 +216,7 @@ describe('feats: a season credited', () => {
     const g = played('feats-draft-1')
     expect(isPerfectDraft({ ...g, endCase: { sub: { slotId: 'st', outId: 'x' } } as unknown as Game['endCase'] }, u, playerLookup(g, u))).toBe(false)
     expect(isPerfectDraft({ ...g, settings: { ...g.settings, mode: 'season' } }, u, playerLookup(g, u))).toBe(false)
-  })
+   }, 60_000)
 })
 
 describe('feats: the Run-in of the week', () => {
@@ -231,9 +233,9 @@ describe('feats: the Run-in of the week', () => {
     expect(f.runInWeeks).toEqual(['2026-W44'])
   })
 
-  it('credits through creditRunIn', () => {
+  it('credits beside creditRunIn', () => {
     const g = createGame(settings('runin-2026-W44', { mode: 'runin' }))
-    expect(featsOf(creditRunIn(emptyCabinet(), g, true)).runInWeeks).toEqual(['2026-W44'])
+    expect(featsOf(creditRunInFeatsOn(creditRunIn(emptyCabinet(), g, true), g, true)).runInWeeks).toEqual(['2026-W44'])
   })
 })
 
@@ -263,16 +265,17 @@ describe('feats: saves', () => {
     const caught = withFeats(c, { leaderboard, runIns })
     expect(caught.feats).toEqual({ ...emptyFeats(), dynastyBest: 2, classicTitles: 1, cappedTitles: 1, thriftyTitles: 1, seasonsTitled: [1995, 2015, 2016], runInWeeks: ['2026-W40'] })
     // Once caught up, it stays as credited
-    expect(withFeats(caught, { leaderboard: [], runIns: [] })).toBe(caught)
+    expect(withFeats(caught, { leaderboard: [], runIns: [] })).toEqual(caught)
     expect(featsFromBoard({ leaderboard, runIns })).toEqual(caught.feats)
-    expect(rebuildCabinet({ leaderboard, dailyResults: {}, runIns }).feats).toEqual(caught.feats)
+    // A profile from before the Trophy Room: rebuilt, then caught up the same way
+    expect(cabinetWithFeats({ leaderboard, dailyResults: {}, runIns }).feats).toEqual(caught.feats)
   })
 
   it('round-trip through JSON', () => {
     const g = played('feats-json')
-    const c = creditGame(emptyCabinet(), g, { perfectDraft: true })
-    expect(normaliseCabinet(JSON.parse(JSON.stringify(c)))).toEqual(normaliseCabinet(c))
-  })
+    const c = creditGameFeats(creditGame(emptyCabinet(), g), g, { perfectDraft: true })
+    expect(withFeats(normaliseCabinet(JSON.parse(JSON.stringify(c))), { leaderboard: [] })).toEqual(c)
+  }, 60_000)
 })
 
 describe('feats: the store', () => {

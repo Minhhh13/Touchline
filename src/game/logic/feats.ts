@@ -5,9 +5,15 @@
  * Every count is credited from a result already filed once (`creditGame`, `creditRunIn`, a quick post-season cup once
  * per `resultId:comp`); the lists hold distinct keys, so playing the same wheel again never counts twice. Pure: no
  * React, no store, no RNG, nothing written to a game.
+ *
+ * Kept out of `cabinet.ts` on purpose: the edge verifier's bundle reaches `cabinet.ts` (through `quickCups.ts`), and any
+ * change to its symbols, even tree-shaken ones, renames the bundle. So the cabinet's own functions stay as they are and
+ * the store wraps them here: `creditGameFeats` after `creditGame`, `creditRunInFeatsOn` after `creditRunIn`,
+ * `withFeats` over `normaliseCabinet` and `rebuildCabinet` (`cabinetWithFeats`).
  */
 import { USER_TEAM, type ContinentalState } from '@engine/season'
-import type { CabinetFeats, Game, LeaderboardEntry, Profile, QuickCupRun, RunInEntry } from '../types'
+import type { Cabinet, CabinetFeats, Game, LeaderboardEntry, Profile, QuickCupRun, RunInEntry } from '../types'
+import { countsAsLeagueSeason, finishedRecord, isTitle, normaliseCabinet, rebuildCabinet } from './cabinet'
 
 /** The most keys a feat list keeps (well past every gold threshold). */
 export const FEAT_LIST_CAP = 200
@@ -231,4 +237,29 @@ export function featsFromBoard(profile: Pick<Profile, 'leaderboard'> & { runIns?
     if (week) f.runInWeeks = withKey(f.runInWeeks, week)
   }
   return f
+}
+
+/** A cabinet with its feats normalised: an older one (none yet) counts them once from the leaderboard and the run-in log. */
+export function withFeats(c: Cabinet, profile: Pick<Profile, 'leaderboard' | 'runIns'>): Cabinet {
+  return { ...c, feats: normaliseFeats(c.feats) ?? featsFromBoard(profile) }
+}
+
+/**
+ * The profile's cabinet ready to credit: `normaliseCabinet` (or `rebuildCabinet` for a profile before the Trophy Room)
+ * with its feats caught up (`withFeats`). The persist `merge` and every credit go through it.
+ */
+export function cabinetWithFeats(profile: Pick<Profile, 'cabinet' | 'trophies' | 'leaderboard' | 'dailyResults' | 'runIns'>): Cabinet {
+  return withFeats(profile.cabinet ? normaliseCabinet(profile.cabinet) : rebuildCabinet(profile), profile)
+}
+
+/** A finished league season's feats, beside `creditGame` (the store calls both under the same once-per-result guard). */
+export function creditGameFeats(cabinet: Cabinet, game: Game, opts: { perfectDraft?: boolean } = {}): Cabinet {
+  const rec = finishedRecord(game)
+  if (!rec || !countsAsLeagueSeason(game.settings.mode)) return cabinet
+  return { ...cabinet, feats: creditSeasonFeats(cabinet.feats, game, { title: isTitle(rec.position, rec.tier), perfectDraft: opts.perfectDraft }) }
+}
+
+/** A finished run-in's feat, beside `creditRunIn`. */
+export function creditRunInFeatsOn(cabinet: Cabinet, game: Game, met: boolean): Cabinet {
+  return { ...cabinet, feats: creditRunInFeats(cabinet.feats, game.settings.seed, met) }
 }

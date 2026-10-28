@@ -20,8 +20,8 @@ import { capOfGame } from './logic/cap'
 import { advanceStreak, fileStreakResult, streakDay } from './logic/streaks'
 import { dailyArenaResult } from './logic/arenaDaily'
 import { weeklyGameSettings, weeklyPlan } from './logic/weekly'
-import { alreadyCredited, creditArena, creditGame, creditH2H, creditH2HOnline, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf, withFeats } from './logic/cabinet'
-import { creditCupFeats } from './logic/feats'
+import { alreadyCredited, creditArena, creditGame, creditH2H, creditH2HOnline, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
+import { cabinetWithFeats, creditCupFeats, creditGameFeats, creditRunInFeatsOn, withFeats } from './logic/feats'
 import { isPerfectDraft } from './logic/perfectDraft'
 import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
@@ -1535,7 +1535,7 @@ export const useStore = create<Store>()(
           if (game.settings.mode === 'runin') {
             const row = runInEntry(game, universe, new Date().toISOString().slice(0, 10))
             if (!row || alreadyCredited(profile, row.id) || profile.runIns?.some((e) => e.id === row.id)) return
-            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, RUN_IN_LOG_CAP), cabinet: creditRunIn(withFeats(normaliseCabinet(profile.cabinet ?? rebuildCabinet(profile)), profile), game, row.met) } })
+            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, RUN_IN_LOG_CAP), cabinet: creditRunInFeatsOn(creditRunIn(cabinetWithFeats(profile), game, row.met), game, row.met) } })
             return
           }
           const rec = finishedRecord(game)
@@ -1596,7 +1596,7 @@ export const useStore = create<Store>()(
           // Trophy Room: the cabinet takes the credit, `trophies` mirrors its five counts for older builds
           // A perfect draft (every pick an A) is read here, where the universe is; the cabinet keeps its seed once
           const perfectDraft = isPerfectDraft(game, universe, playerLookup(game, universe))
-          const cabinet = creditGame(withFeats(normaliseCabinet(profile.cabinet ?? rebuildCabinet(profile)), profile), game, { newDaily, newWeekly, date: entry.date, perfectDraft })
+          const cabinet = creditGameFeats(creditGame(cabinetWithFeats(profile), game, { newDaily, newWeekly, date: entry.date }), game, { perfectDraft })
           // The 38-0 chase: best record, longest perfect run and perfect seasons of every quick season (Quick Draft, the Daily, the Weekly)
           const q = game.quickResult
           const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests
@@ -1715,7 +1715,7 @@ export const useStore = create<Store>()(
         const saved = p.profile ? normaliseProfile(p.profile, defaultProfile) : null
         // A profile from before the Trophy Room gets its cabinet rebuilt once, from the trophies and the leaderboard
         // (read from the persisted profile itself: the defaults `normaliseProfile` spreads under it carry an empty cabinet)
-        const profile = saved ? { ...saved, cabinet: p.profile?.cabinet ? withFeats(reconcileTrophies(normaliseCabinet(p.profile.cabinet), saved.trophies), saved) : rebuildCabinet(saved) } : current.profile
+        const profile = saved ? { ...saved, cabinet: withFeats(p.profile?.cabinet ? reconcileTrophies(normaliseCabinet(p.profile.cabinet), saved.trophies) : rebuildCabinet(saved), saved) } : current.profile
         return { ...current, ...p, profile, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },
