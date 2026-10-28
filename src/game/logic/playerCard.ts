@@ -3,32 +3,17 @@ import type { LoadedUniverse } from '@engine/universe'
 import { describeFit, POSITIONS, ratingAt, type Fit } from '@engine/positions'
 import { INJURY_RISK_LABEL, injuryRiskLevel } from '@engine/depth'
 import { isEstimated } from './era'
+import { playerEntry } from './exploreIndex'
 
 /**
  * The player card's derived numbers (display only, no RNG): the rating-by-season series, the
  * position map, the attribute columns, the form graph and the squad row's form arrow.
  */
 
-/** Every player's seasons by player id, built once per universe (the player modal asks on every render). */
-const careersByUniverse = new WeakMap<LoadedUniverse, Map<string, PlayerSeason[]>>()
-
-function careersOf(u: LoadedUniverse): Map<string, PlayerSeason[]> {
-  let byPlayer = careersByUniverse.get(u)
-  if (byPlayer) return byPlayer
-  byPlayer = new Map()
-  for (const p of Object.values(u.index)) {
-    const list = byPlayer.get(p.playerId)
-    if (list) list.push(p)
-    else byPlayer.set(p.playerId, [p])
-  }
-  for (const list of byPlayer.values()) list.sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
-  careersByUniverse.set(u, byPlayer)
-  return byPlayer
-}
-
 /** Every database season of one real player across the loaded leagues, oldest first. */
 export function careerSeasons(u: LoadedUniverse, playerId: string): PlayerSeason[] {
-  return [...(careersOf(u).get(playerId) ?? [])]
+  // From the cached per-player index (one walk of the universe, not one per card); a copy, so callers may sort it
+  return [...(playerEntry(u, playerId)?.seasons ?? [])]
 }
 
 export interface SeasonPoint {

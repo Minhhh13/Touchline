@@ -13528,6 +13528,292 @@ table.tbl.hub td.name {
   }
 }
 
+/* ------------------------------------------------------------------ player card, round 8 (PlayerProfile.tsx, AttributePanel)
+ * FM-style tones: the bar and the figure share one of five tones; each group's head carries its average. The career
+ * box's own tabs (Best seasons, Roles, Similar) are lists inside the card's one scroller.
+ */
+.tone-elite {
+  --tone: var(--good);
+}
+.tone-good {
+  --tone: color-mix(in srgb, var(--good) 62%, var(--meter-mid));
+}
+.tone-fair {
+  --tone: var(--meter-mid);
+}
+.tone-poor {
+  --tone: var(--text-2);
+}
+.tone-weak {
+  --tone: color-mix(in srgb, var(--bad) 70%, var(--text-3));
+}
+.attr-row[data-tone] .attr-value {
+  color: var(--tone);
+  font-weight: 600;
+}
+.attr-row[data-tone='elite'] .attr-value {
+  font-weight: 800;
+}
+.attr-group h4 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.attr-avg {
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+.pc-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pc-tabs::-webkit-scrollbar {
+  display: none;
+}
+.pc-tabs button {
+  flex: none;
+  white-space: nowrap;
+}
+.pc-ovr {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pc-delta {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.pc-delta.up {
+  color: var(--good);
+}
+.pc-delta.down {
+  color: var(--bad);
+}
+.pc-finish {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.pc-finish.gold {
+  color: var(--gold-text);
+  font-weight: 700;
+}
+.pc-tbl th.c-pos {
+  width: 48px;
+}
+.pc-tbl th.c-finish {
+  width: 56px;
+}
+.pc-tab-note {
+  margin: var(--space-2) 0;
+}
+.pc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.pc-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+  padding: 6px 0;
+  border-bottom: var(--border);
+}
+.pc-list > li:last-child > .pc-line,
+.pc-list > li.pc-line:last-child {
+  border-bottom: 0;
+}
+.pc-line-btn {
+  border: 0;
+  border-bottom: var(--border);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.pc-line-btn:hover {
+  background: var(--bg-3);
+}
+.pc-line-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.pc-rank {
+  width: 16px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pc-line-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pc-line-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 600;
+}
+.pc-line-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.pc-role-bar {
+  flex: 0 1 140px;
+  min-width: 60px;
+}
+.pc-role-bar .bar {
+  width: 100%;
+}
+.pc-role-val {
+  width: 28px;
+  text-align: right;
+  font-weight: 700;
+}
+.pc-role.top .pc-line-name {
+  color: var(--good);
+}
+.pc-match {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 520px) {
+  .pc-tbl .c-pos {
+    display: none;
+  }
+  .pc-tbl th.c-finish {
+    width: 40px;
+  }
+  .pc-role-bar {
+    flex-basis: 72px;
+  }
+}
+
+/* Explore's Records view (ExploreRecords.tsx): one league's trivia, labelled as derived from the data */
+.explore-records-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.trivia-derived {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-2);
+}
+.trivia-est {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.explore-records .panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.trivia-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.trivia-section + .trivia-section {
+  margin-top: var(--space-2);
+}
+.trivia-section .sub-head {
+  margin-top: var(--space-2);
+  margin-bottom: 2px;
+}
+.trivia-help {
+  margin: 0 0 4px;
+}
+.trivia-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.trivia-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 5px 0;
+  border-bottom: var(--border);
+}
+.trivia-list li:last-child {
+  border-bottom: 0;
+}
+.trivia-fig {
+  flex: none;
+  min-width: 72px;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.trivia-fig.age {
+  min-width: 28px;
+}
+.trivia-fig.good {
+  color: var(--good);
+}
+.trivia-fig.bad {
+  color: var(--bad);
+}
+.trivia-fig.gold {
+  color: var(--gold-text);
+}
+.trivia-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.trivia-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.trivia-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+@media (min-width: 1100px) {
+  .grid.three.explore-records {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* ------------------------------------------------------------------ the match report: one screen
  * DESIGN_SYSTEM.md section 13. The head is one row (the match's name, Live and Report, the buttons); under it the
  * scoreboard band, then three boxes side by side: the goals and the numbers; the pictures (Shot map, Momentum,

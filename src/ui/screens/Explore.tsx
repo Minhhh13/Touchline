@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Columns3, Landmark, ListOrdered, Search, Shield, Star as StarIcon, Trophy } from 'lucide-react'
+import { BookOpen, Columns3, Landmark, ListOrdered, Search, Shield, Star as StarIcon, Trophy } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { EXPLORE } from '../boxSets'
 import { useStore } from '@game/store'
@@ -19,8 +19,11 @@ import { BLANK_SEARCH, seasonFilterIn, type SearchForm } from '@game/logic/explo
 import { COMPARE_MAX, toggleCompare, wheelChanceOf } from '@game/logic/exploreDb'
 import { pressable } from '../a11y'
 import { ClubView, CompareButton, CompareView, LeagueView, SearchView, ShortlistStar, WheelLine } from './ExploreViews'
+import { RecordsView } from './ExploreRecords'
+import { playerCard } from '../i18n/en/playerCard'
+import { warmExplore } from '@game/logic/exploreIndex'
 
-type ExploreView = 'browse' | 'clubs' | 'league' | 'legends' | 'search' | 'compare'
+type ExploreView = 'browse' | 'clubs' | 'league' | 'records' | 'legends' | 'search' | 'compare'
 
 /** The compare list is a per-viewer convenience: its own key, read and written inside try/catch. */
 const COMPARE_KEY = 'touchline-explore-compare'
@@ -43,6 +46,7 @@ function writeCompare(ids: string[]): void {
 }
 
 const t = translator(explore)
+const tc = translator(playerCard)
 
 const POS_FILTERS = ['all', 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const
 
@@ -60,7 +64,7 @@ function PosFilter({ value, onChange }: { value: 'all' | Position; onChange: (p:
 }
 
 /** Every season of one real player across all loaded leagues, on the shared player card at his peak season. */
-function CareerModal({ playerId, onClose, compare, onCompare }: { playerId: string | null; onClose: () => void; compare: string[]; onCompare: (playerId: string) => void }) {
+function CareerModal({ playerId, onClose, compare, onCompare, onPlayer }: { playerId: string | null; onClose: () => void; compare: string[]; onCompare: (playerId: string) => void; onPlayer: (playerId: string) => void }) {
   const u = useStore((s) => s.universe)
   const ensureLeagues = useStore((s) => s.ensureLeagues)
   // His whole career: the leagues not loaded yet load behind the card, and it fills in when they arrive
@@ -77,7 +81,7 @@ function CareerModal({ playerId, onClose, compare, onCompare }: { playerId: stri
       <Columns3 size={14} aria-hidden="true" /> {t(on ? 'inCompare' : 'addCompare')}
     </button>
   )
-  return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} actions={actions} attrCaption={t('atPeak', { club: clubName(u, best.clubId), season: seasonLabel(best.season) })} />
+  return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} actions={actions} onPlayer={onPlayer} attrCaption={t('atPeak', { club: clubName(u, best.clubId), season: seasonLabel(best.season) })} />
 }
 
 export function Explore() {
@@ -112,6 +116,14 @@ export function Explore() {
   // Worked out only on the Top view: it sorts every player-season loaded, and the universe changes as packs load
   const legends = useMemo(() => (u && view === 'legends' ? topPlayerSeasons(u, { leagueId, position: posFilter === 'all' ? undefined : posFilter, onePerPlayer, season: legendSeason === 'all' ? undefined : legendSeason }) : []), [u, view, posFilter, leagueId, onePerPlayer, legendSeason])
   const boxes = useBoxes(EXPLORE)
+  // The player indexes behind search, careers and the top lists build in an idle moment, not on the first tap
+  useEffect(() => {
+    if (!u || typeof window === 'undefined') return
+    const idle = window.requestIdleCallback ?? ((fn: () => void) => window.setTimeout(fn, 300))
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout
+    const id = idle(() => warmExplore(u))
+    return () => cancel(id)
+  }, [u])
   if (!u) return null
   // Classic seasons (estimated ratings) come first for a league that has them
   const firstShown = classicFromFor(u, [leagueId]) ?? u.firstSeason
@@ -142,6 +154,7 @@ export function Explore() {
     { id: 'browse', label: t('seasons'), icon: Trophy },
     { id: 'clubs', label: t('viewClubs'), icon: Shield },
     { id: 'league', label: t('viewLeague'), icon: Landmark },
+    { id: 'records', label: tc('viewRecords'), icon: BookOpen },
     { id: 'legends', label: t('viewTop'), long: t('viewTopLong'), icon: ListOrdered },
     { id: 'search', label: t('viewSearch'), icon: Search },
     { id: 'compare', label: t('viewCompare'), icon: Columns3 },
@@ -373,10 +386,11 @@ export function Explore() {
 
       {view === 'clubs' && <ClubView leagueId={leagueId} clubId={clubPage} onClub={openClub} onPlayer={setCareerId} />}
       {view === 'league' && <LeagueView leagueId={leagueId} onClub={openClub} onPlayer={setCareerId} />}
+      {view === 'records' && <RecordsView leagueId={leagueId} onClub={openClub} onPlayer={setCareerId} />}
       {view === 'search' && <SearchView form={form} setForm={setForm} onPlayer={setCareerId} compare={compare} toggleCompare={flipCompare} />}
       {view === 'compare' && <CompareView ids={compare} setIds={setCompare} onPlayer={setCareerId} />}
       </div>
-      <CareerModal playerId={careerId} onClose={() => setCareerId(null)} compare={compare} onCompare={flipCompare} />
+      <CareerModal playerId={careerId} onClose={() => setCareerId(null)} compare={compare} onCompare={flipCompare} onPlayer={setCareerId} />
     </div>
   )
 }

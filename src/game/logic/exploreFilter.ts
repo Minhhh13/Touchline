@@ -1,6 +1,6 @@
 import type { PlayerSeason, Position } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { foldName, playerIndex } from './exploreSearch'
+import { foldName, playerIndex } from './exploreIndex'
 import { classicFromFor } from './era'
 
 /**
@@ -104,15 +104,20 @@ export function filterPlayers(u: LoadedUniverse, f: PlayerFilter): FilterResult 
   return { rows: hits.slice(0, f.limit ?? FILTER_LIMIT).map(({ rank: _rank, ...h }) => h), total: hits.length }
 }
 
-/** The nations of the loaded players, the most real players first (then by code): the nation picker's list. */
+const nationCache = new WeakMap<LoadedUniverse, Array<{ nation: string; players: number }>>()
+
+/** The nations of the loaded players, the most real players first (then by code): the nation picker's list; cached per universe. */
 export function nationCounts(u: LoadedUniverse): Array<{ nation: string; players: number }> {
-  const by = new Map<string, Set<string>>()
-  for (const p of Object.values(u.index)) {
-    const s = by.get(p.nationality)
-    if (s) s.add(p.playerId)
-    else by.set(p.nationality, new Set([p.playerId]))
+  const hit = nationCache.get(u)
+  if (hit) return hit
+  const by = new Map<string, number>()
+  for (const e of playerIndex(u)) {
+    // A player counts once per nation he is listed under in any of his seasons
+    for (const nation of new Set(e.seasons.map((p) => p.nationality))) by.set(nation, (by.get(nation) ?? 0) + 1)
   }
-  return [...by].map(([nation, s]) => ({ nation, players: s.size })).sort((a, b) => b.players - a.players || a.nation.localeCompare(b.nation))
+  const out = [...by].map(([nation, players]) => ({ nation, players })).sort((a, b) => b.players - a.players || a.nation.localeCompare(b.nation))
+  nationCache.set(u, out)
+  return out
 }
 
 /** A number field's text as a filter bound: blank (or not a number) is no bound. */

@@ -86,10 +86,6 @@ export const explore = catalog('explore', {
   familiarity: 'Familiarity',
   careerMore: 'Career and more',
   notInDatabase: 'Not in the database: an academy player.',
-  colSeason: 'Season',
-  colOvr: 'OVR',
-  colValue: 'Value',
-  shortlistSeason: 'Shortlist this season',
   meterWord: '{label}: {word} ({v})',
   meter: '{label} {v}',
   noSeasons: 'No seasons in the data for this player.',
@@ -189,4 +185,5 @@ export const explore = catalog('explore', {
   sideBySide: 'Side by side',
   leaderBold: 'Leader in bold',
   attributesHere: 'The attributes line up here.',
+  groupAvgTip: '{group} average: {n}',
 })
