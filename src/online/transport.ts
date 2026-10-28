@@ -186,7 +186,7 @@ export function functionUrl(cfg: Pick<OnlineConfig, 'url' | 'functionName' | 're
 }
 
 const SAVE_COLUMNS ='slot, revision, game_id, content_hash, object_path, meta, device_id, client_saved_at, deleted_at, updated_at, prev_game_id, prev_object_path, prev_meta, prev_saved_at'
-const SLOTS: SlotId[] = ['quick', 'season', 'dynasty', 'h2h']
+const SLOTS: SlotId[] = ['quick', 'season', 'dynasty', 'h2h', 'arena', 'runin']
 
 /** The browser transport over a supabase-js client. */
 export class SupabaseTransport implements OnlineTransport {

@@ -5,7 +5,8 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
-import { defaultHostClub, describeRuleChips, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, describeRuleChips, setupRules, startFormation, summariseSetup } from '@game/logic/setup'
+import { rememberTeamName, useTeamName } from '../teamName'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { EMPTY_WHEEL_LABEL, wheelHasRoom } from '@game/logic/wheelCheck'
@@ -48,8 +49,6 @@ import { setup } from '../i18n/en/setup'
 import { B, rich } from '../i18n/rich'
 
 const t = translator(setup)
-
-const DEFAULT_TEAM = 'Touchline XI'
 
 // The option cards are built at render time, so they read in the viewer's language
 const respinWord = (n: number) => t('respins', { n })
@@ -105,7 +104,8 @@ export function Setup() {
   const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const [leagueId, setLeagueId] = useState('england')
   const [europe, setEurope] = useState(false)
-  const [teamName, setTeamName] = useState(DEFAULT_TEAM)
+  // An invented club name, or the one this viewer last typed (teamName.ts); the game logic's fallback stays Touchline XI
+  const team = useTeamName()
   const [formationId, setFormationId] = useState('4-3-3')
   // The 38-0 options, each defaulting to the mode's base rules
   const [draftDifficulty, setDraftDifficulty] = useState<DraftDifficulty>(modeBase.difficulty ?? 'normal')
@@ -268,7 +268,7 @@ export function Setup() {
     if (weekPlan) return { kind: 'weekly', season: week?.season ?? 0, host: week?.host ?? '', formationId: weekPlan.formationId, leagueId: weekPlan.leagueId, wheelLeagues: weekPlan.wheelLeagues, difficulty: week?.difficulty ?? 'calibrated', rules: null, seed: weekPlan.seed }
     if (!isDaily) return null
     // Every rule of the Daily comes from `dailySettings` (or today's ranked pin, when it differs), so it is the same wheel for everyone
-    const d = dailyStartSettings(u, todaysDailySeed(), teamName.trim() || 'Touchline XI', pin).settings
+    const d = dailyStartSettings(u, todaysDailySeed(), team.name, pin).settings
     return { kind: 'daily', season: d.leagueSeason, host: d.hostClubId, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty ?? 'calibrated', rules: d.rules, seed: d.seed }
   })()
   const challenge = pendingChallenge?.challenge ?? null
@@ -276,7 +276,7 @@ export function Setup() {
 
   /** The settings the Start button would send; a blank seed is drawn at that moment, so a preview names it as such. */
   const buildSettings = (preview: boolean): GameSettings => {
-    const name = teamName.trim() || DEFAULT_TEAM
+    const name = team.name
     if (fixed?.kind === 'daily') return dailyStartSettings(u, fixed.seed, name, pin).settings
     const weekly = fixed?.kind === 'weekly' ? weeklyGameSettings(u, fixed.seed, name) : null
     if (weekly) return weekly
@@ -292,7 +292,7 @@ export function Setup() {
       seed: seedText,
       formationId: fixed ? fixed.formationId : crazy && preview && !seed.trim() ? formationId : startFormation(rules, seedText, formationId),
       teamName: name,
-      shortName: shortNameFor(name),
+      shortName: team.shortName,
       leagueId: fixed ? fixed.leagueId : leagueId,
       wheelLeagues: fixed ? fixed.wheelLeagues : wheelLeagues,
       hostClubId: fixed ? fixed.host : host,
@@ -311,7 +311,9 @@ export function Setup() {
     // Today's puzzle shares the Quick Draft's save slot: ask before an unfinished quick draft or Daily is dropped (as Home's Daily button used to)
     const puzzle = fixed?.kind === 'daily' ? t('puzzleToday') : fixed?.kind === 'weekly' ? t('puzzleWeek') : null
     if (puzzle && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(t('confirmStart', { puzzle, mode: modeTitle(game.settings.mode), team: game.settings.teamName }), { ok: t('startOk'), danger: true }))) return
-    startGame(buildSettings(false))
+    const settings = buildSettings(false)
+    rememberTeamName(settings.teamName)
+    startGame(settings)
   }
   const preview = buildSettings(true)
   // Until the week's league is in, the week has no season or host to state
@@ -346,7 +348,7 @@ export function Setup() {
     setDraftDifficulty(next.includes('hard') ? 'hard' : hard ? 'normal' : draftDifficulty)
     setModes(next.filter((c): c is QuickMode | 'upgrader' => c !== 'hard'))
   }
-  const teamField = <TeamNameField value={teamName} onChange={setTeamName} fallback={DEFAULT_TEAM} />
+  const teamField = <TeamNameField value={team.value} onChange={team.setValue} fallback={team.fallback} />
   return (
     <div className="page setup-page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">

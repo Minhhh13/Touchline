@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Crown, Globe, Medal, SkipForward } from 'lucide-react'
 import { USER_TEAM } from '@engine/season'
-import type { Game, QuickCupRound, QuickCupRun } from '@game/types'
+import type { Game, QuickCupRun } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { quickCupBracket, revealCount, revealSteps, tieAtStep, userRoute } from '@game/logic/bracket'
-import { cupReachLabel, cupRoundLabel, cupScoreLabel, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { quickCupBracket, quickGroupViews, revealCount, revealSteps, tieAtStep, userRoute } from '@game/logic/bracket'
+import { cupReachLabel, cupRoundLabel, cupScoreLabel, quickRunRounds, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourOf } from '@game/logic/cabinet'
 import { sideNamer } from '@game/logic/superLeague'
 import { Bracket } from './Bracket'
-import { ClubBadge, Modal, TeamBadge } from './bits'
+import { ClubBadge, Modal, TeamBadge, Tabs } from './bits'
+import { GroupTables } from './GroupTables'
 import { TrebleArt, TrophyArt } from './TrophyArt'
 import { confettiPieces, prefersReducedMotion } from '../motion'
 import { revealDelay, userInPlay } from '../cupReveal'
@@ -19,7 +20,8 @@ import { summary } from '../i18n/en/summary'
 
 const t = translator(summary)
 
-const ROUNDS: QuickCupRound[] = ['R16', 'QF', 'SF', 'F']
+/** A group matchday's moment in the reveal (engine 7's Continental Cup). */
+const GROUP_STEP_MS = 900
 const CUP_PIECES = confettiPieces(36)
 const TREBLE_PIECES = confettiPieces(56)
 
@@ -32,18 +34,24 @@ const TREBLE_PIECES = confettiPieces(56)
 export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: { game: Game; u: LoadedUniverse; comp: QuickCupComp; run: QuickCupRun; reveal: boolean; onClose: () => void; onRevealEnd?: () => void }) {
   const view = useMemo(() => quickCupBracket(run, comp), [run, comp])
   const steps = useMemo(() => revealSteps(view), [view])
-  const total = revealCount(view)
+  // Engine 7's Continental Cup opens on its groups (the draw, then one matchday a step) before the knockouts
+  const groupSteps = run.groups ? 7 : 0
+  const total = groupSteps + revealCount(view)
   const [reduced] = useState(prefersReducedMotion)
-  const [shown, setShown] = useState(() => (reveal && !reduced ? 0 : total))
-  const done = shown >= total
+  const [all, setShownAll] = useState(() => (reveal && !reduced ? 0 : total))
+  const done = all >= total
+  const shown = Math.max(0, all - groupSteps)
+  const inGroups = !done && all < groupSteps
+  const [pane, setPane] = useState<'groups' | 'bracket'>('bracket')
+  const setShown = (f: (n: number) => number) => setShownAll((n) => groupSteps + f(Math.max(0, n - groupSteps)))
   // The trophy moment: only after a reveal (a later look at the bracket goes straight to it)
   const lifted = run.reached === 'W'
   const [celebrating, setCelebrating] = useState(reveal && lifted)
   useEffect(() => {
     if (done) return
-    const timer = setTimeout(() => setShown((n) => n + 1), revealDelay(view, steps, shown))
+    const timer = setTimeout(() => (inGroups ? setShownAll((n) => n + 1) : setShown((n) => n + 1)), inGroups ? GROUP_STEP_MS : revealDelay(view, steps, shown))
     return () => clearTimeout(timer)
-  }, [done, shown, view, steps])
+  }, [done, shown, view, steps, inGroups])
   useEffect(() => {
     if (done) onRevealEnd?.()
   }, [done, onRevealEnd])
@@ -53,8 +61,9 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
   const live = !done && userInPlay(view, steps, shown)
   // The user's tie last revealed (or the one in play), for the line over the bracket
   const route = userRoute(view)
-  const mineShown = run.ties.filter((t) => {
-    const r = ROUNDS.indexOf(t.round)
+  const rounds = quickRunRounds(comp, run).map((r) => r.round)
+  const mineShown = (inGroups ? [] : run.ties).filter((t) => {
+    const r = rounds.indexOf(t.round)
     const i = route[r]
     return i !== null && i !== undefined && steps[r][i] < shown
   })
@@ -63,7 +72,9 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
   const q = game.quickResult
   const honour = q && lifted ? honourOf(q.position === 1, wonCup(q, 'cup'), wonCup(q, 'continental')) : null
   const treble = honour === 'treble'
-  const line = current
+  const line = inGroups
+    ? all === 0 ? t('groupDrawMade') : t('groupMatchday', { n: all })
+    : current
     ? t('tieInPlay', { round: view.rounds[current.round].name })
     : latest
       ? t('tieLine', { round: cupRoundLabel(comp, latest.round), won: latest.won ? 'yes' : 'no', score: cupScoreLabel(latest), opponent: nameOf(latest.opponentId) })
@@ -77,9 +88,11 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
           <Icon size={16} aria-hidden="true" /> {verdict ?? line}
         </span>
         {!done ? (
-          <button className="btn sm ghost" onClick={() => setShown(total)} data-testid="cup-night-skip">
+          <button className="btn sm ghost" onClick={() => setShownAll(total)} data-testid="cup-night-skip">
             <SkipForward size={14} aria-hidden="true" /> {t('skipToEnd')}
           </button>
+        ) : run.groups && !celebrating ? (
+          <Tabs tabs={[{ id: 'groups', label: t('groupsTab') }, { id: 'bracket', label: t('knockoutsTab') }]} value={pane} onChange={setPane} testId="cup-night-pane" />
         ) : (
           lifted &&
           !celebrating && (
@@ -90,7 +103,11 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
         )}
       </div>
       <div className="cup-night-body">
-        <Bracket view={view} nameOf={nameOf} badge={badge} userId={USER_TEAM} trophy={comp} reveal={done ? undefined : { steps, shown, live }} testId={`cup-bracket-${comp}`} />
+        {run.groups && (inGroups || (done && pane === 'groups')) ? (
+          <GroupTables groups={quickGroupViews(run.groups, done ? 6 : all)} nameOf={nameOf} badge={badge} userId={USER_TEAM} weeks={false} testId={`cup-groups-${comp}`} />
+        ) : (
+          <Bracket view={view} nameOf={nameOf} badge={badge} userId={USER_TEAM} trophy={comp} reveal={done ? undefined : { steps, shown, live }} testId={`cup-bracket-${comp}`} />
+        )}
         {done && celebrating && lifted && <CupLift comp={comp} treble={treble} teamName={game.settings.teamName} detail={treble ? honourDetail(['cup', 'continental']) : null} played={!reduced} onBack={() => setCelebrating(false)} onDone={onClose} />}
       </div>
     </Modal>

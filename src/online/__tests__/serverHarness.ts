@@ -19,8 +19,10 @@ import type { BuildInfo } from '../buildInfo'
 import type { PuzzleSettings, RankedEntry } from '../server/dailyVerify'
 import type { H2HManager, H2HResult } from '@game/logic/h2h'
 import type { RoomEvent, RoomSettings, RoomStatus, RoomView } from '@game/logic/h2hRoom'
-import { createServer, type BoardKind, type Caller, type DataPackRow, type Guest, type RoomWrite, type ServerDeps, type StoredPin } from '../server/service'
+import { createServer, type BoardKind, type Caller, type DataPackRow, type Guest, type RoomWrite, type ServerDeps, type StoredCasualPin, type StoredPin } from '../server/service'
+import type { CasualEntry } from '../server/casualVerify'
 import type { ChaseAttempt } from '../server/chaseVerify'
+import type { ErrorReport } from '../core/errorReport'
 import { CHASE_ATTEMPTS_PER_DAY, CHASE_ATTEMPT_HOURS } from '../chase'
 
 export const DATA = path.resolve(__dirname, '..', '..', '..', 'public', 'data')
@@ -36,6 +38,9 @@ export interface Harness {
   /** 38-0 chase attempts by code, with the account they were issued to; chase entries by code. */
   attempts: Map<string, ChaseAttempt & { userId: string }>
   chaseEntries: Map<string, { entry: RankedEntry; userId: string; id: number }>
+  /** Casual board pins by `board|key`, entries by `board|key|user` (the SQL's casual_puzzles and casual_entries). */
+  casualPins: Map<string, StoredCasualPin>
+  casualEntries: Map<string, { entry: CasualEntry; id: number }>
   archive: Map<string, Uint8Array>
   saves: Map<string, Uint8Array>
   deleted: string[]
@@ -43,6 +48,8 @@ export interface Harness {
   limits: Map<string, number>
   logs: Array<Record<string, unknown>>
   rooms: Map<string, FakeRoom>
+  /** Rows `svc_error_report` filed (no account id: the reports as validated). */
+  errorReports: ErrorReport[]
   server: ReturnType<typeof createServer>
 }
 
@@ -113,6 +120,8 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
     entries: new Map<string, { entry: RankedEntry; id: number }>(),
     attempts: new Map<string, ChaseAttempt & { userId: string }>(),
     chaseEntries: new Map<string, { entry: RankedEntry; userId: string; id: number }>(),
+    casualPins: new Map<string, StoredCasualPin>(),
+    casualEntries: new Map<string, { entry: CasualEntry; id: number }>(),
     archive: new Map<string, Uint8Array>(),
     saves: new Map<string, Uint8Array>(),
     deleted: [] as string[],
@@ -120,6 +129,7 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
     limits: new Map<string, number>(),
     logs: [] as Array<Record<string, unknown>>,
     rooms: new Map<string, FakeRoom>(),
+    errorReports: [] as ErrorReport[],
   } as Harness
   let nextId = 1
   let nextRoom = 1
@@ -171,6 +181,10 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
       },
     },
     db: {
+      errorReport: async (reports) => {
+        h.errorReports.push(...structuredClone(reports))
+        return reports.length
+      },
       rateLimit: async (bucket, uid, limit) => {
         const k = `${bucket}|${uid}`
         const n = (h.limits.get(k) ?? 0) + 1
@@ -233,6 +247,33 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
         const position = 1 + [...best.entries()].filter(([u, e]) => u !== uid && dropped(e) < dropped(myBest)).length
         const games = mine.entry.won + mine.entry.drawn + mine.entry.lost
         return { status, entryId: mine.id, position, total: best.size, weekPosition: position, weekTotal: best.size, perfect: mine.entry.drawn === 0 && mine.entry.lost === 0, games, entry: { points: mine.entry.points, games } }
+      },
+      casualGetPin: async (board, key) => h.casualPins.get(`${board}|${key}`) ?? null,
+      casualPin: async (board, key, settings, hash, engine, data) => {
+        const k = `${board}|${key}`
+        if (!h.casualPins.has(k)) h.casualPins.set(k, { board, key, seed: settings.seed, settings: JSON.parse(JSON.stringify(settings)) as PuzzleSettings, settingsHash: hash, engineVersion: engine, dataVersion: data, createdAt: h.clock.now.toISOString() })
+        return h.casualPins.get(k)!
+      },
+      casualSubmit: async (board, uid, key, entry) => {
+        if (!h.casualPins.has(`${board}|${key}`)) return { status: 'no_puzzle' }
+        const k = `${board}|${key}|${uid}`
+        const prior = h.casualEntries.get(k)
+        let status = 'ranked'
+        if (prior) status = prior.entry.draft_fingerprint === entry.draft_fingerprint ? 'duplicate' : 'already_submitted'
+        else h.casualEntries.set(k, { entry, id: nextId++ })
+        const mine = h.casualEntries.get(k)!
+        // The SQL's order: score, then the board's two keys, then goals scored
+        const keys = (e: CasualEntry) => [e.score, board === 'arena' ? e.goals_for - e.goals_against : -e.lost, board === 'arena' ? -e.goals_against : e.goals_for - e.goals_against, e.goals_for]
+        const ahead = (a: { entry: CasualEntry; id: number }, b: { entry: CasualEntry; id: number }) => {
+          const x = keys(a.entry)
+          const y = keys(b.entry)
+          for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] > y[i]
+          // Level on every figure: the first posted is ahead
+          return a.id < b.id
+        }
+        const field = [...h.casualEntries.entries()].filter(([key2]) => key2.startsWith(`${board}|${key}|`))
+        const position = 1 + field.filter(([, e]) => ahead(e, mine)).length
+        return { status, entryId: mine.id, board, key, position, total: field.length, entry: { points: mine.entry.score, score: mine.entry.score, trophy: mine.entry.trophy, detail: mine.entry.detail, claimMatched: mine.entry.claim_matched } }
       },
       dataPack: async (version) => h.packs.get(version) ?? null,
       registerDataPack: async (version, leagues, files) => {

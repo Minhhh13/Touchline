@@ -1,6 +1,7 @@
 import type { Game } from '../types'
 import type { Fixture, MatchEvent, MatchResult } from '@engine/types'
 import { USER_TEAM, type CupTie, type SeasonState } from '@engine/season'
+import type { ContinentalGroup } from '@engine/continental'
 
 /** A stored result: what a fixture or a tie keeps once nothing will show its detail again. */
 export type StoredResult = MatchResult & { penalties?: { home: number; away: number } }
@@ -79,13 +80,42 @@ function compactTies(ties: CupTie[]): CupTie[] {
   for (const t of ties) if (!t.result && isUsers(t)) rounds.add(t.round)
   let changed = false
   const out = ties.map((t, i) => {
-    if (!t.result || i === lastMine) return t
-    const result = compactResult(t.result, rounds.has(t.round))
-    if (result === t.result) return t
+    // A two-legged tie's first leg (engine 7's Continental Cup) is compacted as its second leg is
+    const leg = t.firstLeg?.result
+    const firstLeg = leg && i !== lastMine ? compactResult(leg, rounds.has(t.round)) : leg
+    const result = !t.result || i === lastMine ? t.result : compactResult(t.result, rounds.has(t.round))
+    if (result === t.result && firstLeg === leg) return t
     changed = true
-    return { ...t, result }
+    return { ...t, ...(result ? { result } : {}), ...(t.firstLeg ? { firstLeg: { ...t.firstLeg, ...(firstLeg ? { result: firstLeg } : {}) } } : {}) }
   })
   return changed ? out : ties
+}
+
+/**
+ * Engine 7's Continental Cup groups: every played group match keeps its score, except the user's match of the latest
+ * matchday played, which stays whole; the matches of that matchday and of one still to be played keep their goals for
+ * the dashboard's reveal.
+ */
+function compactGroups(groups: ContinentalGroup[]): ContinentalGroup[] {
+  const mine = groups.flatMap((g) => g.matches.filter((m) => m.result && isUsers(m)))
+  const lastWeek = Math.max(-1, ...mine.map((m) => m.matchweek))
+  const pending = groups.flatMap((g) => g.matches.filter((m) => !m.result && isUsers(m)).map((m) => m.matchweek))
+  const reveal = new Set([lastWeek, ...(pending.length ? [Math.min(...pending)] : [])])
+  let changed = false
+  const out = groups.map((g) => {
+    let touched = false
+    const matches = g.matches.map((m) => {
+      if (!m.result || (isUsers(m) && m.matchweek === lastWeek)) return m
+      const result = compactResult(m.result, reveal.has(m.matchweek))
+      if (result === m.result) return m
+      touched = true
+      return { ...m, result }
+    })
+    if (!touched) return g
+    changed = true
+    return { ...g, matches }
+  })
+  return changed ? out : groups
 }
 
 function compactSeason(s: SeasonState): SeasonState {
@@ -93,8 +123,9 @@ function compactSeason(s: SeasonState): SeasonState {
   const fixtures = Array.isArray(s.fixtures) ? compactFixtures(s.fixtures, mw) : s.fixtures
   const cup = Array.isArray(s.cup) ? compactTies(s.cup) : s.cup
   const ties = s.continental && Array.isArray(s.continental.ties) ? compactTies(s.continental.ties) : s.continental?.ties
-  if (fixtures === s.fixtures && cup === s.cup && ties === s.continental?.ties) return s
-  return { ...s, fixtures, cup, ...(s.continental && ties ? { continental: { ...s.continental, ties } } : {}) }
+  const groups = Array.isArray(s.continental?.groups) ? compactGroups(s.continental.groups) : s.continental?.groups
+  if (fixtures === s.fixtures && cup === s.cup && ties === s.continental?.ties && groups === s.continental?.groups) return s
+  return { ...s, fixtures, cup, ...(s.continental && ties ? { continental: { ...s.continental, ties, ...(groups ? { groups } : {}) } } : {}) }
 }
 
 /**

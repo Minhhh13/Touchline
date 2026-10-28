@@ -9,6 +9,7 @@ import { weeklyThemeName } from '@game/logic/weeklyThemes'
 import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
+import { startingTeamName, teamShortName } from '../teamName'
 import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { useOnline } from '../../online/state'
 import { onlineAvailable } from '../../online/api'
@@ -176,8 +177,10 @@ export function Home() {
   // A finished game on the resume strip (a Dynasty's summary goes on to next year, so it is never finished here)
   const finishedHere = !!game && game.phase === 'summary' && game.settings.mode !== 'dynasty'
   const playFirstDraft = () => {
-    const settings = u && dailyReady ? firstDraftSettings(u, randomSeed()) : null
-    if (settings) withViewTransition(() => startGame(settings))
+    // The first draft takes an invented club name too (or one typed before), never Touchline XI
+    const name = startingTeamName()
+    const settings = u && dailyReady ? firstDraftSettings(u, randomSeed(), name) : null
+    if (settings) withViewTransition(() => startGame({ ...settings, shortName: teamShortName(name) }))
   }
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? (streak ? t('streakDone', { done, n: streak }) : done) : streak ? t('streakFallback', { n: streak, fallback }) : fallback)
   return (

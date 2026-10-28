@@ -7,6 +7,8 @@ import { AUTH_KEY, ONLINE_KEY, PROMPTS_KEY } from '../localState'
 import { ROOMS_KEY, SEAT_KEEP_MS } from '../rooms'
 import { ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS, ROOM_WAIT_MINUTES } from '@game/logic/h2hRoom'
 import { logId } from '../server/validate'
+import { ERROR_PREF_KEY } from '../core/errorPref'
+import { DEVICE_LIMITS } from '../core/errorReport'
 
 // The privacy page states these figures; each one is checked against the code or SQL that enforces it, so the
 // page cannot drift from what the backend does.
@@ -36,7 +38,7 @@ describe('the privacy page figures', () => {
   })
 
   it('lists every device key the online layer writes', () => {
-    expect([...RETENTION.deviceKeys].sort()).toEqual([AUTH_KEY, ONLINE_KEY, PROMPTS_KEY, ROOMS_KEY].sort())
+    expect([...RETENTION.deviceKeys].sort()).toEqual([AUTH_KEY, ONLINE_KEY, PROMPTS_KEY, ROOMS_KEY, ERROR_PREF_KEY].sort())
   })
 
   it('matches the online rooms\' join window, idle timeout and purge, in the SQL and the client', () => {
@@ -46,6 +48,13 @@ describe('the privacy page figures', () => {
     expect(sql).toContain("x.ended_at < now() - private.h2h_keep()")
     expect([ROOM_WAIT_MINUTES, ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS]).toEqual([RETENTION.roomWaitMinutes, RETENTION.roomIdleMinutes, RETENTION.roomKeepHours])
     expect(SEAT_KEEP_MS).toBe(RETENTION.seatKeepDays * 86400000)
+  })
+
+  it('matches the error reports\' retention and the per-device limits', () => {
+    expect(sql).toContain(`select interval '${RETENTION.errorReportDays} days'`)
+    expect(sql).toContain('x.last_at < now() - private.error_reports_keep()')
+    expect(sql).toContain("cron.schedule('touchline-error-reports'")
+    expect([DEVICE_LIMITS.hour, DEVICE_LIMITS.day]).toEqual([RETENTION.errorReportsPerHour, RETENTION.errorReportsPerDay])
   })
 
   it('logs no more of an account id than the page says', () => {

@@ -8,16 +8,23 @@ import type { LeaguesFile } from '@engine/universe'
 import type { BuildInfo } from '../buildInfo'
 import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
 import { weekStartOf } from '../weekly'
+import { REPORTS_PER_POST, reportProblem, type ErrorReport } from '../core/errorReport'
+import { CASUAL_BOARDS, type CasualBoard } from './casualVerify'
 
 /** Every operation the function answers. Challenge codes are not here: `create_challenge` and `get_challenge` are
  * database functions the client calls directly (the opener's replay decides, as today). `chase.*` are the 38-0 chase's;
+ * `casual.submit` posts to the casual modes' boards (the Daily Arena, the Weekly Challenge, the Run-in of the week);
  * the `room.*` ops are Phase 2's
- * online head-to-head rooms, the only ones a guest (no account) may call. */
-export const OPS = ['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume'] as const
+ * online head-to-head rooms; `errors.report` files the client's error reports (docs/ONLINE.md section 5f). Those two
+ * are the only ones a guest (no account) may call. */
+export const OPS = ['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'casual.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume', 'errors.report'] as const
 export type Op = (typeof OPS)[number]
 
 /** The ops a guest may call: the rooms (`room.resume` needs an account, and says so itself). */
 export const ROOM_OPS: readonly Op[] = ['room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume']
+
+/** Every op a guest may call: the rooms and the error reports. */
+export const GUEST_OPS: readonly Op[] = [...ROOM_OPS, 'errors.report']
 
 /** The largest request body accepted, in UTF-8 bytes (a ranked payload is at most 8000 characters). */
 export const MAX_BODY_BYTES = 16384
@@ -30,6 +37,7 @@ export type ServerRequest =
   | { op: 'daily.pin'; date?: string }
   | { op: 'weekly.pin'; week?: string }
   | { op: 'daily.submit' | 'weekly.submit' | 'chase.submit'; encoded: string; teamName: string; shortName: string }
+  | { op: 'casual.submit'; board: CasualBoard; encoded: string; teamName: string; shortName: string }
   | { op: 'chase.start'; leagueId: string; formationId: string; ratings: 'season' | 'prime'; benchPicks: number; engine: string; data: string }
   | { op: 'account.delete'; confirm: typeof DELETE_CONFIRMATION }
   | { op: 'room.create'; settings: RoomSettings; manager: RoomManagerInput; engine: string; data: string }
@@ -37,6 +45,7 @@ export type ServerRequest =
   | { op: 'room.pick'; code: string; token: string; version: number; playerSeasonId: string; slotId: string }
   | { op: 'room.leave'; code: string; token: string }
   | { op: 'room.resume'; code: string }
+  | { op: 'errors.report'; reports: ErrorReport[] }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string }
 
@@ -51,12 +60,14 @@ const ALLOWED: Record<Op, readonly string[]> = {
   'weekly.submit': ['encoded', 'teamName', 'shortName'],
   'chase.start': ['leagueId', 'formationId', 'ratings', 'benchPicks', 'engine', 'data'],
   'chase.submit': ['encoded', 'teamName', 'shortName'],
+  'casual.submit': ['board', 'encoded', 'teamName', 'shortName'],
   'account.delete': ['confirm'],
   'room.create': ['settings', 'manager', 'engine', 'data'],
   'room.join': ['code', 'manager', 'engine', 'data'],
   'room.pick': ['code', 'token', 'version', 'playerSeasonId', 'slotId'],
   'room.leave': ['code', 'token'],
   'room.resume': ['code'],
+  'errors.report': ['reports'],
 }
 
 /** A seat token as the server issues it: 32 random bytes, base64url without padding. */
@@ -150,6 +161,14 @@ export function parseRequest(text: string): Parsed<ServerRequest> {
       if (typeof shortName !== 'string' || shortName.length > 8) return bad('shortName is text')
       return { ok: true, value: { op: op as 'daily.submit' | 'weekly.submit' | 'chase.submit', encoded, teamName, shortName } }
     }
+    case 'casual.submit': {
+      const { board, encoded, teamName, shortName } = raw
+      if (typeof board !== 'string' || !(CASUAL_BOARDS as readonly string[]).includes(board)) return bad('board is arena, themed or runin')
+      if (typeof encoded !== 'string' || encoded.length < 1 || encoded.length > 8100) return bad('encoded is the run payload (at most 8000 characters)')
+      if (typeof teamName !== 'string' || teamName.length > 64) return bad('teamName is text')
+      if (typeof shortName !== 'string' || shortName.length > 8) return bad('shortName is text')
+      return { ok: true, value: { op: 'casual.submit', board: board as CasualBoard, encoded, teamName, shortName } }
+    }
     case 'account.delete':
       if (raw.confirm !== DELETE_CONFIRMATION) return bad(`account.delete needs confirm: "${DELETE_CONFIRMATION}"`)
       return { ok: true, value: { op: 'account.delete', confirm: DELETE_CONFIRMATION } }
@@ -187,6 +206,15 @@ export function parseRequest(text: string): Parsed<ServerRequest> {
       const code = roomCodeOf(raw.code)
       if (!code) return bad('code is a room code')
       return { ok: true, value: { op: 'room.resume', code } }
+    }
+    case 'errors.report': {
+      const reports = raw.reports
+      if (!Array.isArray(reports) || reports.length < 1 || reports.length > REPORTS_PER_POST) return bad(`reports is 1 to ${REPORTS_PER_POST} error reports`)
+      for (const r of reports) {
+        const problem = reportProblem(r)
+        if (problem) return bad(problem)
+      }
+      return { ok: true, value: { op: 'errors.report', reports: reports as ErrorReport[] } }
     }
   }
 }

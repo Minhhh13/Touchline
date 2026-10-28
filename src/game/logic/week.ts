@@ -3,14 +3,17 @@ import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from '@engine/u
 import { Rng } from '@engine/rng'
 import { advanceMatch, beginMatch, changeInPlay, finishMatch, simulateMatch, type FullMatchResult, type InPlayChange, type InPlayOutcome, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
 import { aiLookup } from '@engine/reserve'
-import { aiFixtureInputs, aiTeamInput, applyMatchToAiState, humansOf, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
+import { aiClubOf, aiFixtureInputs, aiTeamInput, applyMatchToAiState, humansOf, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
+import { playOffOpponent } from '@engine/scenario'
+import { continentalPlan, continentalReach, drawContinentalRound, groupTable, groupsComplete, legAt, quarterFinals, settleTie, throughGroups, tieScore, type ContinentalGroup, type GroupMatch } from '@engine/continental'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
 import { afterSeasonMoney, CONTINENTAL_PRIZE, openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
 import { computeAwards } from '@engine/awards'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, lineupProblems, squadWages } from './squad'
-import { tickWindow } from './marketOps'
+import { tickWindow, withFloors } from './marketOps'
+import { dynastyOpener } from './dynasty'
 import { staffTier } from '@engine/staff'
 import { developSquad, DEVELOPMENT_INTERVAL } from './development'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
@@ -254,12 +257,28 @@ export function nextOpponent(game: Game): { clubId: string; home: boolean } | nu
 }
 
 export interface UpcomingTie {
-  tie: CupTie
   comp: Competition
   label: string
+  /** The knockout round, or `G` for an engine 7 Continental Cup group match. */
+  round: CupTie['round'] | 'G'
+  /** This match's own sides: the second leg of a two-legged tie is at the tie's away side's ground. */
+  homeTeamId: string
+  awayTeamId: string
+  afterMatchweek: number
+  /** A two-legged tie's leg. */
+  leg?: 1 | 2
+  /** An engine 7 group match's group, `A` to `D`. */
+  group?: string
+  /** The knockout tie, absent for a group match. */
+  tie?: CupTie
 }
 
-/** The user's knockout tie, in either competition, played midweek after the next matchweek. */
+/** The words for a leg: "first leg", "second leg". */
+export function legWords(leg: 1 | 2): string {
+  return leg === 1 ? 'first leg' : 'second leg'
+}
+
+/** The user's knockout tie or Continental Cup group match, in either competition, played midweek after the next matchweek. */
 export function upcomingCupTie(game: Game): UpcomingTie | null {
   const season = game.season
   if (!season) return null
@@ -267,8 +286,33 @@ export function upcomingCupTie(game: Game): UpcomingTie | null {
   for (const comp of ['cup', 'continental'] as const) {
     if (comp === 'cup' && (season.cupEliminated || season.cupWon)) continue
     if (comp === 'continental' && (!season.continental || season.continental.eliminated || season.continental.won)) continue
+    if (comp === 'continental' && season.continental?.groups) {
+      const next = continentalMatchAt(season, mw)
+      if (next) return next
+      continue
+    }
     const tie = tiesOf(season, comp).find((t) => !t.result && t.afterMatchweek === mw && (t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM))
-    if (tie) return { tie, comp, label: roundsFor(comp, season.matchweeks).find((r) => r.round === tie.round)?.label ?? 'Cup tie' }
+    if (tie) return { comp, label: roundsFor(comp, season.matchweeks).find((r) => r.round === tie.round)?.label ?? 'Cup tie', round: tie.round, homeTeamId: tie.homeTeamId, awayTeamId: tie.awayTeamId, afterMatchweek: tie.afterMatchweek, tie }
+  }
+  return null
+}
+
+const isUserMatch = (m: { homeTeamId: string; awayTeamId: string }) => m.homeTeamId === USER_TEAM || m.awayTeamId === USER_TEAM
+
+/** The user's engine 7 Continental Cup match after matchweek `mw` not played yet: a group match or a leg. */
+export function continentalMatchAt(season: SeasonState, mw: number): UpcomingTie | null {
+  const c = season.continental
+  if (!c?.groups) return null
+  for (const g of c.groups) {
+    const m = g.matches.find((x) => x.matchweek === mw && !x.result && isUserMatch(x))
+    if (m) return { comp: 'continental', label: `Continental Cup, Group ${g.name}`, round: 'G', homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId, afterMatchweek: mw, group: g.name }
+  }
+  for (const t of c.ties) {
+    if (!isUserMatch(t)) continue
+    const leg = legAt(t, mw)
+    if (!leg || (leg.leg === 1 ? t.firstLeg?.result : t.result)) continue
+    const label = continentalPlan(season.matchweeks).rounds.find((r) => r.round === t.round)?.label ?? 'Continental Cup'
+    return { comp: 'continental', label: leg.leg ? `${label}, ${legWords(leg.leg)}` : label, round: t.round, homeTeamId: leg.homeTeamId, awayTeamId: leg.awayTeamId, afterMatchweek: mw, ...(leg.leg ? { leg: leg.leg } : {}), tie: t }
   }
   return null
 }
@@ -307,7 +351,7 @@ export type WeekStep = void | typeof WEEK_END
 
 /** Sim `n` matchweeks with the assistant managing (Sim 5, Sim to end), in steps: each week's `playMatchweekSteps`. */
 export function* simWeeksSteps(box: GameBox, u: LoadedUniverse, n: number): Generator<WeekStep, void, undefined> {
-  if (box.g.phase === 'preseason') startSeasonProper(box.g)
+  if (box.g.phase === 'preseason') startSeasonProper(box.g, u)
   for (let i = 0; i < n; i++) {
     const game = box.g
     if (game.phase === 'summary' || !game.season || game.season.sacked) break
@@ -521,10 +565,16 @@ function afterLiveResult(game: Game, u: LoadedUniverse, live: LiveMatch, res: Fu
   }
   // Knockout tie (domestic cup or Continental Cup)
   const comp = live.comp ?? 'cup'
-  const tie = tiesOf(season, comp)[live.cupTieIndex!]
-  completeUserCupTie(game, u, tie, res, live, kickOffXI)
   const rng = Rng.fromState(game.rngState)
-  drawNext(game, u, rng, tie.round, comp)
+  if (comp === 'continental' && season.continental?.groups) {
+    // Engine 7: a group match or a leg; the week closes once it is in
+    recordUserContinental(game, u, rng, res, live, kickOffXI)
+    closeContinentalWeek(game, u, rng, live.ctx.matchweek)
+  } else {
+    const tie = tiesOf(season, comp)[live.cupTieIndex!]
+    completeUserCupTie(game, u, rng, tie, res, live, kickOffXI)
+    drawNext(game, u, rng, tie.round, comp)
+  }
   game.rngState = rng.getState()
   afterMatchweek(game, u, !autoManage)
 }
@@ -568,6 +618,14 @@ function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean, pl
   const mw = season.matchweek
   for (const comp of ['cup', 'continental'] as const) {
     if (comp === 'continental' && !season.continental) continue
+    if (comp === 'continental' && season.continental?.groups) {
+      // Engine 7's Continental Cup: a group matchday or a leg on its own midweeks
+      const rng = Rng.fromState(game.rngState)
+      const live = continentalMidweek(game, u, rng, mw, autoManage)
+      game.rngState = rng.getState()
+      if (live) return
+      continue
+    }
     const roundInfo = roundsFor(comp, season.matchweeks).find((r) => r.afterMatchweek === mw)
     if (!roundInfo) continue
     const rng = Rng.fromState(game.rngState)
@@ -587,7 +645,8 @@ function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean, pl
       const ctx = { matchweek: mw, competition: comp, roundLabel: roundInfo.label, opponentClubId: opponentId, home: userIsHome, importanceLabel: imp.label }
       if (autoManage) {
         const res = simulateMatch(opts)
-        completeUserCupTie(game, u, tie, res, { kind: 'cup', comp, mp: null as never, ctx, userIsHome, opponentId, cupTieIndex: idx })
+        // The tie settles on this week's stream (engine 7: it used to restart from the state stored before the week)
+        completeUserCupTie(game, u, rng, tie, res, { kind: 'cup', comp, mp: null as never, ctx, userIsHome, opponentId, cupTieIndex: idx })
         drawNext(game, u, rng, roundInfo.round, comp)
         game.rngState = rng.getState()
       } else {
@@ -626,10 +685,9 @@ function simulateAiCupTies(game: Game, u: LoadedUniverse, rng: Rng, round: CupTi
   }
 }
 
-function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: FullMatchResult, live: LiveMatch, kickOffXI?: Set<string>): void {
+function completeUserCupTie(game: Game, u: LoadedUniverse, rng: Rng, tie: CupTie, res: FullMatchResult, live: LiveMatch, kickOffXI?: Set<string>): void {
   const season = game.season!
   const comp = live.comp ?? 'cup'
-  const rng = Rng.fromState(game.rngState)
   applyResultToUser(game, u, res, live.userIsHome, true, kickOffXI, live.ctx.matchweek, true)
   applyResultToAi(game, live.opponentId, res, !live.userIsHome)
   game.lastCupMatch = res
@@ -654,7 +712,6 @@ function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: Ful
   const oppName = clubOf(season, live.opponentId)?.name ?? u.clubById[live.opponentId]?.name ?? live.opponentId
   const lifted = won && tie.round === 'F' ? (comp === 'cup' ? ' The cup is yours!' : ' Champions of the continent!') : ''
   news(game, { kind: 'cup', title: `${info.label}: ${won ? 'through' : 'out'}`, body: `${res.homeGoals}-${res.awayGoals}${pens ? ` (${pens.home}-${pens.away} on penalties)` : ''} against ${oppName}.${lifted}` })
-  game.rngState = rng.getState()
 }
 
 function drawNext(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round'], comp: Competition): void {
@@ -672,16 +729,187 @@ function drawNext(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round'
   }
 }
 
-/** Furthest Continental Cup round the user reached this season (W = winners), or undefined when not entered. */
-export function continentalRun(season: SeasonState): 'R16' | 'QF' | 'SF' | 'F' | 'W' | undefined {
+/** Furthest Continental Cup stage the user reached this season (G = out in the groups, from engine 7; W = winners), or undefined when not entered. */
+export function continentalRun(season: SeasonState): 'G' | 'R16' | 'QF' | 'SF' | 'F' | 'W' | undefined {
   const c = season.continental
   if (!c) return undefined
   if (c.won) return 'W'
+  if (c.groups) return continentalReach(c.groups, c.ties, USER_TEAM)
   const order: Array<'R16' | 'QF' | 'SF' | 'F'> = ['R16', 'QF', 'SF', 'F']
   let best: 'R16' | 'QF' | 'SF' | 'F' = 'R16'
   for (const t of c.ties) if ((t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM) && order.indexOf(t.round) > order.indexOf(best)) best = t.round
   return best
 }
+
+/**
+ * Engine 7's Continental Cup on the midweek after matchweek `mw`: every AI match of the group matchday or the legs
+ * (each two-legged tie settled once its second leg is in, on this stream), then the user's match: begun live (true),
+ * or played through with `autoManage` and the week closed (`closeContinentalWeek`). A midweek with nothing of the
+ * user's closes at once.
+ */
+function continentalMidweek(game: Game, u: LoadedUniverse, rng: Rng, mw: number, autoManage: boolean): boolean {
+  const season = game.season!
+  const c = season.continental!
+  const taken = squadHumans(game, u)
+  const playAi = (homeId: string, awayId: string, neutral: boolean): FullMatchResult | null => {
+    const hc = clubOf(season, homeId)
+    const ac = clubOf(season, awayId)
+    if (!hc || !ac) return null
+    const { home, away } = aiFixtureInputs(u, hc, ac, season.aiOffset, taken)
+    const res = simulateMatch({ rng, home, away, neutral, detail: 'summary' })
+    applyResultToAi(game, homeId, res, true)
+    applyResultToAi(game, awayId, res, false)
+    return res
+  }
+  for (const g of c.groups!) {
+    for (const m of g.matches) {
+      if (m.matchweek !== mw || m.result || isUserMatch(m)) continue
+      const res = playAi(m.homeTeamId, m.awayTeamId, false)
+      if (res) m.result = res
+    }
+  }
+  for (const t of c.ties) {
+    const leg = legAt(t, mw)
+    if (!leg || isUserMatch(t) || (leg.leg === 1 ? t.firstLeg?.result : t.result)) continue
+    const res = playAi(leg.homeTeamId, leg.awayTeamId, leg.leg === 0)
+    if (!res) continue
+    if (leg.leg === 1) t.firstLeg!.result = res
+    else {
+      t.result = res
+      settleTie(t, rng, { home: res.homeReport.strength.overall, away: res.awayReport.strength.overall })
+    }
+  }
+  const mine = c.eliminated || c.won ? null : continentalMatchAt(season, mw)
+  if (!mine) {
+    closeContinentalWeek(game, u, rng, mw)
+    return false
+  }
+  const userIsHome = mine.homeTeamId === USER_TEAM
+  const opponentId = userIsHome ? mine.awayTeamId : mine.homeTeamId
+  if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
+  const user = userInput(game, u)
+  const imp = describeImportance(u, season.hostClubId, opponentId, null, mw, mine.round === 'G' ? undefined : mine.round, 'continental')
+  const opp = aiTeamInput(u, clubOf(season, opponentId)!, season.aiOffset, taken)
+  const neutral = mine.round === 'F'
+  const label = continentalLabel(season, mine)
+  const opts = { rng, home: userIsHome ? user : opp, away: userIsHome ? opp : user, importance: imp.importance, importanceLabel: imp.label ?? label, neutral, detail: 'full' as const }
+  const ctx = { matchweek: mw, competition: 'continental' as const, roundLabel: label, opponentClubId: opponentId, home: userIsHome, importanceLabel: imp.label }
+  const group = mine.group ? c.groups!.findIndex((g) => g.name === mine.group) : -1
+  const index = group >= 0 ? c.groups![group].matches.findIndex((m) => m.matchweek === mw && isUserMatch(m)) : c.ties.indexOf(mine.tie!)
+  const live: LiveMatch = { kind: 'cup', comp: 'continental', mp: null as never, ctx, userIsHome, opponentId, cupTieIndex: index, ...(group >= 0 ? { group } : {}), ...(mine.leg ? { leg: mine.leg } : {}) }
+  if (autoManage) {
+    const res = simulateMatch(opts)
+    recordUserContinental(game, u, rng, res, live)
+    closeContinentalWeek(game, u, rng, mw)
+    return false
+  }
+  game.live = { ...live, mp: beginMatch(opts) }
+  game.phase = 'match'
+  return true
+}
+
+/** The match's heading: "Group B, matchday 3", "Quarter-final, second leg (1-0 in the first)", "Continental final". */
+export function continentalLabel(season: SeasonState, m: UpcomingTie): string {
+  if (m.round === 'G') {
+    const g = season.continental?.groups?.find((x) => x.name === m.group)
+    const md = g?.matches.find((x) => x.matchweek === m.afterMatchweek)?.matchday
+    return `Continental Cup, Group ${m.group}${md ? `, matchday ${md}` : ''}`
+  }
+  const first = m.leg === 2 ? m.tie?.firstLeg?.result : undefined
+  // The first leg from this match's sides (its home side hosted the first leg away)
+  return first ? `${m.label} (first leg ${first.awayGoals}-${first.homeGoals})` : m.label
+}
+
+/** The user's group match or leg is in: the squad and the opponent's states, the result where it belongs, a tie settled after its second leg or the final, and the news. */
+function recordUserContinental(game: Game, u: LoadedUniverse, rng: Rng, res: FullMatchResult, live: LiveMatch, kickOffXI?: Set<string>): void {
+  const season = game.season!
+  const c = season.continental!
+  applyResultToUser(game, u, res, live.userIsHome, true, kickOffXI, live.ctx.matchweek, true)
+  applyResultToAi(game, live.opponentId, res, !live.userIsHome)
+  game.lastCupMatch = res
+  game.lastCupContext = live.ctx
+  const oppName = clubOf(season, live.opponentId)?.name ?? u.clubById[live.opponentId]?.name ?? live.opponentId
+  const gf = live.userIsHome ? res.homeGoals : res.awayGoals
+  const ga = live.userIsHome ? res.awayGoals : res.homeGoals
+  if (live.group !== undefined) {
+    const g = c.groups![live.group]
+    const m = g.matches[live.cupTieIndex!]
+    m.result = res
+    const table = groupTable(g)
+    const place = table.findIndex((r) => r.teamId === USER_TEAM) + 1
+    news(game, { kind: 'cup', title: `Group ${g.name}, matchday ${m.matchday}: ${gf > ga ? 'won' : gf === ga ? 'drawn' : 'lost'}`, body: `${gf}-${ga} ${live.userIsHome ? 'at home to' : 'away at'} ${oppName}. ${ordinalPlace(place)} in the group on ${table[place - 1].points} point${table[place - 1].points === 1 ? '' : 's'}.` })
+    return
+  }
+  const tie = c.ties[live.cupTieIndex!]
+  const label = continentalPlan(season.matchweeks).rounds.find((r) => r.round === tie.round)?.label ?? 'Continental Cup'
+  if (live.leg === 1) {
+    tie.firstLeg!.result = res
+    news(game, { kind: 'cup', title: `${label}, first leg`, body: `${gf}-${ga} ${live.userIsHome ? 'at home to' : 'away at'} ${oppName}. The second leg follows matchweek ${tie.afterMatchweek}.` })
+    return
+  }
+  tie.result = res
+  settleTie(tie, rng, { home: res.homeReport.strength.overall, away: res.awayReport.strength.overall })
+  const won = tie.winnerId === USER_TEAM
+  if (!won) c.eliminated = true
+  if (won && tie.round === 'F') c.won = true
+  const score = tieScore(tie)!
+  const ours = tie.homeTeamId === USER_TEAM
+  const aggregate = tie.firstLeg ? ` (${ours ? score.home : score.away}-${ours ? score.away : score.home} on aggregate${score.et ? ' after extra time' : ''})` : score.et ? ` (${ours ? score.home : score.away}-${ours ? score.away : score.home} after extra time)` : ''
+  const pens = score.pens ? ` ${ours ? score.pens.home : score.pens.away}-${ours ? score.pens.away : score.pens.home} on penalties.` : ''
+  const lifted = won && tie.round === 'F' ? ' Champions of the continent!' : ''
+  news(game, { kind: 'cup', title: `${label}: ${won ? 'through' : 'out'}`, body: `${gf}-${ga} against ${oppName}${aggregate}.${pens}${lifted}` })
+}
+
+function ordinalPlace(n: number): string {
+  return ['1st', '2nd', '3rd', '4th'][n - 1] ?? `${n}th`
+}
+
+/**
+ * The midweek's Continental Cup business once its matches are in: after the last group matchday the quarter-finals
+ * (fixed by the groups) and the user out if third or fourth; after a round's second legs or the final, the user out
+ * or the trophy won, and the next round drawn (one shuffle).
+ */
+function closeContinentalWeek(game: Game, u: LoadedUniverse, rng: Rng, mw: number): void {
+  const season = game.season!
+  const c = season.continental!
+  const plan = continentalPlan(season.matchweeks)
+  const groups = c.groups!
+  const nameOf = (id: string) => clubOf(season, id)?.name ?? u.clubById[id]?.name ?? id
+  if (mw === plan.groupWeeks.at(-1) && groupsComplete(groups) && !c.ties.length) {
+    const through = throughGroups(groups, USER_TEAM)
+    const g = groups.find((x) => x.teams.includes(USER_TEAM))!
+    const place = groupTable(g).findIndex((r) => r.teamId === USER_TEAM) + 1
+    c.ties.push(...quarterFinals(groups, plan))
+    if (!through) {
+      c.eliminated = true
+      news(game, { kind: 'cup', title: 'Out of the Continental Cup', body: `${ordinalPlace(place)} in Group ${g.name}: only the top two go through.` })
+    } else {
+      const tie = c.ties.find(isUserMatch)!
+      const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
+      news(game, { kind: 'cup', title: `Through as Group ${g.name} ${place === 1 ? 'winners' : 'runners-up'}`, body: `Quarter-final against ${nameOf(opp)}: ${tie.homeTeamId === USER_TEAM ? 'at home' : 'away'} after matchweek ${tie.firstLeg!.afterMatchweek}, ${tie.homeTeamId === USER_TEAM ? 'away' : 'at home'} after matchweek ${tie.afterMatchweek}.` })
+    }
+    return
+  }
+  const round = plan.rounds.find((r) => r.afterMatchweek === mw)
+  if (!round) return
+  const ties = c.ties.filter((t) => t.round === round.round)
+  if (!ties.length || ties.some((t) => !t.winnerId)) return
+  const next = drawContinentalRound(c.ties, round.round, rng, plan)
+  c.ties.push(...next)
+  const mine = next.find(isUserMatch)
+  if (mine) {
+    const info = plan.rounds.find((r) => r.round === mine.round)!
+    const opp = mine.homeTeamId === USER_TEAM ? mine.awayTeamId : mine.homeTeamId
+    news(game, { kind: 'cup', title: `${info.label} draw`, body: mine.firstLeg ? `${nameOf(opp)}: ${mine.homeTeamId === USER_TEAM ? 'at home' : 'away'} after matchweek ${mine.firstLeg.afterMatchweek}, ${mine.homeTeamId === USER_TEAM ? 'away' : 'at home'} after matchweek ${mine.afterMatchweek}.` : `${nameOf(opp)} at a neutral ground, after matchweek ${mine.afterMatchweek}.` })
+  }
+}
+
+/** Group rows and matches of an engine 7 Continental Cup, for the screens. */
+export function continentalGroups(season: SeasonState): ContinentalGroup[] {
+  return season.continental?.groups ?? []
+}
+
+export type { GroupMatch }
 
 /** Weekly housekeeping once every match of the week is done. */
 function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void {
@@ -717,7 +945,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
 
   // Transfer window: opens at the halfway point; three market days pass per matchweek, so it shuts three matchweeks later
   if (mw === Math.floor(season.matchweeks / 2) && !game.window) {
-    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }, 'january')
+    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game), ...withFloors(game) }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
@@ -894,8 +1122,11 @@ export function playFriendly(game: Game, u: LoadedUniverse): void {
   game.rngState = rng.getState()
 }
 
-export function startSeasonProper(game: Game): void {
+export function startSeasonProper(game: Game, u?: LoadedUniverse): void {
   if (game.phase === 'preseason') {
+    // A Dynasty's opener settles the contracts still out and signs the cover a thin squad needs, while the window is
+    // open (every store path passes the universe)
+    if (u) dynastyOpener(game, u)
     game.phase = 'week'
     if (game.window?.kind === 'summer') {
       postNews(game, { matchweek: 0, kind: 'transfer', title: 'Summer window closed', body: 'The season is under way. The next window opens in January.' })
@@ -904,7 +1135,40 @@ export function startSeasonProper(game: Game): void {
   }
 }
 
+/**
+ * A run-in that finishes 16th in a play-off league (the Bundesliga) plays the relegation play-off before the season
+ * closes (engine 7): two legs against `playOffOpponent`, the user at home first, the XI and tactics the season ended
+ * with (the assistant fills any gap), then extra time and penalties after the second leg if level (`settleTie`). Drawn
+ * from the game's stream after the last matchweek. The legs count for nothing else: no league statistics, no morale.
+ */
+function playRunInPlayOff(game: Game, u: LoadedUniverse): void {
+  const season = game.season!
+  if (!season.carryIn || season.sacked || season.playOff || game.settings.mode !== 'runin') return
+  const table = seasonTable(season)
+  if (positionOf(table, USER_TEAM) !== table.length - 2) return
+  const cs = playOffOpponent(u, season.leagueId, season.leagueSeason)
+  if (!cs) return
+  const rng = Rng.fromState(game.rngState)
+  if (lineupProblems(game, u).length) autoPick(game, u, false)
+  const taken = squadHumans(game, u)
+  const opp = aiTeamInput(u, aiClubOf(u, cs, taken), 0, taken)
+  const user = userInput(game, u)
+  const tie: CupTie = { round: 'F', afterMatchweek: season.matchweeks, homeTeamId: USER_TEAM, awayTeamId: cs.clubId, firstLeg: { afterMatchweek: season.matchweeks } }
+  const label = 'Relegation play-off'
+  tie.firstLeg!.result = simulateMatch({ rng, home: user, away: opp, importance: 1.4, importanceLabel: label, detail: 'summary' })
+  const second = simulateMatch({ rng, home: opp, away: user, importance: 1.4, importanceLabel: label, detail: 'summary' })
+  tie.result = second
+  settleTie(tie, rng, { home: second.homeReport.strength.overall, away: second.awayReport.strength.overall })
+  season.playOff = { opponent: `${cs.clubId}@${cs.season}`, tie }
+  game.rngState = rng.getState()
+  const s = tieScore(tie)!
+  const name = u.clubById[cs.clubId]?.name ?? cs.clubId
+  const won = tie.winnerId === USER_TEAM
+  news(game, { kind: 'board', title: `Relegation play-off: ${won ? 'stayed up' : 'relegated'}`, body: `${s.legs!.map((l) => `${l.home}-${l.away}`).join(' and ')} against ${name}, ${s.home}-${s.away} on aggregate${s.et ? ' after extra time' : ''}${s.pens ? `, ${s.pens.home}-${s.pens.away} on penalties` : ''}.` })
+}
+
 export function finishSeason(game: Game, u: LoadedUniverse): void {
+  playRunInPlayOff(game, u)
   const season = game.season!
   const table = seasonTable(season)
   const row = table.find((r) => r.teamId === USER_TEAM)!

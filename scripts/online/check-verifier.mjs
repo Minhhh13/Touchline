@@ -66,9 +66,16 @@ const roomDb = {
   },
   roomLeave: async () => ({ status: 'bad' }),
   roomReseat: async () => ({ status: 'bad' }),
+  errorReport: async (reports) => {
+    errorRows.push(...reports)
+    return reports.length
+  },
 }
+const errorRows = []
 const attempts = new Map()
 const chaseEntries = new Map()
+const casualPins = new Map()
+const casualEntries = new Map()
 const deps = {
   now: () => NOW,
   log: () => {},
@@ -120,6 +127,19 @@ const deps = {
       const prior = chaseEntries.get(code)
       if (prior) return { status: prior.draft_fingerprint === entry.draft_fingerprint ? 'duplicate' : 'already_submitted' }
       chaseEntries.set(code, entry)
+      return { status: 'ranked', position: 1, total: 1 }
+    },
+    casualGetPin: async (board, key) => casualPins.get(`${board}|${key}`) ?? null,
+    casualPin: async (board, key, settings, hash, engine, data) => {
+      const k = `${board}|${key}`
+      if (!casualPins.has(k)) casualPins.set(k, { board, key, seed: settings.seed, settings, settingsHash: hash, engineVersion: engine, dataVersion: data, createdAt: NOW.toISOString() })
+      return casualPins.get(k)
+    },
+    casualSubmit: async (board, uid, key, entry) => {
+      const k = `${board}|${key}|${uid}`
+      const prior = casualEntries.get(k)
+      if (prior) return { status: prior.draft_fingerprint === entry.draft_fingerprint ? 'duplicate' : 'already_submitted' }
+      casualEntries.set(k, entry)
       return { status: 'ranked', position: 1, total: 1 }
     },
     dataPack: async (v) => packs.get(v) ?? null,
@@ -193,6 +213,22 @@ expect(chased.status === 200 && chased.body.status === 'ranked' && chased.body.o
 const stranger = await server.handle({ ...caller, userId: '22222222-2222-4222-8222-222222222222' }, JSON.stringify(chaseBody))
 expect(stranger.status === 409 && stranger.body.code === 'no_attempt', `chase.submit: another account's post was not refused (${JSON.stringify(stranger.body)})`)
 
+// The Daily Arena's board: the assistant's run of the day replayed step by step, a hand-managed claim refused
+const arenaGame = V.createGame(V.dailyArenaGameSettings(u, `arena-${day}`))
+{
+  const rng = V.Rng.fromState(arenaGame.rngState)
+  V.autoDraft(u, arenaGame.draft, rng)
+  arenaGame.rngState = rng.getState()
+}
+V.beginArena(arenaGame, u)
+V.simArenaToEnd(arenaGame, u)
+const arenaLink = V.arenaChallengeFromGame(arenaGame, u, 'Check')
+const arenaBody = { op: 'casual.submit', board: 'arena', encoded: V.encodeChallenge(arenaLink), teamName: arenaGame.settings.teamName, shortName: arenaGame.settings.shortName }
+const arenaPost = await call(arenaBody)
+expect(arenaPost.status === 200 && arenaPost.body.status === 'ranked' && arenaPost.body.official.score === arenaLink.ac.s && arenaPost.body.official.claimMatched === true, `casual.submit (arena): expected ranked on the run's own figures, got ${arenaPost.status} ${JSON.stringify(arenaPost.body)}`)
+const handPost = await server.handle({ ...caller, userId: '33333333-3333-4333-8333-333333333333' }, JSON.stringify({ ...arenaBody, encoded: V.encodeChallenge({ ...arenaLink, auto: false }) }))
+expect(handPost.status === 409 && handPost.body.code === 'hand_managed', `casual.submit (arena): a hand-managed run was not refused (${JSON.stringify(handPost.body)})`)
+
 // An online room between two guests (the publishable key, no account), played to the season through the bundle
 const guests = [{ guest: true, subject: await V.guestSubject('192.0.2.1', deps.sha256Hex) }, { guest: true, subject: await V.guestSubject('192.0.2.2', deps.sha256Hex) }]
 const asGuest = (i, body) => server.handle(guests[i], JSON.stringify(body))
@@ -233,4 +269,10 @@ while (!V.h2hComplete(hot)) {
 }
 const season = V.runH2HSeason(u, rng, room.managers, hot.drafts, room.settings.leagueId, room.settings.leagueSeason, room.settings.difficulty)
 expect(JSON.stringify(season) === JSON.stringify(room.result), 'the room\'s season differs from the same game played hot-seat')
-console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, 38-0 chase ranked ${cq.won}-${cq.drawn}-${cq.lost}, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game`)
+// A guest's error report goes in as sent; one holding an email is refused before the database
+const report = { kind: 'error', message: 'TypeError: x is undefined', stack: 'render /assets/Draft-abc.js:1:200', build: '2026-10-27T00:00:00.000Z', engine: V.ENGINE_VERSION, screen: 'game', phase: 'draft', viewport: '390x844', ua: 'safari/ios', device: '0f8e2d1c-3b4a-4c5d-8e6f-7a8b9c0d1e2f', count: 1, at: '2026-10-27T10:00:00.000Z' }
+const filed = await asGuest(0, { op: 'errors.report', reports: [report] })
+expect(filed.status === 200 && filed.body.taken === 1 && errorRows.length === 1, `errors.report answered ${filed.status} ${JSON.stringify(filed.body)}`)
+const leaky = await asGuest(0, { op: 'errors.report', reports: [{ ...report, message: 'failed for someone@example.com' }] })
+expect(leaky.status === 400 && errorRows.length === 1, `an error report with an email was filed (${leaky.status})`)
+console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, 38-0 chase ranked ${cq.won}-${cq.drawn}-${cq.lost}, Daily Arena ranked ${arenaLink.ac.s} won, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game; a guest's error report filed`)

@@ -48,7 +48,7 @@ import { makeRequest, shiftWages, type RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
-import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
+import { advanceToNextSeason, letContractGo, postRenewals, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
 import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
@@ -83,7 +83,7 @@ function plainCopy<T extends object>(x: T): T {
 
 /** playWeek's recipe in steps: the season started if it is pre-season, then the matchweek as the Dugout plays it. */
 function* playWeekSteps(g: Game, u: LoadedUniverse, mode: MatchPlayMode): Generator<void, void, undefined> {
-  if (g.phase === 'preseason') startSeasonProper(g)
+  if (g.phase === 'preseason') startSeasonProper(g, u)
   yield* playMatchweekAsSteps(g, u, mode)
 }
 
@@ -181,6 +181,8 @@ interface Store {
   startGame: (settings: GameSettings) => void
   /** The week's challenge: load its packs, then start it with this team name. Resolves false when the packs could not load. */
   startWeekly: (seed: string, teamName?: string) => Promise<boolean>
+  /** The Run-in of the week (`runin-YYYY-Www`): its league loaded, then the week's job; false when it cannot start. */
+  startRunInWeek: (seed: string) => Promise<boolean>
   abandonGame: () => void
   /** Swap a parked game back in, parking the current one. */
   resumeGame: (slot: string) => void
@@ -335,6 +337,8 @@ interface Store {
   acceptOffer: (index: number) => void
   rejectOffer: (index: number) => void
   release: (playerSeasonId: string) => void
+  /** Dynasty pre-season: let an out-of-contract man leave on a free now. */
+  letContractGo: (playerSeasonId: string) => { ok: boolean; message: string }
   advanceDay: () => void
   /** Recruitment: a full scout of one player (one a market day, or a week), a league assignment on or off, the focus. */
   scoutPlayer: (playerSeasonId: string) => { ok: boolean; message: string }
@@ -801,6 +805,17 @@ export const useStore = create<Store>()(
           get().startGame(settings)
           return true
         },
+        startRunInWeek: async (seed) => {
+          // The Run-in of the week's mapping loads on demand, out of the first download (only this action needs it here)
+          const { weeklyRunInPlan, weeklyRunInSettings } = await import('./logic/runinWeekly')
+          const plan = weeklyRunInPlan(seed)
+          if (!plan || !(await get().ensureLeagues([plan.leagueId]))) return false
+          const u = get().universe
+          const settings = u ? weeklyRunInSettings(u, seed) : null
+          if (!settings) return false
+          get().startGame(settings)
+          return true
+        },
         resumeGame: (slot) => {
           settleQuickSeason()
           const { game: current, parked } = get()
@@ -916,7 +931,11 @@ export const useStore = create<Store>()(
             else if (g.settings.mode === 'runin') beginRunIn(g, u)
             // Quick Draft, the Daily and the Weekly stop at the tactics step before the season
             else if (isQuickLike(g.settings.mode)) toKickoff(g, u)
-            else beginSeason(g, u)
+            else {
+              beginSeason(g, u)
+              // A Dynasty summer's Inbox opens with the contracts that ran out
+              if (g.settings.mode === 'dynasty') postRenewals(g, u)
+            }
           })
           const { game } = get()
           if (game?.phase === 'summary') {
@@ -1118,7 +1137,7 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
-        startSeason: () => mutate((g) => startSeasonProper(g)),
+        startSeason: () => mutate((g, u) => startSeasonProper(g, u)),
         assistantAdvance: (hold = false) => {
           mutate((g, u) => advanceWithAssistant(g, u, hold))
           if (get().game?.phase === 'summary') {
@@ -1141,7 +1160,7 @@ export const useStore = create<Store>()(
           const g0 = get().game
           const mode = g0 ? matchPlayOf(g0) : 'watch'
           mutate((g, u) => {
-            if (g.phase === 'preseason') startSeasonProper(g)
+            if (g.phase === 'preseason') startSeasonProper(g, u)
             playMatchweekAs(g, u, mode)
           })
           set({ matchView: mode === 'sim' ? 'report' : 'ticker', liveAuto: mode === 'auto' })
@@ -1402,6 +1421,13 @@ export const useStore = create<Store>()(
         acceptOffer: (i) => mutate((g, u) => acceptOffer(g, u, i)),
         rejectOffer: (i) => mutate((g) => rejectOffer(g, i)),
         release: (id) => mutate((g, u) => releasePlayer(g, u, id)),
+        letContractGo: (id) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = letContractGo(g, u, id)
+          })
+          return out
+        },
         advanceDay: () => mutate((g, u) => advanceDay(g, u)),
         scoutPlayer: (id) => {
           let out = { ok: false, message: 'No game' }

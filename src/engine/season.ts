@@ -13,6 +13,7 @@ import { tacticsForStyle, formationForStyle } from './tactics'
 import { autoPickLineup, computeTeamStrength } from './ratings'
 import { getFormation } from './formations'
 import { aiLookup, reserveKeeper } from './reserve'
+import type { ContinentalGroup } from './continental'
 
 export const USER_TEAM = 'user'
 /** Matchweeks in a double round robin of `teams` clubs. */
@@ -42,16 +43,36 @@ export interface CupTie {
   awayTeamId: string
   result?: MatchResult & { penalties?: { home: number; away: number } }
   winnerId?: string
+  /**
+   * A two-legged tie (the Continental Cup's quarter- and semi-finals from engine 7, `continental.ts`): the first leg,
+   * at `homeTeamId`'s ground after this matchweek, and its result once played. The tie's own `afterMatchweek` and
+   * `result` are then the second leg's, at `awayTeamId`'s ground: `result` keeps that match's own sides (its
+   * `homeTeamId` is the tie's `awayTeamId`). Absent on every single-match tie.
+   */
+  firstLeg?: { afterMatchweek: number; result?: MatchResult }
+  /**
+   * The settled score of an engine 7 Continental Cup tie from the tie's sides (`homeTeamId` first): goals over both
+   * legs (or the final) with extra time, whether the deciding match went to extra time, and the shoot-out. Read a
+   * tie's score through `tieScore` (`continental.ts`), which also reads a single tie's `result`.
+   */
+  agg?: { home: number; away: number; et?: true; pens?: { home: number; away: number } }
 }
 
 export type Competition = 'cup' | 'continental'
 
 export interface ContinentalState {
+  /** The knockout ties: from engine 7 the two-legged quarter- and semi-finals and the final, before it the four single rounds from the round of 16. */
   ties: CupTie[]
   /** Foreign clubs in the field, keyed by club id; the user is the sixteenth entrant. */
   clubs: Record<string, AiClub>
   eliminated: boolean
   won: boolean
+  /**
+   * Engine 7's group stage (`continental.ts`): four groups of four, home and away, the top two through to the
+   * quarter-finals. Absent on a Continental Cup drawn before engine 7, which plays on as the single-tie knockout from
+   * the round of 16 it was drawn as.
+   */
+  groups?: ContinentalGroup[]
 }
 
 export interface SeasonState {
@@ -87,6 +108,12 @@ export interface SeasonState {
   carryIn?: Record<string, CarryRow>
   /** Run-in: the matchweek the manager took over after; fixtures up to it carry no result ("before you arrived"). */
   takeoverAt?: number
+  /**
+   * Run-in in a play-off league (engine 7): the relegation play-off a 16th-placed finish leads to, two legs after the
+   * last matchweek against `scenario.ts`'s `playOffOpponent` (`opponent`, a club-season key `clubId@season`): the
+   * user at home first. Absent unless it was played.
+   */
+  playOff?: { opponent: string; tie: CupTie }
   /** Requests made to the board this season (`src/game/logic/board.ts`); absent until the first. */
   requests?: Array<{ kind: 'budget' | 'staff' | 'youth'; mw: number; accepted: boolean }>
 }
@@ -569,7 +596,8 @@ export function updateConfidence(confidence: number, table: TableRow[], teamId: 
 }
 
 export function describeImportance(u: LoadedUniverse, hostClubId: string, opponentClubId: string, table: TableRow[] | null, matchweek: number, cupRound?: CupTie['round'], comp: Competition = 'cup'): { importance: number; label?: string } {
-  if (comp === 'continental' && cupRound) {
+  // Every Continental Cup match is a European night, an engine 7 group match (no round) included
+  if (comp === 'continental') {
     if (cupRound === 'F') return { importance: 1.5, label: 'Continental final' }
     if (cupRound === 'SF') return { importance: 1.35, label: 'Continental semi-final' }
     return { importance: 1.15, label: 'European night' }

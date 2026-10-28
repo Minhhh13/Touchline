@@ -125,7 +125,10 @@ software rasteriser. A phone's GPU takes much of that off the main thread.
 5. **Kick-off and the Sim buttons paint their busy state before the work** (`src/ui/afterPaint.ts`).
 6. **A budget test** (`src/ui/__tests__/budget.test.ts`): App.tsx imports Home and no other screen; after a build,
    the entry chunk with its static imports stays under 310 KB gzip and the stylesheet under 50 KB (CI runs it after
-   `npm run build` with `BUDGET_DIST=1`).
+   `npm run build` with `BUDGET_DIST=1`). Engine 7 raised the JS budget to 315 KB (the batch 4 integration,
+   2026-10-27): the Continental Cup's group stage and two legs and the Dynasty opener are Season-loop rules the store
+   reaches synchronously (about 6.5 KB gzip); the integration moved about 3 KB of new online code to on-demand imports
+   (`api.ts`'s board readers and chase actions, the store's `startRunInWeek`), and the entry measured 310.5 KB.
 
 No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pass untouched, ENGINE_VERSION is `'4'`.
 

@@ -363,6 +363,9 @@ export function App() {
             {offseason.expired.length > 0 && (
               <p>{rich(t('summerExpired', { names: offseason.expired.join(', ') }), B)}</p>
             )}
+            {(offseason.renewals ?? []).length > 0 && (
+              <p data-testid="offseason-renewals">{rich(t('summerRenewals', { names: (offseason.renewals ?? []).join(', ') }), B)}</p>
+            )}
             {offseason.returned.length > 0 && (
               <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
             )}
@@ -411,7 +414,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
           <span
             key={i}
             className={`chip ${outcomeClass(r.outcome)} ${r.comp !== 'league' ? 'cup' : ''}`}
-            title={t(r.comp === 'league' ? 'digestLeagueTip' : 'digestCupTip', { week: r.matchweek, round: r.roundLabel ?? t('digestCupTie'), venue: r.home ? 'home' : 'away', club: clubName(u, r.opponentId), score: `${r.gf}-${r.ga}`, pens: r.penalties ? t('digestPensTip', { score: `${r.penalties.gf}-${r.penalties.ga}` }) : '' })}
+            title={t(r.comp === 'league' ? 'digestLeagueTip' : 'digestCupTip', { week: r.matchweek, round: r.roundLabel ?? t('digestCupTie'), venue: r.home ? 'home' : 'away', club: clubName(u, r.opponentId), score: `${r.gf}-${r.ga}`, agg: r.aggregate ? t('digestAggTip', { score: `${r.aggregate.gf}-${r.aggregate.ga}` }) : '', pens: r.penalties ? t('digestPensTip', { score: `${r.penalties.gf}-${r.penalties.ga}` }) : '' })}
           >
             <ClubBadge clubId={r.opponentId} size={18} />
             <b>

@@ -13,6 +13,7 @@ import type { Window } from '@engine/market'
 import type { Game } from '../types'
 import type { MatchTeamInput } from '@engine/match'
 import { playerLookup } from './players'
+import { cupMatchScore, userCupMatches } from './cupMatches'
 
 // ---------------------------------------------------------------- form
 
@@ -264,12 +265,15 @@ export type TableBand = 'top' | 'mid' | 'bottom'
 
 export interface StripTie {
   comp: 'cup' | 'continental'
-  round: CupTie['round']
+  /** The knockout round, `G` for an engine 7 Continental Cup group match. */
+  round: CupTie['round'] | 'G'
   opp: string
   home: boolean
-  /** Won or lost (penalties decide a draw); absent before it is played. */
-  outcome?: 'W' | 'L'
+  /** A tie's deciding match: through (W) or out (L), penalties deciding a draw; a group match or a first leg: its result. Absent before it is played. */
+  outcome?: Outcome
   score?: string
+  /** "Fourth round", "Continental Cup, Group B", "Continental quarter-final, first leg". */
+  label?: string
 }
 
 export interface StripCell {
@@ -300,7 +304,7 @@ export function seasonStrip(game: Pick<Game, 'season'>, table: TableRow[]): Stri
   if (!s) return []
   const teams = table.length
   const cells: StripCell[] = []
-  const ties = [...s.cup.map((t) => ({ t, comp: 'cup' as const })), ...(s.continental?.ties ?? []).map((t) => ({ t, comp: 'continental' as const }))].filter(({ t }) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)
+  const ties = userCupMatches(s)
   for (let mw = (s.takeoverAt ?? 0) + 1; mw <= s.matchweeks; mw++) {
     const f = s.fixtures.find((x) => x.matchweek === mw && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
     const home = !!f && f.homeTeamId === USER_TEAM
@@ -317,12 +321,7 @@ export function seasonStrip(game: Pick<Game, 'season'>, table: TableRow[]): Stri
       outcome,
       score: r ? `${r.homeGoals}-${r.awayGoals}` : undefined,
       band: opp && pos > 0 ? tableBand(pos, teams) : null,
-      ties: ties
-        .filter(({ t }) => t.afterMatchweek === mw)
-        .map(({ t, comp }) => {
-          const th = t.homeTeamId === USER_TEAM
-          return { comp, round: t.round, opp: th ? t.awayTeamId : t.homeTeamId, home: th, outcome: t.winnerId ? (t.winnerId === USER_TEAM ? 'W' : 'L') : undefined, score: t.result ? `${t.result.homeGoals}-${t.result.awayGoals}${t.result.penalties ? ` (${t.result.penalties.home}-${t.result.penalties.away}p)` : ''}` : undefined }
-        }),
+      ties: ties.filter((m) => m.matchweek === mw).map((m) => ({ comp: m.comp, round: m.round, opp: m.opponentId, home: m.home, outcome: m.outcome, score: cupMatchScore(m), label: m.label })),
     })
   }
   return cells

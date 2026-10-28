@@ -16643,3 +16643,74 @@ table.tbl td.strong {
     max-width: 72px;
   }
 }
+/* A two-legged tie's legs under its sides (engine 7's Continental Cup) */
+.br-legs {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The Continental Cup's groups (engine 7): four small tables, the top two marked through */
+.group-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 10px;
+}
+.group-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 8px 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+.group-card table.tbl {
+  /* A fixed-width table even on a phone, where tables scroll sideways: four columns of numbers fit */
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+.group-card table.tbl th:first-child,
+.group-card table.tbl td:first-child {
+  width: 1.8em;
+}
+.group-card table.tbl .num {
+  width: 2.6em;
+}
+.group-card.mine {
+  border-color: var(--primary);
+}
+.group-card h4 {
+  margin: 0 0 4px;
+}
+.group-card table.tbl td,
+.group-card table.tbl th {
+  padding: 3px 4px;
+}
+.group-card tr.through td:first-child {
+  box-shadow: inset 3px 0 0 var(--good);
+}
+.group-card .gt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.group-card td .row {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.group-fixtures {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-meta);
+}
+.group-fixtures li {
+  display: grid;
+  grid-template-columns: 3.5em minmax(0, 1fr) auto;
+  gap: 6px;
+  color: var(--text-2);
+}

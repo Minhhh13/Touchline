@@ -226,6 +226,7 @@ export function proposeContract(game: Game, u: LoadedUniverse, id: string, offer
   c.status = offer.status
   delete c.renewed
   delete c.declined
+  delete c.expired
   const clauses: ContractClauses = {}
   if (offer.release !== undefined && offer.release > 0) clauses.release = Math.round(offer.release * 10) / 10
   if (offer.appearance > 0) clauses.appearance = Math.round(offer.appearance)

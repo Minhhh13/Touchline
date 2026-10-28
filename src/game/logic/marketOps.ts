@@ -9,6 +9,7 @@ import { autoPick, squadWages } from './squad'
 import { naturalStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { postNews } from './news'
 import { focusFilter } from './scouting'
+import { ageFloors, recordDeparture } from './departures'
 
 export const SQUAD_CAP = 23
 
@@ -25,7 +26,13 @@ export function ownedHumans(game: Game, u: LoadedUniverse): Set<string> {
 }
 
 function marketContext(game: Game, u: LoadedUniverse, rng: Rng, priceLevel: number): MarketContext {
-  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }
+  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game), ...withFloors(game) }
+}
+
+/** The market's `ageFloor` for a Dynasty with departures; nothing otherwise, so every other window is unchanged. */
+export function withFloors(game: Game): { ageFloor?: Record<string, number> } {
+  const floor = ageFloors(game)
+  return floor ? { ageFloor: floor } : {}
 }
 
 /** Sell-on shares a bid can offer the selling club. */
@@ -185,6 +192,9 @@ export function rejectOffer(game: Game, index: number): void {
 
 /** Release a player (free transfer) and remove from lineup/bench. */
 export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: string): void {
+  // A Dynasty remembers the age he left at: he never comes back younger
+  const gone = playerLookup(game, u)(playerSeasonId)
+  if (gone && game.squad[playerSeasonId]) recordDeparture(game, gone)
   delete game.squad[playerSeasonId]
   delete game.contracts[playerSeasonId]
   delete game.consecutiveMissed[playerSeasonId]
@@ -204,7 +214,7 @@ export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: str
 }
 
 /** The human leaves every AI squad (league and Continental Cup) holding any of his player-seasons, except `keep`. */
-function leaveAiSquads(game: Game, u: LoadedUniverse, playerId: string, keep?: AiClub): void {
+export function leaveAiSquads(game: Game, u: LoadedUniverse, playerId: string, keep?: AiClub): void {
   const season = game.season
   if (!season) return
   for (const other of [...Object.values(season.ai), ...Object.values(season.continental?.clubs ?? {})]) {
