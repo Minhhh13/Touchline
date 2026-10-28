@@ -46,6 +46,14 @@ import { fullScout, setAssignment, setRecruitFocus } from './logic/scouting'
 import { proposeContract, setShopped, type ContractOffer } from './logic/contracts'
 import { makeRequest, shiftWages, type RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
+import { officeTick, setListed } from './logic/office'
+import { withOffice } from './logic/officeSteps'
+import { makePromise, type MinutesLevel } from './logic/promises'
+import { answerRequest, type RequestAnswer } from './logic/transferRequests'
+import { converse, type ConversationResult, type ConversationTone, type ConversationTopic } from './logic/conversations'
+import { answerPress, type PressQuestion } from './logic/pressConference'
+import { counterBid, offerTerms, proposeFee, walkAway, type FeeAnswer, type FeeDeal, type TermsOffer } from './logic/transferTalks'
+import type { OfficePromise } from './types'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, letContractGo, postRenewals, type OffseasonReport } from './logic/dynasty'
@@ -59,7 +67,7 @@ import { getFormation } from '@engine/formations'
 import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
-import { simToNextStop, simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
+import { simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
 import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
@@ -349,6 +357,17 @@ interface Store {
   proposeContract: (playerSeasonId: string, offer: ContractOffer) => { accepted: boolean; message: string }
   /** Have his agent find a buyer, or stop. */
   setShopped: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
+  /** The office (Football Manager depth, round 8: `src/game/logic/office.ts` and its modules). */
+  makePromise: (playerSeasonId: string, kind: OfficePromise['kind'], level?: MinutesLevel) => { ok: boolean; message: string }
+  answerRequest: (playerSeasonId: string, answer: RequestAnswer) => { ok: boolean; message: string }
+  converse: (playerSeasonId: string, topic: ConversationTopic, tone: ConversationTone) => ConversationResult
+  answerPress: (question: PressQuestion, answer: string) => { ok: boolean; message: string }
+  proposeFee: (listingId: string, deal: FeeDeal) => FeeAnswer
+  walkAway: (listingId: string) => void
+  offerTerms: (listingId: string, offer: TermsOffer) => { ok: boolean; signed?: boolean; message: string }
+  counterBid: (offerIndex: number, amount: number) => { ok: boolean; sold?: boolean; message: string }
+  setListed: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
+  setPlayerPower: (on: boolean) => void
   boardRequest: (kind: RequestKind) => { ok: boolean; accepted: boolean; message: string }
   /** The wage-to-transfer slider: +1 turns £10k a week of wages into £2M of budget, −1 the other way. */
   shiftWages: (dir: 1 | -1) => { ok: boolean; message: string }
@@ -459,6 +478,8 @@ export const useStore = create<Store>()(
           set({
             game: produce(game, (g) => {
               fn(g, universe)
+              // The office catches up after every action (a no-op for a game that never used it)
+              officeTick(g, universe)
             }),
           })
         } catch (e) {
@@ -478,9 +499,15 @@ export const useStore = create<Store>()(
           let slice = performance.now()
           for (;;) {
             const r = steps.next()
-            if (r.done) return { next: finishDraft(box.g), value: r.value }
+            if (r.done) {
+              officeTick(box.g, u0)
+              return { next: finishDraft(box.g), value: r.value }
+            }
             // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
-            if (r.value === WEEK_END) box.g = createDraft(finishDraft(box.g))
+            if (r.value === WEEK_END) {
+              officeTick(box.g, u0)
+              box.g = createDraft(finishDraft(box.g))
+            }
             if (performance.now() - slice < sliceMs) continue
             await nextTask()
             if (get().game !== g0 || get().universe !== u0) return 'moved'
@@ -1209,7 +1236,10 @@ export const useStore = create<Store>()(
         simWeeks: (n) => {
           // Plain numbers from the saved game, read before the mutation so the digest compares before with after
           const before = digestSnapshot(get().game)
-          mutate((g, u) => runSteps(simWeeksSteps({ g }, u, n)))
+          mutate((g, u) => {
+            const box = { g }
+            runSteps(withOffice(box, u, simWeeksSteps(box, u, n)))
+          })
           afterSimWeeks(before)
         },
         simWeeksSoon: async (n, opts) => {
@@ -1224,7 +1254,8 @@ export const useStore = create<Store>()(
         simToNextBigMatch: () => {
           const out: { stop: StopReason | null } = { stop: null }
           mutate((g, u) => {
-            out.stop = simToNextStop(g, u)
+            const box = { g }
+            out.stop = runSteps(withOffice(box, u, simToNextStopSteps(box, u)))
           })
           afterSimToStop(out.stop)
         },
@@ -1468,6 +1499,69 @@ export const useStore = create<Store>()(
           })
           return out
         },
+        makePromise: (id, kind, level) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = makePromise(g, u, id, kind, level)
+          })
+          return out
+        },
+        answerRequest: (id, answer) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = answerRequest(g, u, id, answer)
+          })
+          return out
+        },
+        converse: (id, topic, tone) => {
+          let out: ConversationResult = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = converse(g, u, id, topic, tone)
+          })
+          return out
+        },
+        answerPress: (question, answer) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = answerPress(g, u, question, answer)
+          })
+          return out
+        },
+        proposeFee: (listingId, deal) => {
+          let out: FeeAnswer = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = proposeFee(g, u, listingId, deal)
+          })
+          return out
+        },
+        walkAway: (listingId) => mutate((g) => walkAway(g, listingId)),
+        offerTerms: (listingId, offer) => {
+          let out: { ok: boolean; signed?: boolean; message: string } = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = offerTerms(g, u, listingId, offer)
+          })
+          unlockFromGame()
+          return out
+        },
+        counterBid: (index, amount) => {
+          let out: { ok: boolean; sold?: boolean; message: string } = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = counterBid(g, u, index, amount)
+          })
+          return out
+        },
+        setListed: (id, on) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = setListed(g, u, id, on)
+          })
+          return out
+        },
+        setPlayerPower: (on) =>
+          mutate((g) => {
+            if (on) g.settings.playerPower = true
+            else delete g.settings.playerPower
+          }),
         boardRequest: (kind) => {
           let out = { ok: false, accepted: false, message: 'No game' }
           mutate((g, u) => {

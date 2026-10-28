@@ -57,6 +57,12 @@ export interface GameSettings {
   matchPlay?: 'watch' | 'auto' | 'sim'
   /** Quick Draft and the Daily: the season stops after the halfway matchweek for a January window. Absent (older saves) is off. */
   january?: boolean
+  /**
+   * Season and Dynasty: player power (`src/game/logic/transferRequests.ts`). On, unhappy players may hand in transfer
+   * requests on their own, rolled on forks of a copy of the stream. Absent (the default) or false, nobody asks to leave
+   * unless the manager broke a promise to him, and a game nobody manages through the office plays exactly as before.
+   */
+  playerPower?: boolean
   /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
   challenge?: ChallengeSettings
   /** The arena format of a mode `arena` game (absent for every other mode). */
@@ -456,6 +462,116 @@ export interface Game {
   youthFacilities?: number
   /** The data hub: expected goals, expected assists and attempts for the user's players this season, from full-detail matches. */
   dataHub?: Record<string, { xg: number; xa: number; shots: number }>
+  /**
+   * The manager's office (Football Manager depth, round 8: `src/game/logic/office.ts`): promises, transfer requests,
+   * transfer talks with clubs, personal terms, counter-offers, instalments and the week's press conference. Absent until
+   * the manager first uses one of them (or player power lodges a request), and read as empty; everything in it is keyed
+   * by real player id, so a Dynasty summer needs no remap.
+   */
+  office?: OfficeState
+}
+
+/** A promise to one player, kept or broken by what happens over the weeks it runs (`src/game/logic/promises.ts`). */
+export interface OfficePromise {
+  kind: 'minutes' | 'contract' | 'signing'
+  /** Real player id. */
+  playerId: string
+  name: string
+  /** Game year and matchweek it was made in. */
+  year: number
+  madeAt: number
+  /** The matchweek it falls due (the season's last at the latest). */
+  due: number
+  /** Minutes: the share of the minutes on offer he was promised, and his season minutes when it was made. */
+  share?: number
+  minutesAt?: number
+  /** Contract: the seasons left on his contract when it was made. */
+  yearsAt?: number
+  /** Signing: the position to strengthen, the overall a signing must reach, the real ids already in the squad, and whether the window it waits on has opened. */
+  position?: Position
+  overall?: number
+  squadAt?: string[]
+  windowSeen?: boolean
+  state: 'open' | 'kept' | 'broken'
+  /** Matchweek it was settled in. */
+  settledAt?: number
+}
+
+/** A transfer request: he wants out, and why. */
+export interface TransferRequest {
+  /** Real player id; the record is kept under it. */
+  playerId: string
+  name: string
+  reason: 'minutes' | 'morale' | 'promise' | 'interest' | 'results'
+  year: number
+  /** Matchweek it was handed in. */
+  at: number
+  /** open: waiting on the manager; listed: he may go; refused: told to stay; withdrawn: talked round. */
+  stage: 'open' | 'listed' | 'refused' | 'withdrawn'
+  /** Talks that failed to change his mind, and the matchweek of the last one. */
+  failedTalks?: number
+  talkedAt?: number
+  /** Matchweek the stage last changed. */
+  settledAt?: number
+}
+
+/** Fee talks with a selling club for one listing in the open window (`src/game/logic/transferTalks.ts`). */
+export interface FeeTalk {
+  /** The window they belong to (`windowKey`). */
+  window: string
+  rounds: number
+  /** Our last proposal and their answer. */
+  last?: { fee: number; sellOn: number; instalments: 1 | 2 | 3 }
+  counter?: number
+  /** Agreed: personal terms come next. */
+  agreed?: { fee: number; sellOn: number; instalments: 1 | 2 | 3 }
+  /** Talks over: they will not deal again this window. */
+  closed?: boolean
+  /** Personal terms the player turned down. */
+  termsFailed?: number
+}
+
+/** Our counter to an AI club's bid for one of our players. */
+export interface SellTalk {
+  window: string
+  /** Their final offer after our counter, GBP millions; absent once they have walked. */
+  final?: number
+  walked?: boolean
+}
+
+/** A fee being paid in instalments: what is still owed, paid as each later window opens. */
+export interface Instalment {
+  name: string
+  clubId: string
+  /** GBP millions per payment. */
+  amount: number
+  left: number
+  /** The window the last payment fell in. */
+  window: string
+}
+
+/** This week's press conference: the questions asked and the answers given. */
+export interface PressConference {
+  year: number
+  week: number
+  questions: string[]
+  answers: Record<string, string>
+}
+
+export interface OfficeState {
+  /** `${year}:${matchweek}` the office last caught up on. */
+  tick?: string
+  promises?: OfficePromise[]
+  /** By real player id. */
+  requests?: Record<string, TransferRequest>
+  /** Promises broken to each player (real id), this game: he believes the next one less. */
+  broken?: Record<string, number>
+  /** By the listing's player-season id. */
+  feeTalks?: Record<string, FeeTalk>
+  /** By `offerKey`. */
+  sellTalks?: Record<string, SellTalk>
+  instalments?: Instalment[]
+  press?: PressConference
 }
 
 /**
