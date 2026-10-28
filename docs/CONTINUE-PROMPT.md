@@ -44,15 +44,9 @@ Then run `npm ci`, `npm run typecheck`, `npm test` and `npm run build`.
 
 ## 3. What to do now
 
-**A. Finish the engine 7 release** (PR #86 "Engine 7: Continental Cup groups...", merged or about to merge).
+**A. Engine 7 is live** (PR #86, squash f51eca0, live on touchline.quest from 2026-10-28 17:29 UTC). The Edge Function `touchline-e7` was deployed at 17:30 UTC as the loader pinning `verifier-5e7764386729eb13.js` (Verify JWT off) and answers `status` with `engine: "7"`; `touchline-e6`, `-e5` and `-e4` still answer. Keep `touchline-e6` (to at least 2026-11-05), `touchline-e5` (to 2026-11-04) and `touchline-e4` (to 2026-11-03).
 
-1. Check whether https://touchline.quest/build.json says `"engine":"7"`.
-2. If it does, and the Edge Function `touchline-e7` is not yet deployed:
-   1. Check out `main` at the deployed commit.
-   2. Run `npm ci && node scripts/online/build-loader.mjs`.
-   3. Check that the SHA-256 it prints equals `verifier.sha256` in `build.json`.
-   4. The owner deploys `supabase/functions/touchline-e7-loader/index.ts` as the function **`touchline-e7`**, with **Verify JWT off**, in the Supabase dashboard (or via the CLI with a scoped token).
-3. Smoke-test it by posting `{"op":"status"}` to `https://yvqpmyqomkwtudxmkeou.supabase.co/functions/v1/touchline-e7`, with an `apikey` header set to the publishable key. It should answer `engine: "7"`. Keep `touchline-e6` (to at least 2026-11-05), `touchline-e5` (to 2026-11-04) and `touchline-e4` (to 2026-11-03).
+**A2. The Daily rotation ships in PR #87** (the branch `claude/youthful-mccarthy-a57idu` merged `claude/e7-daily`). When #87 is merged and `build.json` names a new `verifier-<hash16>.js`: check out `main` at the deployed commit, `npm ci && npm run build && node scripts/online/build-loader.mjs`, check its SHA-256 equals `build.json`'s `verifier.sha256`, and redeploy `touchline-e7` from `supabase/functions/touchline-e7-loader/index.ts` (Verify JWT off). This must happen **before 2026-10-31 00:00 UTC** (the first La Liga day). If #87 is not live by then, move `DAILY_EPOCHS`' start (`src/game/logic/daily.ts`) to a future day first.
 
 **B. Integrate the waiting branches** (all based on `release-e7`).
 
@@ -70,7 +64,7 @@ Make one batch branch from the latest `main` and real-merge the branches in this
 - **Bigger features:**
   - `claude/r8-season-play`: Season and Dynasty usability.
   - `claude/r8-fm-depth`: Football Manager depth. That means club transfer negotiations with counters, transfer requests from unhappy players, promises, player talks and squad status. Every roll runs on a forked copy, so untouched games are unchanged.
-  - **`claude/e7-daily` (566327f, ready, all checks green; URGENT):** the Daily rotating through the seven leagues from 2026-10-30 as a dated epoch (every earlier Daily unchanged), plus a slightly easier Super League behind the new optional `superEase` rule (old Super League games replay unchanged). It changes the e7 bundle (`verifier-533df0bd10128be8.js`), so after merging, redeploy the `touchline-e7` loader with the new hash. It must be live **before 2026-10-31 00:00 UTC** (the first La Liga day; 2026-10-30 is a Premier League day and identical on both builds). If that slips, move `DAILY_EPOCHS`' start to a later day. Runbook in its ONLINE.md.
+  - **`claude/e7-daily` (in PR #87; see A2):** the Daily rotating through the seven leagues from 2026-10-30 as a dated epoch (every earlier Daily unchanged), plus a slightly easier Super League behind the new optional `superEase` rule (old Super League games replay unchanged). It changes the e7 bundle (`verifier-533df0bd10128be8.js`), so after merging, redeploy the `touchline-e7` loader with the new hash. It must be live **before 2026-10-31 00:00 UTC** (the first La Liga day; 2026-10-30 is a Premier League day and identical on both builds). If that slips, move `DAILY_EPOCHS`' start to a later day. Runbook in its ONLINE.md.
 
 Resolve conflicts by keeping both sides' intent. For `docs/HANDOVER.md`, keep both change-log lines; never delete others' lines.
 
