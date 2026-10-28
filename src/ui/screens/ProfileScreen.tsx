@@ -32,6 +32,7 @@ import { AccountLink } from '../online/AccountPanel'
 import { errorReportsChanged, onlineAvailable } from '../../online/api'
 import { errorReportsOn, setErrorReportsOn } from '../../online/core/errorPref'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
+import { nextBadge } from '@game/logic/shareInvite'
 import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
 import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoundOn } from '../sound/prefs'
 import { playSound } from '../sound/synth'
@@ -160,6 +161,8 @@ export function ProfileScreen() {
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
   const milestones = milestoneStates({ cabinet, profile })
+  // The badge nearest its next tier: the Trophy Room points at it, as Home does
+  const chase = nextBadge(badges)
   // A badge or tier earned since this viewer last looked: the medal's ring, once
   useBadgeSound([...badges, ...milestones].flatMap((b) => (b.tier ? [`${b.badge.id}:${b.tier}`] : [])))
   const career = careerOverview(profile, cabinet)
@@ -409,7 +412,7 @@ export function ProfileScreen() {
               {badges.map((b) => {
                 const Icon = BADGE_ICON[b.badge.id] ?? Award
                 return (
-                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${badgeTitle(b.badge)}: ${badgeCount(b.badge, b.value)}`}>
+                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}${chase?.state.badge.id === b.badge.id ? ' next' : ''}`} data-testid="badge" data-tier={b.tier ?? 'none'} data-next={chase?.state.badge.id === b.badge.id ? 'yes' : undefined} title={`${badgeTitle(b.badge)}: ${badgeCount(b.badge, b.value)}`}>
                     <span className={`badge-ring ${b.tier ?? ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
@@ -419,6 +422,11 @@ export function ProfileScreen() {
                         {badgeCount(b.badge, b.value)}
                       </div>
                       <div className="small muted">{b.tier ? t('tierProgress', { tier: t(`tier_${b.tier}`), progress: progressText(b.badge.tiers, b.value) }) : progressText(b.badge.tiers, b.value)}</div>
+                      {chase?.state.badge.id === b.badge.id && (
+                        <span className="chip info badge-next" data-testid="badge-next">
+                          {t('nextBadge')}
+                        </span>
+                      )}
                     </span>
                   </div>
                 )

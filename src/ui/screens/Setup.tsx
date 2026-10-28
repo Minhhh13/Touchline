@@ -376,7 +376,7 @@ export function Setup() {
       <div className="setup-flow setup-wide">
         <div className="row between wrap setup-top" style={{ alignItems: 'flex-start' }}>
           <div className="setup-title">
-            <h1>{challenge ? t('challenge') : modeTitle(mode)}</h1>
+            <h1 data-testid={challenge ? 'challenge-title' : undefined}>{challenge ? t('playingDraft', { name: challenge.name }) : modeTitle(mode)}</h1>
             <p className="muted setup-sub">
               {challenge ? t('beatScore', { name: challenge.name }) : t(`modeLine_${mode}`)}
               {!isManage && (

@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStorePick } from '../useStorePick'
 import { seasonTable } from '@engine/season'
-import { runInShare, runInVerdict } from '@game/logic/runin'
+import { RUN_IN_TEMPLATE_LABEL, runInShare, runInVerdict } from '@game/logic/runin'
 import { gameLabel, storyForGame } from '@game/logic/story'
 import { TableView } from '../components/TableView'
 import { CasualStatus } from '../online/CasualStatus'
 import { ClubBadge, Info, Stat } from '../components/bits'
-import { Check, Copy, House, RotateCcw } from 'lucide-react'
+import { Check, Copy, House, ImageDown, RotateCcw, Send } from 'lucide-react'
 import { clubName, ordinal, outcomeClass, outcomeOf, seasonLabel } from '../format'
+import { getFormation } from '@engine/formations'
+import { playerLookup } from '@game/logic/players'
+import { modeLabel, shareCardFooter } from '@game/logic/modes'
+import { ratingHidden } from '@game/logic/ratingVisibility'
+import { inviteFor, shareWithInvite, tidyShareText } from '@game/logic/shareInvite'
+import { downloadDataUrl, renderShareCard } from '../shareCard'
+import { shareOrCopy } from '../shareSheet'
+import { APP_NAME, BRAND_COLOURS } from '../brand'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 import { templateText } from '../runInText'
@@ -28,8 +36,11 @@ export function RunInSummary() {
   }, [copied])
   if (!u || !game || !game.season) return null
   const v = runInVerdict(game, u)
-  const text = runInShare(game, u)
-  if (!v || !text) return null
+  const raw = runInShare(game, u)
+  if (!v || !raw) return null
+  // Emoji-light, and the last line asks a friend to take the same job
+  const invite = inviteFor('runin', { position: v.position })
+  const text = shareWithInvite(raw, invite)
   const host = game.settings.hostClubId
   const copy = async () => {
     try {
@@ -38,6 +49,34 @@ export function RunInSummary() {
     } catch {
       showToast(t('copyFailed'))
     }
+  }
+  const card = async () => {
+    try {
+      const url = await renderShareCard({
+        title: game.settings.teamName,
+        subtitle: `${clubName(u, host)} ${seasonLabel(game.settings.leagueSeason)} · took over in week ${v.from.matchweek}`,
+        tier: v.met ? 'CHAMPIONS' : 'RELEGATED',
+        row: { won: 0, drawn: 0, lost: 0, points: v.points },
+        position: v.position,
+        formation: getFormation(game.tactics.formationId),
+        lineup: game.lineup,
+        getPlayer: playerLookup(game, u),
+        footer: shareCardFooter(game),
+        hideRatings: ratingHidden(game.settings.rules, 'squad'),
+        banner: { text: v.chip, colour: v.met ? BRAND_COLOURS.good : BRAND_COLOURS.bad },
+        mode: modeLabel(game, 'short'),
+        beatMe: invite,
+        lines: tidyShareText([`Brief: ${RUN_IN_TEMPLATE_LABEL[v.template]}`, `Took over ${ordinal(v.from.position)}, finished ${ordinal(v.position)} on ${v.points}`, ...(v.realLine ? [v.realLine] : [])].join('\n')).split('\n'),
+      })
+      downloadDataUrl(url, `touchline-runin-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+    } catch {
+      showToast(t('cardFailed'))
+    }
+  }
+  const challenge = async () => {
+    const outcome = await shareOrCopy({ title: APP_NAME, text: `${tidyShareText(raw)}\n${invite.title}`, url: `${location.origin}${location.pathname}` })
+    if (outcome === 'copied') showToast(t('inviteCopied'))
+    else if (outcome === 'failed') showToast(t('copyFailed'))
   }
   return (
     // Main's summary layout: the verdict box on the left, the games, the table and the share text in a box beside it
@@ -74,8 +113,14 @@ export function RunInSummary() {
           <button className="btn primary" onClick={() => go('setup', 'runin')} data-testid="runin-again">
             <RotateCcw size={16} aria-hidden="true" /> {t('another')}
           </button>
+          <button className="btn" onClick={() => void challenge()} data-testid="runin-challenge">
+            <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
+          </button>
           <button className="btn" onClick={copy}>
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
+          </button>
+          <button className="btn" onClick={() => void card()} data-testid="runin-card">
+            <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
           <button className="btn ghost" onClick={() => go('home')}>
             <House size={16} aria-hidden="true" /> {t('home')}

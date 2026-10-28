@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { lazy, Suspense, useMemo, type ReactNode } from 'react'
 import { ArrowRight, Award, Sparkles, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
@@ -7,7 +7,9 @@ import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeText as weeklyThemeName } from '../i18n/weeklyThemeText'
-import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
+import { arenaDailySeed, dailySeed as dailySeedOf, randomSeed, weeklySeed } from '@engine/rng'
+import { dailyNudge, personalBests, type Best } from '@game/logic/shareInvite'
+import { recordLabel } from '@game/logic/perfect'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer, nextUpFor } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
 import { startingTeamName, teamShortName } from '../teamName'
@@ -26,6 +28,8 @@ import { home } from '../i18n/en/home'
 import { modeText } from '../i18n/modeText'
 
 const t = translator(home)
+/** The next-badge line reads the trophies' catalogue: its own chunk, out of the first download. */
+const HomeBadgeNudge = lazy(() => import('../components/HomeBadgeNudge'))
 import { askConfirm } from '../confirm'
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
@@ -206,6 +210,10 @@ export function Home() {
     const settings = u && dailyReady ? firstDraftSettings(u, randomSeed(), name) : null
     if (settings) withViewTransition(() => startGame({ ...settings, shortName: teamShortName(name) }))
   }
+  // A returning manager's own figures in the hero (the database's when there are none yet) and the reasons to come back
+  const bests = personalBests(profile, profile.dailyStreak > 0 ? 2 : 3)
+  const nudge = dailyNudge(profile, todaysDailySeed(), dailySeedOf(new Date(Date.now() - 86400000)))
+  const bestStat = (b: Best) => (b.id === 'record' ? recordLabel(b.won, b.drawn, b.lost) : String(b.n))
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? (streak ? t('streakDone', { done, n: streak }) : done) : streak ? t('streakFallback', { n: streak, fallback }) : fallback)
   return (
     <div className="page home">
@@ -223,7 +231,22 @@ export function Home() {
           ) : (
           <>
           <dl className="hero-stats" aria-live="polite">
-            {u ? (
+            {profile.dailyStreak > 0 || bests.length ? (
+              <>
+                {profile.dailyStreak > 0 && (
+                  <div data-testid="home-best-streak">
+                    <dt>{t('best_streak')}</dt>
+                    <dd>{profile.dailyStreak}</dd>
+                  </div>
+                )}
+                {bests.map((b) => (
+                  <div key={b.id} data-testid={`home-best-${b.id}`}>
+                    <dt>{t(`best_${b.id}`)}</dt>
+                    <dd>{bestStat(b)}</dd>
+                  </div>
+                ))}
+              </>
+            ) : u ? (
               <>
                 <div>
                   <dt>{t('playerSeasons')}</dt>
@@ -247,13 +270,16 @@ export function Home() {
               </div>
             )}
           </dl>
-          {u && (
-            <div className="row wrap hero-flags" role="group" aria-label={t('leagues')}>
-              {u.available.map((l) => (
-                <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
-              ))}
-            </div>
-          )}
+          {/* Why come back today: the Daily (a streak that ends tonight first) and the badge nearest its next tier */}
+          <div className="home-nudges" data-testid="home-nudges">
+            <span className={`home-nudge${nudge.kind === 'atRisk' ? ' hot' : ''}`} data-testid="daily-nudge" data-kind={nudge.kind}>
+              <Flame size={14} aria-hidden="true" />
+              {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
+            </span>
+            <Suspense fallback={null}>
+              <HomeBadgeNudge onOpen={() => go('profile')} />
+            </Suspense>
+          </div>
           </>
           )}
         </div>

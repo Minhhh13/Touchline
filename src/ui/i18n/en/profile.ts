@@ -67,6 +67,7 @@ export const profile = catalog('profile', {
   tier_silver: 'Silver',
   tier_gold: 'Gold',
   tierProgress: '{tier} · {progress}',
+  nextBadge: 'Next up',
   milestones: 'Milestones',
   earnedOf: '{n} of {total} earned',
   fromBoard: ' (from your 50 best seasons)',

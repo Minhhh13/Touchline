@@ -28,6 +28,7 @@ import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { h2hTierOdds } from '@game/logic/tierOdds'
 import { SpinOdds } from '../components/SpinOdds'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
+import { inviteFor } from '@game/logic/shareInvite'
 import { GameByGame } from '../components/GameByGame'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { onlineAvailable } from '../../online/api'
@@ -576,6 +577,8 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
         getPlayer: (id) => u.index[id],
         footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${seed}${estimated ? ' · estimated ratings' : ''}`,
         hideRatings: ratingHidden(drafts[i].rules, 'squad'),
+        mode: 'Head-to-head',
+        beatMe: inviteFor('h2h'),
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {

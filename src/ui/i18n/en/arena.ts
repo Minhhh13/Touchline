@@ -74,7 +74,7 @@ export const arena = catalog('arena', {
   unitLine: 'GK {gk} · DEF {def} · MID {mid} · ATT {att}',
   takeChallengeConfirm: 'Take the challenge? Your unfinished {format} ({team}) will be abandoned.',
   takeItOn: 'Take it on',
-  challengeTitle: 'Challenge · {format}',
+  playingRun: "You're playing {name}'s {format}",
   back: '← Back',
   challengeBanner: "<b>Challenge from {name}</b>: {claim}.{daily, select, yes { It was the Daily Arena of {day}; yours plays as an ordinary run on that seed.} other {}} Same seed, same wheel, the same {format, select, gauntlet {ladder} other {draw}}: whoever you draft, you meet {name}'s opponents for as long as you both last.",
   runOf: "{name}'s run",

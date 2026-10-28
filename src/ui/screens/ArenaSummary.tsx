@@ -28,6 +28,7 @@ import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { arenaChallengeFromGame, arenaVerifiedLine, challengeLink, runItBackArena } from '@game/logic/challenge'
 import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
 import { cleanName } from '@engine/challenge'
+import { inviteFor, inviteKindOf, shareWithInvite, tidyShareText } from '@game/logic/shareInvite'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { CasualStatus } from '../online/CasualStatus'
@@ -36,6 +37,9 @@ import { playSound } from '../sound/synth'
 import { fixed } from '../format'
 
 const t = translator(arena)
+
+/** The card's own lines, emoji-light as the share text is (the Gauntlet's strip stays). */
+const cardLines = (lines: string[]) => tidyShareText(lines.join('\n')).split('\n')
 
 /** Seconds before an arena win's fanfare: after the last rung's bell or the final's whistle has had its moment. */
 const ARENA_FANFARE_DELAY = 0.6
@@ -69,7 +73,9 @@ export function ArenaSummary() {
   const runLong = gauntlet || cup
   const banner = arenaBanner(a)
   const input = arenaShareInput(game, u)
-  const text = input ? arenaShareText(input) : ''
+  // Emoji-light, and the last line asks a friend in: the challenge link once made, else where to play
+  const invite = inviteFor(inviteKindOf(game), { won: a.won, rungs: a.log.length - (a.won ? 0 : 1) })
+  const text = input ? shareWithInvite(arenaShareText(input), invite, link) : ''
   const last = a.log[a.log.length - 1]
   const res = game.lastMatch
   const userHome = res?.homeTeamId === USER_TEAM
@@ -130,7 +136,9 @@ export function ArenaSummary() {
         footer: shareCardFooter(game),
         hideRatings: ratingHidden(game.settings.rules, 'squad'),
         banner: { text: banner },
-        lines: [...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])],
+        mode: modeLabel(game, 'short'),
+        beatMe: invite,
+        lines: cardLines([...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])]),
       })
       downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
@@ -187,7 +195,10 @@ export function ArenaSummary() {
           </div>
         )}
         <div className="banner-actions">
-          <button className="btn primary" onClick={() => void copy()} data-testid="arena-copy">
+          <button className="btn primary" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
+            <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
+          </button>
+          <button className="btn" onClick={() => void copy()} data-testid="arena-copy">
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
           </button>
           <button className="btn" onClick={card} data-testid="arena-card">
@@ -195,9 +206,6 @@ export function ArenaSummary() {
           </button>
           <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title={t('againTip')}>
             <Dices size={16} aria-hidden="true" /> {t('playAgain')}
-          </button>
-          <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
-            <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
           </button>
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title={t('runItBackTip')}>
             <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
