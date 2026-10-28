@@ -16714,3 +16714,161 @@ table.tbl td.strong {
   gap: 6px;
   color: var(--text-2);
 }
+
+/* The dock: on a phone held upright the nav is a tab bar along the bottom, in thumb reach, like a native app; the top
+   bar keeps the lockup and its two switches on one slim row. Whatever else is fixed to the bottom (a screen's
+   bottom bar, the toast, the pills) stands on it: `--dock-h` is the tab bar's height with the home indicator, and
+   `--dock-safe` the home indicator still owed by a bar with no dock under it (0 px in a browser tab). The match day
+   has its own bottom controls, so it keeps the nav up top (`.dock-off`) */
+:root {
+  --dock-h: 0px;
+  --dock-safe: var(--safe-bottom);
+}
+@media (max-width: 720px) and (min-height: 501px) {
+  .app:not(.bar-hidden):not(.dock-off) {
+    --dock-h: calc(58px + var(--safe-bottom));
+    --dock-safe: 0px;
+  }
+  .app:not(.dock-off) > .topbar {
+    /* A blurred bar would hold the fixed dock inside it (a filter makes a containing block), so it is opaque instead */
+    backdrop-filter: none;
+    background: var(--bg);
+    flex-wrap: nowrap;
+  }
+  .app:not(.bar-hidden):not(.dock-off) > .topbar {
+    /* Opacity only: a transform would also carry the dock while it plays */
+    animation-name: dock-bar-in;
+  }
+  .app:not(.dock-off) > .topbar nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 32;
+    width: auto;
+    gap: 0;
+    padding: 4px calc(6px + var(--safe-right)) calc(4px + var(--safe-bottom)) calc(6px + var(--safe-left));
+    background: var(--panel);
+    border-top: var(--border-strong);
+    box-shadow: 0 -4px 16px color-mix(in srgb, var(--bg) 40%, transparent);
+  }
+  .app.bar-hidden:not(.dock-off) > .topbar nav {
+    display: none;
+  }
+  .app:not(.dock-off) > .topbar nav button {
+    min-height: 50px;
+    justify-content: center;
+    border-radius: var(--radius-m);
+  }
+  .app:not(.dock-off) > .topbar nav button.active {
+    color: var(--primary);
+    border-color: transparent;
+  }
+  .app:not(.dock-off) > .topbar nav button.active svg {
+    opacity: 1;
+  }
+  .page {
+    padding-bottom: calc(80px + var(--dock-h));
+  }
+  .page.has-bottom-bar {
+    padding-bottom: calc(var(--bottom-bar-h, 130px) + 20px + var(--dock-h));
+  }
+  .bottom-bar {
+    bottom: var(--dock-h);
+    padding-bottom: calc(10px + var(--dock-safe));
+  }
+  .bottom-bar.panel {
+    padding-bottom: calc(10px + var(--dock-safe));
+  }
+  .cta-bar {
+    bottom: var(--dock-h);
+    padding-bottom: calc(10px + var(--dock-safe));
+  }
+  .app:not(.dock-off) > .page {
+    scroll-padding-bottom: var(--dock-h);
+  }
+  .toast {
+    bottom: calc(22px + var(--dock-h) + var(--dock-safe));
+  }
+  .decisions-pill,
+  .assistant-note {
+    bottom: calc(16px + var(--dock-h) + var(--dock-safe));
+  }
+  .page.has-turn-pill {
+    padding-bottom: calc(72px + var(--dock-h) + var(--dock-safe));
+  }
+  .room-turn-pill {
+    bottom: calc(12px + var(--dock-h) + var(--dock-safe));
+  }
+}
+@keyframes dock-bar-in {
+  from {
+    opacity: 0;
+  }
+}
+/* The top bar's two round switches stay 34 to 36 px to look at, with a 44 px target on a touch screen */
+@media (pointer: coarse) {
+  .theme-switch {
+    position: relative;
+  }
+  .theme-switch::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+  }
+}
+/* A touch screen keeps :hover on whatever was tapped last, so a tapped nav button read as a second active tab and a
+   tapped card stayed lifted after the screen had moved on: the hover looks stand down where nothing can hover */
+@media (hover: none) {
+  .topbar nav button:not(.active):hover {
+    background: transparent;
+    color: var(--text-2);
+  }
+  .mode-card:hover,
+  .home-tile:hover {
+    transform: none;
+    border-color: var(--line);
+    box-shadow: none;
+  }
+  .mode-card.daily:hover {
+    box-shadow: var(--panel-shadow, none);
+  }
+  .btn.ghost:hover {
+    background: transparent;
+  }
+}
+/* A league table on a phone keeps what decides the table in view: the club column takes what the numbers leave and
+   ends in an ellipsis (the full name is the cell's tooltip); the form dots go first, then W, D and L, never P, GD or Pts */
+@media (max-width: 720px) {
+  table.tbl td.tv-club {
+    width: 100%;
+    max-width: 0;
+  }
+  table.tbl td.tv-club > .row {
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+  table.tbl .tv-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 560px) {
+  table.tbl .tv-form {
+    display: none;
+  }
+}
+@media (max-width: 420px) {
+  table.tbl .tv-wdl {
+    display: none;
+  }
+}
+/* The match day on a phone held upright: the pitch is the screen, so the nav row folds away while the match plays
+   (the lockup still goes Home, and the nav is back the moment the match is over) */
+@media (max-width: 720px) and (min-height: 501px) {
+  .app.dock-off > .topbar nav {
+    display: none;
+  }
+}
