@@ -142,7 +142,7 @@ Errors are `{ status, code, reason, ...context }` with these HTTP statuses: 400 
 
 ### Email templates (paste once)
 
-Supabase > Authentication > Email templates. Plain HTML with inline styles, no images. `{{ .Token }}` is the six-digit code; the button is the `token_hash` link the app verifies itself.
+Supabase > Authentication > Email templates. Plain HTML with inline styles, no images. `{{ .Token }}` is the six-digit code. Code only, no link (the owner's decision of 2026-10-28: a new account is confirmed by typing the code, not by a link in the email). The app still verifies a `token_hash` link if one ever arrives (`consumeAuthRedirect`), so an older email keeps working.
 
 **Confirm signup** (a new address). Subject: `Your TouchLine code`
 
@@ -152,8 +152,7 @@ Supabase > Authentication > Email templates. Plain HTML with inline styles, no i
   <p style="margin:0 0 8px;font-size:16px;font-weight:700">Welcome to TouchLine</p>
   <p style="margin:0 0 8px;font-size:15px">Your code to create your account:</p>
   <p style="margin:8px 0 16px;font-size:34px;font-weight:700;letter-spacing:8px">{{ .Token }}</p>
-  <p style="margin:0 0 20px;font-size:14px;color:#4c588c">Type it where you asked for it. It works for 15 minutes.</p>
-  <p style="margin:0 0 24px"><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email" style="display:inline-block;padding:11px 20px;background:#1d4ed8;color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:700">Open TouchLine and sign in</a></p>
+  <p style="margin:0 0 24px;font-size:14px;color:#4c588c">Type it in TouchLine where you asked for it. It works for 15 minutes.</p>
   <p style="margin:0;font-size:12px;color:#4c588c">Your seasons, records and Dailies are saved to this account. Did not ask for this? Ignore this email: nothing happens without the code.</p>
 </div>
 ```
@@ -165,8 +164,7 @@ Supabase > Authentication > Email templates. Plain HTML with inline styles, no i
   <p style="margin:0 0 20px;font-size:24px;font-weight:700;letter-spacing:-0.5px">Touch<span style="color:#1d4ed8">Line</span></p>
   <p style="margin:0 0 8px;font-size:15px">Your code to sign in to TouchLine:</p>
   <p style="margin:8px 0 16px;font-size:34px;font-weight:700;letter-spacing:8px">{{ .Token }}</p>
-  <p style="margin:0 0 20px;font-size:14px;color:#4c588c">Type it where you asked for it. It works for 15 minutes.</p>
-  <p style="margin:0 0 24px"><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email" style="display:inline-block;padding:11px 20px;background:#1d4ed8;color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:700">Open TouchLine and sign in</a></p>
+  <p style="margin:0 0 24px;font-size:14px;color:#4c588c">Type it in TouchLine where you asked for it. It works for 15 minutes.</p>
   <p style="margin:0;font-size:12px;color:#4c588c">Did not ask for this? Ignore this email: nothing happens without the code.</p>
 </div>
 ```
