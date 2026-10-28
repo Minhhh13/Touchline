@@ -54,8 +54,9 @@ export function H2HSetup() {
   // Classic seasons (1992-93 to 2007-08, estimated ratings): off unless asked for, as in Setup; a Rematch keeps the choice
   const [classicOn, setClassicOn] = useState(() => h2hNeedsClassic(last))
   const [seed, setSeed] = useState(() => randomSeed())
-  // Two devices instead of one: only in a build with the online layer (an offline build shows exactly the hot-seat setup)
-  const [where, setWhere] = useState<'device' | 'online'>('device')
+  // Two devices instead of one: only in a build with the online layer (an offline build shows exactly the hot-seat setup).
+  // Playing with a friend online is the default; a Rematch of a hot-seat game stays on this device
+  const [where, setWhere] = useState<'device' | 'online'>(() => (!last && onlineAvailable() ? 'online' : 'device'))
   if (!u) return null
   const online = onlineAvailable()
   const back = (
@@ -63,7 +64,7 @@ export function H2HSetup() {
       {t('back')}
     </button>
   )
-  const switcher = online ? <Segmented value={where} onChange={setWhere} options={[{ value: 'device', label: <><Users size={14} aria-hidden="true" /> {t('thisDevice')}</>, testId: 'h2h-where-device' }, { value: 'online', label: <><Wifi size={14} aria-hidden="true" /> {t('playOnline')}</>, testId: 'h2h-where-online' }]} /> : null
+  const switcher = online ? <Segmented value={where} onChange={setWhere} options={[{ value: 'online', label: <><Wifi size={14} aria-hidden="true" /> {t('playOnline')}</>, testId: 'h2h-where-online' }, { value: 'device', label: <><Users size={14} aria-hidden="true" /> {t('thisDevice')}</>, testId: 'h2h-where-device' }]} /> : null
   if (online && where === 'online')
     return (
       <div className="page">

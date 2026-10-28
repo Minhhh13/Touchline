@@ -192,7 +192,6 @@ export const online = catalog('online', {
   resendIn: 'Resend in {n} s',
   sendNewCode: 'Send a new code',
   anotherEmail: 'Use another email',
-  emailLink: 'The email also has a link: opening it on any device signs you in there.',
   google: 'Continue with Google',
   whatStored: 'What is stored',
   welcomeSaved: 'Welcome to TouchLine. Your profile is saved.',
