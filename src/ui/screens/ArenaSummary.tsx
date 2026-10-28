@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { arenaShareText, arenaStepMark } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { clubIdOfKey } from '@engine/knockout'
 import { randomSeed } from '@engine/rng'
 import { arenaAgainSettings } from '@game/logic/arenaDaily'
 import { USER_TEAM } from '@engine/season'
-import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark } from '@game/logic/arena'
+import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark, stepWon } from '@game/logic/arena'
 import { cupRoundCount } from '@engine/cup'
 import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
@@ -42,7 +42,7 @@ const ARENA_FANFARE_DELAY = 0.6
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
-  const { universe: u, game, startGame, openArenaSetup, showToast, profile } = useStore()
+  const { universe: u, game, startGame, openArenaSetup, showToast, profile } = useStorePick('universe', 'game', 'startGame', 'openArenaSetup', 'showToast', 'profile')
   const [copied, setCopied] = useState(false)
   const [link, setLink] = useState<string | null>(null)
   // The "Copied!" label goes back after a moment; the timer is cleared if the summary closes first
@@ -138,7 +138,8 @@ export function ArenaSummary() {
     }
   }
 
-  const won = (s: (typeof a.log)[number]) => s.gf > s.ga || (!!s.pens && s.pens.us > s.pens.them)
+  // A step won is the logic's rule (a draw settled on penalties counts): the screen never words its own
+  const won = stepWon
   return (
     // Main's summary layout: the result box on the left, everything else in a box beside it that scrolls inside itself
     <div className="page summary arena-summary" data-testid="summary">
@@ -192,7 +193,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={card} data-testid="arena-card">
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
-          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title="The same format on a new wheel">
+          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title={t('playAgainTip')}>
             <Dices size={16} aria-hidden="true" /> {t('playAgain')}
           </button>
           <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
@@ -201,7 +202,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title={t('runItBackTip')}>
             <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
           </button>
-          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title="Set up a new arena run">
+          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title={t('newGameTip')}>
             <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>

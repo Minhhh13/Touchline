@@ -2,7 +2,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperti
 import { FOCUSABLE } from '../focusRescue'
 import { useAfterPaint } from '../afterPaint'
 import { Check, ChevronDown, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation } from '@engine/formations'
 import { getRole, DEFAULT_ROLE } from '@engine/roles'
@@ -13,6 +13,7 @@ import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
 import { canCover, ratingAt } from '@engine/positions'
 import { teamStrength } from '@game/logic/squad'
+import { bidYearChoices, defaultBidYears } from '@game/logic/bidTerms'
 import { SELL_ON_OPTIONS, SQUAD_CAP, closedWindowLine, sellOnValue, suggestedStatus } from '@game/logic/marketOps'
 import { canFullScout, focusActive, maskedView } from '@game/logic/scouting'
 import { recentShare, statusOf } from '@game/logic/week'
@@ -20,6 +21,7 @@ import { EXPECTED_SHARE, RECENT_WEEKS, STATUS_LABEL, STATUSES, WAGE_MULT, type S
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
+import { unlockedNames } from '../i18n/trophyText'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
 import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
@@ -101,7 +103,7 @@ function tabPresent(tab: string, game: Game): string[] | undefined {
 const KEY_FLAG = 'touchline-squad-key'
 
 export function Dugout() {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'autoPick', 'markNewsSeen', 'playFriendly', 'playWeekSoon', 'playingWeek', 'setMatchPlay', 'showToast', 'signYouth', 'simStop', 'simToNextBigMatchSoon', 'simWeeksSoon')
   const { universe: u, game } = store
   const [tab, setTab] = useState<Tab>('squad')
   // The slot whose picker sheet is open: tapping a slot opens it, on every screen size
@@ -746,7 +748,7 @@ function SlotOptionRow({ o, at, onPick }: { o: SlotOption; at: Position; onPick?
 
 /** The slot picker: a bottom sheet on a phone, a modal elsewhere. Tapping a row puts him in the slot (swapping with whoever is there). */
 function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'playInSlot')
   const { universe: u, game } = store
   if (!u || !game || !slotId) return null
   const sheet = slotSheet(game, u, slotId)
@@ -801,7 +803,7 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
  * team talk with its hint, so the Squad tab keeps the list, the pitch and the depth chart at full height.
  */
 function NextMatchTab({ boxes }: { boxes: Boxes }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'setTeamTalk')
   const { universe: u, game } = store
   if (!u || !game?.season) return null
   const next = nextOpponent(game)
@@ -865,7 +867,7 @@ const talks = (): Array<{ value: TeamTalk; label: string; hint: string }> => [
 
 /** The Table tab's right box: league position after each matchweek, the clubs around us faint, the board's target dashed. */
 function SeasonSoFar({ table }: { table: TableRow[] }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   const fixtures = game?.season?.fixtures
   const ai = game?.season?.ai
   const carryIn = game?.season?.carryIn
@@ -893,7 +895,7 @@ function SeasonSoFar({ table }: { table: TableRow[] }) {
 
 /** The Fixtures tab's calendar: one cell a matchweek, ten to a row on a desktop. */
 function SeasonStrip({ table }: { table: TableRow[] }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   if (!u || !game?.season) return null
   const cells = seasonStrip(game, table)
   const nextMw = game.season.matchweek + 1
@@ -997,7 +999,7 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
 
 /** The tactics boxes; `boxes` is the Dugout's Boxes control (the arena hub shows every box). */
 export function TacticsTab({ boxes }: { boxes?: Boxes }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'setFormation', 'setRole', 'setTactics', 'setTraining')
   const { universe: u, game } = store
   if (!u || !game) return null
   const on = (id: string) => boxes?.on(id) ?? true
@@ -1176,7 +1178,7 @@ function Instruction({ label, help, children }: { label: string; help: string; c
 }
 
 export function CupTab({ comp }: { comp: Competition }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   if (!u || !game?.season) return null
   const season = game.season
   // Engine 7's Continental Cup: groups, then two-legged knockouts from the quarter-finals; an engine 6 one plays on as drawn
@@ -1239,7 +1241,7 @@ export function CupTab({ comp }: { comp: Competition }) {
 export const PHONE_LISTINGS = 8
 
 function MarketTab({ boxes }: { boxes: Boxes }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'acceptOffer', 'advanceDay', 'bid', 'enquire', 'loan', 'rejectOffer', 'scoutPlayer', 'shortlist')
   const { universe: u, game } = store
   const [bids, setBids] = useState<Record<string, number>>({})
   const [years, setYears] = useState<Record<string, number>>({})
@@ -1459,8 +1461,8 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     <button className="btn sm" onClick={() => setBids({ ...bids, [l.playerSeasonId]: Math.round(l.asking * 0.9 * 10) / 10 })}>
                       −10%
                     </button>
-                    <select className="input" value={years[l.playerSeasonId] ?? (p.age >= 32 ? 1 : 3)} onChange={(e) => setYears({ ...years, [l.playerSeasonId]: Number(e.target.value) })} title={t('contractLength')}>
-                      {[1, 2, 3, 4].filter((y) => y <= (p.age >= 33 ? 2 : 4)).map((y) => (
+                    <select className="input" value={years[l.playerSeasonId] ?? defaultBidYears(p.age)} onChange={(e) => setYears({ ...years, [l.playerSeasonId]: Number(e.target.value) })} title={t('contractLength')}>
+                      {bidYearChoices(p.age).map((y) => (
                         <option key={y} value={y}>
                           {t('yearDeal', { n: y })}
                         </option>
@@ -1627,7 +1629,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
 }
 
 function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id: string) => void; boxes: Boxes }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'hireStaff', 'release', 'setStatus')
   const { universe: u, game } = store
   const [clubMsg, setClubMsg] = useState<string | null>(null)
   if (!u || !game?.season) return null
@@ -1875,15 +1877,13 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
       {on('achievements') && (
       <div className="panel">
         <h3>{t('achievementsGame')}</h3>
-        {game.unlocked.filter((x) => x !== 'survivor-pending').length === 0 && <div className="muted small">{t('noneYet')}</div>}
+        {unlockedNames(game.unlocked).length === 0 && <div className="muted small">{t('noneYet')}</div>}
         <div className="pill-list">
-          {game.unlocked
-            .filter((x) => x !== 'survivor-pending')
-            .map((a) => (
-              <span key={a} className="chip gold">
-                {a}
-              </span>
-            ))}
+          {unlockedNames(game.unlocked).map((a) => (
+            <span key={a.id} className="chip gold" title={a.text}>
+              {a.title}
+            </span>
+          ))}
         </div>
       </div>
       )}
@@ -1895,7 +1895,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
 
 /** The board requests box: what can be asked, the condition the board checks, and when the next ask is possible. */
 function BoardRequests({ onMessage }: { onMessage: (m: string) => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'boardRequest')
   const { universe: u, game } = store
   if (!u || !game?.season) return null
   const season = game.season
@@ -1940,7 +1940,7 @@ function BoardRequests({ onMessage }: { onMessage: (m: string) => void }) {
 
 /** The wage-to-transfer slider: each step moves £10k a week of wage cap against £2M of budget. */
 function WageSlider({ onMessage }: { onMessage: (m: string) => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'shiftWages')
   const { universe: u, game } = store
   if (!u || !game) return null
   const net = game.finances.wageShift ?? 0
@@ -1985,7 +1985,7 @@ function WageSlider({ onMessage }: { onMessage: (m: string) => void }) {
  * keeps its rows; "More" opens the whole story and each choice's hint. A phone shows it whole, as the page scrolls.
  */
 function EventCard() {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'resolveEvent')
   const { universe: u, game } = store
   const [open, setOpen] = useState(false)
   if (!u || !game?.pendingEvent) return null
@@ -2024,7 +2024,7 @@ function EventCard() {
 }
 
 function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'assign', 'setCaptain', 'talk')
   const { universe: u, game } = store
   const [talkMsg, setTalkMsg] = useState<string | null>(null)
   const [talks, setTalks] = useState(false)

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { runAfterPaint } from '../afterPaint'
 import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
-import { useStore, todaysDailySeed, slotOf } from '@game/store'
+import { todaysDailySeed, slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
@@ -21,7 +22,7 @@ import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, n
 import { randomSeed } from '@engine/rng'
 import { poolClubSeasons } from '@engine/universe'
 import { classicFromFor, classicFromIndex, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
-import { formationName, seasonLabel, tierName } from '../format'
+import { formationName, seasonLabel, tierName, formatLocale } from '../format'
 import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
 import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_ID, SUPER_LEAGUE_NAME } from '@engine/superLeague'
@@ -96,7 +97,7 @@ function writeAdvanced(open: boolean): void {
 }
 
 export function Setup() {
-  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, classicFailed, loadingLeagues, loadedLeagues, failedLeagues, pendingChallenge, profile } = useStore()
+  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, classicFailed, loadingLeagues, loadedLeagues, failedLeagues, pendingChallenge, profile } = useStorePick('universe', 'game', 'setupMode', 'startGame', 'go', 'ensureLeagues', 'ensureClassic', 'classicLoaded', 'classicFailed', 'loadingLeagues', 'loadedLeagues', 'failedLeagues', 'pendingChallenge', 'profile')
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
@@ -438,7 +439,7 @@ export function Setup() {
                 </div>
                 <div className="field setup-league">
                   {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
-                  <Segmented value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString() }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
+                  <Segmented value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
                   {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: SUPER_LEAGUE_LINE }) : t('europeWheel')}</span>}
                 </div>
                 {isManage && (
@@ -492,8 +493,8 @@ export function Setup() {
                     })}
                     <div className="small" style={{ marginTop: 6 }}>
                       {challenge.verified === 'yes' && t('verified', { name: challenge.name, pts: challenge.claim.pts })}
-                      {challenge.verified === 'unverified' && t('unverified', { reason: challenge.reason })}
-                      {challenge.verified === 'no' && t('notVerified', { reason: challenge.reason })}
+                      {challenge.verified === 'unverified' && t('unverified', { reason: challenge.reason ?? t('differentDataReason') })}
+                      {challenge.verified === 'no' && t('notVerified', { reason: challenge.reason ?? t('noReplayReason') })}
                     </div>
                   </div>
                 )}
@@ -705,7 +706,7 @@ export function Setup() {
                                 />
                                 <Globe size={14} aria-hidden="true" /> {t('continental')}
                               </label>
-                              <InfoTip label={t('continental')} text={t(isManage ? 'continentalManage' : 'continentalQuick')} />
+                              <InfoTip label={t('continental')} text={t('continentalManage')} />
                             </div>
                           )}
                         </div>

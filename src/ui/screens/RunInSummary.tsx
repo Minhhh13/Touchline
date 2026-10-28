@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { seasonTable } from '@engine/season'
 import { RUN_IN_TEMPLATE_LABEL, runInShare, runInVerdict } from '@game/logic/runin'
 import { gameLabel, storyForGame } from '@game/logic/story'
@@ -15,7 +15,7 @@ const t = translator(runin)
 
 /** The end of a run-in: the brief's chip, the verdict against the real club, the ten games, the final table and the share text. */
 export function RunInSummary() {
-  const { universe: u, game, go, showToast } = useStore()
+  const { universe: u, game, go, showToast } = useStorePick('universe', 'game', 'go', 'showToast')
   const [copied, setCopied] = useState(false)
   const table = useMemo(() => (game?.season ? seasonTable(game.season) : []), [game?.season])
   const story = useMemo(() => (game && u ? storyForGame(game, u) : null), [game, u])

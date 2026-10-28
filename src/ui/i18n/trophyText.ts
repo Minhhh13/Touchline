@@ -7,6 +7,7 @@
 import { translator } from './index'
 import { trophies } from './en/trophies'
 import { countPhrase } from '../screenText'
+import { ACHIEVEMENTS } from '@engine/awards'
 
 const t = translator(trophies)
 const pick = (key: string, english: string, vars?: Record<string, number>) => (t.has(key) ? t(key, vars) : english)
@@ -27,4 +28,12 @@ export function progressText(tiers: readonly number[], value: number, stamp = fa
   if (next === -1) return t('gold')
   if (stamp) return t('notYet')
   return t('progress', { value, target: tiers[next], tier: t(`tier_${TIERS[next]}`) })
+}
+
+/** A game's unlocked achievement ids as names on screen (the Dugout's Club tab), in unlock order; an unknown or internal id is left out. */
+export function unlockedNames(ids: readonly string[]): Array<{ id: string; title: string; text: string }> {
+  return ids.flatMap((id) => {
+    const a = ACHIEVEMENTS.find((x) => x.id === id)
+    return a ? [{ id, title: achievementTitle(a), text: achievementText(a) }] : []
+  })
 }

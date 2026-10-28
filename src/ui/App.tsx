@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
+import { useStorePick } from './useStorePick'
 import { Home } from './screens/Home'
 import { isArenaPayload } from '@engine/challenge'
 import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
@@ -68,7 +69,7 @@ const { setup: { Screen: Setup }, draft: { Screen: Draft }, kickOff: { Screen: K
 const AccountChip = lazy(() => import('./online/AccountChip').then((m) => ({ default: m.AccountChip })))
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStorePick('universe', 'loading', 'loadError', 'loadData', 'screen', 'go', 'game', 'h2h', 'profile', 'setTheme', 'offseason', 'dismissOffseason', 'digest', 'dismissDigest', 'abandonGame', 'openChallenge', 'playback', 'setupMode', 'pendingChallenge')
   // An arena run's field strengths, worked out in idle moments while it drafts
   useArenaWarmup()
   // After the first finished game, ask the browser to keep the save through storage pressure (persistStorage.ts)

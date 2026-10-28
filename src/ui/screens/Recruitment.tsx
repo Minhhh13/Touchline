@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Binoculars, FileSearch, Star } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { canFullScout, focusActive, focusLabel, gradePlayer, knowledgeOf, maskedView, maxAssignments, scoutableLeagues } from '@game/logic/scouting'
 import type { RecruitFocus, ScoutReport } from '@game/types'
 import type { Position } from '@engine/types'
@@ -30,7 +30,7 @@ function knowledgeColour(k: number): string {
  * free. Every rule lives in `src/game/logic/scouting.ts`.
  */
 export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'setAssignment', 'setRecruitFocus')
   const { universe: u, game } = store
   const [draft, setDraft] = useState<RecruitFocus>(() => game?.recruitFocus ?? {})
   if (!u || !game) return null
@@ -140,7 +140,7 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
 
 /** The scout reports list: graded A to D on what the scouts can see, newest first. */
 export function ScoutReportsPanel({ onOpen }: { onOpen: (id: string) => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'shortlist')
   const { universe: u, game } = store
   if (!u || !game) return null
   const reports = (game.scoutReports ?? []).filter((r) => !!u.index[r.playerSeasonId])
@@ -190,7 +190,12 @@ export function ScoutReportsPanel({ onOpen }: { onOpen: (id: string) => void }) 
  * and what to do next.
  */
 export function ScoutModal({ id, onClose }: { id: string | null; onClose: () => void }) {
-  const store = useStore()
+  // Keyed by the player: the Dugout keeps the modal mounted, so a message about one man never shows on the next one opened
+  return <ScoutReport key={id ?? ''} id={id} onClose={onClose} />
+}
+
+function ScoutReport({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const store = useStorePick('universe', 'game', 'dismissReport', 'enquire', 'scoutPlayer', 'shortlist', 'toggleShortlist')
   const { universe: u, game } = store
   const [msg, setMsg] = useState<string | null>(null)
   if (!u || !game || !id) return null

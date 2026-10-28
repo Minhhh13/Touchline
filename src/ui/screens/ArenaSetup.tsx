@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useStore, slotOf } from '@game/store'
+import { slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
 import { rememberTeamName, useTeamName } from '../teamName'
@@ -53,7 +54,7 @@ function eraRange(era: Era, first: number): { fromSeason?: number; toSeason?: nu
 
 /** Setup for an arena format (the Cup, its one-off final, or the Gauntlet). Its own screen, so the quick and season Setup stays untouched. */
 export function ArenaSetup() {
-  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, arenaSetupFormat } = useStore()
+  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, arenaSetupFormat } = useStorePick('universe', 'startGame', 'go', 'ensureLeagues', 'loadingLeagues', 'loadedLeagues', 'game', 'parked', 'arenaSetupFormat')
   const [format, setFormat] = useState<'cup' | 'gauntlet'>(arenaSetupFormat)
   const gauntlet = format === 'gauntlet'
   // An invented club name, or the one this viewer last typed (teamName.ts)

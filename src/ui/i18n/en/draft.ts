@@ -94,6 +94,7 @@ export const draft = catalog('draft', {
   blindPick: 'Blind pick: ratings stay hidden until you choose.',
   whereDoes: 'Where does <b>{name}</b> play? Tap a slot here or on the pitch.',
   slotCost: '({n} overall, {cost})',
+  slotFit: '{fit, select, fits {fits} other {can cover}}',
   toBench: 'Send him to the bench',
   cancel: 'Cancel',
   firstRevealTip: 'Tap a player to draft him. The number is his overall rating (his career best with Prime ratings); a green slot chip is his own position, an amber one a position he can cover for a few points less. Your re-spins last the whole draft.',

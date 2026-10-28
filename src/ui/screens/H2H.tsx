@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Share2, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useFocusOnLanding } from '../a11y'
-import { useStore, type H2HGame } from '@game/store'
+import { type H2HGame } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { useTurnSound } from '../sound/useTurnSound'
 import { LeagueRetry, LeagueWait, useLeagueGate } from '../components/LeagueRetry'
 import { APP_NAME } from '../brand'
@@ -11,7 +12,8 @@ import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine
 import { isComplete, picksMade, fillingXI, suggestSlot, type DraftState } from '@engine/draft'
 import { H2H_IDS, type H2HManager, type H2HResult } from '@game/logic/h2h'
 import { h2hNeedsClassic, h2hSeasonChoices } from '@game/logic/h2hClassic'
-import { nextFirstPicker } from '@game/logic/h2hView'
+import { h2hTurnKey, nextFirstPicker } from '@game/logic/h2hView'
+import { useFlash } from '../useFlash'
 import { classicFromIndex, estimatedNote } from '@game/logic/era'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
@@ -39,12 +41,20 @@ const t = translator(h2hText)
 
 /** The head-to-head a Rematch came from: the setup opens with its managers, clubs, league and rules (on a new wheel). */
 let rematchOf: H2HGame | null = null
+/** Open the setup on this head-to-head's settings next time it mounts (Rematch). */
+export function setRematch(h: H2HGame | null): void {
+  rematchOf = h
+}
 
 export function H2HSetup() {
-  const { universe: u, startH2H, go, ensureLeagues, ensureClassic, classicLoaded, loadingLeagues, loadedLeagues } = useStore()
+  const { universe: u, startH2H, go, ensureLeagues, ensureClassic, classicLoaded, loadingLeagues, loadedLeagues } = useStorePick('universe', 'startH2H', 'go', 'ensureLeagues', 'ensureClassic', 'classicLoaded', 'loadingLeagues', 'loadedLeagues')
   const [last] = useState(() => rematchOf)
+  // Read once: a later visit to the setup opens fresh, not on this rematch's settings again
+  useEffect(() => {
+    rematchOf = null
+  }, [])
   const [leagueId, setLeagueId] = useState(last?.leagueId ?? 'england')
-  const [wheelScope, setWheelScope] = useState<'league' | 'europe'>((last?.wheelLeagues.length ?? 1) > 1 ? 'europe' : 'league')
+  const [wheelScope, setWheelScope] = useState<'league' | 'europe'>((last?.wheelLeagues?.length ?? 1) > 1 ? 'europe' : 'league')
   const [names, setNames] = useState(last ? last.managers.map((m) => m.name) : [t('managerN', { n: 1 }), t('managerN', { n: 2 })])
   const [formations, setFormations] = useState(last ? last.managers.map((m) => m.formationId) : ['4-3-3', '4-4-2'])
   const [leagueSeason, setLeagueSeason] = useState(() => last?.leagueSeason ?? (u ? Math.max(...u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)) : 2025))
@@ -177,18 +187,18 @@ export function H2HSetup() {
             <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
               {[...seasonChoices].reverse().map(({ season: s, classic: est }) => (
                 <option key={s} value={s}>
-                  {seasonLabel(s)}{s === u.currentSeason ? ' (in progress)' : ''}{est ? ' (est.)' : ''}
+                  {t('seasonChoice', { season: seasonLabel(s), current: s === u.currentSeason ? 'yes' : 'no', est: est ? 'yes' : 'no' })}
                 </option>
               ))}
             </select>
             {classicSeason && (
               <span className="help">
-                <EstimatedChip compact /> A classic season: every side's ratings are estimated.
+                <EstimatedChip compact /> {t('classicSeasonHelp')}
               </span>
             )}
           </label>
           {classicFrom !== undefined && (
-            <label className="toggle" title="Real squads and tables; no official ratings exist, so these are TouchLine's estimates.">
+            <label className="toggle" title={t('classicTip')}>
               <input
                 type="checkbox"
                 checked={classic}
@@ -200,7 +210,7 @@ export function H2HSetup() {
                   if (on) void ensureClassic().then((ok) => void (ok || setClassicOn(false)))
                 }}
               />
-              Classic {seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)} <EstimatedChip compact />
+              {t('classicRange', { from: seasonLabel(classicFrom), to: seasonLabel(u.firstSeason - 1) })} <EstimatedChip compact />
             </label>
           )}
           <div className="field">
@@ -240,7 +250,7 @@ export function H2HSetup() {
 }
 
 export function H2HScreen() {
-  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStore()
+  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStorePick('universe', 'h2h', 'h2hSpin', 'h2hPick', 'h2hAuto', 'h2hFinish', 'abandonH2H', 'go', 'showToast', 'ensureLeagues', 'loadingLeagues')
   // A head-to-head renders only against the packs it was drafted from: its leagues and, for a classic one, the classic
   // seasons (a reload whose classic pack failed, or a head-to-head restored from the cloud); they load here, Retry when offline
   const needs = h2h ? [...new Set([h2h.leagueId, ...(h2h.wheelLeagues ?? [])])] : []
@@ -253,12 +263,14 @@ export function H2HScreen() {
   const packsReady = gate === 'ready'
   // As in the Draft: the spin whose reel has landed, and a selection that belongs to its spin
   const [settled, setSettled] = useState<H2HDraft['current']>(null)
-  const [picked, setPicked] = useState<{ id: string; spin: number } | null>(null)
+  const [picked, setPicked] = useState<{ id: string; turn: string } | null>(null)
   const d = h2h?.draft
   const spinning = !!d?.current && settled !== d.current
   const revealed = !!d?.current && settled === d.current
-  const selectedPlayer = picked && picked.spin === d?.spins ? picked.id : null
-  const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, spin: d.spins } : null)
+  // Keyed to the spin and the manager picking: both pick on one spin, so one manager's selection never carries to the other
+  const turn = h2hTurnKey(d)
+  const selectedPlayer = picked && turn !== null && picked.turn === turn ? picked.id : null
+  const setSelectedPlayer = (id: string | null) => setPicked(id && turn !== null ? { id, turn } : null)
   const pool = useMemo(
     () => (u && h2h && packsReady ? h2hReelPool(u, h2h.draft) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -286,16 +298,16 @@ export function H2HScreen() {
       <div className="page">
         <div className="screen-head">
           <div className="screen-title">
-            <h1>Head-to-head draft</h1>
+            <h1>{t('draftTitle')}</h1>
             <div className="screen-meta">
               <span>
-                {h2h.managers[0].name} v {h2h.managers[1].name}
+                {t('versus', { a: h2h.managers[0].name, b: h2h.managers[1].name })}
               </span>
             </div>
           </div>
           <div className="toolbar">
             <button className="btn ghost sm" onClick={() => go('home')}>
-              Home
+              {t('home')}
             </button>
           </div>
         </div>
@@ -497,9 +509,9 @@ export function H2HScreen() {
 }
 
 function H2HSummary() {
-  const { h2h, abandonH2H, go } = useStore()
+  const { h2h, abandonH2H, go } = useStorePick('h2h', 'abandonH2H', 'go')
   if (!h2h?.result) return null
-  return <H2HResultView managers={h2h.managers} result={h2h.result} drafts={h2h.draft.drafts} leagueId={h2h.leagueId} leagueSeason={h2h.leagueSeason} seed={h2h.seed} onRematch={() => { rematchOf = h2h; abandonH2H(); go('h2h') }} onHome={() => abandonH2H()} />
+  return <H2HResultView managers={h2h.managers} result={h2h.result} drafts={h2h.draft.drafts} leagueId={h2h.leagueId} leagueSeason={h2h.leagueSeason} seed={h2h.seed} onRematch={() => { setRematch(h2h); abandonH2H(); go('h2h') }} onHome={() => abandonH2H()} />
 }
 
 export interface H2HResultViewProps {
@@ -523,8 +535,8 @@ export interface H2HResultViewProps {
 
 /** A head-to-head's result, hot-seat or online: the banner with both sides, the derbies, the XIs and the table. */
 export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label: labelProp, rematchLabel = t('rematch'), shareLabel = 'Head-to-head', you, testId }: H2HResultViewProps) {
-  const { universe: u, showToast } = useStore()
-  const [copied, setCopied] = useState(false)
+  const { universe: u, showToast } = useStorePick('universe', 'showToast')
+  const [copied, flashCopied] = useFlash()
   if (!u) return null
   const label = labelProp ?? t('title')
   // The share text stays English (it travels to whoever reads it)
@@ -543,10 +555,9 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
   const copy = async () => {
     // The share sheet on a phone (Messages, WhatsApp...), the clipboard elsewhere
     const out = sheet ? await shareOrCopy({ title: `${APP_NAME} ${label}`, text, url: location.origin + location.pathname }) : await copyText(text)
-    if (out === 'failed') showToast('Could not share or copy the result: try again, or take a screenshot.')
+    if (out === 'failed') showToast(t('shareFailed'))
     else if (out !== 'dismissed') {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      flashCopied()
     }
   }
   const order: Array<0 | 1> = you === 1 ? [1, 0] : [0, 1]
@@ -590,7 +601,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
                 <div style={{ textAlign: 'left' }}>
                   <h3 style={{ margin: 0 }}>
                     {m[i].name}
-                    {you === i && <span className="chip info h2h-you">You</span>}
+                    {you === i && <span className="chip info h2h-you">{t('you')}</span>}
                   </h3>
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label={t('winner')} />}

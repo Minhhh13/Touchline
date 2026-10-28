@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
-import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { persistLine, usePersistState } from '../persistStorage'
 import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
@@ -112,7 +113,7 @@ function exportSave(): void {
 }
 
 export function ProfileScreen() {
-  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
+  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStorePick('profile', 'universe', 'go', 'setManagerName', 'setTheme', 'showToast', 'resetTips')
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
   const [draftSound, setDraftSound] = useDraftSoundOn()
@@ -238,10 +239,10 @@ export function ProfileScreen() {
   // The cabinet's season shelf, then the arena's and the run-in's own (never counted as league titles or cups)
   // The four big ones stand drawn on the shelf; every other count is a plaque beneath it
   const shelf: ShelfTrophy[] = [
-    { kind: 'league', label: 'League titles', n: cabinet.league },
-    { kind: 'cup', label: 'Cups', n: cabinet.cup },
-    { kind: 'continental', label: 'Continental Cups', n: cabinet.continental },
-    { kind: 'treble', label: 'Trebles', n: cabinet.trebles },
+    { kind: 'league', label: t('shelfLeague'), n: cabinet.league },
+    { kind: 'cup', label: t('shelfCups'), n: cabinet.cup },
+    { kind: 'continental', label: t('shelfContinental'), n: cabinet.continental },
+    { kind: 'treble', label: t('shelfTrebles'), n: cabinet.trebles },
   ]
   const trophies: Array<[ReactNode, string, number]> = [
     [<><Trophy size={22} /><Trophy size={22} /></>, t('doubles'), cabinet.doubles],
@@ -375,7 +376,7 @@ export function ProfileScreen() {
                       <span className="honour-main">
                         <b>{honourLabel(h.kind, h.cups)}</b> <span className="small muted">{honourDetail(h.cups)}</span>
                         <span className="honour-meta small muted">
-                          {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {modeTitle(h.mode) ?? h.mode}
+                          {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {modeTitle(h.mode)}
                           {h.date && <> · <span className="nowrap">{h.date}</span></>}
                         </span>
                       </span>

@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
-import { useStore, todaysDailySeed, slotOf } from '@game/store'
+import { todaysDailySeed, slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { dailyLoaded, dailyPlan, dailySettings } from '@game/logic/setup'
 import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
@@ -117,7 +118,7 @@ function FirstRun({ ready, onPlay, onHowTo }: { ready: boolean; onPlay: () => vo
 }
 
 export function Home() {
-  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStorePick('universe', 'game', 'go', 'abandonGame', 'profile', 'parked', 'resumeGame', 'discardParked', 'loadedLeagues', 'startGame', 'openArenaSetup')
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
   const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
@@ -129,12 +130,19 @@ export function Home() {
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
   // The day's league rotates (engine 7, `dailyPlan`): its pack loads on the Daily's setup, so until then the card names the league and shape only
-  const dailyPlanToday = dailyPlan(todaysDailySeed())
   const dailyHere = dailyReady && dailyLoaded(loadedLeagues, todaysDailySeed())
   // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
-  const dailyStart = dailyHere ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
-  const dailyLocal = dailyHere && dailyStart?.source !== 'pinned' ? dailySettings(u, todaysDailySeed()) : null
-  const daily: { formationId: string; leagueId: string; season: number | null } | null = !dailyReady ? null : dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, leagueId: dailyStart.settings.leagueId, season: dailyStart.settings.leagueSeason } : dailyLocal ? { formationId: dailyLocal.formationId, leagueId: dailyLocal.leagueId, season: dailyLocal.season } : { formationId: dailyPlanToday.formationId, leagueId: dailyPlanToday.leagueId, season: null }
+  // Both scan every club-season, so they are worked out once per universe, day and pin, not on every render of Home
+  const dailySeed = todaysDailySeed()
+  const dailyStart = useMemo(() => (dailyHere && u ? dailyStartSettings(u, dailySeed, 'Touchline XI', pin) : null), [dailyHere, u, dailySeed, pin])
+  const daily = useMemo((): { formationId: string; leagueId: string; season: number | null } | null => {
+    if (!dailyReady || !u) return null
+    if (dailyStart?.source === 'pinned') return { formationId: dailyStart.settings.formationId, leagueId: dailyStart.settings.leagueId, season: dailyStart.settings.leagueSeason }
+    const local = dailyHere ? dailySettings(u, dailySeed) : null
+    if (local) return { formationId: local.formationId, leagueId: local.leagueId, season: local.season }
+    const plan = dailyPlan(dailySeed)
+    return { formationId: plan.formationId, leagueId: plan.leagueId, season: null }
+  }, [dailyReady, dailyHere, u, dailySeed, dailyStart])
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
   const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
   const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)
