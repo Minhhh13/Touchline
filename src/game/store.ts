@@ -75,7 +75,6 @@ async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUnivers
   return tidyUniverseNames(await loadRawPacks(ids, classic)).universe
 }
 
-/** localStorage key the whole game is persisted under. */
 /** A plain, unfrozen copy of part of a game being produced (JSON data), for an engine loop that reads it many times. */
 function plainCopy<T extends object>(x: T): T {
   return structuredClone(isDraft(x) ? (current(x as Draft<T>) as T) : x)
@@ -87,6 +86,7 @@ function* playWeekSteps(g: Game, u: LoadedUniverse, mode: MatchPlayMode): Genera
   yield* playMatchweekAsSteps(g, u, mode)
 }
 
+/** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
 /** Persist version of the saved state (a change needs a `migrate`). */
 export const SAVE_VERSION = 1
@@ -94,9 +94,9 @@ export const SAVE_VERSION = 1
 const SAVE_DELAY_MS = 250
 /** How long `playWeekSoon` plays the week before it gives the page a task (about a frame). */
 const WEEK_SLICE_MS = 16
-/** Shown when the browser refuses to store the save. */
 /** The banner that stays up while the browser refuses every save write. */
 export const SAVE_FAILING_LINE = 'Not saving: storage full'
+/** Shown when the browser refuses to store the save. */
 export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
 
 export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h' | 'world' | 'privacy' | 'account' | 'room'
@@ -166,7 +166,6 @@ interface Store {
   playback: { from: number } | null
 
   loadData: () => Promise<void>
-  /** Make sure these league packs are loaded and merged into the universe. */
   /** Load any of the given leagues not loaded yet, with every loaded league's classic seasons when `classic`. Resolves true when all of them are available. */
   ensureLeagues: (ids: string[], classic?: boolean) => Promise<boolean>
   /** Load the classic seasons of the loaded leagues; `quiet` drops the toast when they cannot load (a screen that only shows them). */
@@ -442,9 +441,16 @@ export function persistedState(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 
   return out
 }
 
+/** A parked game's compacted form, by the (frozen) game: a parked game is compacted once, not on every write. */
+const compactedParked = new WeakMap<Game, Game>()
+
 function persistedOf(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>) {
   const parked: Record<string, Game> = {}
-  for (const [slot, g] of Object.entries(s.parked)) parked[slot] = compactGame(g)
+  for (const [slot, g] of Object.entries(s.parked)) {
+    let c = compactedParked.get(g)
+    if (!c) compactedParked.set(g, (c = compactGame(g)))
+    parked[slot] = c
+  }
   return { game: s.game ? compactGame(s.game) : null, parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }
 }
 
@@ -523,7 +529,6 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
           }
         })
-      /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
       /**
        * A window drawn by an earlier engine (a season kicked off before a release): draw it again on this one, with the
        * reason, before anything plays the season again. True when it did.
@@ -535,6 +540,7 @@ export const useStore = create<Store>()(
         set({ toast: JANUARY_REDRAWN_NOTE })
         return true
       }
+      /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
       const closeWindow = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const before = get().game
         if (before?.phase !== 'january' || !before.quickJanuary) return
@@ -576,6 +582,8 @@ export const useStore = create<Store>()(
           get().recordResult()
         }
       }
+      /** A `simWeeksSoon` or `simToNextBigMatchSoon` is under way (the Dugout's own busy flag resets if it remounts). */
+      let simRunning = false
       /** League loads run one after another so two callers never overwrite each other's universe. */
       let pendingLoad: Promise<unknown> = Promise.resolve()
       /**
@@ -818,19 +826,21 @@ export const useStore = create<Store>()(
         },
         resumeGame: (slot) => {
           settleQuickSeason()
-          const { game: current, parked } = get()
-          const target = parked[slot]
+          const target = get().parked[slot]
           if (!target) return
-          const next = { ...parked }
-          delete next[slot]
-          if (current && current.phase !== 'summary') next[slotOf(current)] = current
           const ids = leaguesFor(target, (get().universe?.available ?? []).map((l) => l.id))
           // Load what the game needs before showing it, so the squad is never rendered against a half-loaded universe
           void get()
             .ensureLeagues(ids, needsClassic(target))
             .then((ok) => {
+              // The games as they are now: one started (or resumed) while the leagues loaded is parked, never dropped
+              const { game: current, parked } = get()
+              if (!ok || parked[slot] !== target) return
+              const next = { ...parked }
+              delete next[slot]
+              if (current && current.phase !== 'summary') next[slotOf(current)] = current
               // The assistant takes a resumed match's stops only under its own Auto-play, never because the last game had him on
-              if (ok) set({ game: target, parked: next, screen: 'game', digest: null, playback: null, liveAuto: assistantTakesStops(target) })
+              set({ game: target, parked: next, screen: 'game', digest: null, playback: null, liveAuto: assistantTakesStops(target) })
             })
         },
         discardParked: (slot) => {
@@ -1214,11 +1224,17 @@ export const useStore = create<Store>()(
         },
         simWeeksSoon: async (n, opts) => {
           const { game: g0, universe: u0 } = get()
-          if (!g0 || !u0) return
-          const out = await sliced(g0, u0, (box) => simWeeksSteps(box, u0, n), opts?.sliceMs ?? WEEK_SLICE_MS)
-          if (out === 'moved') return get().simWeeks(n)
-          if (out === 'failed') return
-          afterSimWeeks(digestSnapshot(g0), { game: out.next })
+          // One run at a time: a second tap would see the first's game as 'moved' and sim n weeks more
+          if (!g0 || !u0 || simRunning) return
+          simRunning = true
+          try {
+            const out = await sliced(g0, u0, (box) => simWeeksSteps(box, u0, n), opts?.sliceMs ?? WEEK_SLICE_MS)
+            if (out === 'moved') return get().simWeeks(n)
+            if (out === 'failed') return
+            afterSimWeeks(digestSnapshot(g0), { game: out.next })
+          } finally {
+            simRunning = false
+          }
         },
         simToEnd: () => get().simWeeks(40),
         simToNextBigMatch: () => {
@@ -1230,11 +1246,16 @@ export const useStore = create<Store>()(
         },
         simToNextBigMatchSoon: async (opts) => {
           const { game: g0, universe: u0 } = get()
-          if (!g0 || !u0) return
-          const out = await sliced(g0, u0, (box) => simToNextStopSteps(box, u0), opts?.sliceMs ?? WEEK_SLICE_MS)
-          if (out === 'moved') return get().simToNextBigMatch()
-          if (out === 'failed') return
-          afterSimToStop(out.value, { game: out.next })
+          if (!g0 || !u0 || simRunning) return
+          simRunning = true
+          try {
+            const out = await sliced(g0, u0, (box) => simToNextStopSteps(box, u0), opts?.sliceMs ?? WEEK_SLICE_MS)
+            if (out === 'moved') return get().simToNextBigMatch()
+            if (out === 'failed') return
+            afterSimToStop(out.value, { game: out.next })
+          } finally {
+            simRunning = false
+          }
         },
         closeMatch: () => {
           mutate((g, u) => (g.arena ? closeArenaMatch(g) : closeLiveMatch(g, u)))
