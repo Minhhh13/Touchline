@@ -296,7 +296,8 @@ describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
     }
     const pins: Record<string, string> = {
       'pin-1': '4444055295652043 3990114105311898 1925156832764192',
-      'pin-2': '6943731497980684 7821072090189927 2829385333339880',
+      // pin-2's odds (the third hash) re-baselined 2026-10-28 (r8 audit): the odds' day xG now bends under the engine's soft ceiling, not the 5.8 clamp; the games are unchanged
+      'pin-2': '6943731497980684 7821072090189927 1889723377007754',
       'pin-3': '6123748828687102 1977299536754919 7200968562615668',
     }
     for (const seed of Object.keys(pins)) {
