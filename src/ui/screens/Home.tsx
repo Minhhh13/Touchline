@@ -1,18 +1,21 @@
-import type { ReactNode } from 'react'
-import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
-import { useStore, todaysDailySeed, slotOf } from '@game/store'
+import { lazy, Suspense, useMemo, type ReactNode } from 'react'
+import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Dices, Flame, Globe, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
+import { todaysDailySeed, slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { dailyLoaded, dailyPlan, dailySettings } from '@game/logic/setup'
 import { resumeStatus } from '@game/logic/resume'
-import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
+import { dailyArenaGameSettings, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan } from '@game/logic/weekly'
-import { weeklyThemeName } from '@game/logic/weeklyThemes'
-import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
-import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
+import { weeklyThemeText as weeklyThemeName } from '../i18n/weeklyThemeText'
+import { arenaDailySeed, dailySeed as dailySeedOf, randomSeed, weeklySeed } from '@engine/rng'
+import { dailyNudge, personalBests, type Best } from '@game/logic/shareInvite'
+import { recordLabel } from '@game/logic/perfect'
+import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer, nextUpFor } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
+import { onlineAvailable } from '../../online/api'
 import { startingTeamName, teamShortName } from '../teamName'
 import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { useOnline } from '../../online/state'
-import { onlineAvailable } from '../../online/api'
 import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel, formationName } from '../format'
 import { TeamBadge } from '../components/bits'
@@ -25,6 +28,8 @@ import { home } from '../i18n/en/home'
 import { modeText } from '../i18n/modeText'
 
 const t = translator(home)
+/** The next-badge line reads the trophies' catalogue: its own chunk, out of the first download. */
+const HomeBadgeNudge = lazy(() => import('../components/HomeBadgeNudge'))
 import { askConfirm } from '../confirm'
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
@@ -32,14 +37,11 @@ function compact(n: number): string {
   return n >= 10_000 ? t('thousands', { n: Math.floor(n / 1000) }) : n.toLocaleString()
 }
 
-/** The card's picture is our own drawing (components/Art.tsx), with the mode's icon on the edge. */
-function ModeArt({ kind, icon: Icon }: { kind: ModeArtKind; icon: LucideIcon }) {
+/** The card's picture is our own drawing (components/Art.tsx). It used to carry the mode's icon on its edge too: one picture is enough. */
+function ModeArt({ kind }: { kind: ModeArtKind }) {
   return (
     <span className="mode-art">
       <ModeScene kind={kind} />
-      <span className="mode-icon">
-        <Icon size={20} />
-      </span>
     </span>
   )
 }
@@ -63,9 +65,9 @@ function GoLabel() {
   )
 }
 
-function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string; disabled?: boolean }) {
+function Tile({ icon: Icon, title, meta, onClick, testId, disabled, next }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string; disabled?: boolean; next?: boolean }) {
   return (
-    <button type="button" className="home-tile" onClick={onClick} data-testid={testId} disabled={disabled}>
+    <button type="button" className={`home-tile${next ? ' next-up' : ''}`} onClick={onClick} data-testid={testId} disabled={disabled}>
       <span className="tile-icon">
         <Icon size={20} />
       </span>
@@ -75,6 +77,16 @@ function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: Lu
         <span title={meta}>{meta}</span>
       </span>
     </button>
+  )
+}
+
+/** The marker on the one card Home points an early player to next (`nextUpFor`). */
+function NextUpChip() {
+  return (
+    <span className="chip next-up-chip" data-testid="next-up">
+      <Sparkles size={12} aria-hidden="true" />
+      {t('tryNext')}
+    </span>
   )
 }
 
@@ -117,7 +129,7 @@ function FirstRun({ ready, onPlay, onHowTo }: { ready: boolean; onPlay: () => vo
 }
 
 export function Home() {
-  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStorePick('universe', 'game', 'go', 'abandonGame', 'profile', 'parked', 'resumeGame', 'discardParked', 'loadedLeagues', 'startGame', 'openArenaSetup')
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
   const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
@@ -129,12 +141,19 @@ export function Home() {
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
   // The day's league rotates (engine 7, `dailyPlan`): its pack loads on the Daily's setup, so until then the card names the league and shape only
-  const dailyPlanToday = dailyPlan(todaysDailySeed())
   const dailyHere = dailyReady && dailyLoaded(loadedLeagues, todaysDailySeed())
   // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
-  const dailyStart = dailyHere ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
-  const dailyLocal = dailyHere && dailyStart?.source !== 'pinned' ? dailySettings(u, todaysDailySeed()) : null
-  const daily: { formationId: string; leagueId: string; season: number | null } | null = !dailyReady ? null : dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, leagueId: dailyStart.settings.leagueId, season: dailyStart.settings.leagueSeason } : dailyLocal ? { formationId: dailyLocal.formationId, leagueId: dailyLocal.leagueId, season: dailyLocal.season } : { formationId: dailyPlanToday.formationId, leagueId: dailyPlanToday.leagueId, season: null }
+  // Both scan every club-season, so they are worked out once per universe, day and pin, not on every render of Home
+  const dailySeed = todaysDailySeed()
+  const dailyStart = useMemo(() => (dailyHere && u ? dailyStartSettings(u, dailySeed, 'Touchline XI', pin) : null), [dailyHere, u, dailySeed, pin])
+  const daily = useMemo((): { formationId: string; leagueId: string; season: number | null } | null => {
+    if (!dailyReady || !u) return null
+    if (dailyStart?.source === 'pinned') return { formationId: dailyStart.settings.formationId, leagueId: dailyStart.settings.leagueId, season: dailyStart.settings.leagueSeason }
+    const local = dailyHere ? dailySettings(u, dailySeed) : null
+    if (local) return { formationId: local.formationId, leagueId: local.leagueId, season: local.season }
+    const plan = dailyPlan(dailySeed)
+    return { formationId: plan.formationId, leagueId: plan.leagueId, season: null }
+  }, [dailyReady, dailyHere, u, dailySeed, dailyStart])
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
   const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
   const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)
@@ -149,7 +168,6 @@ export function Home() {
     // The button opens the Daily setup, as the card does: the team name, today's puzzle, and Start Draft there
     go('setup', 'daily')
   }
-  const achievements = Object.keys(profile.achievements).length
   // The Daily Arena: today's run continues wherever it is (active or parked); any other unfinished arena run is only dropped on a yes
   const arenaSeed = arenaDailySeed()
   const arenaToday = dailyArenaSettings(arenaSeed)
@@ -178,14 +196,23 @@ export function Home() {
   }
   // A manager with nothing finished and nothing waiting gets the game in three steps and one button into a Quick Draft
   const newcomer = isNewcomer(profile, !!game || Object.keys(parked).length > 0)
+  // An early player (a first result in, a handful at most): the one card worth trying next is marked
+  const nextUp = newcomer ? null : nextUpFor(profile, { dailyPlayedToday: dailyDone, online: onlineAvailable() })
   // A finished game on the resume strip (a Dynasty's summary goes on to next year, so it is never finished here)
   const finishedHere = !!game && game.phase === 'summary' && game.settings.mode !== 'dynasty'
+  // Today's Daily as the current game shows on the Daily card itself (See the result, Continue), not twice on Home
+  const dailyIsGame = !!game && game.settings.mode === 'daily' && game.settings.seed === todaysDailySeed()
+  const stripGame = dailyIsGame ? null : game
   const playFirstDraft = () => {
     // The first draft takes an invented club name too (or one typed before), never Touchline XI
     const name = startingTeamName()
     const settings = u && dailyReady ? firstDraftSettings(u, randomSeed(), name) : null
     if (settings) withViewTransition(() => startGame({ ...settings, shortName: teamShortName(name) }))
   }
+  // A returning manager's own figures in the hero (the database's when there are none yet) and the reasons to come back
+  const bests = personalBests(profile, profile.dailyStreak > 0 ? 2 : 3)
+  const nudge = dailyNudge(profile, todaysDailySeed(), dailySeedOf(new Date(Date.now() - 86400000)))
+  const bestStat = (b: Best) => (b.id === 'record' ? recordLabel(b.won, b.drawn, b.lost) : String(b.n))
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? (streak ? t('streakDone', { done, n: streak }) : done) : streak ? t('streakFallback', { n: streak, fallback }) : fallback)
   return (
     <div className="page home">
@@ -203,7 +230,22 @@ export function Home() {
           ) : (
           <>
           <dl className="hero-stats" aria-live="polite">
-            {u ? (
+            {profile.dailyStreak > 0 || bests.length ? (
+              <>
+                {profile.dailyStreak > 0 && (
+                  <div data-testid="home-best-streak">
+                    <dt>{t('best_streak')}</dt>
+                    <dd>{profile.dailyStreak}</dd>
+                  </div>
+                )}
+                {bests.map((b) => (
+                  <div key={b.id} data-testid={`home-best-${b.id}`}>
+                    <dt>{t(`best_${b.id}`)}</dt>
+                    <dd>{bestStat(b)}</dd>
+                  </div>
+                ))}
+              </>
+            ) : u ? (
               <>
                 <div>
                   <dt>{t('playerSeasons')}</dt>
@@ -227,13 +269,16 @@ export function Home() {
               </div>
             )}
           </dl>
-          {u && (
-            <div className="row wrap hero-flags" role="group" aria-label={t('leagues')}>
-              {u.available.map((l) => (
-                <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
-              ))}
-            </div>
-          )}
+          {/* Why come back today: the Daily (a streak that ends tonight first) and the badge nearest its next tier */}
+          <div className="home-nudges" data-testid="home-nudges">
+            <span className={`home-nudge${nudge.kind === 'atRisk' ? ' hot' : ''}`} data-testid="daily-nudge" data-kind={nudge.kind}>
+              <Flame size={14} aria-hidden="true" />
+              {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
+            </span>
+            <Suspense fallback={null}>
+              <HomeBadgeNudge onOpen={() => go('profile')} />
+            </Suspense>
+          </div>
           </>
           )}
         </div>
@@ -241,9 +286,9 @@ export function Home() {
 
       <ConflictCards />
 
-      {(game || Object.keys(parked).length > 0) && (
-        <div className="resume-list" data-testid="resume-list" data-count={(game ? 1 : 0) + Object.keys(parked).length}>
-          {game && (
+      {(stripGame || Object.keys(parked).length > 0) && (
+        <div className="resume-list" data-testid="resume-list" data-count={(stripGame ? 1 : 0) + Object.keys(parked).length}>
+          {stripGame && game && (
             <div className="panel resume-card row between" data-testid="resume-current">
               <div className="row resume-who">
                 <TeamBadge code={game.settings.shortName} size={36} />
@@ -297,7 +342,7 @@ export function Home() {
 
       <div className="modes">
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
-          <ModeArt kind="quick" icon={Dices} />
+          <ModeArt kind="quick" />
           <span className="mode-text">
             <h3>{t('quickTitle')}</h3>
             <p>{t('quickLine')}</p>
@@ -307,11 +352,12 @@ export function Home() {
             <GoLabel />
           </span>
         </button>
-        <div className="mode-card daily" data-testid="daily-card">
+        <div className={`mode-card daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
           <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
-            <ModeArt kind="daily" icon={CalendarDays} />
+            <ModeArt kind="daily" />
             <span className="mode-text">
               <h3>{t('dailyTitle')}</h3>
+              {nextUp === 'daily' && <NextUpChip />}
               <p>{t('dailyLine')}</p>
               <span className="foot">
                 <TimeTag>{t('minutes', { n: 5 })}</TimeTag>
@@ -342,14 +388,33 @@ export function Home() {
               </span>
             </span>
           </button>
-          <button type="button" className={`btn block${newcomer || (dailyDone && !dailyUnderWay) ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
-            {t(!dailyReady ? 'loading' : dailyUnderWay ? 'continueDaily' : dailyDone ? 'playAgainFun' : 'playDaily')}
-          </button>
+          {dailyIsGame ? (
+            <div className="daily-actions">
+              <button type="button" className="btn primary" onClick={() => go('game')} data-testid="daily-play">
+                {t(finishedHere ? 'seeResult' : 'continueDaily')}
+              </button>
+              {/* A finished result is already in the record: clearing it loses nothing, so it asks nothing */}
+              {finishedHere ? (
+                <button type="button" className="btn ghost" onClick={() => abandonGame()} data-testid="resume-clear" title={t('clearTip')}>
+                  {t('clear')}
+                </button>
+              ) : (
+                <button type="button" className="btn danger ghost" onClick={() => void askConfirm(t('abandonConfirm'), { ok: t('abandon'), danger: true }).then((ok) => { if (ok) abandonGame() })} data-testid="resume-abandon">
+                  {t('abandon')}
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" className={`btn block${newcomer || (dailyDone && !dailyUnderWay) ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
+              {t(!dailyReady ? 'loading' : dailyUnderWay ? 'continueDaily' : dailyDone ? 'playAgainFun' : 'playDaily')}
+            </button>
+          )}
         </div>
-        <button className="mode-card" onClick={() => go('setup', 'season')}>
-          <ModeArt kind="season" icon={ClipboardList} />
+        <button className={`mode-card${nextUp === 'season' ? ' next-up' : ''}`} onClick={() => go('setup', 'season')} data-testid="season-card">
+          <ModeArt kind="season" />
           <span className="mode-text">
             <h3>{t('seasonTitle')}</h3>
+            {nextUp === 'season' && <NextUpChip />}
             <p>{t('seasonLine')}</p>
             <span className="foot">
               <TimeTag>{t('minutes', { n: 45 })}</TimeTag>
@@ -358,7 +423,7 @@ export function Home() {
           </span>
         </button>
         <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
-          <ModeArt kind="dynasty" icon={Crown} />
+          <ModeArt kind="dynasty" />
           <span className="mode-text">
             <h3>{t('dynastyTitle')}</h3>
             <p>{t('dynastyLine')}</p>
@@ -371,21 +436,21 @@ export function Home() {
       </div>
 
       {/* The casual modes: one sitting each, beside the four ways to play above */}
-      <div className="home-tiles casual" data-testid="casual-row" role="group" aria-label={t('moreWays')}>
-        <Tile icon={Zap} testId="arena-daily-card" title={t('arenaDaily')} meta={streakMeta(arenaDone ? t('playedLabel', { label: arenaDone.label }) : null, profile.arenaDaily?.streak, u ? dailyArenaLine(u, arenaToday) : t('sameDraw'))} onClick={playArenaDaily} disabled={!dailyReady} />
+      <h2 className="home-more eyebrow" id="home-more">{t('moreModes')}</h2>
+      <div className="home-tiles casual" data-testid="casual-row" role="group" aria-labelledby="home-more">
+        <Tile icon={Zap} testId="arena-daily-card" title={t('arenaDaily')} meta={streakMeta(arenaDone ? t('playedLabel', { label: arenaDone.label }) : null, profile.arenaDaily?.streak, u ? t(arenaToday.format === 'gauntlet' ? 'arenaDayGauntlet' : 'arenaDayCup', { size: arenaToday.size ?? 16, wheel: u.available.find((l) => l.id === arenaToday.leagueId)?.name ?? arenaToday.leagueId }) : t('sameDraw'))} onClick={playArenaDaily} disabled={!dailyReady} />
         <Tile icon={CalendarRange} testId="weekly-card" title={t('weeklyTitle')} meta={streakMeta(weekDone ? t('playedPoints', { n: weekDone.points }) : null, profile.weekly?.streak, weekPlan ? t('weekEnds', { theme: weeklyThemeName(weekPlan.theme) || t('thisWeek') }) : t('weeklyFallback'))} onClick={playWeekly} disabled={!u} />
         <Tile icon={Award} testId="arena-cup-card" title={t('cupTitle')} meta={t('cupMeta')} onClick={() => openArenaSetup('cup')} />
         <Tile icon={ChevronsUp} testId="arena-gauntlet-card" title={t('gauntletTitle')} meta={t('gauntletMeta')} onClick={() => openArenaSetup('gauntlet')} />
         <Tile icon={Timer} testId="runin-card" title={t('runinTitle')} meta={t('runinMeta')} onClick={() => go('setup', 'runin')} />
       </div>
 
-      <div className="home-tiles">
-        <Tile icon={Swords} title={t('h2hTitle')} meta={t('h2hMeta')} onClick={() => go('h2h')} />
-        {onlineAvailable() && <Tile icon={Globe} title={t('worldTitle')} meta={t('worldMeta')} onClick={() => go('world')} testId="world-card" />}
-        <Tile icon={Search} title={t('exploreTitle')} meta={u ? t('exploreMeta', { n: u.available.length }) : t('exploreFallback')} onClick={() => go('explore')} />
-        <Tile icon={Trophy} title={t('profileTitle')} meta={t('profileMeta', { seasons: profile.seasonsSimulated, achievements })} onClick={() => go('profile')} />
-        <Tile icon={BookOpen} title={t('howToTitle')} meta={t('howToMeta')} onClick={() => go('howto')} />
-      </div>
+      {/* The other screens live in the nav; the World board shows here only while it is an early player's next step */}
+      {onlineAvailable() && nextUp === 'boards' && (
+        <div className="home-tiles">
+          <Tile icon={Globe} title={t('worldTitle')} meta={t('worldNext')} onClick={() => go('world')} testId="world-card" next />
+        </div>
+      )}
       <p className="muted small" style={{ marginTop: 16, textAlign: 'center' }}>
         {t('footer')}{' '}
         <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="privacy-link">

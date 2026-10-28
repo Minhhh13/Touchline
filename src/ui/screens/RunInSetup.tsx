@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useStore, slotOf } from '@game/store'
+import { slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { RUN_IN_LEAGUES, runInCatalogue, suggestRunIns, type RunInJob, type RunInTemplate } from '@engine/scenario'
 import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
 import { randomSeed } from '@engine/rng'
 import { runInWeekSeed } from '@game/logic/runinWeekly'
-import { jobLine, RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, RUN_IN_TEMPLATE_LABEL, runInGameSettings, summariseRunIn } from '@game/logic/runin'
+import { RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, runInGameSettings, summariseRunIn } from '@game/logic/runin'
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, formationName, seasonLabel } from '../format'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
+import { jobText, templateText } from '../runInText'
 
 const t = translator(runin)
 
@@ -20,7 +22,7 @@ const keyOf = (j: RunInJob) => `${j.clubId}@${j.season}`
 
 /** Setup for a run-in: the brief, the league, three jobs drawn by the seed and the whole catalogue. Its own screen, so Setup.tsx stays untouched. */
 export function RunInSetup() {
-  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, startRunInWeek, showToast } = useStore()
+  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, startRunInWeek, showToast } = useStorePick('universe', 'startGame', 'go', 'ensureLeagues', 'loadingLeagues', 'loadedLeagues', 'game', 'parked', 'startRunInWeek', 'showToast')
   const [template, setTemplate] = useState<RunInTemplate>('survival')
   const [leagueId, setLeagueId] = useState<string>('england')
   const [seed, setSeed] = useState(() => randomSeed())
@@ -76,7 +78,7 @@ export function RunInSetup() {
         <span className="name">
           {clubName(u, j.clubId)} <span className="muted small">{seasonLabel(j.season)}</span>
         </span>
-        <span className="small muted">{jobLine(j)}</span>
+        <span className="small muted">{jobText(j)}</span>
       </span>
       <span className="chip">{RUN_IN_BRIEF_SHORT[j.template]}</span>
     </button>
@@ -116,9 +118,9 @@ export function RunInSetup() {
                     setPicked(null)
                   }}
                   options={[
-                    { value: 'title', label: RUN_IN_TEMPLATE_LABEL.title, hint: t('titleHint') },
-                    { value: 'europe', label: RUN_IN_TEMPLATE_LABEL.europe, hint: t('europeHint') },
-                    { value: 'survival', label: RUN_IN_TEMPLATE_LABEL.survival, hint: t('survivalHint') },
+                    { value: 'title', label: templateText('title'), hint: t('titleHint') },
+                    { value: 'europe', label: templateText('europe'), hint: t('europeHint') },
+                    { value: 'survival', label: templateText('survival'), hint: t('survivalHint') },
                   ]}
                 />
               </div>

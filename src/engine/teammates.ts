@@ -11,6 +11,7 @@
  * Pure and deterministic: no RNG. Memoised by universe and leagues.
  */
 import type { LoadedUniverse } from './universe'
+import { compareText } from './rng'
 
 /** Real player id -> the club-season keys (`clubId@season`) he appeared in. */
 export type TeammateIndex = Map<string, Set<string>>
@@ -62,5 +63,5 @@ export function sharedClubSeasons(u: LoadedUniverse, leagues: readonly string[] 
   if (!theirs) return []
   const shared = [...(index.get(a) ?? [])].filter((key) => theirs.has(key))
   const seasonOf = (key: string) => Number(key.slice(key.lastIndexOf('@') + 1))
-  return shared.sort((x, y) => seasonOf(y) - seasonOf(x) || x.localeCompare(y))
+  return shared.sort((x, y) => seasonOf(y) - seasonOf(x) || compareText(x, y))
 }

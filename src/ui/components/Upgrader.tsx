@@ -3,17 +3,18 @@ import type { PlayerSeason } from '@engine/types'
 import { UPGRADE_BOOSTS, upgradeChance, upgradeGain, upgradeLoss, type UpgradeBoost } from '@engine/upgrader'
 import type { Tier } from '@game/logic/rarity'
 import { Modal, Pos } from './bits'
-import { POWER_UP_INFO } from '@engine/powerups'
 import { PowerUpIcon } from './icons'
 import { PowerUpButton } from './PowerUpButton'
 import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound/synth'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { DIAL_FULL_MS, DIAL_HOLD_MS, DIAL_QUICK_MS, DIAL_REDUCED_MS, dialTravel, landingAngle, needleAngle, ticksPassed, upgraderAnnouncement } from '../upgradeDial'
 import { useFocusOnLanding } from '../a11y'
+import { prefersReducedMotion } from '../motion'
 import { SoundToggle } from './CaseReel'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
 import { rich, B } from '../i18n/rich'
+import { powerUpLine, powerUpTitle } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -30,14 +31,6 @@ export interface UpgradeShown {
   won: boolean
   delta: number
   locked?: boolean
-}
-
-function prefersReducedMotion(): boolean {
-  try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  } catch {
-    return false
-  }
 }
 
 const R = 96
@@ -317,7 +310,7 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
       </div>
       {/* The dial is a picture: the gamble and its verdict are said once each, from a region that stays mounted */}
       <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="upgrader-live">
-        {result && rolled ? upgraderAnnouncement({ name: resultPlayer?.name ?? 'Your player', chance: result.chance, boost: result.boost, landed, won: result.won, locked: !!result.locked, delta: result.delta, base: resultBase, hideRatings, roll: result.roll }) : ''}
+        {result && rolled ? upgraderAnnouncement({ name: resultPlayer?.name ?? t('yourPlayerCap'), chance: result.chance, boost: result.boost, landed, won: result.won, locked: !!result.locked, delta: result.delta, base: resultBase, hideRatings, roll: result.roll }) : ''}
       </span>
       <div className="tiny-note small muted">{t('inGameOnlyChance')}</div>
     </div>
@@ -350,7 +343,7 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
   return (
     <div className={tray ? 'pu-upgrader' : 'panel tight upg-panel'} data-testid="upgrader">
       {tray ? (
-        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? t(result.won ? 'statusWon' : result.locked ? 'statusLockHeld' : 'statusLost', { delta: result.delta }) : t('spinning')) : t(available ? 'ready' : 'draftAPlayer')} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
+        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={powerUpTitle('upgrader')} line={powerUpLine('upgrader')} status={result ? (done ? t(result.won ? 'statusWon' : result.locked ? 'statusLockHeld' : 'statusLost', { delta: result.delta }) : t('spinning')) : t(available ? 'ready' : 'draftAPlayer')} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
       ) : (
         <div className="row between">
           <div>

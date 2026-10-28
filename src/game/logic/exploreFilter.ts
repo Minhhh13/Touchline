@@ -1,11 +1,12 @@
 import type { PlayerSeason, Position } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { foldName } from './exploreSearch'
+import { foldName, playerIndex } from './exploreIndex'
+import { classicFromFor } from './era'
 
 /**
  * Explore's filtered search (display only, pure, no RNG): any mix of a name, a nation, a league, a position, an age
  * range, a rating range and a season range over every loaded player-season, one row per player (at his best matching
- * season) or one per season, sorted. The index behind it is built once per universe.
+ * season) or one per season, sorted. The index behind it (`playerIndex`, shared with the search) is built once per universe.
  */
 
 export type FilterSort = 'relevance' | 'rating' | 'age' | 'name' | 'season' | 'value'
@@ -52,54 +53,6 @@ export interface FilterResult {
 }
 
 export const FILTER_LIMIT = 200
-
-interface PlayerEntry {
-  playerId: string
-  seasons: PlayerSeason[]
-  name: string
-  folded: string[]
-  parts: string[][]
-  from: number
-  to: number
-  seasonCount: number
-  clubs: string[]
-}
-
-const indexCache = new WeakMap<LoadedUniverse, PlayerEntry[]>()
-
-/** One entry per real player, his seasons oldest first; built once per universe. */
-function playerIndex(u: LoadedUniverse): PlayerEntry[] {
-  const hit = indexCache.get(u)
-  if (hit) return hit
-  const by = new Map<string, PlayerSeason[]>()
-  for (const p of Object.values(u.index)) {
-    const list = by.get(p.playerId)
-    if (list) list.push(p)
-    else by.set(p.playerId, [p])
-  }
-  const out: PlayerEntry[] = []
-  for (const [playerId, list] of by) {
-    const seasons = [...list].sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
-    const names = [...new Set(seasons.map((p) => p.name))]
-    const folded = names.map(foldName)
-    const clubs: string[] = []
-    for (const p of seasons) if (!clubs.includes(p.clubId)) clubs.push(p.clubId)
-    out.push({
-      playerId,
-      seasons,
-      name: names.reduce((m, n) => (n.length > m.length ? n : m), names[0]),
-      folded,
-      parts: folded.map((n) => n.split(/[\s.'-]+/)),
-      from: seasons[0].season,
-      to: seasons[seasons.length - 1].season,
-      seasonCount: new Set(seasons.map((p) => p.season)).size,
-      clubs,
-    })
-  }
-  out.sort((a, b) => a.playerId.localeCompare(b.playerId))
-  indexCache.set(u, out)
-  return out
-}
 
 /** Whether a filter narrows anything: a name of two letters or more, or any other field set. */
 export function filterActive(f: PlayerFilter): boolean {
@@ -151,15 +104,20 @@ export function filterPlayers(u: LoadedUniverse, f: PlayerFilter): FilterResult 
   return { rows: hits.slice(0, f.limit ?? FILTER_LIMIT).map(({ rank: _rank, ...h }) => h), total: hits.length }
 }
 
-/** The nations of the loaded players, the most real players first (then by code): the nation picker's list. */
+const nationCache = new WeakMap<LoadedUniverse, Array<{ nation: string; players: number }>>()
+
+/** The nations of the loaded players, the most real players first (then by code): the nation picker's list; cached per universe. */
 export function nationCounts(u: LoadedUniverse): Array<{ nation: string; players: number }> {
-  const by = new Map<string, Set<string>>()
-  for (const p of Object.values(u.index)) {
-    const s = by.get(p.nationality)
-    if (s) s.add(p.playerId)
-    else by.set(p.nationality, new Set([p.playerId]))
+  const hit = nationCache.get(u)
+  if (hit) return hit
+  const by = new Map<string, number>()
+  for (const e of playerIndex(u)) {
+    // A player counts once per nation he is listed under in any of his seasons
+    for (const nation of new Set(e.seasons.map((p) => p.nationality))) by.set(nation, (by.get(nation) ?? 0) + 1)
   }
-  return [...by].map(([nation, s]) => ({ nation, players: s.size })).sort((a, b) => b.players - a.players || a.nation.localeCompare(b.nation))
+  const out = [...by].map(([nation, players]) => ({ nation, players })).sort((a, b) => b.players - a.players || a.nation.localeCompare(b.nation))
+  nationCache.set(u, out)
+  return out
 }
 
 /** A number field's text as a filter bound: blank (or not a number) is no bound. */
@@ -203,4 +161,13 @@ export function formFilter(f: SearchForm): PlayerFilter {
   if (minRating !== undefined) out.minRating = minRating
   if (maxRating !== undefined) out.maxRating = maxRating
   return out
+}
+
+/**
+ * The Top view's season filter after a move to another league: kept when that league shows it, otherwise every season
+ * (a classic season picked in England is not on Spain's list, and the view would say "No players match").
+ */
+export function seasonFilterIn(u: LoadedUniverse, leagueId: string, season: 'all' | number): 'all' | number {
+  if (season === 'all') return 'all'
+  return season < (classicFromFor(u, [leagueId]) ?? u.firstSeason) || season > u.lastSeason ? 'all' : season
 }

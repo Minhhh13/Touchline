@@ -3,7 +3,7 @@
  * every window, a market of real player-seasons from any era opens with asking
  * prices that move with form, age, demand and the clock.
  */
-import type { PlayerSeason, Position, SquadPlayer } from './types'
+import type { PlayerSeason, SquadPlayer } from './types'
 import type { Rng } from './rng'
 import { poolClubSeasons, type LoadedUniverse } from './universe'
 import { acceptsStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from './status'
@@ -275,6 +275,8 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
     const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0) + (listed ? 0.6 : 0) + (shopped ? SHOPPED_BOOST : 0)
     if (desirability <= 0) continue
     if (rng.chance((listed || shopped ? 0.12 : 0.05) * desirability)) {
+      // No other club in the league, no buyer (the roll is still made, so every other day draws as it did)
+      if (!clubsInLeague.length) continue
       const { price } = askingPrice(p, ctx, state)
       const amount = roundM(price * rng.float(0.75, 1.1))
       const fromClubId = rng.pick(clubsInLeague)
@@ -500,16 +502,3 @@ export function afterSeasonMoney(budget: number, net: number): number {
 
 /** The Continental Cup's money by the stage reached (GBP millions); engine 6 (4, 8, 15, 25 and 45 before), and engine 7's group stage (G) pays as the round of 16 did. */
 export const CONTINENTAL_PRIZE: Readonly<Record<string, number>> = { G: 2, R16: 2, QF: 4, SF: 7, F: 11, W: 18 }
-
-export const POSITION_NEEDS: Record<Position, string> = {
-  GK: 'a goalkeeper',
-  CB: 'a centre-back',
-  LB: 'a left-back',
-  RB: 'a right-back',
-  DM: 'a holding midfielder',
-  CM: 'a central midfielder',
-  AM: 'a creative midfielder',
-  LW: 'a left winger',
-  RW: 'a right winger',
-  ST: 'a striker',
-}

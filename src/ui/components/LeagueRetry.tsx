@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { useStore } from '@game/store'
-import { LEAGUE_MISSING_LINE, gateLabel, leagueGate, type LeagueGate } from '@game/logic/leagueLoad'
+import { leagueGate, type LeagueGate } from '@game/logic/leagueLoad'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
 
@@ -24,7 +24,7 @@ export function LeagueRetry({ needs, classic = false }: { needs: string[]; class
   if (!missing) return null
   return (
     <div className="league-retry" role="status" data-testid="league-retry">
-      <span className="small muted">{LEAGUE_MISSING_LINE}</span>
+      <span className="small muted">{t('leagueMissingLine')}</span>
       <button type="button" className="btn sm" onClick={() => void ensureLeagues(needs, classic)} data-testid="league-retry-btn">
         <RefreshCw size={14} aria-hidden="true" /> {t('retry')}
       </button>
@@ -45,5 +45,10 @@ export function useLeagueGate(needs: string[], classic = false): LeagueGate {
 /** A waiting start button's words: "Loading league data…", or "Not downloaded: connect to load it" once a load failed. */
 export function LeagueWait({ needs, classic = false }: { needs: string[]; classic?: boolean }) {
   const gate = useLeagueGate(needs, classic)
-  return <>{gateLabel(gate === 'ready' ? 'loading' : gate, '')}</>
+  return <>{gateText(gate)}</>
+}
+
+/** A waiting start button's words (`gateLabel` in leagueLoad.ts) in the viewer's language. */
+export function gateText(gate: LeagueGate): string {
+  return gate === 'missing' ? t('leagueMissing') : t('loadingLeagues')
 }

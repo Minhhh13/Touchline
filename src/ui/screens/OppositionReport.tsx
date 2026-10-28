@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Bandage, ChevronDown } from 'lucide-react'
-import { useStore } from '@game/store'
-import { staffTier } from '@engine/staff'
+import { useStorePick } from '../useStorePick'
 import { seasonTable, type AiClub } from '@engine/season'
-import { opponentInput } from '@game/logic/squadDisplay'
-import { computeTeamStrength } from '@engine/ratings'
+import type { PlayerSeason } from '@engine/types'
+import { scoutOpposition, type OppositionTip } from '@game/logic/oppositionReport'
 import { STYLE_LABEL } from '@engine/tactics'
 import { FormDots, Rating, Pos } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
@@ -13,41 +12,48 @@ import { dugout } from '../i18n/en/dugout'
 
 const t = translator(dugout)
 
+/** One of the assistant's notes in words. */
+function tipText(n: OppositionTip, weak: PlayerSeason | undefined): string {
+  switch (n) {
+    case 'slowCbs':
+      return t('tipSlowCbs')
+    case 'nervy':
+      return t('tipNervy')
+    case 'composed':
+      return t('tipComposed')
+    case 'technical':
+      return t('tipTechnical')
+    case 'counter':
+      return t('tipCounter')
+    case 'deep':
+      return t('tipDeep')
+    case 'frontHeavy':
+      return t('tipFrontHeavy')
+    case 'drilled':
+      return t('tipDrilled')
+    case 'weakLink':
+      return t('tipWeakLink', { name: weak?.name ?? '', overall: weak?.overall ?? 0, pos: weak?.positions[0] ?? '' })
+  }
+}
+
 /**
  * Scouting summary of the next opponent with a suggested approach. A league
  * or Continental opponent is found in the season; an arena opponent is passed
  * in as `club` with its `aiOffset`, and has no table position or form.
  */
 export function OppositionReport({ clubId, home, club: given, aiOffset, neutral, open }: { clubId: string; home: boolean; club?: AiClub; aiOffset?: number; neutral?: boolean; /** Start open whatever the window (the Dugout's Next match tab, where it is the subject). */ open?: boolean }) {
-  const { universe: u, game, setMarkTarget } = useStore()
+  const { universe: u, game, setMarkTarget } = useStorePick('universe', 'game', 'setMarkTarget')
   // Open on a tall desktop; folded on a phone or a short window, where it would push the squad out of sight
   const [startOpen] = useState(() => !!open || typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px) and (min-height: 900px)').matches)
   const data = useMemo(() => {
     if (!u || !game || (!game.season && !given)) return null
     const club = given ?? game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]
     if (!club) return null
-    const input = opponentInput(game, u, club, aiOffset ?? game.season?.aiOffset ?? 0)
-    const strength = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
-    const xi = Object.values(input.lineup).map((id) => u.index[id]).filter(Boolean)
-    const stars = [...xi].sort((a, b) => b.overall - a.overall).slice(0, 3)
-    const weak = staffTier(game.staff, 'scout') >= 2 ? [...xi].filter((p) => p.positions[0] !== 'GK').sort((a, b) => a.overall - b.overall)[0] : undefined
+    const { strength, stars, weak, injured, tips: notes } = scoutOpposition(game, u, club, aiOffset ?? game.season?.aiOffset ?? 0)
     const table = game.season && !given ? seasonTable(game.season) : []
     const row = table.find((r) => r.teamId === clubId) ?? { teamId: clubId, points: 0, form: [] as Array<'W' | 'D' | 'L'> }
     const pos = table.indexOf(row as (typeof table)[number]) + 1
-    const injured = club.squad.filter((id) => club.state[id]?.injury).length
-    const cbPace = xi.filter((p) => p.positions[0] === 'CB').reduce((s, p) => s + p.attributes.pace, 0) / Math.max(1, xi.filter((p) => p.positions[0] === 'CB').length)
-    const midPassing = xi.filter((p) => ['DM', 'CM', 'AM'].includes(p.positions[0])).reduce((s, p) => s + p.attributes.passing, 0) / Math.max(1, xi.filter((p) => ['DM', 'CM', 'AM'].includes(p.positions[0])).length)
-    const composure = xi.reduce((s, p) => s + p.attributes.mentality, 0) / Math.max(1, xi.length)
-    const tips: string[] = []
-    if (cbPace < 72) tips.push(t('tipSlowCbs'))
-    if (composure < 72) tips.push(t('tipNervy'))
-    else if (composure > 80) tips.push(t('tipComposed'))
-    if (midPassing > 80) tips.push(t('tipTechnical'))
-    if (club.tactics.passing === 'direct' && club.tactics.tempo === 'fast') tips.push(t('tipCounter'))
-    if (club.tactics.mentality === 'defensive') tips.push(t('tipDeep'))
-    if (strength.attack > strength.defence + 4) tips.push(t('tipFrontHeavy'))
-    if (strength.defence > strength.attack + 4) tips.push(t('tipDrilled'))
-    if (weak) tips.push(t('tipWeakLink', { name: weak.name, overall: weak.overall, pos: weak.positions[0] }))
+    const tips = notes.map((n) => tipText(n, weak))
     return { club, strength, stars, row, pos, injured, tips }
   }, [u, game, clubId, given, aiOffset])
   if (!u || !data) return null

@@ -945,7 +945,8 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
 
   // Transfer window: opens at the halfway point; three market days pass per matchweek, so it shuts three matchweeks later
   if (mw === Math.floor(season.matchweeks / 2) && !game.window) {
-    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game), ...withFloors(game) }, 'january')
+    // A Dynasty's retired men are never listed (as the summer window, the market and the scouts bar them); nothing else holds any
+    game.window = openWindow({ u, rng, ownedPlayerIds: new Set([...squadPlayers(game, u).map((x) => x.p.playerId), ...(game.retiredPlayers ?? [])]), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game), ...withFloors(game) }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {

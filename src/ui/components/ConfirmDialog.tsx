@@ -1,6 +1,10 @@
 import { useId, useRef } from 'react'
 import { answerConfirm, useConfirmRequest } from '../confirm'
 import { useDialog } from '../useDialog'
+import { translator } from '../i18n'
+import { common } from '../i18n/en/common'
+
+const t = translator(common)
 
 /**
  * The game's yes-or-no dialog (`askConfirm` in confirm.ts), mounted once in App.tsx. The yes button takes the focus,
@@ -22,10 +26,10 @@ export function ConfirmHost() {
         </p>
         <div className="row confirm-actions">
           <button type="button" className="btn ghost" onClick={no} data-testid="confirm-cancel">
-            {req.cancel}
+            {req.cancel ?? t('cancel')}
           </button>
           <button type="button" className={`btn ${req.danger ? 'danger' : 'primary'}`} onClick={() => answerConfirm(req.id, true)} data-testid="confirm-ok">
-            {req.ok}
+            {req.ok ?? t('ok')}
           </button>
         </div>
       </div>

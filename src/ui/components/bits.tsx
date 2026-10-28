@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react'
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { Position } from '@engine/types'
 import { POSITION_GROUP } from '@engine/positions'
 import { inkOn, ratingBand } from '../format'
 import { useStore } from '@game/store'
-import { tipSeen, type TipId } from '@game/logic/tips'
+import { tipInTurn, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
+import { SHEET_DRAG_START, sheetCloses, sheetOffset } from '../sheetDrag'
 import { onTabListKey, resultsLabel } from '../a11y'
 import { playSound } from '../sound/synth'
 import { toastTone } from '../sound/cues'
@@ -16,6 +17,8 @@ import { translator } from '../i18n'
 import { common } from '../i18n/en/common'
 
 const t = translator(common)
+// The tab strip's own `t` (a tab) shadows the translator inside it
+const tc = translator(common)
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -114,10 +117,12 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId, cla
   const boxRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   useDialog(backRef, boxRef, open, onClose)
+  const drag = useSheetDrag(boxRef, onClose)
   if (!open) return null
   return (
     <div ref={backRef} className={`modal-back ${sheet ? 'sheet-back' : ''}`} onClick={onClose}>
-      <div ref={boxRef} className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} data-testid={testId}>
+      <div ref={boxRef} className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} data-testid={testId} {...drag}>
+        {onClose && <div className="sheet-grip" aria-hidden="true" data-testid="sheet-grip" />}
         {title && (
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
@@ -132,6 +137,41 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId, cla
       </div>
     </div>
   )
+}
+
+/** A phone's bottom sheet can be pulled down from its grip or its header to close (sheetDrag.ts decides when) */
+function useSheetDrag(boxRef: RefObject<HTMLDivElement | null>, onClose?: () => void) {
+  const start = useRef<{ id: number; y: number; t: number; dragging: boolean } | null>(null)
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const box = boxRef.current
+    if (!onClose || !box || e.button !== 0 || typeof window === 'undefined' || !window.matchMedia('(max-width: 720px)').matches) return
+    const target = e.target as HTMLElement
+    if (!target.closest('.sheet-grip, .modal > .panel-head') || target.closest('button, a, input, select, textarea, [role=tab]')) return
+    start.current = { id: e.pointerId, y: e.clientY, t: e.timeStamp, dragging: false }
+  }
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = start.current
+    const box = boxRef.current
+    if (!s || !box || s.id !== e.pointerId) return
+    const dy = e.clientY - s.y
+    if (!s.dragging) {
+      if (dy < SHEET_DRAG_START) return
+      s.dragging = true
+      box.setPointerCapture?.(e.pointerId)
+      box.classList.add('dragging')
+    }
+    box.style.transform = `translateY(${sheetOffset(dy)}px)`
+  }
+  const onPointerEnd = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = start.current
+    const box = boxRef.current
+    start.current = null
+    if (!s || !box || s.id !== e.pointerId || !s.dragging) return
+    box.classList.remove('dragging')
+    box.style.transform = ''
+    if (e.type === 'pointerup' && sheetCloses(e.clientY - s.y, e.timeStamp - s.t, box.getBoundingClientRect().height)) onClose?.()
+  }
+  return { onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd }
 }
 
 /** Slides up from the bottom, and for its last 220 ms slides away before it clears. */
@@ -295,7 +335,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, className = '', 
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} className={t.id === value ? 'active' : ''} onClick={() => { if (t.id !== value) playSound({ id: 'tab' }); onChange(t.id) }} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
-            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={`${t.badge} new`}>
+            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={tc('newBadge', { n: t.badge })}>
               {t.badge > 99 ? '99+' : t.badge}
             </span>
           ) : (
@@ -342,20 +382,54 @@ function useTabInk(value: string, count: number) {
   return { ref, style, ready }
 }
 
+/** The coach marks on screen now (mounted, seen or not), so only one shows at a time (`tipInTurn`). */
+let mountedTips: readonly TipId[] = []
+const tipListeners = new Set<() => void>()
+const tipsOnScreen = {
+  add(id: TipId) {
+    mountedTips = [...mountedTips, id]
+    tipListeners.forEach((f) => f())
+  },
+  remove(id: TipId) {
+    const i = mountedTips.indexOf(id)
+    if (i < 0) return
+    mountedTips = [...mountedTips.slice(0, i), ...mountedTips.slice(i + 1)]
+    tipListeners.forEach((f) => f())
+  },
+  subscribe(f: () => void) {
+    tipListeners.add(f)
+    return () => void tipListeners.delete(f)
+  },
+  get: () => mountedTips,
+}
+
 /**
  * A coach mark: a short callout inline in the page flow, shown until its 'Got it'
  * is pressed (remembered on the profile). Never an overlay, never blocks a button.
+ * One at a time: a second tip on screen waits until the first is dismissed or leaves.
+ * 'No more tips' dismisses all eight at once (Profile's 'Show tips again' brings them back).
  */
 export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
-  const seen = useStore((s) => tipSeen(s.profile, id))
+  const mounted = useSyncExternalStore(tipsOnScreen.subscribe, tipsOnScreen.get, tipsOnScreen.get)
+  const shown = useStore((s) => tipInTurn(s.profile, mounted) === id)
   const dismiss = useStore((s) => s.dismissTip)
-  if (seen) return null
+  const dismissAll = useStore((s) => s.dismissAllTips)
+  useEffect(() => {
+    tipsOnScreen.add(id)
+    return () => tipsOnScreen.remove(id)
+  }, [id])
+  if (!shown) return null
   return (
     <div className="tip" role="note" data-testid={`tip-${id}`}>
       <span className="tip-text">{children}</span>
-      <button type="button" className="btn sm" onClick={() => dismiss(id)}>
-        {t('gotIt')}
-      </button>
+      <span className="tip-actions">
+        <button type="button" className="btn sm" onClick={() => dismiss(id)} data-testid="tip-got-it">
+          {t('gotIt')}
+        </button>
+        <button type="button" className="linklike small" onClick={() => dismissAll()} data-testid="tip-no-more">
+          {t('noMoreTips')}
+        </button>
+      </span>
     </div>
   )
 }

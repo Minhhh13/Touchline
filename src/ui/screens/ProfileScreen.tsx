@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
-import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { Award, CalendarDays, ChevronsUp, Crown, Download, Flame, Gem, Lock, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload } from 'lucide-react'
+import { exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { persistLine, usePersistState } from '../persistStorage'
 import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
 import { TrophyShelf, type ShelfTrophy } from '../components/TrophyShelf'
-import { BadgeCheck, BrickWall, CalendarCheck, CalendarClock, Footprints, Heart, Hourglass, Layers, Link as LinkIcon, Moon, Mountain, PiggyBank, Route, ScrollText, Users, Zap } from 'lucide-react'
+import { trophyIcon } from '../trophyIcons'
+import { useTrophyReveal } from '../trophyReveal'
+import { ChaseBlock } from '../components/BadgeUnlocks'
+import { trophyItems } from '@game/logic/trophyChase'
+import { BadgeCheck } from 'lucide-react'
 import { milestonesEarned, milestoneStates } from '@game/logic/milestoneBadges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
@@ -21,7 +26,7 @@ import { ClubBadge, Flag, Info, Segmented, Stat, TeamBadge } from '../components
 import { shortNameFor } from '@game/logic/setup'
 import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
-import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
+import { POWER_UPS } from '@engine/powerups'
 import { lockerCount } from '@game/logic/endCase'
 import { AchievementIcon, PowerUpIcon } from '../components/icons'
 import { clubName, fixed, ordinal, seasonLabel, tierName } from '../format'
@@ -31,6 +36,7 @@ import { AccountLink } from '../online/AccountPanel'
 import { errorReportsChanged, onlineAvailable } from '../../online/api'
 import { errorReportsOn, setErrorReportsOn } from '../../online/core/errorPref'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
+import { nextBadge } from '@game/logic/shareInvite'
 import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
 import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoundOn } from '../sound/prefs'
 import { playSound } from '../sound/synth'
@@ -43,6 +49,8 @@ import { translator } from '../i18n'
 import { profile as profileText } from '../i18n/en/profile'
 import { arenaFormatText, modeTitle } from '../i18n/modeText'
 import { languageOptions, LOCALE_NAMES, setLanguage, useLanguage } from '../i18n/language'
+import { powerUpTitle } from '../i18n/engineText'
+import { tierText } from '../i18n/tierText'
 
 const t = translator(profileText)
 
@@ -66,45 +74,6 @@ function readFilter(): BoardFilter {
   }
 }
 
-/** The Trophy Room's badges drawn as Lucide icons (the badge's emoji stays as data, for the manager card). */
-const BADGE_ICON: Record<string, LucideIcon> = {
-  'serial-winner': Trophy,
-  centurion: Target,
-  perfectionist: Gem,
-  'cup-collector': Medal,
-  globetrotter: Compass,
-  international: FlagIcon,
-  'grounds-tour': Landmark,
-  regular: CalendarDays,
-  'sunday-league': CalendarRange,
-  ironman: ChevronsUp,
-  'giant-killer': Axe,
-  'survival-artist': LifeBuoy,
-}
-
-/** The Trophy Room's milestones (`milestoneBadges.ts`), one Lucide icon each. */
-const MILESTONE_ICON: Record<string, LucideIcon> = {
-  invincibles: Shield,
-  'treble-winners': Crown,
-  'double-act': Layers,
-  'continental-kings': Globe,
-  'winning-machine': Zap,
-  decade: Hourglass,
-  'old-school': ScrollText,
-  moneyball: PiggyBank,
-  'perfect-day': CalendarCheck,
-  summit: Mountain,
-  'long-road': Route,
-  'under-the-lights': Moon,
-  'hot-seat': Users,
-  'old-hand': CalendarClock,
-  completist: BadgeCheck,
-  'golden-boot': Footprints,
-  'the-wall': BrickWall,
-  'chain-gang': LinkIcon,
-  loyalty: Heart,
-}
-
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
   // Downloaded; shared where a download goes nowhere (an iOS home-screen app or web view: saveFile.ts)
@@ -112,7 +81,7 @@ function exportSave(): void {
 }
 
 export function ProfileScreen() {
-  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
+  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStorePick('profile', 'universe', 'go', 'setManagerName', 'setTheme', 'showToast', 'resetTips')
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
   const [draftSound, setDraftSound] = useDraftSoundOn()
@@ -157,8 +126,18 @@ export function ProfileScreen() {
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
   const milestones = milestoneStates({ cabinet, profile })
+  // The badge nearest its next tier: the Trophy Room points at it, as Home does
+  const chase = nextBadge(badges)
   // A badge or tier earned since this viewer last looked: the medal's ring, once
   useBadgeSound([...badges, ...milestones].flatMap((b) => (b.tier ? [`${b.badge.id}:${b.tier}`] : [])))
+  // Unlocks this viewer has not seen: marked New while the page is open, then filed as seen
+  const trophyList = trophyItems(badges, milestones)
+  const reveal = useTrophyReveal(trophyList)
+  const [newIds] = useState(() => new Set(reveal.fresh.map((i) => i.id)))
+  const markTrophiesSeen = reveal.markSeen
+  useEffect(() => {
+    markTrophiesSeen()
+  }, [markTrophiesSeen])
   const career = careerOverview(profile, cabinet)
   const [achView, setAchView] = useState<AchievementView>('all')
   const achievements = orderAchievements(ACHIEVEMENTS, profile.achievements, achView)
@@ -238,10 +217,10 @@ export function ProfileScreen() {
   // The cabinet's season shelf, then the arena's and the run-in's own (never counted as league titles or cups)
   // The four big ones stand drawn on the shelf; every other count is a plaque beneath it
   const shelf: ShelfTrophy[] = [
-    { kind: 'league', label: 'League titles', n: cabinet.league },
-    { kind: 'cup', label: 'Cups', n: cabinet.cup },
-    { kind: 'continental', label: 'Continental Cups', n: cabinet.continental },
-    { kind: 'treble', label: 'Trebles', n: cabinet.trebles },
+    { kind: 'league', label: t('shelfLeague'), n: cabinet.league },
+    { kind: 'cup', label: t('shelfCups'), n: cabinet.cup },
+    { kind: 'continental', label: t('shelfContinental'), n: cabinet.continental },
+    { kind: 'treble', label: t('shelfTrebles'), n: cabinet.trebles },
   ]
   const trophies: Array<[ReactNode, string, number]> = [
     [<><Trophy size={22} /><Trophy size={22} /></>, t('doubles'), cabinet.doubles],
@@ -339,7 +318,7 @@ export function ProfileScreen() {
                   ? POWER_UPS.filter((k) => lockerCount(profile, k) > 0).map((k, i) => (
                       <span key={k} className="case-odds-item">
                         {i > 0 && ' · '}
-                        <PowerUpIcon kind={k} size={13} /> {POWER_UP_INFO[k].title} ×{lockerCount(profile, k)}
+                        <PowerUpIcon kind={k} size={13} /> {powerUpTitle(k)} ×{lockerCount(profile, k)}
                       </span>
                     ))
                   : t('lockerEmpty')}
@@ -375,7 +354,7 @@ export function ProfileScreen() {
                       <span className="honour-main">
                         <b>{honourLabel(h.kind, h.cups)}</b> <span className="small muted">{honourDetail(h.cups)}</span>
                         <span className="honour-meta small muted">
-                          {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {modeTitle(h.mode) ?? h.mode}
+                          {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {modeTitle(h.mode)}
                           {h.date && <> · <span className="nowrap">{h.date}</span></>}
                         </span>
                       </span>
@@ -402,20 +381,27 @@ export function ProfileScreen() {
                 <Download size={16} aria-hidden="true" /> {t('managerCard')}
               </button>
             </div>
+            <ChaseBlock items={trophyList} n={3} />
             <div className="badges">
               {badges.map((b) => {
-                const Icon = BADGE_ICON[b.badge.id] ?? Award
+                const Icon = trophyIcon('badge', b.badge.id)
+                const isNew = newIds.has(b.badge.id)
                 return (
-                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${badgeTitle(b.badge)}: ${badgeCount(b.badge, b.value)}`}>
-                    <span className={`badge-ring ${b.tier ?? ''}`}>
+                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}${chase?.state.badge.id === b.badge.id ? ' next' : ''}${isNew ? ' fresh' : ''}`} data-testid="badge" data-tier={b.tier ?? 'none'} data-next={chase?.state.badge.id === b.badge.id ? 'yes' : undefined} title={`${badgeTitle(b.badge)}: ${badgeCount(b.badge, b.value)}`}>
+                    <span className={`badge-ring ${b.tier ?? ''}${isNew ? ' unlock-medal' : ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
                     <span>
-                      <div className="title">{badgeTitle(b.badge)}</div>
+                      <div className="title">{badgeTitle(b.badge)}{isNew && <span className="chip info new-chip">{t('newChip')}</span>}</div>
                       <div className="desc">
                         {badgeCount(b.badge, b.value)}
                       </div>
                       <div className="small muted">{b.tier ? t('tierProgress', { tier: t(`tier_${b.tier}`), progress: progressText(b.badge.tiers, b.value) }) : progressText(b.badge.tiers, b.value)}</div>
+                      {chase?.state.badge.id === b.badge.id && (
+                        <span className="chip info badge-next" data-testid="badge-next">
+                          {t('nextBadge')}
+                        </span>
+                      )}
                     </span>
                   </div>
                 )
@@ -427,16 +413,17 @@ export function ProfileScreen() {
             </h4>
             <div className="badges milestones">
               {milestones.map((m) => {
-                const Icon = MILESTONE_ICON[m.badge.id] ?? Award
+                const Icon = trophyIcon('milestone', m.badge.id)
                 const label = milestoneCount(m.badge, m.value)
                 const progress = progressText(m.badge.tiers, m.value, m.stamp)
+                const isNew = newIds.has(m.badge.id)
                 return (
-                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${milestoneTitle(m.badge)}: ${label}${m.badge.fromBoard ? t('fromBoard') : ''}`}>
-                    <span className={`badge-ring ${m.tier ?? ''}`}>
+                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}${isNew ? ' fresh' : ''}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${milestoneTitle(m.badge)}: ${label}${m.badge.fromBoard ? t('fromBoard') : ''}`}>
+                    <span className={`badge-ring ${m.tier ?? ''}${isNew ? ' unlock-medal' : ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
                     <span className="milestone-text">
-                      <div className="title">{milestoneTitle(m.badge)}</div>
+                      <div className="title">{milestoneTitle(m.badge)}{isNew && <span className="chip info new-chip">{t('newChip')}</span>}</div>
                       <div className="desc">{label}</div>
                       <div className="small muted">{m.tier && !m.stamp ? t('tierProgress', { tier: t(`tier_${m.tier}`), progress }) : m.stamp ? (m.tier ? t('earned') : progress) : progress}</div>
                       {!m.stamp && m.tier !== 'gold' && (
@@ -701,7 +688,7 @@ export function ProfileScreen() {
                             {e.won}-{e.drawn}-{e.lost}
                           </td>
                           <td>
-                            {tierName(e.tier, e.position, e.superLeague)}
+                            {tierText(e.tier, e.position, e.superLeague)}
                             <div className="small muted">{ordinal(e.position)}</div>
                           </td>
                         </tr>

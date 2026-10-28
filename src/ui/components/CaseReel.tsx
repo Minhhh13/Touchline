@@ -3,7 +3,7 @@ import { Volume2, VolumeX } from 'lucide-react'
 import type { ClubSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DRUM_LAND, dealReel, idleCards, type ReelCard, type ReelDeal } from '@game/logic/reel'
-import { DISPLAY_TIER_INFO, tierName, type DisplayTier } from '@game/logic/rarity'
+import type { DisplayTier } from '@game/logic/rarity'
 import { ICONS_SEASON } from '@engine/icons'
 import { clubName, seasonLabel, textColourFor } from '../format'
 import { NeonFlow } from './Art'
@@ -15,6 +15,7 @@ import { FULL_TIMING, OVERSHOOT, QUICK_TIMING, reelKeyframes, reelPosition, type
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
+import { reelTierName, tierColour, tierWord } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -71,14 +72,14 @@ export function SoundToggle() {
 export function TierChip({ tier }: { tier: DisplayTier }) {
   return (
     <span className="tier-chip" data-tier={tier} data-testid="tier-chip">
-      {tierName(tier)}
+      {reelTierName(tier)}
     </span>
   )
 }
 
 /** A dot in the tier colour, for the draft log. */
 export function TierDot({ tier }: { tier: DisplayTier }) {
-  return <span className="tier-dot" data-tier={tier} role="img" aria-label={tierName(tier)} title={tierName(tier)} />
+  return <span className="tier-dot" data-tier={tier} role="img" aria-label={reelTierName(tier)} title={reelTierName(tier)} />
 }
 
 /** A season on the drum: "2017-18", or "Icons" for Gamble mode's Icons spin. */
@@ -293,7 +294,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
   const iconsSpin = tier === 'icons'
   const club = iconsSpin ? t('iconsCollection') : clubName(u, deal.target.clubId)
   const seasonText = iconsSpin ? t('iconsSpin') : t('seasonAnnounce', { season: seasonLabel(deal.season), twist: twist ? `, ${twist}` : '' })
-  const landedText = iconsSpin ? t('iconsLanded') : `${club} ${seasonLabel(deal.season)}: ${DISPLAY_TIER_INFO[tier].colour}, ${DISPLAY_TIER_INFO[tier].label}`
+  const landedText = iconsSpin ? t('iconsLanded') : `${club} ${seasonLabel(deal.season)}: ${tierColour(tier)}, ${tierWord(tier)}`
   useLayoutEffect(() => {
     announce(stage === 'landed' ? landedText : seasonOut ? seasonText : '')
   }, [announce, stage, seasonOut, seasonText, landedText])

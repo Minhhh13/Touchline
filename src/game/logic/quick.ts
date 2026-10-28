@@ -525,7 +525,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
 }
 
 /** Every achievement a quick season can unlock (`runQuickSeason` works them out again on each run). */
-export const QUICK_UNLOCKS: readonly string[] = ['quick-perfect', 'perfect', 'champions', 'centurions', 'invincible', 'hard-champions', 'one-club-champions', 'one-nation-champions', 'record-points', 'continental', 'cup', 'double', 'treble']
+export const QUICK_UNLOCKS: readonly string[] = ['quick-perfect', 'perfect', 'champions', 'centurions', 'invincible', 'hard-champions', 'moneyball', 'chain-champions', 'one-club-champions', 'one-nation-champions', 'record-points', 'continental', 'cup', 'double', 'treble']
 
 /** What the bench panel of the playback shows before the next game: the chosen XI and bench, who is out, who covers. */
 export interface QuickSquadView {

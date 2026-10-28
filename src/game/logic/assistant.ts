@@ -11,7 +11,7 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { LiveChanges, LivePlayer, Shout, TeamTalk } from '@engine/match'
-import { currentScore } from '@engine/match'
+import { currentScore, MAX_SUBS } from '@engine/match'
 import { staminaCostFactor } from '@engine/depth'
 import type { Position } from '@engine/types'
 import { isAvailable, playerLookup } from './players'
@@ -72,7 +72,7 @@ export function estimatedCondition(game: Game, u: LoadedUniverse, p: LivePlayer,
  *   lead, all-out attack when behind, keep shape when level or well clear) and
  *   changes for the injured and the tired (condition below `TIRED_AT_70`), the
  *   most tired first, each replaced by the best available natural fit for his slot.
- * Never more changes than are left (three at the break, five in all), never a
+ * Never more changes than are left (three at the break, `MAX_SUBS` in all), never a
  * man who is injured, suspended or has already played, never the same man twice.
  * Instructions are left alone: a change there would be written into the saved tactics.
  */
@@ -89,7 +89,7 @@ export function assistantCall(game: Game, u: LoadedUniverse): LiveChanges {
   const diff = live.userIsHome ? score.home - score.away : score.away - score.home
   const onPitch = appeared.filter((p) => p.offAt >= 90 && !p.red)
 
-  const cap = Math.max(0, atBreak ? Math.min(3, 5 - made) : 5 - made)
+  const cap = Math.max(0, atBreak ? Math.min(3, MAX_SUBS - made) : MAX_SUBS - made)
   const limit = atBreak ? TIRED_AT_45 : TIRED_AT_70
   const tempoFast = side.tactics.tempo === 'fast'
   const fatigue = side.modifiers?.fatigue ?? 0

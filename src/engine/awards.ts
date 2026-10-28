@@ -4,6 +4,9 @@
 import type { PlayerSeason, SquadPlayer, TableRow, SeasonTier, Position } from './types'
 import { FORMATION_BY_ID } from './formations'
 import { tierLabel } from './season'
+import { ordinal } from './universe'
+
+export { ordinal }
 
 export interface AwardWinner {
   playerSeasonId: string
@@ -241,10 +244,4 @@ function formBlocks(row: TableRow): string {
   const d = '🟨'.repeat(Math.min(row.drawn, 46))
   const l = '🟥'.repeat(Math.min(row.lost, 46))
   return w + d + l
-}
-
-export function ordinal(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
 }

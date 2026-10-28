@@ -137,8 +137,8 @@ function sources(dir: string): string[] {
   return out
 }
 
-const CONTENT_MODULE = /from '[^']*(?:logic\/flavour|logic\/newsFlavour|logic\/pundit|logic\/milestoneBadges|logic\/storylines|match\/commentaryColour|storyText|\.\/flavour|\.\/newsFlavour|\.\/pundit|\.\/milestoneBadges|\.\/storylines|\.\/commentaryColour)'/
-const CONTENT_FILES = new Set(['game/logic/flavour.ts', 'game/logic/newsFlavour.ts', 'game/logic/pundit.ts', 'game/logic/milestoneBadges.ts', 'game/logic/storylines.ts'])
+const CONTENT_MODULE = /from '[^']*(?:logic\/flavour|logic\/newsFlavour|logic\/pundit|logic\/milestoneBadges|logic\/trophyChase|logic\/storylines|match\/commentaryColour|storyText|\.\/flavour|\.\/newsFlavour|\.\/pundit|\.\/milestoneBadges|\.\/trophyChase|\.\/storylines|\.\/commentaryColour)'/
+const CONTENT_FILES = new Set(['game/logic/flavour.ts', 'game/logic/newsFlavour.ts', 'game/logic/pundit.ts', 'game/logic/milestoneBadges.ts', 'game/logic/trophyChase.ts', 'game/logic/storylines.ts'])
 
 describe('content depth is display only', () => {
   it('is imported by no simulation, store or online code', () => {

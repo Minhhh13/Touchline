@@ -1,9 +1,10 @@
 /**
- * The Dugout's keyboard: Space plays the matchweek, 1 to 9 and 0 open the first ten tabs. Pure, so the guards are
+ * The Dugout's keyboard: Space plays the matchweek, 1 to 9 and 0 open the first ten tabs, A asks the assistant to pick
+ * the XI and R rests the tired starters (r8). Pure, so the guards are
  * tested: nothing fires while typing or on a focused control (Space would press it anyway), with a modal open, or with
  * a modifier held; Space waits while a decision is pending or the season is over.
  */
-export type DugoutKey = { kind: 'play' } | { kind: 'tab'; index: number } | null
+export type DugoutKey = { kind: 'play' } | { kind: 'tab'; index: number } | { kind: 'autoPick' } | { kind: 'rest' } | null
 
 export interface DugoutKeyContext {
   /** The event's target is a field, a button or another control that handles the key itself. */
@@ -16,6 +17,8 @@ export interface DugoutKeyContext {
   canPlay: boolean
   /** How many tabs the bar shows today. */
   tabs: number
+  /** The team can be changed now (a season under way, not over): A and R work. Absent reads as no. */
+  canManage?: boolean
 }
 
 const CONTROL_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'SUMMARY'])
@@ -36,5 +39,8 @@ export function dugoutKey(key: string, ctx: DugoutKeyContext): DugoutKey {
     const index = key === '0' ? 9 : Number(key) - 1
     return index < ctx.tabs ? { kind: 'tab', index } : null
   }
+  if (!ctx.canManage) return null
+  if (key === 'a' || key === 'A') return { kind: 'autoPick' }
+  if (key === 'r' || key === 'R') return { kind: 'rest' }
   return null
 }

@@ -366,3 +366,20 @@
     opacity: 1;
   }
 }
+/* A phone held upright has the room for a full 44 px target on the board's tools, pickers and panel tabs (the 32 px
+   above stays for a phone on its side, where every pixel of height is the pitch's) */
+@media (max-width: 720px) and (min-height: 501px) {
+  .matchday .md-tool,
+  .matchday .md-ment .md-select,
+  .matchday select.md-highlights,
+  .matchday .md-tabs button {
+    min-height: 44px;
+  }
+  .matchday select.md-highlights {
+    height: 44px;
+  }
+  .matchday .md-moments {
+    min-width: 44px;
+    height: 44px;
+  }
+}

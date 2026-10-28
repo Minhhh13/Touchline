@@ -66,13 +66,21 @@ export function slotIdentity(v: SlotValue): string {
   return `h2h-${fingerprint({ seed: v.h2h.seed, hosts: [m[0].hostClubId, m[1].hostClubId], formations: [m[0].formationId, m[1].formationId] })}`
 }
 
-// One scale for both flows: a quick game goes draft, kickoff, january, summary; a managed one draft, preseason, week, match, summary
-const PHASE_RANK: Record<Phase, number> = { draft: 0, kickoff: 1, preseason: 1, january: 2, week: 2, match: 3, summary: 4 }
+// One scale for both flows: a quick game goes draft, kickoff, january, summary; a managed one draft, preseason, then
+// week and match by turns, summary. Inside a season the matchweek orders it, never the screen: the match report
+// (`match`, the whistle gone) sits between two hubs (`week`) of the same matchweek, and a preseason friendly's report
+// between two pre-seasons, so they rank alike (QA round 3, R8-1: a report ranked above the hub, so a Season uploaded
+// on its report and played on read as "an older save loaded" and the report was restored over the newer game)
+const PHASE_RANK: Record<Phase, number> = { draft: 0, kickoff: 1, preseason: 2, january: 2, week: 2, match: 2, summary: 4 }
+
+/** An arena run at one step: the report of the tie just settled (the step has moved on), a bonus spin, then the hub. */
+const ARENA_RANK: Record<Phase, number> = { draft: 2, kickoff: 0, preseason: 0, january: 0, week: 3, match: 1, summary: 4 }
 
 /**
  * How far along a slot's game is, compared element by element: `[year, phase, matchweek, draft spins, seasons in
- * the history]` for a game, plus the run's step for an arena run (its phase stays `week` from tie to tie), and
- * `[spins, picks made, finished]` for the hot-seat game.
+ * the history, friendlies played]` for a game; `[year, step, penalties waiting, phase, draft spins, over]` for an
+ * arena run (its step moves from tie to tie, and a shoot-out waits at the step of the tie it settles); and `[spins,
+ * picks made, finished]` for the hot-seat game.
  */
 export function progressKey(v: SlotValue): number[] {
   if (v.kind === 'h2h') {
@@ -80,9 +88,9 @@ export function progressKey(v: SlotValue): number[] {
     return [d.spins, picksMade(d.drafts[0]) + picksMade(d.drafts[1]), v.h2h.result ? 1 : 0]
   }
   const g = v.game
-  const key = [g.year, PHASE_RANK[g.phase] ?? 0, g.season?.matchweek ?? 0, g.draft?.spins ?? 0, g.history.length]
-  if (g.arena) key.push(g.arena.step + (g.arena.over ? 1 : 0))
-  return key
+  const a = g.arena
+  if (a) return [g.year, a.step, a.pending ? 1 : 0, ARENA_RANK[g.phase] ?? 0, g.draft?.spins ?? 0, a.over ? 1 : 0]
+  return [g.year, PHASE_RANK[g.phase] ?? 0, g.season?.matchweek ?? 0, g.draft?.spins ?? 0, g.history.length, g.friendliesPlayed ?? 0]
 }
 
 /** Negative when `a` is behind `b`, positive when ahead, 0 when level (a shorter key is padded with zeros). */

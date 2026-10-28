@@ -16,14 +16,13 @@ import { PITCH_MS, type PaceSpan } from '../match/timing'
 import type { MatchClockApi, Speed } from './types'
 
 /**
- * Milliseconds per match minute at 1x: the bare ticker, and the ticker with the pitch to watch.
+ * Milliseconds per match minute at 1x, the pitch to watch.
  * 1x is the pace of a console football match: a match minute takes 4.5 s (`PITCH_MS`), so a
  * 20-metre pass rolls for about two seconds, the man on the ball takes a touch and looks up
  * before he plays it, a corner stands three seconds while the box fills, and a half takes about
  * three and a half minutes plus the goals' celebrations. 0.5x is slower still (9 s a minute);
  * 2x, 3x and 4x are quicker (4x is about 1.1 s a minute).
  */
-export const TICKER_PERIOD = 110
 export const PITCH_PERIOD = PITCH_MS
 /** The speeds on offer, slowest first. */
 export const SPEEDS: Speed[] = [0.5, 1, 2, 3, 4]

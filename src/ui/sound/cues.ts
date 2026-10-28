@@ -5,6 +5,7 @@
  * (`synth.ts`), so the first download carries only this file. Nothing here touches audio, the DOM or the game.
  */
 import type { SoundCategory } from './scores'
+import type { BallTouch } from './ball'
 
 /** A pick's band, from the overall he lands with: rising with the rating, so a world-class pick sounds like one. */
 export type PickBand = 'squad' | 'solid' | 'star' | 'world'
@@ -39,6 +40,9 @@ export type CueRequest =
   | { id: 'rung'; rung: number }
   | { id: 'bracket-tie'; user: boolean }
   | { id: 'badge'; reduced?: boolean }
+  | { id: 'ball'; touch: BallTouch; power: number }
+  | { id: 'crowd-swell'; danger: number }
+  | { id: 'crowd-bed'; level: number }
 
 export type CueId = CueRequest['id']
 
@@ -62,6 +66,9 @@ export const CUE_CATEGORY: Record<CueId, SoundCategory> = {
   rung: 'reward',
   'bracket-tie': 'match',
   badge: 'reward',
+  ball: 'match',
+  'crowd-swell': 'match',
+  'crowd-bed': 'match',
 }
 
 export function isCue(id: string): id is CueId {
@@ -91,6 +98,10 @@ export const CUE_GAP_MS: Partial<Record<string, number>> = {
   'manager-landed': 800,
   'squad-complete': 1500,
   hindsight: 1500,
+  'crowd-swell': 2500,
+  // The ball's own thinning is in ball.ts (BALL_GAP_MS); this floor only keeps two requests in one frame apart
+  ball: 40,
+  'crowd-bed': 3000,
 }
 
 /** Remembers when each sound last played and answers whether another may play now (`now` in ms, any clock that only goes forward). */

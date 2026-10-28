@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { arenaShareText, arenaStepMark } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { clubIdOfKey } from '@engine/knockout'
 import { randomSeed } from '@engine/rng'
 import { arenaAgainSettings } from '@game/logic/arenaDaily'
 import { USER_TEAM } from '@engine/season'
-import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark } from '@game/logic/arena'
+import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark, stepWon } from '@game/logic/arena'
 import { cupRoundCount } from '@engine/cup'
 import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
@@ -28,21 +28,28 @@ import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { arenaChallengeFromGame, arenaVerifiedLine, challengeLink, runItBackArena } from '@game/logic/challenge'
 import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
 import { cleanName } from '@engine/challenge'
+import { inviteFor, inviteKindOf, shareWithInvite, tidyShareText } from '@game/logic/shareInvite'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { CasualStatus } from '../online/CasualStatus'
+import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { fixed } from '../format'
+import { personalBest } from '../arenaText'
+import { resultId } from '@game/logic/cabinet'
 
 const t = translator(arena)
+
+/** The card's own lines, emoji-light as the share text is (the Gauntlet's strip stays). */
+const cardLines = (lines: string[]) => tidyShareText(lines.join('\n')).split('\n')
 
 /** Seconds before an arena win's fanfare: after the last rung's bell or the final's whistle has had its moment. */
 const ARENA_FANFARE_DELAY = 0.6
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
-  const { universe: u, game, startGame, openArenaSetup, showToast, profile } = useStore()
+  const { universe: u, game, startGame, openArenaSetup, showToast, profile } = useStorePick('universe', 'game', 'startGame', 'openArenaSetup', 'showToast', 'profile')
   const [copied, setCopied] = useState(false)
   const [link, setLink] = useState<string | null>(null)
   // The "Copied!" label goes back after a moment; the timer is cleared if the summary closes first
@@ -69,7 +76,9 @@ export function ArenaSummary() {
   const runLong = gauntlet || cup
   const banner = arenaBanner(a)
   const input = arenaShareInput(game, u)
-  const text = input ? arenaShareText(input) : ''
+  // Emoji-light, and the last line asks a friend in: the challenge link once made, else where to play
+  const invite = inviteFor(inviteKindOf(game), { won: a.won, rungs: a.log.length - (a.won ? 0 : 1) })
+  const text = input ? shareWithInvite(arenaShareText(input), invite, link) : ''
   const last = a.log[a.log.length - 1]
   const res = game.lastMatch
   const userHome = res?.homeTeamId === USER_TEAM
@@ -130,7 +139,9 @@ export function ArenaSummary() {
         footer: shareCardFooter(game),
         hideRatings: ratingHidden(game.settings.rules, 'squad'),
         banner: { text: banner },
-        lines: [...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])],
+        mode: modeLabel(game, 'short'),
+        beatMe: invite,
+        lines: cardLines([...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])]),
       })
       downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
@@ -138,7 +149,10 @@ export function ArenaSummary() {
     }
   }
 
-  const won = (s: (typeof a.log)[number]) => s.gf > s.ga || (!!s.pens && s.pens.us > s.pens.them)
+  // A step won is the logic's rule (a draw settled on penalties counts): the screen never words its own
+  const won = stepWon
+  // A run that beats (or ties) the manager's best of its kind says so under the banner; a trophy says it already
+  const best = a.won ? null : personalBest(profile.arenaRuns ?? [], { id: resultId(game), format: a.format, size: a.size, score: a.log.filter(won).length })
   return (
     // Main's summary layout: the result box on the left, everything else in a box beside it that scrolls inside itself
     <div className="page summary arena-summary" data-testid="summary">
@@ -162,6 +176,11 @@ export function ArenaSummary() {
             {banner}
           </div>
         </div>
+        {best && (
+          <span className={`chip ${best.kind === 'best' ? 'good' : 'info'} arena-best`} data-testid="arena-best">
+            {t(best.kind === 'best' ? 'newBest' : 'equalBest', { gauntlet: gauntlet ? 'yes' : 'no', n: a.log.filter(won).length, was: best.was })}
+          </span>
+        )}
         {winner && (
           <p className="tier-blurb" data-testid="cup-winner">
             {t('wonBy', { name: winner })}
@@ -186,22 +205,22 @@ export function ArenaSummary() {
           </div>
         )}
         <div className="banner-actions">
-          <button className="btn primary" onClick={() => void copy()} data-testid="arena-copy">
+          <button className="btn primary" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
+            <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
+          </button>
+          <button className="btn" onClick={() => void copy()} data-testid="arena-copy">
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
           </button>
           <button className="btn" onClick={card} data-testid="arena-card">
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
-          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title="The same format on a new wheel">
+          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title={t('againTip')}>
             <Dices size={16} aria-hidden="true" /> {t('playAgain')}
-          </button>
-          <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
-            <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
           </button>
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title={t('runItBackTip')}>
             <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
           </button>
-          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title="Set up a new arena run">
+          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title={t('newRunTip')}>
             <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>
@@ -209,6 +228,7 @@ export function ArenaSummary() {
 
       <div className="summary-body fill" data-testid="summary-body">
         <CasualStatus game={game} />
+        <BadgeUnlocks />
         {link && (
           <div className="panel" data-testid="arena-challenge-link">
             <div className="panel-head">
@@ -259,6 +279,7 @@ export function ArenaSummary() {
                       <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                         {s.gf}-{s.ga}
                         {s.pens ? t('pensSuffix', { score: `${s.pens.us}-${s.pens.them}` }) : ''}
+                        <span className="res-letter">{won(s) ? 'W' : 'L'}</span>
                       </span>
                       {challenge && <span className="small muted" data-testid="ghost-step">{ghostStepLine(challenge, i)}</span>}
                     </span>

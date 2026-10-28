@@ -158,8 +158,11 @@ export function leagueSeasons(u: LoadedUniverse, leagueId: string): number[] {
 
 /** Champions by season, newest first. A season without a table has no first or second. */
 export function leagueChampions(u: LoadedUniverse, leagueId: string): ChampionLine[] {
+  // One pass over the club-seasons, not one per season
+  const bySeason = new Map<number, ClubSeason[]>()
+  for (const cs of u.clubSeasons) if (cs.leagueId === leagueId) bySeason.set(cs.season, [...(bySeason.get(cs.season) ?? []), cs])
   return leagueSeasons(u, leagueId).map((season) => {
-    const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season)
+    const clubs = bySeason.get(season) ?? []
     const table = hasTable(u, { leagueId, season })
     const first = table ? clubs.find((cs) => cs.position === 1) : undefined
     const second = table ? clubs.find((cs) => cs.position === 2) : undefined

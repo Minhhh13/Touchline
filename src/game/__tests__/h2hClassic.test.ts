@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { getFormation } from '@engine/formations'
 import { h2hAutoPick, h2hComplete, h2hSpin, newH2HDraft } from '@engine/h2h'
@@ -58,10 +58,18 @@ describe('head-to-head classic seasons', () => {
     expect(h2hRulesFor(['england'], false, true).classic).toBe(true)
   })
 
-  it('toggle off: every seeded head-to-head is byte-identical to release-e6, with or without the classic pack loaded', () => {
-    const before = SEEDS.map((s) => hash(play(standard, s, h2hRules(['england'], false))))
-    const offStandard = SEEDS.map((s) => hash(play(standard, s, h2hRulesFor(['england'], false, false))))
-    const offFull = SEEDS.map((s) => hash(play(full, s, h2hRulesFor(['england'], false, false))))
+  it('toggle off: every seeded head-to-head is byte-identical to release-e6, with or without the classic pack loaded', async () => {
+    const each = async (f: (s: string) => string): Promise<string[]> => {
+      const out: string[] = []
+      for (const [i, s] of SEEDS.entries()) {
+        if (i % 4 === 0) await breathe()
+        out.push(f(s))
+      }
+      return out
+    }
+    const before = await each((s) => hash(play(standard, s, h2hRules(['england'], false))))
+    const offStandard = await each((s) => hash(play(standard, s, h2hRulesFor(['england'], false, false))))
+    const offFull = await each((s) => hash(play(full, s, h2hRulesFor(['england'], false, false))))
     expect(offStandard).toEqual(before)
     expect(offFull).toEqual(before)
     expect(hash(before)).toBe('2dc6b050f1be3d1aa8c2ad632812df3fdd7cff84e2b99692ad1c96ff67b451bf')
@@ -85,9 +93,10 @@ describe('head-to-head classic seasons', () => {
     expect(on.filter((c) => c.classic).length).toBe(16)
   })
 
-  it('toggle on: 200 seeded drafts complete without the wheel running dry, and classic sides come up', () => {
+  it('toggle on: 200 seeded drafts complete without the wheel running dry, and classic sides come up', async () => {
     let classicSpins = 0
     for (let i = 0; i < 200; i++) {
+      if (i % 20 === 0) await breathe()
       const { h } = play(full, `h2h-classic-on-${i}`, h2hRulesFor(['england'], i % 3 === 0, true), 2024, false)
       expect(h2hComplete(h)).toBe(true)
       classicSpins += h.drafts[0].usedClubSeasons.filter((k) => full.clubSeasonByKey[k]?.classic).length

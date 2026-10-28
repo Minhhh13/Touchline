@@ -42,7 +42,7 @@ Your drafted side takes one real club's place in a real league season and plays 
 - **Daily Challenge**: the same wheel for everyone each day (UTC), from one of the seven leagues in turn (from 2026-10-30), with streaks and a verified world board.
 - **Weekly Challenge**: a themed wheel each week, such as European Nights, Moneyball or Park the bus.
 - **Daily Arena**: one arena puzzle a day for everyone.
-- **Season**: draft 16 to 22 players, then manage every matchweek. You have live matches, roles and instructions, condition and morale, injuries and suspensions, a cup, a transfer market, scouting and contract talks, and a board that can sack you.
+- **Season**: draft 16 to 22 players, then manage every matchweek. You have live matches, roles and instructions, condition and morale, injuries and suspensions, a cup, a transfer market with fee and personal-terms negotiations, scouting and contract talks, players who want out, promises and conversations in the Office, and a board that can sack you.
 - **Dynasty**: Season mode that never ends. Players age, retire and sign new contracts, a youth intake arrives, and every summer brings a draft and a transfer window.
 - **Arena: The Cup and The Gauntlet**: draft a squad, then win a knockout of 8, 16 or 32 real club-seasons. Or climb fifteen rungs of ever stronger sides until your first defeat.
 - **Run-in**: take over a real club at matchweek 28 with its real squad and a brief (the title, the top four, survival). You get four spins to strengthen it, then the last games.

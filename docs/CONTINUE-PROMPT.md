@@ -46,9 +46,11 @@ Then run `npm ci`, `npm run typecheck`, `npm test` and `npm run build`.
 
 **A. Engine 7 is live** (PR #86, squash f51eca0, live on touchline.quest from 2026-10-28 17:29 UTC). The Edge Function `touchline-e7` was deployed at 17:30 UTC as the loader pinning `verifier-5e7764386729eb13.js` (Verify JWT off) and answers `status` with `engine: "7"`; `touchline-e6`, `-e5` and `-e4` still answer. Keep `touchline-e6` (to at least 2026-11-05), `touchline-e5` (to 2026-11-04) and `touchline-e4` (to 2026-11-03).
 
-**A2. The Daily rotation ships in PR #87** (the branch `claude/youthful-mccarthy-a57idu` merged `claude/e7-daily`). When #87 is merged and `build.json` names a new `verifier-<hash16>.js`: check out `main` at the deployed commit, `npm ci && npm run build && node scripts/online/build-loader.mjs`, check its SHA-256 equals `build.json`'s `verifier.sha256`, and redeploy `touchline-e7` from `supabase/functions/touchline-e7-loader/index.ts` (Verify JWT off). This must happen **before 2026-10-31 00:00 UTC** (the first La Liga day). If #87 is not live by then, move `DAILY_EPOCHS`' start (`src/game/logic/daily.ts`) to a future day first.
+**A2. The Daily rotation is live too** (PR #87, squash 1df6a32): `touchline-e7` was redeployed at 17:56 UTC pinning `verifier-533df0bd10128be8.js`. Nothing left to do for it.
 
-**B. Integrate the waiting branches** (all based on `release-e7`).
+**B0. Round 8 is integrated in PR #88** (`claude/youthful-mccarthy-a57idu`, batch5): every `claude/r8-*` branch except `r8-a11y` (still running when this was written; merge it next), with `45f5754` reverted and held for engine 8. It renames the edge bundle to `verifier-ecc269657e48639b.js`: after #88 is live, rebuild the loader from `main` at the deployed commit and redeploy `touchline-e7` (Verify JWT off), as in A2. The first-download budget was raised to 330 KB JS and 56 KB CSS (`budget.test.ts`, docs/PERFORMANCE.md); splitting `week.ts` and this round's styles out of the first download would win it back.
+
+**B. Integrate the waiting branches** (done for all but `r8-a11y`; kept for reference) (all based on `release-e7`).
 
 Make one batch branch from the latest `main` and real-merge the branches in this order. Look for commits titled `SEVERE:` first and ship those soonest.
 
@@ -64,7 +66,7 @@ Make one batch branch from the latest `main` and real-merge the branches in this
 - **Bigger features:**
   - `claude/r8-season-play`: Season and Dynasty usability.
   - `claude/r8-fm-depth`: Football Manager depth. That means club transfer negotiations with counters, transfer requests from unhappy players, promises, player talks and squad status. Every roll runs on a forked copy, so untouched games are unchanged.
-  - **`claude/e7-daily` (in PR #87; see A2):** the Daily rotating through the seven leagues from 2026-10-30 as a dated epoch (every earlier Daily unchanged), plus a slightly easier Super League behind the new optional `superEase` rule (old Super League games replay unchanged). It changes the e7 bundle (`verifier-533df0bd10128be8.js`), so after merging, redeploy the `touchline-e7` loader with the new hash. It must be live **before 2026-10-31 00:00 UTC** (the first La Liga day; 2026-10-30 is a Premier League day and identical on both builds). If that slips, move `DAILY_EPOCHS`' start to a later day. Runbook in its ONLINE.md.
+  - **`claude/e7-daily` (released in #87; skip it):** the Daily rotating through the seven leagues from 2026-10-30 as a dated epoch (every earlier Daily unchanged), plus a slightly easier Super League behind the new optional `superEase` rule (old Super League games replay unchanged). It changes the e7 bundle (`verifier-533df0bd10128be8.js`), so after merging, redeploy the `touchline-e7` loader with the new hash. It must be live **before 2026-10-31 00:00 UTC** (the first La Liga day; 2026-10-30 is a Premier League day and identical on both builds). If that slips, move `DAILY_EPOCHS`' start to a later day. Runbook in its ONLINE.md.
 
 Resolve conflicts by keeping both sides' intent. For `docs/HANDOVER.md`, keep both change-log lines; never delete others' lines.
 

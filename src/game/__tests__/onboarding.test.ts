@@ -4,7 +4,7 @@ import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { createGame, defaultHostClub, quickSetupLine, summariseSetup } from '../logic/setup'
 import { closeJanuary, kickOff, toKickoff } from '../logic/quick'
-import { FIRST_RUN_STEPS, firstDraftSettings, firstResultNext, isNewcomer, resultsFinished } from '../logic/onboarding'
+import { FIRST_RUN_STEPS, NEXT_UP_UNTIL, firstDraftSettings, firstResultNext, isNewcomer, nextUpFor, resultsFinished } from '../logic/onboarding'
 import type { LeaderboardEntry, Profile } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -38,11 +38,14 @@ describe('who counts as new', () => {
 describe('the first draft', () => {
   const s = firstDraftSettings(u, 'FIRST-RUN-1')!
 
-  it("is an untouched Quick Draft setup: the line Setup shows above Start Draft", () => {
+  it("is an untouched Quick Draft setup with only the core loop: eleven spins, no bench, no manager spin, no case", () => {
     expect(s).not.toBeNull()
-    expect(quickSetupLine(u, s)).toBe('Touchline XI · 4-3-3 · Normal · Prime ratings · bench 1')
+    expect(quickSetupLine(u, s)).toBe('Touchline XI · 4-3-3 · Normal · Prime ratings')
     expect(s).toMatchObject({ mode: 'quick', seed: 'FIRST-RUN-1', formationId: '4-3-3', teamName: 'Touchline XI', leagueId: 'england', wheelLeagues: ['england'], difficulty: 'calibrated', january: true, jobSecurity: false, continental: false })
-    expect(s.rules).toEqual({ ...QUICK_RULES, leagues: ['england'], ratings: 'prime', benchPicks: 1, managerSpin: true, endCase: true })
+    expect(s.rules).toEqual({ ...QUICK_RULES, leagues: ['england'], ratings: 'prime' })
+    expect(s.rules.benchPicks).toBeUndefined()
+    expect(s.rules.managerSpin).toBeUndefined()
+    expect(s.rules.endCase).toBeUndefined()
     expect(s.rules.budget).toBeUndefined()
     expect(s.rules.fromSeason).toBeUndefined()
   })
@@ -107,5 +110,39 @@ describe('after the first result', () => {
     expect(firstResultNext(fresh, 'quick', false)).toBeNull()
     expect(firstResultNext(one, 'season', false)).toBeNull()
     expect(firstResultNext(one, 'arena', false)).toBeNull()
+  })
+})
+
+describe('what Home points to next', () => {
+  const quick = { points: 70, mode: 'quick' } as unknown as LeaderboardEntry
+  const season = { points: 70, mode: 'season' } as unknown as LeaderboardEntry
+  const daily = { 'daily-2026-10-26': { points: 60, tier: 'MID_TABLE' } } as Profile['dailyResults']
+  const off = { dailyPlayedToday: false, online: false }
+  const on = { dailyPlayedToday: false, online: true }
+
+  it('points nowhere before the first result: the first-run panel is the step then', () => {
+    expect(nextUpFor(fresh, on)).toBeNull()
+  })
+
+  it("points to today's Daily after a first Quick Draft, until a Daily is played", () => {
+    const one = { ...fresh, leaderboard: [quick], seasonsSimulated: 1 }
+    expect(nextUpFor(one, off)).toBe('daily')
+    expect(nextUpFor(one, on)).toBe('daily')
+    expect(nextUpFor(one, { dailyPlayedToday: true, online: false })).toBe('season')
+  })
+
+  it('then to the world boards once on an online build, then to Season until one is finished', () => {
+    const two = { ...fresh, leaderboard: [quick, quick], seasonsSimulated: 2, dailyResults: daily }
+    expect(nextUpFor(two, on)).toBe('boards')
+    expect(nextUpFor(two, off)).toBe('season')
+    const three = { ...two, leaderboard: [quick, quick, quick], seasonsSimulated: 3 }
+    expect(nextUpFor(three, on)).toBe('season')
+    expect(nextUpFor({ ...three, leaderboard: [quick, quick, season], seasonsSimulated: 3 }, on)).toBeNull()
+  })
+
+  it('stops after the first handful of results, whatever is left untried', () => {
+    const many = { ...fresh, leaderboard: Array.from({ length: NEXT_UP_UNTIL + 1 }, () => quick), seasonsSimulated: NEXT_UP_UNTIL + 1 }
+    expect(nextUpFor(many, on)).toBeNull()
+    expect(nextUpFor({ ...many, leaderboard: many.leaderboard.slice(1), seasonsSimulated: NEXT_UP_UNTIL }, on)).toBe('daily')
   })
 })

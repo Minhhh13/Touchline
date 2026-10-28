@@ -8,6 +8,10 @@ const t = translator(draft)
 
 const viewport = () => ({ vw: document.documentElement.clientWidth || window.innerWidth, vh: document.documentElement.clientHeight || window.innerHeight })
 const placed = (p: TipPlace | null, width?: number): CSSProperties => (p ? { left: p.left, top: p.top, maxHeight: p.maxHeight, width } : { left: 0, top: 0, width, visibility: 'hidden' })
+/** Keep the placement already shown when a measure lands on the same spot: a scroll of any box re-measures, and a new object would render the tip again for nothing. */
+export function keepPlace(prev: TipPlace | null, next: TipPlace): TipPlace {
+  return prev && prev.left === next.left && prev.top === next.top && prev.maxHeight === next.maxHeight && prev.below === next.below ? prev : next
+}
 
 /**
  * A small "i" that opens a description: a mouse shows it while over the button, a click, tap or Enter keeps it open.
@@ -34,9 +38,12 @@ export function InfoTip({ text, label, testId }: { text: string; label: string; 
       if (!r || !b) return
       const { vw, vh } = viewport()
       const w = tipWidth(vw)
-      b.style.width = `${w}px`
+      // Written only when it changes: a write before the height read below would force a layout on every scroll event
+      const px = `${w}px`
+      if (b.style.width !== px) b.style.width = px
       setWidth(w)
-      setPlace(placeTip(r, w, b.scrollHeight, vw, vh))
+      const next = placeTip(r, w, b.scrollHeight, vw, vh)
+      setPlace((prev) => keepPlace(prev, next))
     }
     measure()
     window.addEventListener('resize', measure)
@@ -140,7 +147,8 @@ export function HoverTips({ children, testId = 'hover-tip', ...rest }: { childre
       if (!n) return
       const { vw, vh } = viewport()
       if (r.bottom < 0 || r.top > vh || !el.isConnected) return setTip(null)
-      setPlace(placeTip(r, n.offsetWidth, n.offsetHeight, vw, vh, 'center'))
+      const next = placeTip(r, n.offsetWidth, n.offsetHeight, vw, vh, 'center')
+      setPlace((prev) => keepPlace(prev, next))
     }
     measure()
     // A control whose name already carries the tip (a pick grade's "Grade A: ...") is not described twice

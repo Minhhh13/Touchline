@@ -30,6 +30,7 @@ import { askConfirm } from '../confirm'
 import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
+import { formationBlurb } from '../i18n/engineText'
 
 const t = translator(h2hText)
 
@@ -141,7 +142,7 @@ export function RoomSetup() {
               <div className="field formation-field">
                 {t('formation')}
                 <FormationPicker value={formationId} onChange={setFormationId} label={t('yourFormation')} testId="room-formation" />
-                <span className="help">{getFormation(formationId).blurb}</span>
+                <span className="help">{formationBlurb(getFormation(formationId))}</span>
               </div>
               <label className="field">
                 {t('hostClub')}

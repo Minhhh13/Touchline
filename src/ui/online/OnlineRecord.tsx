@@ -4,7 +4,7 @@ import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
-import type { MyEntry } from '../../online/boards'
+import type { CasualMine, MyEntry } from '../../online/boards'
 import type { ChallengeRow } from '../../online/transport'
 import { formatCode } from '../../online/core/codes'
 import { shortLinkUrl } from '../../online/challengeLinks'
@@ -16,7 +16,7 @@ import { B, rich } from '../i18n/rich'
 
 const t = translator(online)
 
-/** "Your dailies", "Your weekly challenges" and "Your challenges": the Account screen's third panel (a placeholder signed out). */
+/** "Your dailies", "Your weekly challenges", the casual boards' posts and "Your challenges": the Account screen's third panel (a placeholder signed out). */
 export function OnlineRecord() {
   const session = useOnline((s) => s.session)
   const showToast = useStore((s) => s.showToast)
@@ -24,6 +24,8 @@ export function OnlineRecord() {
   const [dailies, setDailies] = useState<MyEntry[] | null>(null)
   const [weeklies, setWeeklies] = useState<MyEntry[] | null>(null)
   const [codes, setCodes] = useState<ChallengeRow[] | null>(null)
+  // The casual boards' posts (Daily Arena, Weekly Challenge, Run-in of the week); a project without their tables reads as none
+  const [casual, setCasual] = useState<CasualMine[] | null>(null)
   const [failed, setFailed] = useState(false)
   const posts = useOnline((s) => s.posts)
   const [attempt, setAttempt] = useState(0)
@@ -42,6 +44,10 @@ export function OnlineRecord() {
       () => {
         if (live) setFailed(true)
       },
+    )
+    void api.casualMine(null).then(
+      (c) => live && setCasual(c),
+      () => live && setCasual([]),
     )
     return () => {
       live = false
@@ -110,6 +116,19 @@ export function OnlineRecord() {
       {deviceList}
       {list(t('yourDailies'), dailies, 'my-dailies')}
       {list(t('yourWeeklies'), weeklies, 'my-weeklies')}
+      {casual && casual.length > 0 && (
+        <div className="col" data-testid="my-casual">
+          <b>{t('yourCasual')}</b>
+          {casual.map((e) => (
+            <div key={`${e.board}-${e.key}`} className="row between small">
+              <span>
+                {t('casualTitle', { board: e.board })} · {e.key}{e.team ? ` · ${e.team}` : ''}
+              </span>
+              <span>{rich(t('casualEntryLine', { board: e.board, n: e.score, pos: e.position, total: e.total }), B)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="col" data-testid="my-challenges">
         <b>{t('yourChallenges')}</b>
         {!codes && loading}

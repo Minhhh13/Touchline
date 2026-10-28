@@ -3,9 +3,13 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { Game } from '@game/types'
 import { matchPreview, nextLeagueFixture, nextTieFixture, storylines, summerReview, type FormLetter, type MatchPreview } from '@game/logic/storylines'
 import { previewLines, previewTitle, storylineText, summerText } from '../storyText'
-import { ordinal, outcomeClass } from '../format'
+import { outcomeClass } from '../format'
+import { translator } from '../i18n'
+import { story } from '../i18n/en/story'
 import { PREVIEW_ICON, STORY_ICON, SUMMER_ICON } from './icons'
 import { ClubBadge, Info } from './bits'
+
+const t = translator(story)
 
 /** The key every storyline's wording hangs on: the game, its year and the week, so a week always reads the same. */
 export function storyKey(game: Game): string {
@@ -21,10 +25,10 @@ export function useStorylines(game: Game | null, u: LoadedUniverse | null) {
   }, [game, u])
 }
 
-function FormChips({ form, label }: { form: FormLetter[]; label: string }) {
-  if (!form.length) return <span className="small muted">no league form</span>
+function FormChips({ form, who }: { form: FormLetter[]; who: 'ours' | 'theirs' }) {
+  if (!form.length) return <span className="small muted">{t('noLeagueForm')}</span>
   return (
-    <span className="story-form" role="img" aria-label={`${label}: ${form.join(' ')}, oldest first`}>
+    <span className="story-form" role="img" aria-label={t('formAria', { who, form: form.join(' ') })}>
       {form.map((o, i) => (
         <span key={i} className={`chip ${outcomeClass(o)}`}>
           {o}
@@ -43,17 +47,17 @@ function PreviewBlock({ p, u, game }: { p: MatchPreview; u: LoadedUniverse; game
         <b>{previewTitle(p, u)}</b>
         {p.table && (
           <span className="small muted">
-            You {ordinal(p.table.ours)}, {p.table.oursPts} pts · them {ordinal(p.table.theirs)}, {p.table.theirsPts} pts
+            {t('tablePair', { ours: p.table.ours, oursPts: p.table.oursPts, theirs: p.table.theirs, theirsPts: p.table.theirsPts })}
           </span>
         )}
       </div>
       <div className="story-form-row">
-        <span className="small muted">You</span>
-        <FormChips form={p.form.ours} label="Your form" />
+        <span className="small muted">{t('you')}</span>
+        <FormChips form={p.form.ours} who="ours" />
         {p.comp === 'league' || p.form.theirs.length ? (
           <>
-            <span className="small muted">Them</span>
-            <FormChips form={p.form.theirs} label="Their form" />
+            <span className="small muted">{t('them')}</span>
+            <FormChips form={p.form.theirs} who="theirs" />
           </>
         ) : null}
       </div>
@@ -90,8 +94,8 @@ export function MatchPreviewPanel({ game, u }: { game: Game; u: LoadedUniverse }
     <div className="panel" data-testid="match-preview">
       <div className="panel-head">
         <span className="head-title">
-          <h3>Match preview</h3>
-          <Info label="About the preview">Form is the last five league games, oldest first. The player to watch is their top scorer who is fit, or their best player; yours is the starter in the best recent form.</Info>
+          <h3>{t('previewTitle')}</h3>
+          <Info label={t('aboutPreview')}>{t('previewInfo')}</Info>
         </span>
       </div>
       {previews.map((p) => (
@@ -108,7 +112,7 @@ export function StoryChip({ game, u }: { game: Game; u: LoadedUniverse }) {
   if (!top) return null
   const Icon = STORY_ICON[top.s.kind]
   return (
-    <span className="chip info story-chip" title={`${top.title}: ${top.text}`} data-testid="story-chip">
+    <span className="chip info story-chip" title={t('chipTip', { title: top.title, text: top.text })} data-testid="story-chip">
       <Icon size={13} aria-hidden="true" /> {top.chip}
     </span>
   )
@@ -118,11 +122,11 @@ export function StoryChip({ game, u }: { game: Game; u: LoadedUniverse }) {
 export function SummerHeadline({ game, u }: { game: Game; u: LoadedUniverse }) {
   const r = summerReview(game)
   if (!r) return null
-  const t = summerText(r, u, game.id)
+  const text = summerText(r, u, game.id)
   return (
-    <div className="club-sub summer-headline" title={t.headline} data-testid="summer-headline">
+    <div className="club-sub summer-headline" title={text.headline} data-testid="summer-headline">
       <SUMMER_ICON size={14} aria-hidden="true" />
-      <span>{t.headline}</span>
+      <span>{text.headline}</span>
     </div>
   )
 }
@@ -135,7 +139,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
   if (!stories.length && !summer) return null
   return (
     <div className="story-box" data-testid="storylines">
-      <div className="story-box-head small muted">Storylines</div>
+      <div className="story-box-head small muted">{t('storylines')}</div>
       <div className="news">
         {summer && (
           <div className="item story summer-card" data-testid="summer-card">
@@ -143,7 +147,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
               <SUMMER_ICON size={15} aria-hidden="true" />
             </span>
             <span>
-              <div className="t">The story of last season</div>
+              <div className="t">{t('lastSeason')}</div>
               <div className="b summer-head">{summer.headline}</div>
               <ul className="summer-lines">
                 {summer.lines.map((l) => (
@@ -151,7 +155,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
                 ))}
               </ul>
             </span>
-            <span className="news-mw">Summer</span>
+            <span className="news-mw">{t('summer')}</span>
           </div>
         )}
         {stories.map((x) => {
@@ -165,7 +169,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
                 <div className="t">{x.title}</div>
                 <div className="b">{x.text}</div>
               </span>
-              <span className="news-mw">Now</span>
+              <span className="news-mw">{t('now')}</span>
             </div>
           )
         })}

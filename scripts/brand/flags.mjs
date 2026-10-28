@@ -13,6 +13,9 @@
  * ISO 3166-1 alpha-2 code (🇧🇪 -> be); a black flag with a tag sequence gives the
  * subdivision (🏴 + "gbeng" -> gb-eng, likewise gb-sct and gb-wls). Northern
  * Ireland carries the UK emoji in the data, so it is mapped to gb-nir by hand.
+ * Also every country an online account may carry (`COUNTRY_CODES` in
+ * src/ui/online/countries.ts, read as text): the World boards and the account
+ * chip draw those, and a missing one fell back to its two letters.
  * A nation with no derivable code, or one the package has no flag for, uses
  * public/flags/unknown.svg, a neutral flag of our own written by this script.
  * This mirrors `nationFlagCode` and `leagueFlagCode` in src/ui/format.ts; the
@@ -52,6 +55,14 @@ export function flagCodeFromEmoji(emoji) {
   return null
 }
 
+/** The account countries, lower case, from the list in src/ui/online/countries.ts (a TypeScript file, so read as text). */
+export function accountCountries() {
+  const text = readFileSync(path.join(ROOT, 'src', 'ui', 'online', 'countries.ts'), 'utf8')
+  const m = text.match(/COUNTRY_CODES =\s*'([A-Z ]+)'/)
+  if (!m) throw new Error('COUNTRY_CODES not found in src/ui/online/countries.ts')
+  return m[1].split(' ').map((c) => c.toLowerCase())
+}
+
 /** A neutral 4:3 flag for nations without one: a grey field with a lighter diagonal. */
 const FALLBACK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" id="flag-unknown" viewBox="0 0 640 480"><path fill="#8b95a1" d="M0 0h640v480H0z"/><path fill="#b9c0c8" d="M0 420 560 0h80v60L80 480H0z"/></svg>\n'
 
@@ -88,6 +99,13 @@ function main() {
       continue
     }
     want.set(flag, [...(want.get(flag) ?? []), code])
+  }
+  for (const flag of accountCountries()) {
+    if (!existsSync(path.join(src, `${flag}.svg`))) {
+      withoutFlag.push(`account country ${flag} (no ${flag}.svg in flag-icons)`)
+      continue
+    }
+    want.set(flag, [...(want.get(flag) ?? []), `country:${flag}`])
   }
   for (const [league, flag] of Object.entries(LEAGUE_FLAGS)) {
     if (!existsSync(path.join(src, `${flag}.svg`))) throw new Error(`no ${flag}.svg for ${league}`)

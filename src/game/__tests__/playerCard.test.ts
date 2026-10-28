@@ -38,6 +38,19 @@ describe('player card: rating by season', () => {
     expect(careerSeasons(u, [...byPlayer.keys()][0]).length).toBe(byPlayer.get([...byPlayer.keys()][0])!.length)
   }, 60_000)
 
+  it('reads a career from a per-universe index, the same seasons in the same order as a scan (r8 audit)', () => {
+    const ids = [...new Set(Object.values(u.index).map((p) => p.playerId))].filter((_, i) => i % 97 === 0)
+    expect(ids.length).toBeGreaterThan(50)
+    for (const id of ids) {
+      const scan = Object.values(u.index).filter((p) => p.playerId === id).sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
+      expect(careerSeasons(u, id).map((p) => p.id)).toEqual(scan.map((p) => p.id))
+    }
+    // A copy each time: a caller's sort never reorders the next caller's
+    careerSeasons(u, ids[0]).reverse()
+    expect(careerSeasons(u, ids[0]).map((p) => p.season)).toEqual([...careerSeasons(u, ids[0]).map((p) => p.season)].sort((a, b) => a - b))
+    expect(careerSeasons(u, 'nobody')).toEqual([])
+  })
+
   it('keeps the scale at 50 to 99 unless a season dips below 50', () => {
     expect(seasonScale([{ overall: 78 }, { overall: 80 }])).toEqual({ min: 50, max: 99 })
     expect(seasonScale([{ overall: 50 }])).toEqual({ min: 50, max: 99 })

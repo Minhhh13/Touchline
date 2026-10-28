@@ -170,7 +170,8 @@ export class DynastyWatch {
       const gap = n.year - before.year
       if (n.age < before.age) flag('age-backwards', `${label}: ${n.name} ${before.age} -> ${n.age}`)
       else if (n.age !== before.age + gap) flag('age-not-plus-one', `${label}: ${n.name} ${before.age} -> ${n.age} over ${gap}`)
-      if (before.years >= 0 && n.years >= before.years && !n.renewed && n.years !== -1) flag('contract-not-running-down', `${label}: ${n.name} ${before.years} -> ${n.years}`)
+      // A renewal (an Inbox event's, `renewed`) is read from before the summer: the new contract drops the flag (QA r8)
+      if (before.years >= 0 && n.years >= before.years && !n.renewed && !before.renewed && n.years !== -1) flag('contract-not-running-down', `${label}: ${n.name} ${before.years} -> ${n.years}`)
     }
     this.last = now
   }

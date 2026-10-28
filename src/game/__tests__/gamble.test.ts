@@ -13,7 +13,7 @@ import { createGame } from '../logic/setup'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
 import { kickOff, toKickoff } from '../logic/quick'
 import { playerLookup } from '../logic/players'
-import { tierOdds, formatOdds } from '../logic/tierOdds'
+import { tierOdds } from '../logic/tierOdds'
 import { tierTable } from '../logic/rarity'
 import { dealReel, REEL_LAND } from '../logic/reel'
 import type { GameSettings } from '../types'
@@ -135,13 +135,6 @@ describe('the spin odds', () => {
       counts[t] = (counts[t] ?? 0) + 1
     }
     for (const [t, p] of Object.entries(byTier)) expect(Math.abs((counts[t] ?? 0) / n - p)).toBeLessThan(Math.max(0.012, 4 * Math.sqrt((p * (1 - p)) / n)))
-  }, 60_000)
-
-  it('print one decimal under 10%, whole above, and never 0% for a chance that can come up', () => {
-    expect(formatOdds(0.01)).toBe('1.0%')
-    expect(formatOdds(0.234)).toBe('23%')
-    expect(formatOdds(0.0001)).toBe('<0.1%')
-    expect(formatOdds(0)).toBe('0%')
   }, 60_000)
 })
 

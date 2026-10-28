@@ -28,6 +28,7 @@ import type { Lineup, PlayerSeason } from '@engine/types'
 import { getFormation } from '@engine/formations'
 import { describeFit, ratingAt } from '@engine/positions'
 import { boostedPlayer, upgradeChance, upgradeGain, upgradeLoss, type UpgradeBoost } from '@engine/upgrader'
+import { draftBoost } from '@engine/powerups'
 import { TIERS, TIER_SHARE, type Tier } from './rarity'
 import { canPlayFor } from './quickBench'
 import { playerLookup } from './players'
@@ -61,20 +62,27 @@ export interface SpinCandidate {
 export type JanuarySpinPool = Readonly<Record<Tier, readonly SpinCandidate[]>>
 
 const wheelMemo = new WeakMap<LoadedUniverse, Map<string, SpinCandidate[]>>()
+/** Rules and boosts kept per universe; past this the memo starts again (each entry ranks the whole wheel). */
+const WHEEL_MEMO_CAP = 8
 
 /**
  * Every player the wheel could have offered, once at his best season (as the game's lookup rates him: Prime counts),
- * ranked and cut into the reel's tiers. Depends only on the data and the rules, never on the squad. Memoised per
- * universe and rules.
+ * ranked and cut into the reel's tiers. Depends on the data, the rules and the draft's boosts (the Upgrader, the
+ * armband), never on who else is in the squad. Memoised per universe, rules and boosts.
  */
 function wheelTiers(game: Game, u: LoadedUniverse, get: (id: string) => PlayerSeason | undefined): SpinCandidate[] {
   const r = game.settings.rules
   const leagues = r.leagues ?? game.settings.wheelLeagues
-  const key = JSON.stringify([leagues, r.classic ?? false, r.fromSeason ?? null, r.toSeason ?? null, r.onlyClub ?? null, r.onlyNation ?? null, r.ratings ?? null])
+  // The draft's boosts (the Upgrader's result, the armband) rate a drafted man above his data, which moves the cut-offs:
+  // part of the key, or a game would read the tiers of whichever game with the same rules filled the memo first
+  const d = game.draft
+  const boosts = d ? d.history.flatMap((h) => (h.pickedId && draftBoost(d, h.pickedId) ? [`${h.pickedId}:${draftBoost(d, h.pickedId)}`] : [])) : []
+  const key = JSON.stringify([leagues, r.classic ?? false, r.fromSeason ?? null, r.toSeason ?? null, r.onlyClub ?? null, r.onlyNation ?? null, r.ratings ?? null, boosts])
   let byKey = wheelMemo.get(u)
   if (!byKey) wheelMemo.set(u, (byKey = new Map()))
   const hit = byKey.get(key)
   if (hit) return hit
+  if (byKey.size >= WHEEL_MEMO_CAP) byKey.clear()
   const best = new Map<string, { p: PlayerSeason; rating: number }>()
   for (const cs of u.clubSeasons) {
     if (!leagues.includes(cs.leagueId)) continue

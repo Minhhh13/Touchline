@@ -5,10 +5,10 @@
  */
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import { familiarityGainFactor } from './depth'
-import type { Rng } from './rng'
+import { compareText, type Rng } from './rng'
 import { isClassicSeason, ordinal, poolClubSeasons, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
-import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
+import type { MatchTeamInput, TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
 import { autoPickLineup, computeTeamStrength } from './ratings'
 import { getFormation } from './formations'
@@ -16,7 +16,6 @@ import { aiLookup, reserveKeeper } from './reserve'
 import type { ContinentalGroup } from './continental'
 
 export const USER_TEAM = 'user'
-/** Matchweeks in a double round robin of `teams` clubs. */
 /** League matchweeks: a double round-robin; an odd number of clubs adds a bye slot. */
 export function matchweeksFor(teams: number): number {
   const slots = teams % 2 === 1 ? teams + 1 : teams
@@ -328,7 +327,7 @@ export function computeTable(fixtures: Fixture[], teamIds: string[], carryIn?: R
     if (h.form.length > 5) h.form.shift()
     if (a.form.length > 5) a.form.shift()
   }
-  return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || x.teamId.localeCompare(y.teamId))
+  return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || compareText(x.teamId, y.teamId))
 }
 
 /**
@@ -401,16 +400,12 @@ export function drawNextRound(ties: CupTie[], round: CupTie['round'], rng: Rng, 
   return next
 }
 
-export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng, matchweeks: number): CupTie[] {
-  return drawNextRound(cup, round, rng, cupRounds(matchweeks))
-}
-
 /**
- * The Continental Cup field: the fifteen strongest clubs from the other loaded
- * leagues in the same season, by league position then squad rating. Leagues
- * without that season contribute their nearest one.
+ * The Continental Cup's field: the `n` strongest clubs of the other loaded leagues, four per league (its top four that
+ * season, by league position then squad rating; a league without that season gives its nearest one), topped up with
+ * the strongest other clubs within a season of it when that makes fewer than `n`, then the strongest `n` of them.
+ * `taken` as in `buildAiClubs`: the field is chosen on full squads, then the user's humans leave them.
  */
-/** The Continental Cup's field: the strongest clubs of the other loaded leagues. `taken` as in `buildAiClubs`: the field is chosen on full squads, then the user's humans leave them. */
 export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const others = u.leagues.filter((l) => l.id !== leagueId)
   const picked: ClubSeason[] = []
@@ -636,11 +631,6 @@ export function userTeamInput(u: LoadedUniverse, t: UserTeamInput): MatchTeamInp
   return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk, captainId: t.captainId, talkSkill: t.talkSkill, markTarget: t.markTarget }
 }
 
-/** Play one match between two inputs, returning the full result. */
-export function playMatch(rng: Rng, home: MatchTeamInput, away: MatchTeamInput, importance: number, label: string | undefined, neutral: boolean, detail: 'full' | 'summary'): FullMatchResult {
-  return simulateMatch({ rng, home, away, importance, importanceLabel: label, neutral, detail })
-}
-
 /** Penalty shoot-out for drawn cup ties. */
 export function shootout(rng: Rng, homeMentality: number, awayMentality: number): { home: number; away: number } {
   let h = 0
@@ -667,8 +657,4 @@ export const EXTRA_TIME_RATE = 0.85 / 3
  */
 export function extraTime(rng: Rng, xg: { home: number; away: number }): { home: number; away: number } {
   return { home: rng.poisson(Math.max(0, xg.home) * EXTRA_TIME_RATE), away: rng.poisson(Math.max(0, xg.away) * EXTRA_TIME_RATE) }
-}
-
-export function clubSeasonFor(u: LoadedUniverse, clubId: string, season: number): ClubSeason | undefined {
-  return u.clubSeasonByKey[`${clubId}@${season}`]
 }

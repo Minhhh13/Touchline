@@ -6,6 +6,10 @@
  * in this segment; mounting the same segment again starts there, or at the stop if it was reached. A per-viewer
  * convenience: the game and its save are untouched, and anything unreadable means a start from the segment's start.
  */
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 /** Storage key: one record, the segment on screen and the minute its clock reached (localStorage; sessionStorage when that refuses it). */
 export const RESUME_KEY = 'touchline-match-resume'
@@ -31,8 +35,8 @@ export function resumeFrom(mark: ResumeMark | null, key: string, start: number, 
 /** The line a resumed match shows: where it picked up. Null when it starts from the segment's start. */
 export function resumeLine(at: number, start: number, stopAt: number): string | null {
   if (at <= start) return null
-  if (at > stopAt) return stopAt === 45 ? 'Back at half time, where you left the match' : stopAt === 70 ? 'Back at 70 minutes, where you left the match' : 'Back at full time, where you left the match'
-  return `Back at ${at}', where you left the match`
+  if (at > stopAt) return stopAt === 45 ? t('backHalfTime') : stopAt === 70 ? t('back70') : t('backFullTime')
+  return t('backAt', { at })
 }
 
 export function parseMark(raw: string | null): ResumeMark | null {

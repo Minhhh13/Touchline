@@ -1,5 +1,5 @@
 import { Crown, Users, Smile } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import type { Boxes } from '../components/Boxes'
 import { surnameOf } from '@game/logic/talks'
 import { atmosphereOf, hierarchy, squadGroups, TIER_LABEL, TIER_ORDER } from '@game/logic/dynamics'
@@ -23,7 +23,7 @@ const surname = surnameOf
  */
 /** `boxes` is the Dugout's Boxes control for this tab: an unticked box is left out and the others widen. */
 export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const rows = hierarchy(game, u)

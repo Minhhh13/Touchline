@@ -9,10 +9,10 @@ import { useSyncExternalStore } from 'react'
 export interface ConfirmRequest {
   id: number
   message: string
-  /** The yes button's words; "OK" when left out. */
-  ok: string
-  /** The no button's words; "Cancel" when left out. */
-  cancel: string
+  /** The yes button's words; the dialog says "OK" (through `t()`) when left out. */
+  ok?: string
+  /** The no button's words; the dialog says "Cancel" (through `t()`) when left out. */
+  cancel?: string
   /** The yes loses something (abandon, discard, delete): drawn in the danger colour. */
   danger: boolean
   resolve: (yes: boolean) => void
@@ -31,7 +31,7 @@ const emit = () => listeners.forEach((l) => l())
 
 export function askConfirm(message: string, options: ConfirmOptions = {}): Promise<boolean> {
   return new Promise((resolve) => {
-    queue = [...queue, { id: nextId++, message, ok: options.ok ?? 'OK', cancel: options.cancel ?? 'Cancel', danger: !!options.danger, resolve }]
+    queue = [...queue, { id: nextId++, message, ok: options.ok, cancel: options.cancel, danger: !!options.danger, resolve }]
     emit()
   })
 }

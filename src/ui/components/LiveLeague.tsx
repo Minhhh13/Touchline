@@ -4,6 +4,7 @@ import { movement, zoneOf, type LiveRow } from '@game/logic/liveTable'
 import { ClubBadge } from './bits'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import '../motionSeason.css'
 
 const t = translator(season)
 
@@ -19,7 +20,7 @@ const rows = (n: number) => `calc(${n} * var(--lt-row, ${ROW_H}px))`
  * reduced motion and the 4x playback turn the slide off. Arrows show the move since the game before; zone tints and lines mark
  * the title, the top four, the top six and the bottom three.
  */
-export function LiveTable({ table, before, userId, teamName, nameOf, slide = true }: { table: LiveRow[]; before: LiveRow[]; userId: string; teamName: string; nameOf: (teamId: string) => string; /** Off, rows jump to their new place (4x, where a slide would still be running when the next game lands). */ slide?: boolean }) {
+export function LiveTable({ table, before, userId, teamName, nameOf, slide = true, stamp }: { table: LiveRow[]; before: LiveRow[]; userId: string; teamName: string; nameOf: (teamId: string) => string; /** Off, rows jump to their new place (4x, where a slide would still be running when the next game lands). */ slide?: boolean; /** The step shown (the games revealed): your row flashes once when it moves, green up or red down (only yours: twenty flashing rows cost a slow phone its frames). */ stamp?: number }) {
   const teams = table.length
   const bodyRef = useRef<HTMLDivElement | null>(null)
   const mine = table.findIndex((r) => r.teamId === userId)
@@ -60,7 +61,8 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
           const gd = r.goalsFor - r.goalsAgainst
           const me = r.teamId === userId
           return (
-            <div key={r.teamId} className={`lt-row ${me ? 'me' : ''} ${zoneOf(i + 1, teams) ?? ''}`} style={{ transform: `translateY(${rows(i)})` }} data-testid={me ? 'live-table-me' : 'live-table-row'} data-place={i + 1}>
+            <div key={r.teamId} className={`lt-row ${me ? 'me' : ''} ${zoneOf(i + 1, teams) ?? ''} ${move > 0 ? 'rising' : move < 0 ? 'falling' : ''}`} style={{ transform: `translateY(${rows(i)})` }} data-testid={me ? 'live-table-me' : 'live-table-row'} data-place={i + 1}>
+              {stamp !== undefined && me && move !== 0 && <span key={stamp} className={`lt-flash ${move > 0 ? 'up' : 'down'}`} aria-hidden="true" />}
               <span className="lt-pos">{i + 1}</span>
               <span className="lt-move" role={move ? 'img' : undefined} aria-label={move > 0 ? t('up', { n: move }) : move < 0 ? t('down', { n: -move }) : undefined}>
                 {move > 0 ? <ArrowUp size={12} className="up" /> : move < 0 ? <ArrowDown size={12} className="down" /> : null}
@@ -118,6 +120,11 @@ export function PositionChart({ series, rivals, teams, games, unit = t('unitGame
     { key: 'releg', from: teams - 2, to: teams },
   ]
   const last = series.length - 1
+  // The first picture draws the whole line in; after that each game draws only its own step
+  const firstLength = useRef(series.length)
+  const whole = series.length === firstLength.current
+  const place = last >= 0 ? series[last] : 0
+
   // The axis's places, thinned on a short chart so no two labels touch (the last place always stays)
   const ticks = [1, 4, 6, teams - 3 + 1, teams].reduce<number[]>((kept, p) => {
     const prev = kept[kept.length - 1]
@@ -155,8 +162,8 @@ export function PositionChart({ series, rivals, teams, games, unit = t('unitGame
           </g>
         )}
         {rivals.map((r) => (r.series.length > 1 ? <path key={r.teamId} d={path(r.series)} className="pc-rival" fill="none" /> : null))}
-        {series.length > 1 && <path key={series.length} d={path(series)} className="pc-user" fill="none" pathLength={1} style={{ ['--pc-from' as string]: String(1 / (series.length - 1)) }} />}
-        {last >= 0 && <circle cx={x(last)} cy={y(series[last])} r="4" className="pc-dot" />}
+        {series.length > 1 && <path key={series.length} d={path(series)} className={`pc-user ${whole ? 'whole' : ''}`} fill="none" pathLength={1} style={{ ['--pc-from' as string]: whole ? '1' : String(1 / (series.length - 1)) }} />}
+        {last >= 0 && <circle key={whole ? 'dot-first' : 'dot'} cx={x(last)} cy={y(place)} r="4" className={`pc-dot ${whole ? 'whole' : ''}`} />}
         <text x={x0} y={H - 4} fontSize="8" fill="var(--text-3)">
           {t('unitFirst', { unit, n: first })}
         </text>

@@ -30,6 +30,17 @@ describe('the weekly record', () => {
     expect(last.streakAtRisk).toBe(false)
   })
 
+  it("names the counted run's own record when a later run tied its points with fewer losses (r8 audit)", () => {
+    const first: LeaderboardEntry = { ...run('weekly-2026-W43', 80), won: 26, drawn: 2, lost: 10, date: '2026-10-20' }
+    const later: LeaderboardEntry = { ...run('weekly-2026-W43', 80), id: 'later', won: 25, drawn: 5, lost: 8, date: '2026-10-22' }
+    // The board sorts the later run first (fewer losses)
+    const profile: Pick<Profile, 'weekly' | 'leaderboard'> = { weekly: { streak: 1, last: 'weekly-2026-W43', results: { 'weekly-2026-W43': { points: 80, tier: 'CHAMPIONS' } } }, leaderboard: [later, first] }
+    expect(weeklyRecord(profile, 'weekly-2026-W43', previousWeeklySeed).counted).toEqual({ points: 80, tier: 'CHAMPIONS', record: '26-2-10' })
+    // Two the same day with different records: which counted cannot be told, so no record is named
+    const sameDay = { ...profile, leaderboard: [{ ...later, date: first.date }, first] }
+    expect(weeklyRecord(sameDay, 'weekly-2026-W43', previousWeeklySeed).counted).toEqual({ points: 80, tier: 'CHAMPIONS' })
+  })
+
   it('reads a streak as ended once a week was missed', () => {
     const profile: Pick<Profile, 'weekly' | 'leaderboard'> = { weekly: { streak: 5, last: 'weekly-2026-W41', results: { 'weekly-2026-W41': { points: 60, tier: 'MID_TABLE' } } }, leaderboard: [] }
     const r = weeklyRecord(profile, 'weekly-2026-W44', previousWeeklySeed)

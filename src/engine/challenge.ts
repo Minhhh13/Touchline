@@ -271,7 +271,10 @@ export function cleanName(name: string): string {
     .join('')
     .replace(/\s+/g, ' ')
     .trim()
-  return cleaned.slice(0, CHALLENGE_NAME_MAX).trim()
+  // Cut on a whole character: a cut through an emoji would leave half of it (a lone surrogate) at the end
+  const cut = cleaned.slice(0, CHALLENGE_NAME_MAX)
+  const last = cut.charCodeAt(cut.length - 1)
+  return (last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut).trim()
 }
 
 /** Base-36 hash of the club-seasons a draft's wheel landed on, in order. */
