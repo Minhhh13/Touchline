@@ -235,4 +235,5 @@ export const arena = catalog('arena', {
   fieldHint_giants: 'The strongest 5% of every club-season in the data. Giants: brutal on Realistic',
   fieldHint_decade: 'Club-seasons of one decade with a real team strength of 78 or more',
   fieldHint_europe: 'The top four of every league in its latest complete season. Loads all seven leagues',
+  newRunTip: 'Set up a new arena run',
 })

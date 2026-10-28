@@ -262,4 +262,6 @@ export const summary = catalog('summary', {
   europeChip: 'Continental',
   shareCard: 'Share card',
   shareText: 'Share text',
+  draftAgainTip: 'The same setup on a new wheel',
+  challengeFriendTip: 'A link to this wheel: your friend drafts the same spins and plays against your result',
 })

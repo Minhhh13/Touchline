@@ -184,3 +184,21 @@ describe('the Run-in and the arena fields', () => {
     }
   })
 })
+
+describe('the Dugout’s match-play chips and squad views', () => {
+  it('say what assistant.ts and squadDisplay.ts say', async () => {
+    const { MATCH_PLAY_MODES } = await import('@game/logic/assistant')
+    const { SQUAD_VIEWS } = await import('@game/logic/squadDisplay')
+    const { translator } = await import('../i18n')
+    const { dugout } = await import('../i18n/en/dugout')
+    const t = translator(dugout)
+    for (const m of MATCH_PLAY_MODES) {
+      expect(t(`play_${m.id}`)).toBe(m.label)
+      expect(t(`playHint_${m.id}`)).toBe(m.hint)
+    }
+    for (const v of SQUAD_VIEWS) {
+      expect(t(`view_${v.id}`)).toBe(v.label)
+      expect(t(`viewHint_${v.id}`)).toBe(v.hint)
+    }
+  })
+})

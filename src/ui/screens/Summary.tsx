@@ -519,12 +519,12 @@ export function Summary() {
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title="The same setup on a new wheel" data-testid="draft-again">
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title={t('draftAgainTip')} data-testid="draft-again">
               <Dices size={16} aria-hidden="true" /> {t('draftAgain')}
             </button>
           )}
           {canChallenge && (
-            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend" title="A link to this wheel: your friend drafts the same spins and plays against your result">
+            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend" title={t('challengeFriendTip')}>
               <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
             </button>
           )}

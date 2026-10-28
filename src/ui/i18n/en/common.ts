@@ -95,4 +95,5 @@ export const common = catalog('common', {
   'weeklyBlurb_teammate-chain': 'every pick a former teammate of the one before',
   weeklyNationBlurb: 'every pick from {nation}',
   weeklyThemeLine: '{name}: {blurb}',
+  newBadge: '{n} new',
 })

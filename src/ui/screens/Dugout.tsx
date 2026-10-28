@@ -331,8 +331,8 @@ export function Dugout() {
             <div className="match-play" data-testid="match-play" role="radiogroup" aria-label={t('howToPlay')}>
               <span className="small muted">{t('matchLabel')}</span>
               {MATCH_PLAY_MODES.map((m) => (
-                <button key={m.id} type="button" role="radio" aria-checked={playMode === m.id} className={`chip-btn ${playMode === m.id ? 'active' : ''}`} title={m.hint} onClick={() => store.setMatchPlay(m.id)} data-testid={`match-play-${m.id}`}>
-                  {m.label}
+                <button key={m.id} type="button" role="radio" aria-checked={playMode === m.id} className={`chip-btn ${playMode === m.id ? 'active' : ''}`} title={t(`playHint_${m.id}`)} onClick={() => store.setMatchPlay(m.id)} data-testid={`match-play-${m.id}`}>
+                  {t(`play_${m.id}`)}
                 </button>
               ))}
             </div>
@@ -427,8 +427,8 @@ export function Dugout() {
                 </button>
                 <span className="segmented squad-views-seg" role="radiogroup" aria-label={t('squadView')} data-testid="squad-view">
                   {SQUAD_VIEWS.map((v) => (
-                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
-                      {v.label}
+                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} className={view === v.id ? 'active' : ''} title={t(`viewHint_${v.id}`)} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
+                      {t(`view_${v.id}`)}
                     </button>
                   ))}
                 </span>

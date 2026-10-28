@@ -201,7 +201,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title={t('runItBackTip')}>
             <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
           </button>
-          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title="Set up a new arena run">
+          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title={t('newRunTip')}>
             <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>
