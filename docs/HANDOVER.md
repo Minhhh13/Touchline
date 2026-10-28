@@ -783,7 +783,7 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
   - A Dugout tab that stays selected after its tab disappears (it shows the free-weekend notice).
 - 2026-10-28 · Claude (r8 audit screens) · checks:
   - typecheck clean;
-  - `npx vitest run --testTimeout=180000`: 2,091 passed, 22 skipped, none failed (one Vitest worker RPC timeout while a build and a smoke shared the machine; rerun below);
+  - `npx vitest run --testTimeout=180000`: 2,091 passed, 22 skipped in 285 files, exit 0 (rerun on an idle machine: the first run's only error was a Vitest worker RPC timeout while a build and a smoke shared it);
   - `rm -rf dist && npm run build`: the edge bundle name is unchanged;
   - `BUDGET_DIST=1` budget and `check:dist-keys` pass;
   - Playwright on the dev server and on `vite preview` at 1280x720 and 390x844 (Quick Draft to the summary, a Season match through half time and the 70th minute and the Dugout tabs, an arena Cup, Explore's views): zero page errors and zero console errors or warnings, React's dev warnings included.
