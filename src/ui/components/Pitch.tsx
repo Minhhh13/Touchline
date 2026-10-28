@@ -33,12 +33,14 @@ export interface PitchProps {
   hideRatings?: boolean
   /** The player whose rating just came out of hiding (a blind pick landing): his disc flips the number in. */
   revealId?: string | null
+  /** The player who has just been placed (any pick landing): his disc pops in once. Presentation only. */
+  landedId?: string | null
   showRoles?: Record<string, string>
   /** Codes for `showRoles` (the last resort when neither the full role nor its short name fits the slot); the full one is in the tooltip. */
   roleCodes?: Record<string, string>
 }
 
-export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, selectedSlot, eligibleSlots, hideRatings, revealId, showRoles, roleCodes }: PitchProps) {
+export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, selectedSlot, eligibleSlots, hideRatings, revealId, landedId, showRoles, roleCodes }: PitchProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(PITCH_GUESS)
   useEffect(() => {
@@ -109,7 +111,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
           // A pressable pitch makes the disc the button (its target never overlaps a team-mate's label room, WCAG 2.5.8);
           // a tap on the name still lands on the slot. A read-only pitch is one labelled picture per slot
           <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingLine(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role={onSlotClick ? undefined : 'img'} aria-label={onSlotClick ? undefined : label}>
-            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined} role={onSlotClick ? 'button' : undefined} tabIndex={onSlotClick ? 0 : undefined} aria-label={onSlotClick ? label : undefined} onKeyDown={onSlotClick ? (e) => { if (isActivationKey(e.key)) { e.preventDefault(); onSlotClick(slot.id) } } : undefined}>
+            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : p && id === landedId ? ' landed' : ''}`} style={ring ? { borderColor: ring } : undefined} role={onSlotClick ? 'button' : undefined} tabIndex={onSlotClick ? 0 : undefined} aria-label={onSlotClick ? label : undefined} onKeyDown={onSlotClick ? (e) => { if (isActivationKey(e.key)) { e.preventDefault(); onSlotClick(slot.id) } } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
               {/* Out of position: the cost against his overall, so 84 here and 89 on his card read as one number */}
               {rated && !hideRatings && rated.cost > 0 && (
