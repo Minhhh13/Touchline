@@ -31,6 +31,7 @@ import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { CasualStatus } from '../online/CasualStatus'
+import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { fixed } from '../format'
@@ -209,6 +210,7 @@ export function ArenaSummary() {
 
       <div className="summary-body fill" data-testid="summary-body">
         <CasualStatus game={game} />
+        <BadgeUnlocks />
         {link && (
           <div className="panel" data-testid="arena-challenge-link">
             <div className="panel-head">

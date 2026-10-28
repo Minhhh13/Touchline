@@ -5,6 +5,7 @@
  */
 import type { SeasonTier } from '@engine/types'
 import type { Cabinet, Game, HonourEntry, LeaderboardEntry, Mode, Profile } from '../types'
+import { creditRunInFeats, creditSeasonFeats, featsFromBoard, normaliseFeats } from './feats'
 
 export function emptyCabinet(): Cabinet {
   return {
@@ -50,7 +51,14 @@ export function normaliseCabinet(c: Partial<Cabinet>): Cabinet {
     h2hOnline: { played: 0, won: 0, ...(c.h2hOnline ?? {}) },
     runIns: { ...e.runIns, ...(c.runIns ?? {}) },
     honours: Array.isArray(c.honours) ? c.honours.filter(isHonour).slice(0, HONOURS_CAP) : [],
+    // The r8 feats stay absent until credited or backfilled (`withFeats`), so an older cabinet is caught up from its board once
+    feats: normaliseFeats(c.feats),
   }
+}
+
+/** A cabinet with its r8 feats: an older one (none yet) counts them once from the leaderboard and the run-in log. */
+export function withFeats(c: Cabinet, profile: Pick<Profile, 'leaderboard' | 'runIns'>): Cabinet {
+  return c.feats ? c : { ...c, feats: featsFromBoard(profile) }
 }
 
 /** Seasons the honours board keeps, newest first. */
@@ -170,7 +178,7 @@ function addOnce(list: string[], id: string | undefined): string[] {
  * dedupe), `newDaily` when the result filed a daily day for the first time,
  * `newWeekly` a Weekly Challenge week.
  */
-export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: boolean; newWeekly?: boolean; date?: string } = {}): Cabinet {
+export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: boolean; newWeekly?: boolean; date?: string; perfectDraft?: boolean } = {}): Cabinet {
   const rec = finishedRecord(game)
   if (!rec) return cabinet
   const mode = game.settings.mode
@@ -182,6 +190,7 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
   if (opts.newWeekly) c.weeklies += 1
   if (!countsAsLeagueSeason(mode)) return c
   const title = isTitle(rec.position, rec.tier)
+  c.feats = creditSeasonFeats(c.feats, game, { title, perfectDraft: opts.perfectDraft })
   const cup = !!last?.cupWon
   // A quick season's Continental Cup run counts as the managed modes' trophy does
   const euro = !!last?.continentalWon || game.quickResult?.europe?.reached === 'W'
@@ -241,6 +250,7 @@ export function creditRunIn(cabinet: Cabinet, game: Game, met: boolean): Cabinet
   c.byMode.runin = (c.byMode.runin ?? 0) + 1
   c.runIns.played += 1
   if (met) c.runIns.met += 1
+  c.feats = creditRunInFeats(c.feats, game.settings.seed, met)
   return c
 }
 
@@ -270,7 +280,7 @@ export function creditH2HOnline(cabinet: Cabinet, won: boolean): Cabinet {
  * counts copied exactly, everything else counted from the 50-entry
  * leaderboard (so older counts are a floor) and the daily results.
  */
-export function rebuildCabinet(profile: Pick<Profile, 'trophies' | 'leaderboard' | 'dailyResults'>): Cabinet {
+export function rebuildCabinet(profile: Pick<Profile, 'trophies' | 'leaderboard' | 'dailyResults' | 'runIns'>): Cabinet {
   const c = emptyCabinet()
   const t = profile.trophies
   if (t) {
@@ -293,6 +303,7 @@ export function rebuildCabinet(profile: Pick<Profile, 'trophies' | 'leaderboard'
     }
   }
   c.dailies = Object.keys(profile.dailyResults ?? {}).length
+  c.feats = featsFromBoard(profile)
   if (board.length) c.rebuilt = true
   return c
 }

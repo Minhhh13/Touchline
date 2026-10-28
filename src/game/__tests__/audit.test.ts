@@ -22,7 +22,7 @@ import { storyForGame } from '../logic/story'
 import { modeLabel } from '../logic/modes'
 import { arenaVerdictOf, challengeHeadline } from '../logic/arenaClaim'
 import type { Cabinet, Game, GameSettings, Profile, QuickCupRun } from '../types'
-import { creditH2H, creditH2HOnline, emptyCabinet, fileHonour, normaliseCabinet } from '../logic/cabinet'
+import { creditH2H, creditH2HOnline, emptyCabinet, fileHonour, normaliseCabinet, withFeats } from '../logic/cabinet'
 import { quickCupBracket } from '../logic/bracket'
 import { maskedView, setAssignment, setRecruitFocus } from '../logic/scouting'
 import { contractDemand } from '../logic/contracts'
@@ -223,6 +223,12 @@ describe('audit fixes: season and squad', () => {
     delete oldCabinet.honours
     expect(normaliseCabinet(oldCabinet as Partial<Cabinet>).honours).toEqual([])
     expect(fileHonour(oldCabinet as unknown as Cabinet, { id: 'g-1', kind: 'treble', cups: ['cup', 'continental'], teamName: 'Old XI', mode: 'quick', leagueId: 'england', leagueSeason: 2025 }).honours).toHaveLength(1)
+    // Nor the r8 feats: the cabinet keeps none until it is caught up once from its board, then credits on top
+    const featless = normaliseCabinet(oldCabinet as Partial<Cabinet>)
+    expect(featless.feats).toBeUndefined()
+    const caught = withFeats(featless, { leaderboard: [{ id: 'o', date: '2026-01-01', mode: 'quick', teamName: 'Old', points: 90, won: 28, drawn: 6, lost: 4, position: 1, tier: 'CHAMPIONS', seed: 'o', leagueSeason: 1999, hostClubId: 'arsenal', xi: [] }] })
+    expect(caught.feats?.classicTitles).toBe(1)
+    expect(caught.feats?.seasonsTitled).toEqual([1999])
     // A post-season cup run from before the bracket keeps no bracket: the summary shows the user's own ties alone
     const oldRun: QuickCupRun = { ties: [{ round: 'R16', opponentId: 'arsenal', home: true, gf: 2, ga: 1, scorers: [], won: true }, { round: 'QF', opponentId: 'chelsea', home: false, gf: 0, ga: 1, scorers: [], won: false }], reached: 'QF' }
     const oldQuick = normaliseGame({ ...n, quickResult: { ...(n.quickResult ?? {}), cup: oldRun } } as unknown as Game)!

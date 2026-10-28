@@ -5,6 +5,7 @@ import { RUN_IN_TEMPLATE_LABEL, runInShare, runInVerdict } from '@game/logic/run
 import { gameLabel, storyForGame } from '@game/logic/story'
 import { TableView } from '../components/TableView'
 import { CasualStatus } from '../online/CasualStatus'
+import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { ClubBadge, Info, Stat } from '../components/bits'
 import { Check, Copy, House, RotateCcw } from 'lucide-react'
 import { clubName, ordinal, outcomeClass, outcomeOf, seasonLabel } from '../format'
@@ -83,6 +84,7 @@ export function RunInSummary() {
       </div>
       <div className="summary-body fill" data-testid="summary-body">
         <CasualStatus game={game} />
+        <BadgeUnlocks />
         <div className="grid two">
           <div className="panel" data-testid="runin-games">
             <h3>{t('theRunIn')}</h3>

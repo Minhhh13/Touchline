@@ -4195,7 +4195,9 @@ table.tbl.contracts .btn.sm {
   .recap-grade,
   .recap-hindsight,
   .shelf-item,
-  .arena-trophy > svg {
+  .arena-trophy > svg,
+  .unlock-item,
+  .unlock-medal {
     animation: none;
   }
   .celebrate {
@@ -6708,6 +6710,89 @@ dl.kv {
 .badge-ring.gold {
   border-color: var(--medal-gold);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--medal-gold) 30%, transparent);
+}
+
+/* The unlock moment (r8): a summary's new badges, each medal popping in once on the spring curve, a share and the next
+   one to chase; the Trophy Room marks a new tile until it is seen. Transform and opacity only, off under reduced motion */
+@keyframes unlock-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-20deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes unlock-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.unlock-card {
+  border-color: color-mix(in srgb, var(--medal-gold) 45%, var(--line));
+}
+.unlock-card h3 svg {
+  color: var(--medal-gold);
+}
+.unlock-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.unlock-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.unlock-card.animate .unlock-item {
+  animation: unlock-rise var(--dur-3) var(--ease-out) backwards;
+}
+.unlock-card.animate .unlock-medal,
+.badge-tile.fresh .unlock-medal {
+  animation: unlock-pop var(--dur-4) var(--ease-spring) backwards;
+  animation-delay: inherit;
+}
+.badge-tile.fresh {
+  border-color: var(--primary);
+}
+.new-chip {
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.chase-block {
+  margin: 10px 0 4px;
+}
+.chase-head {
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.chase-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+.chase-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.chase-row .badge-ring {
+  width: 36px;
+  height: 36px;
+  border-width: 2px;
 }
 
 /* ------------------------------------------------------------ slot picker */

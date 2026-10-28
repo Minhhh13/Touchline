@@ -7,6 +7,7 @@ import { nextSeasonLeagues } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
 import { FirstNext } from '../components/FirstNext'
+import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { continentalRun } from '@game/logic/week'
 import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
 import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
@@ -554,6 +555,7 @@ export function Summary() {
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
       {!replay.playing && <CasualStatus game={game} />}
+      {!replay.playing && <BadgeUnlocks />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
       {firstNext && !replay.playing && <FirstNext steps={firstNext} onDaily={() => go('setup', 'daily')} onSetup={() => go('setup', 'quick')} />}
       {q && results.length > 0 && on('games') && (

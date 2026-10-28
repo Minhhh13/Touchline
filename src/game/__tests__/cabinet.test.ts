@@ -7,6 +7,7 @@ import { BADGES, badgeProgress, badgeStates, badgeTier, topBadges } from '@engin
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { h2hComplete } from '@engine/h2h'
+import { emptyFeats } from '../logic/feats'
 import type { Game, GameSettings, LeaderboardEntry, Mode, Profile, SeasonRecord } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
 vi.hoisted(() => {
@@ -76,7 +77,8 @@ describe('rebuildCabinet: a profile from before the Trophy Room', () => {
     expect(c.cups.won).toBe(0)
     expect(c.runIns).toEqual({ played: 0, met: 0 })
     // An empty profile has nothing to rebuild, so no note
-    expect(rebuildCabinet({ leaderboard: [], dailyResults: {} })).toEqual(emptyCabinet())
+    // (only its r8 feats, empty: a rebuilt cabinet always carries them, `feats.ts`)
+    expect(rebuildCabinet({ leaderboard: [], dailyResults: {} })).toEqual({ ...emptyCabinet(), feats: emptyFeats() })
   })
 })
 
