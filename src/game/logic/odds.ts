@@ -1,7 +1,7 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng, type RngState } from '@engine/rng'
-import { pairingExpectation, type MatchTeamInput } from '@engine/match'
+import { pairingExpectation, softCeiling, type MatchTeamInput } from '@engine/match'
 import { aiTeamInput, humansOf, USER_TEAM } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
 import { playerLookup } from './players'
@@ -12,7 +12,7 @@ import { quickLeague } from './superLeague'
 export const ODDS_SEASONS = 2000
 /** Seasons sampled per step when the odds are worked out a slice at a time (the UI runs one step per idle moment). */
 export const ODDS_STEP = 250
-/** Places that count as a top-four, top-six and top-ten finish; the bottom three go down. */
+/** The bottom three go down. */
 export const ODDS_RELEGATED = 3
 
 /** One league fixture as the odds see it: who plays whom, at whose ground, and the goals each side is expected to score. */
@@ -104,6 +104,15 @@ export function emptyTally(teams: number): OddsTally {
  * (as the engine does) and its goals from a Poisson around the expected goals; the table is sorted on points, goal
  * difference, goals scored and then the club id, as `computeTable` sorts it.
  */
+/**
+ * A side's expected goals on the day: the pairing's figure times its variance, under the engine's soft ceiling and
+ * floor (engine 6 replaced the old clamp at 5.8). Exact below `XG_KNEE`, where the pairing's figure is the engine's
+ * own; above it the figure is already ceiled, so the day's sits a touch under the engine's, never above its ceiling.
+ */
+export function matchDayXg(lam: number, g: number): number {
+  return Math.max(0.12, softCeiling(lam * Math.exp(g)))
+}
+
 export function sampleSeasons(league: OddsLeague, rng: Rng, n: number, tally: OddsTally): OddsTally {
   const teams = league.ids.length
   const pts = new Float64Array(teams)
@@ -118,8 +127,8 @@ export function sampleSeasons(league: OddsLeague, rng: Rng, n: number, tally: Od
     let dropped = 0
     let lost = 0
     for (const p of league.pairings) {
-      const h = rng.poisson(clamp(p.lamH * Math.exp(rng.gaussian(0, p.sigmaH)), 0.12, 5.8))
-      const a = rng.poisson(clamp(p.lamA * Math.exp(rng.gaussian(0, p.sigmaA)), 0.12, 5.8))
+      const h = rng.poisson(matchDayXg(p.lamH, rng.gaussian(0, p.sigmaH)))
+      const a = rng.poisson(matchDayXg(p.lamA, rng.gaussian(0, p.sigmaA)))
       gf[p.home] += h
       gf[p.away] += a
       gd[p.home] += h - a

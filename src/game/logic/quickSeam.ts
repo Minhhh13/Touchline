@@ -66,3 +66,13 @@ export function quickSeasonStale(game: Game, u: LoadedUniverse): boolean {
   if (!stale) fresh.add(key)
   return stale
 }
+
+/**
+ * Note a quick season this page has just played (a kick-off, a bench change, the January window closed) as fresh, so
+ * the next bench change's check does not play it all again before the change plays it once more.
+ */
+export function markQuickSeasonFresh(game: Game): void {
+  const j = game.quickJanuary
+  if (game.phase === 'january' && j) fresh.add(keyOf(game, `jan:${JSON.stringify(j.firstHalfTactics)}:${j.firstHalfCaptainId ?? ''}`, j.firstHalf))
+  else if (game.quickResult && game.quickStartRng) fresh.add(keyOf(game, `season:${JSON.stringify(game.quickJanuary?.move ?? null)}`, game.quickResult.results))
+}

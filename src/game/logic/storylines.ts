@@ -381,10 +381,14 @@ export function nextTieFixture(game: Game): TieFixture | null {
   if (!season || season.sacked) return null
   const mw = season.matchweek + 1
   const find = (ties: CupTie[], comp: PreviewComp) => {
-    const t = ties.find((x) => !x.result && x.afterMatchweek === mw && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
-    if (!t) return null
-    const home = t.homeTeamId === USER_TEAM
-    return { opponentId: home ? t.awayTeamId : t.homeTeamId, home, matchweek: mw, comp, round: t.round }
+    for (const t of ties) {
+      if (t.homeTeamId !== USER_TEAM && t.awayTeamId !== USER_TEAM) continue
+      const leg = legAt(t, mw)
+      if (!leg || (leg.leg === 1 ? t.firstLeg?.result : t.result)) continue
+      const home = leg.homeTeamId === USER_TEAM
+      return { opponentId: home ? leg.awayTeamId : leg.homeTeamId, home, matchweek: mw, comp, round: t.round }
+    }
+    return null
   }
   if (!season.cupEliminated && !season.cupWon) {
     const c = find(season.cup, 'cup')

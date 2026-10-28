@@ -219,6 +219,11 @@ export interface Contract {
   loan?: boolean
   /** Squad status: how much football he expects (section 10 of the design doc); rotation when absent. */
   status?: SquadStatus
+  /**
+   * The highest status the Club tab has raised his wage to (`setSquadStatus`), when a demotion has left it above his
+   * status: moving him back up raises the wage only past it. Absent reads as `status`; contract talks clear it.
+   */
+  paidStatus?: SquadStatus
   /** Terms agreed in contract talks (`src/game/logic/contracts.ts`); absent on every contract nobody has negotiated. */
   clauses?: ContractClauses
   /** A sell-on clause agreed when he was signed: the selling club takes `pct` of the fee when he is sold on. */

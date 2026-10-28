@@ -63,7 +63,7 @@ export interface MilestoneState {
   badge: MilestoneBadge
   value: number
   tier: BadgeTier | null
-  /** "3 of 5 for silver", "0 of 1", or "Gold". */
+  /** "3 of 5 for silver", "Not yet" (a stamp not earned), or "Gold". */
   progress: string
   /** Share of the way to the next threshold, 0..1 (1 at gold). */
   toward: number
