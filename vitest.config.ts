@@ -12,5 +12,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // Seeded sweeps play whole seasons; on a shared CI runner the 5 s default timed some out with every assertion
+    // passing (engineBump, managers on 2026-10-28). A test that needs longer still says so itself.
+    testTimeout: 30_000,
   },
 })
