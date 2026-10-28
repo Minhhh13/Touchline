@@ -57,7 +57,9 @@ export function ArenaSummary() {
     .filter(([, s]) => s.seasonStats.goals > 0)
     .sort(([x, sx], [y, sy]) => sy.seasonStats.goals - sx.seasonStats.goals || (x < y ? -1 : 1))
   const goals = (res?.events ?? []).filter((e) => (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal') && (e.side === 'home') === userHome)
-  const motm = gauntlet || !inFinal ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
+  // The final's man of the match can be theirs (a lost final): the summary names his side then
+  const motmName = gauntlet || !inFinal ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
+  const motm = motmName && last?.motmId && !game.squad[last.motmId] ? `${motmName} (${u.clubById[clubIdOfKey(last.opponent)]?.shortName ?? arenaClubShortName(u, last.opponent)})` : motmName
   const formation = getFormation(game.tactics.formationId)
   const stepLine = (i: number) => {
     const s = a.log[i]
@@ -143,13 +145,16 @@ export function ArenaSummary() {
           <Stat label="Played" value={a.log.length} />
           <Stat label="Goals" value={`${a.log.reduce((x, s) => x + s.gf, 0)}-${a.log.reduce((x, s) => x + s.ga, 0)}`} />
         </div>
-        <div className="blocks" aria-hidden="true">
-          {a.log.map((s, i) => (
-            <span key={i} style={{ background: won(s) ? 'var(--good)' : 'var(--bad)' }} />
-          ))}
-        </div>
+        {/* The Gauntlet's ladder below marks every rung, so its blocks would say the same thing twice */}
+        {!gauntlet && (
+          <div className="blocks" aria-hidden="true">
+            {a.log.map((s, i) => (
+              <span key={i} style={{ background: won(s) ? 'var(--good)' : 'var(--bad)' }} />
+            ))}
+          </div>
+        )}
         {gauntlet && (
-          <div className="row" style={{ justifyContent: 'center' }}>
+          <div className="row banner-ladder" style={{ justifyContent: 'center' }}>
             <GauntletLadder u={u} a={a} />
           </div>
         )}
@@ -219,7 +224,7 @@ export function ArenaSummary() {
                         </div>
                         <div className="small muted">
                           {s.neutral ? 'Neutral ground' : s.home ? 'Home' : 'Away'} · real {s.realStrength.toFixed(1)}
-                          {s.offset > 0 ? `, played at ${(s.realStrength - s.offset).toFixed(1)}` : ''} · {s.live ? 'managed live' : 'the assistant'}
+                          {s.offset > 0 ? `, played at ${(s.realStrength - s.offset).toFixed(1)}` : ''} · {s.live ? 'managed live' : 'simmed'}
                         </div>
                       </span>
                     </span>
@@ -282,7 +287,7 @@ export function ArenaSummary() {
             <Bracket
               view={arenaBracketView(size, a.bracket.rounds)}
               nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
-              badge={(k) => <ClubBadge clubId={k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k)} size={18} />}
+              badge={(k) => (k === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={clubIdOfKey(k)} size={18} />)}
               userId={USER_TEAM}
               seeds={a.bracket.seeds}
             />

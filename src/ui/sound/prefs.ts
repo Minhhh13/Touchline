@@ -12,3 +12,14 @@ export const subscribeSound = pref.subscribe
 export function useSoundOn(): [boolean, (next: boolean) => void] {
   return usePref(pref)
 }
+
+/** Match sounds (the whistle, the crowd, the net, cards and substitutions) on or off, per viewer, on by default. Under the master switch: off there silences these too. */
+export const MATCH_SOUND_KEY = 'touchline-match-sound'
+const matchPref = viewerPref(MATCH_SOUND_KEY, true)
+
+export const matchSoundOn = matchPref.get
+export const setMatchSoundOn = matchPref.set
+
+export function useMatchSoundOn(): [boolean, (next: boolean) => void] {
+  return usePref(matchPref)
+}

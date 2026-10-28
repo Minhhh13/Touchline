@@ -1,34 +1,29 @@
 /* Phone and native WebView adjustments. Keep this after the shared screen styles. */
-:root {
-  --safe-area-top: env(safe-area-inset-top, 0px);
-  --safe-area-right: env(safe-area-inset-right, 0px);
-  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-left: env(safe-area-inset-left, 0px);
-}
-
 /* Padding also protects the page when the top bar is folded away. */
 .app {
-  padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 /* The page can scroll behind the sticky bar, but its text must not show behind the status bar. */
 .app::before {
   content: '';
   position: fixed;
   inset: 0 0 auto;
-  height: var(--safe-area-top);
+  height: var(--safe-top);
   background: var(--bg);
   z-index: 21;
   pointer-events: none;
 }
 .app > .topbar {
-  top: var(--safe-area-top);
+  top: 0;
+  padding-top: 10px;
+  padding-inline: var(--gutter);
 }
 .topbar-restore {
-  top: calc(10px + var(--safe-area-top));
-  right: calc(var(--gutter) + var(--safe-area-right));
+  top: calc(10px + var(--safe-top));
+  right: calc(var(--gutter) + var(--safe-right));
 }
 html {
-  scroll-padding-top: calc(var(--topbar-h, 64px) + var(--safe-area-top) + var(--space-2));
+  scroll-padding-top: calc(var(--topbar-h, 64px) + var(--safe-top) + var(--space-2));
 }
 
 /* Landscape iPhones have a wider viewport, but still need touch-sized controls. */
@@ -53,7 +48,7 @@ html {
     height: 44px;
   }
   .topbar-restore {
-    top: calc(8px + var(--safe-area-top));
+    top: calc(8px + var(--safe-top));
     min-height: 44px;
   }
   .bottom-bar button,
@@ -75,18 +70,18 @@ html {
 
   .bottom-bar,
   .cta-bar {
-    padding-left: calc(var(--gutter) + var(--safe-area-left));
-    padding-right: calc(var(--gutter) + var(--safe-area-right));
-    padding-bottom: calc(10px + var(--safe-area-bottom));
+    padding-left: calc(var(--gutter) + var(--safe-left));
+    padding-right: calc(var(--gutter) + var(--safe-right));
+    padding-bottom: calc(10px + var(--safe-bottom));
   }
   .modal-back {
-    padding-top: var(--safe-area-top);
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
   .modal {
-    max-height: min(88dvh, calc(100dvh - var(--safe-area-top)));
-    padding-bottom: calc(var(--space-5) + var(--safe-area-bottom));
+    max-height: min(88dvh, calc(100dvh - var(--safe-top)));
+    padding-bottom: calc(var(--space-5) + var(--safe-bottom));
   }
   .modal-back:has(> .card-modal) {
     padding: 0;
@@ -94,31 +89,31 @@ html {
   .modal.card-modal {
     height: 100dvh;
     max-height: 100dvh;
-    padding-top: calc(var(--space-3) + var(--safe-area-top));
-    padding-left: calc(var(--gutter) + var(--safe-area-left));
-    padding-right: calc(var(--gutter) + var(--safe-area-right));
+    padding-top: calc(var(--space-3) + var(--safe-top));
+    padding-left: calc(var(--gutter) + var(--safe-left));
+    padding-right: calc(var(--gutter) + var(--safe-right));
   }
   .decision-back {
-    padding-top: calc(12px + var(--safe-area-top));
-    padding-left: calc(12px + var(--safe-area-left));
-    padding-right: calc(12px + var(--safe-area-right));
+    padding-top: calc(12px + var(--safe-top));
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
   }
   .decision-sheet {
-    max-height: calc(100dvh - 24px - var(--safe-area-top));
+    max-height: calc(100dvh - 24px - var(--safe-top));
   }
   .decision-actions {
-    padding-bottom: calc(10px + var(--safe-area-bottom));
+    padding-bottom: calc(10px + var(--safe-bottom));
   }
   .matchday .md-drawer-back {
-    padding-top: var(--safe-area-top);
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
   .matchday .md-drawer {
-    max-height: min(80dvh, calc(100dvh - var(--safe-area-top)));
+    max-height: min(80dvh, calc(100dvh - var(--safe-top)));
   }
   .matchday .md-drawer-foot {
-    padding-bottom: max(8px, var(--safe-area-bottom));
+    padding-bottom: max(8px, var(--safe-bottom));
   }
   /* Full-screen substitution sheets own their insets rather than the backdrop. */
   .matchday .md-drawer-back:has(> .md-drawer.board),
@@ -127,9 +122,9 @@ html {
   }
   .matchday .md-drawer.board,
   .matchday .decision-sheet:has(.md-stop-board) {
-    padding-top: var(--safe-area-top);
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
     max-height: 100dvh;
   }
 }

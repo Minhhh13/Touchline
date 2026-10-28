@@ -64,8 +64,8 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled, onRollin
   const rerollUse = d.powerUps?.find((x) => x.kind === 'reroll')
   const swapUse = d.powerUps?.find((x) => x.kind === 'swap')
   const status = {
-    reroll: rerollUse && rerollUse.kind === 'reroll' ? `→ ${seasonLabel(rerollUse.to)}` : busy ? 'Reel running' : !d.current ? 'After a spin' : options.length ? `${options.length} season${options.length === 1 ? '' : 's'}` : 'No other season',
-    peek: peekUse && peekUse.kind === 'peek' ? (peeked !== null ? `Next: ${peeked === ICONS_SEASON ? 'Icons' : seasonLabel(peeked)}` : `Saw ${peekUse.season === ICONS_SEASON ? 'Icons' : seasonLabel(peekUse.season)}`) : complete ? 'Draft complete' : d.current ? 'Before a spin' : positionFirst(d) && !targetSlot(d) ? 'Choose a slot' : 'Ready',
+    reroll: rerollUse && rerollUse.kind === 'reroll' ? `→ ${seasonLabel(rerollUse.to)}` : busy ? 'Reel running' : !d.current ? 'After a spin' : options.length ? `${options.length} season${options.length === 1 ? '' : 's'}` : 'None left',
+    peek: peekUse && peekUse.kind === 'peek' ? (peeked !== null ? `Next: ${peeked === ICONS_SEASON ? 'Icons' : seasonLabel(peeked)}` : `Saw ${peekUse.season === ICONS_SEASON ? 'Icons' : seasonLabel(peekUse.season)}`) : complete ? 'Draft done' : d.current ? 'Before a spin' : positionFirst(d) && !targetSlot(d) ? 'Choose a slot' : 'Ready',
     swap: swapUse && swapUse.kind === 'swap' ? `${slotPos(swapUse.from)} ⇄ ${slotPos(swapUse.to)}` : d.current ? 'Between spins' : canSwap(u, d) ? 'Ready' : 'No move yet',
     armband: band ? `${nameOf(band)} +${ARMBAND_BOOST}` : canArmband(d) ? 'Ready' : 'Draft a player',
     lock: lock ? nameOf(lock) : d.upgrade ? 'Upgrader used' : canLock(d) ? 'Ready' : 'Draft a player',
@@ -95,7 +95,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled, onRollin
           <Upgrader tray turn={turn} onRolling={onRolling} players={players} ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0} available={canUpgrade(d) && drafting} result={d.upgrade} hideRatings={hideRatings} lockedId={lock} onConfirm={(id, boost) => upgradePlayer(id, boost)} />
         )}
         {kinds.includes('reroll') && (
-          <PowerUpButton icon={<PowerUpIcon kind="reroll" />} title={POWER_UP_INFO.reroll.title} line={POWER_UP_INFO.reroll.line} status={status.reroll} used={powerUpUsed(d, 'reroll')} disabled={!drafting || busy || !canReroll(u, d)} onClick={() => setSheet('reroll')} testId="pu-reroll" />
+          <PowerUpButton icon={<PowerUpIcon kind="reroll" />} title={POWER_UP_INFO.reroll.title} short="Re-roll" line={POWER_UP_INFO.reroll.line} status={status.reroll} used={powerUpUsed(d, 'reroll')} disabled={!drafting || busy || !canReroll(u, d)} onClick={() => setSheet('reroll')} testId="pu-reroll" />
         )}
         {kinds.includes('peek') && (
           <PowerUpButton icon={<PowerUpIcon kind="peek" />} title={POWER_UP_INFO.peek.title} line={POWER_UP_INFO.peek.line} status={status.peek} used={powerUpUsed(d, 'peek')} disabled={!drafting || busy || !canPeek(u, d)} onClick={() => peekSpin()} testId="pu-peek" />
@@ -104,7 +104,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled, onRollin
           <PowerUpButton icon={<PowerUpIcon kind="swap" />} title={POWER_UP_INFO.swap.title} line={POWER_UP_INFO.swap.line} status={status.swap} used={powerUpUsed(d, 'swap')} disabled={!drafting || busy || !canSwap(u, d)} onClick={() => setSheet('swap')} testId="pu-swap" />
         )}
         {kinds.includes('armband') && (
-          <PowerUpButton icon={<PowerUpIcon kind="armband" />} title={POWER_UP_INFO.armband.title} line={POWER_UP_INFO.armband.line} status={status.armband} used={powerUpUsed(d, 'armband')} disabled={!drafting || !canArmband(d)} onClick={() => setSheet('armband')} testId="pu-armband" />
+          <PowerUpButton icon={<PowerUpIcon kind="armband" />} title={POWER_UP_INFO.armband.title} short="Armband" line={POWER_UP_INFO.armband.line} status={status.armband} used={powerUpUsed(d, 'armband')} disabled={!drafting || !canArmband(d)} onClick={() => setSheet('armband')} testId="pu-armband" />
         )}
         {kinds.includes('lock') && (
           <PowerUpButton icon={<PowerUpIcon kind="lock" />} title={POWER_UP_INFO.lock.title} line={POWER_UP_INFO.lock.line} status={status.lock} used={powerUpUsed(d, 'lock')} disabled={!drafting || !canLock(d)} onClick={() => setSheet('lock')} testId="pu-lock" />

@@ -93,7 +93,7 @@ export function ContractTalks({ id, onBack }: { id: string; onBack: () => void }
               {AGENT_MOOD_LABEL[d.mood]} agent
             </span>
           </div>
-          <div className="kv tight" style={{ marginTop: 'var(--space-2)' }}>
+          <dl className="kv tight" style={{ marginTop: 'var(--space-2)' }}>
             <dt>He asks</dt>
             <dd data-testid="ask-wage">
               {wage(d.wage)} as {STATUS_LABEL[offer.status].toLowerCase()}
@@ -106,7 +106,7 @@ export function ContractTalks({ id, onBack }: { id: string; onBack: () => void }
             )}
             <dt>Length</dt>
             <dd>1 to {d.maxYears} seasons</dd>
-          </div>
+          </dl>
           <div className="row wrap" style={{ gap: 4, marginTop: 'var(--space-2)' }}>
             {(Object.keys(TERM_LABEL) as TermKey[]).map((k) => (
               <span key={k} className={`chip ${STANCE_CHIP[d.stances[k]]}`} title={`${TERM_LABEL[k]}: ${STANCE_LABEL[d.stances[k]].toLowerCase()}`}>
@@ -114,7 +114,7 @@ export function ContractTalks({ id, onBack }: { id: string; onBack: () => void }
               </span>
             ))}
           </div>
-          {d.why.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>{d.why.join('; ')}.</div>}
+          {d.why.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>{sentence(d.why.join('; '))}</div>}
           <div className="meter-row" style={{ marginTop: 'var(--space-3)' }} data-testid="offer-meter">
             <span className="small">Offer worth</span>
             <Bar value={pct} colour={verdict.accepted ? 'var(--good)' : pct >= 90 ? 'var(--meter-mid)' : 'var(--bad)'} />
@@ -190,4 +190,9 @@ export function ContractCard({ id, onTalks }: { id: string; onTalks: () => void 
       )}
     </div>
   )
+}
+
+/** The demand's reasons are clauses ('at 31 or over he asks 10% less; happy here: 5% less'): one sentence, capitalised. */
+function sentence(clauses: string): string {
+  return `${clauses.charAt(0).toUpperCase()}${clauses.slice(1)}.`
 }

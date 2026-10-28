@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core'
+import { saveBlob, saveDataUrl } from './saveFile'
 
 interface ExportFile {
   filename: string
@@ -51,25 +52,12 @@ async function nativeBridge(): Promise<NativeExportBridge> {
   }
 }
 
-function downloadUrl(url: string, filename: string): void {
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-}
-
 export async function exportDataUrl(dataUrl: string, filename: string): Promise<void> {
   if (Capacitor.isNativePlatform()) await shareNativeFile({ filename, data: dataUrlBase64(dataUrl), encoding: 'base64' }, await nativeBridge())
-  else downloadUrl(dataUrl, filename)
+  else await saveDataUrl(dataUrl, filename)
 }
 
 export async function exportTextFile(text: string, filename: string, type: string): Promise<void> {
   if (Capacitor.isNativePlatform()) await shareNativeFile({ filename, data: text, encoding: 'utf8' }, await nativeBridge())
-  else {
-    const url = URL.createObjectURL(new Blob([text], { type }))
-    downloadUrl(url, filename)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
+  else await saveBlob(new Blob([text], { type }), filename)
 }

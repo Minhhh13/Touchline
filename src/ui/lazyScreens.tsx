@@ -1,0 +1,212 @@
+import { Component, createElement, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
+import { House, RotateCcw, TriangleAlert } from 'lucide-react'
+
+/**
+ * Route-level code splitting: every screen but Home is its own chunk, so a phone downloads, parses and compiles only
+ * the shell and Home before the first paint of the game. Once Home is up the chunks are fetched one by one in idle
+ * time (`prefetchScreens`), in the order a player meets them, so the first tap on a mode rarely waits and every screen
+ * is in the service worker's cache for the next offline visit. A screen whose chunk is already in renders at once,
+ * without a Suspense frame; one still on its way shows `ScreenFallback`; one that cannot load (offline before it was
+ * fetched, or a deploy replaced it) shows `ScreenBoundary`'s reload card instead of a blank page, and a screen that throws
+ * while rendering shows its Back to home and Reload card.
+ */
+
+/** Whether this page loaded before a service worker controlled it (a first visit): its assets then bypassed the worker's cache. */
+const startedUncontrolled = typeof navigator !== 'undefined' && !!navigator.serviceWorker && !navigator.serviceWorker.controller
+
+export interface LazyScreen {
+  Screen: ComponentType
+  preload: () => Promise<unknown>
+}
+
+/** A screen loaded on demand: `name` is its export in the module `load` imports. */
+export function lazyScreen<K extends string>(load: () => Promise<{ [k in K]: ComponentType }>, name: K): LazyScreen {
+  let loaded: ComponentType | null = null
+  let pending: Promise<ComponentType> | null = null
+  const preload = (): Promise<ComponentType> => {
+    if (!pending) {
+      pending = load().then((m) => (loaded = m[name]))
+      // A failed fetch is not kept: the next render or prefetch tries the network again
+      pending.catch(() => {
+        pending = null
+      })
+    }
+    return pending
+  }
+  // React.lazy keeps a rejection for good: a failed load swaps in a fresh one, so the next render tries again
+  const make = (): ComponentType =>
+    lazy(() =>
+      preload().then(
+        (c) => ({ default: c }),
+        (e: unknown) => {
+          Lazy = make()
+          throw e
+        },
+      ),
+    )
+  let Lazy = make()
+  function Screen() {
+    return createElement(loaded ?? Lazy)
+  }
+  Screen.displayName = `Lazy(${name})`
+  return { Screen, preload }
+}
+
+/** What a screen shows while its chunk downloads: the loading skeleton of the design system. */
+export function ScreenFallback() {
+  return (
+    <div className="page loading-screen" aria-busy="true" data-testid="screen-loading">
+      <div className="skeleton loading-hero">
+        <div className="muted small" role="status">
+          Loading…
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A screen chunk that could not be fetched (offline before it was prefetched, or a deploy replaced it), as Chromium,
+ * Firefox, Safari and Vite's CSS preload word it, as opposed to a render error in a screen that did load. Pure.
+ */
+export function isChunkLoadError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return error.name === 'ChunkLoadError' || /dynamically imported module|Importing a module script failed|Unable to preload CSS|Loading (?:CSS )?chunk \S+ failed/i.test(error.message)
+}
+
+interface BoundaryProps {
+  children: ReactNode
+  /** The screen on show: a new key (another screen or phase) clears a caught error, so that screen gets its own try. */
+  resetKey: string
+  onHome: () => void
+}
+
+interface BoundaryState {
+  error: Error | null
+  key: string
+}
+
+/**
+ * The one boundary around the screens: it holds the Suspense frame of a lazy screen and catches whatever goes wrong
+ * below it, so the page is never left white with no way out. A chunk that did not load says so and offers a reload; a
+ * screen that threw while rendering shows the error, Back to home and Reload, the top bar kept. The save is untouched:
+ * the store's state is not part of the render. Navigating to another screen or phase resets it.
+ */
+export class ScreenBoundary extends Component<BoundaryProps, BoundaryState> {
+  state: BoundaryState = { error: null, key: this.props.resetKey }
+
+  static getDerivedStateFromError(error: Error): Partial<BoundaryState> {
+    return { error }
+  }
+
+  static getDerivedStateFromProps(props: BoundaryProps, state: BoundaryState): Partial<BoundaryState> | null {
+    return props.resetKey !== state.key ? { error: null, key: props.resetKey } : null
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(isChunkLoadError(error) ? 'Screen chunk did not load' : 'Screen error', error, info.componentStack)
+  }
+
+  render(): ReactNode {
+    const { error } = this.state
+    if (!error) return <Suspense fallback={<ScreenFallback />}>{this.props.children}</Suspense>
+    const chunk = isChunkLoadError(error)
+    const reload = (
+      <button type="button" className={chunk ? 'btn primary' : 'btn'} onClick={() => location.reload()} data-testid="screen-error-reload">
+        <RotateCcw size={16} aria-hidden="true" /> Reload
+      </button>
+    )
+    const home = (
+      <button type="button" className={chunk ? 'btn' : 'btn primary'} onClick={this.props.onHome} data-testid="screen-error-home">
+        <House size={16} aria-hidden="true" /> Back to home
+      </button>
+    )
+    return (
+      <div className="page">
+        <div className="panel col" role="alert" data-testid={chunk ? 'screen-load-error' : 'screen-error'}>
+          <h2 className="row">
+            <TriangleAlert size={20} aria-hidden="true" /> {chunk ? 'This screen did not load' : 'This screen hit a problem'}
+          </h2>
+          {chunk ? (
+            <p className="muted">It needs a connection the first time. Your game is saved: reload to try again.</p>
+          ) : (
+            <>
+              <p className="muted">Your game and your record are saved. Go back to the home screen, or reload the page to try this screen again.</p>
+              <p className="muted small mono">{error.message}</p>
+            </>
+          )}
+          {/* The likely fix goes first: a reload for a chunk, home for a screen that threw */}
+          <div className="row wrap">
+            {chunk ? (
+              <>
+                {reload}
+                {home}
+              </>
+            ) : (
+              <>
+                {home}
+                {reload}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+}
+
+/**
+ * Fetch every screen's chunk one at a time in idle moments, in the order given, each within 400 ms even when the page
+ * never goes idle (Home's art keeps a software-rendered page busy): all of them are in within seconds of Home, as
+ * the single bundle was. Returns a cancel. On a first visit the
+ * page loads before the service worker takes it, so whatever came in until then is fetched once more through the
+ * worker when it does (`cacheLoadedAssets`), from the HTTP cache: the next visit works offline.
+ */
+let screensFetched: () => void = () => undefined
+const allFetched = new Promise<void>((resolve) => {
+  screensFetched = resolve
+})
+
+/** Resolves once `prefetchScreens` has fetched every chunk it was given (main.tsx then registers the service worker). */
+export function whenScreensFetched(): Promise<void> {
+  return allFetched
+}
+
+export function prefetchScreens(screens: LazyScreen[]): () => void {
+  let stopped = false
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
+  const idle = (fn: () => void) => (w.requestIdleCallback ? w.requestIdleCallback(fn, { timeout: 400 }) : window.setTimeout(fn, 200))
+  const queue = [...screens]
+  const next = () => {
+    if (stopped) return
+    const s = queue.shift()
+    if (!s) return screensFetched()
+    idle(() => {
+      if (stopped) return
+      s.preload().then(next, next)
+    })
+  }
+  next()
+  const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : undefined
+  const onControl = () => cacheLoadedAssets()
+  if (sw && startedUncontrolled && import.meta.env.PROD) {
+    if (sw.controller) cacheLoadedAssets()
+    else sw.addEventListener('controllerchange', onControl, { once: true })
+  }
+  return () => {
+    stopped = true
+    sw?.removeEventListener('controllerchange', onControl)
+  }
+}
+
+/** Fetch again, through the service worker that now controls the page, every hashed asset this page loaded before it did. */
+export function cacheLoadedAssets(): void {
+  if (typeof performance === 'undefined' || typeof fetch === 'undefined') return
+  const seen = new Set<string>()
+  for (const e of performance.getEntriesByType('resource')) {
+    const url = new URL(e.name, location.href)
+    if (url.origin !== location.origin || !url.pathname.includes('/assets/') || seen.has(url.href)) continue
+    seen.add(url.href)
+    fetch(url.href).catch(() => undefined)
+  }
+}

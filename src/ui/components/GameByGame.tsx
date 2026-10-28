@@ -143,7 +143,7 @@ export interface Opponent {
 export function RunningStrip({ results, upTo }: { results: QuickGameResult[]; upTo: number }) {
   const t = foldResults(results, upTo)
   return (
-    <div className="gbg-strip mono" data-testid="running-strip" aria-live="polite">
+    <div className="gbg-strip mono" data-testid="running-strip">
       <span>
         <b>P</b> {t.played}
       </span>
@@ -213,7 +213,7 @@ export function SeasonTally({ results, upTo }: { results: QuickGameResult[]; upT
     { key: 'pts', label: 'Points', value: t.points },
   ]
   return (
-    <div className="tally" data-testid="season-tally" aria-live="polite">
+    <div className="tally" data-testid="season-tally">
       <div className="tally-boxes">
         {boxes.map((b) => (
           <div key={b.key} className={`tally-box ${b.key}`} data-testid={`tally-${b.key}`}>
@@ -296,7 +296,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
                   <SkipForward size={14} aria-hidden="true" /> Skip
                 </button>
               ) : (
-                <button className="btn sm primary" onClick={replay.start} data-testid="replay-play" title="One game every fifth of a second">
+                <button className="btn sm" onClick={replay.start} data-testid="replay-play" title="One game every fifth of a second">
                   <Play size={14} aria-hidden="true" /> {replay.used ? 'Play the season again' : 'Play the season'}
                 </button>
               )}
@@ -315,12 +315,12 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
           const isNewest = r.matchweek === newestWeek
           return (
             <li key={r.matchweek} className={`gbg-game ${o} ${isNewest && order === 'newest' ? 'newest' : ''}`} data-testid="gbg-game" data-outcome={o} data-matchweek={r.matchweek} ref={isNewest ? newestRef : undefined}>
-              <span className={`gbg-badge ${o}`} aria-label={o === 'W' ? 'Won' : o === 'D' ? 'Drawn' : 'Lost'}>
+              <span className={`gbg-badge ${o}`} role="img" aria-label={o === 'W' ? 'Won' : o === 'D' ? 'Drawn' : 'Lost'}>
                 {o}
               </span>
               <ClubBadge clubId={opp.clubId} size={22} />
               <span className="gbg-fix">
-                {opp.name} <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
+                <span className="gbg-name">{opp.name}</span> <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
               </span>
               <span className="gbg-score">
                 {r.gf}-{r.ga}

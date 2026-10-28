@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -16,6 +16,7 @@ import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
 import { SpinOdds } from './SpinOdds'
 import { ClubBadge } from './bits'
+import { useFocusOnLanding } from '../a11y'
 
 /** How much later each reel to the right lands, ms (full timing; half with Quick spin), so the three stop one by one. */
 const STAGGER_MS = 450
@@ -62,6 +63,9 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
   const done = run > 0 && landed >= options.length
   const timing = quick ? QUICK_TIMING : FULL_TIMING
   const stagger = quick ? STAGGER_MS / 2 : STAGGER_MS
+  // Landed: the focus goes to the first Pick (the Skip that held it is gone)
+  const firstPick = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(done, firstPick)
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
@@ -125,7 +129,7 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
                     <span className="cline manager-edge" data-testid={`mspin-edge-${i}`}>
                       On your XI: <b>{edgeLine(edges[m.style])}</b>
                     </span>
-                    <button type="button" className="btn primary sm" disabled={!done} onClick={(e) => { e.stopPropagation(); pickManager(m.id) }} data-testid={`mspin-pick-${i}`}>
+                    <button ref={i === 0 ? firstPick : undefined} type="button" className="btn primary sm" disabled={!done} onClick={(e) => { e.stopPropagation(); pickManager(m.id) }} data-testid={`mspin-pick-${i}`}>
                       Pick {m.name.split(/\s+/).slice(-1)[0]}
                     </button>
                   </>
@@ -147,6 +151,10 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
         ) : (
           <span className="small muted" data-testid="mspin-landed">All three landed: pick your manager.</span>
         )}
+        {/* The reels are hidden from screen readers: the landing is said once, here */}
+        <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="mspin-live">
+          {done ? `Landed: ${options.map((m) => `${m.name}, ${MANAGER_STYLE_LABEL[m.style]}`).join('; ')}. Pick your manager.` : ''}
+        </span>
       </div>
       <div className="panel mspin-guide" data-testid="mspin-guide">
         <div className="panel-head">

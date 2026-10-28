@@ -136,7 +136,7 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
   return (
     <div className="md-topbar" role="group" aria-label={label}>
       <Tools hand={hand} />
-      <div className={`scoreboard ${flash ? 'flash' : ''}`} aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
+      <div className={`scoreboard ${flash ? 'flash' : ''}`} role="group" aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
         <span className="md-sb-code" style={{ background: home.colour, color: textColourFor(home.colour) }} title={home.name}>
           {home.code}
         </span>
@@ -147,59 +147,67 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           {away.code}
         </span>
         <ClockFace minute={clock.clock} state={state} />
+        {/* Said once each time the score changes (the GOAL! banner mounts with its text, which a screen reader may miss) */}
+        <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="score-live">
+          {score.home + score.away > 0 ? `${home.name} ${score.home}, ${away.name} ${score.away}` : ''}
+        </span>
       </div>
       <div className="md-playback">
-        {!clock.finished && (
-          <button className="btn sm" onClick={clock.toggle} title="P pauses and resumes">
-            {clock.running ? 'Pause' : 'Resume'}
-          </button>
-        )}
-        <div className="segmented" role="group" aria-label="Speed">
-          {SPEEDS.map((s) => (
-            <button key={s} className={clock.speed === s ? 'active' : ''} onClick={() => clock.setSpeed(s)} aria-pressed={clock.speed === s} data-testid={`speed-${s}`}>
-              {s}x
+        <div className="md-playback-speed">
+          {!clock.finished && (
+            <button className="btn sm" onClick={clock.toggle} title="P pauses and resumes">
+              {clock.running ? 'Pause' : 'Resume'}
             </button>
-          ))}
-        </div>
-        {highlights && (
-          <select className="input sm md-highlights" value={highlights.level} onChange={(e) => highlights.setLevel(e.target.value as HighlightLevel)} aria-label="Highlights" title={HIGHLIGHT_LEVELS.find((l) => l.id === highlights.level)?.hint} data-testid="highlights">
-            {HIGHLIGHT_LEVELS.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.label}
-              </option>
+          )}
+          <div className="segmented" role="group" aria-label="Speed">
+            {SPEEDS.map((s) => (
+              <button key={s} className={clock.speed === s ? 'active' : ''} onClick={() => clock.setSpeed(s)} aria-pressed={clock.speed === s} data-testid={`speed-${s}`}>
+                {s}x
+              </button>
             ))}
-          </select>
-        )}
-        {highlights?.setKeyMoments && (
-          <button type="button" className={`btn sm md-moments ${highlights.keyMoments ? 'on' : ''}`} onClick={() => highlights.setKeyMoments?.(!highlights.keyMoments)} aria-pressed={!!highlights.keyMoments} aria-label="Key moments: the camera on big chances and goal replays" title={highlights.keyMoments ? 'Key moments on: the camera leans in on big chances and goals are replayed' : 'Key moments off: no camera moves or goal replays'} data-testid="key-moments">
-            <Clapperboard size={15} aria-hidden="true" />
-          </button>
-        )}
-        {highlights?.fast && !clock.finished && (
-          <span className="chip info md-fast" data-testid="highlights-fast" title="A quiet spell: the clock runs fast to the next moment">
-            ⏩
-          </span>
-        )}
-        {highlights?.wound && (
-          <span className="chip" data-testid="highlights-wound" title="Extended highlights wind down to Key while a side is three goals clear">
-            Highlights wound down: {highlights.wound}
-          </span>
-        )}
-        {!clock.finished && (
-          <button className="btn sm" onClick={clock.skip} data-testid="skip-replay">
-            {skipLabel(clock.stopAt)}
-          </button>
-        )}
-        {playback && (
-          <label className={`chip-toggle ${playback.auto ? 'on' : ''}`} title="The assistant makes the calls at the stops still to come">
-            <input type="checkbox" checked={playback.auto} onChange={(e) => playback.setAuto(e.target.checked)} data-testid="auto-toggle" /> Auto from here
-          </label>
-        )}
-        {playback?.simResult && (
-          <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title="The assistant makes any remaining calls and the match goes straight to the whistle and the report">
-            Sim result
-          </button>
-        )}
+          </div>
+        </div>
+        <div className="md-playback-actions">
+          {highlights && (
+            <select className="input sm md-highlights" value={highlights.level} onChange={(e) => highlights.setLevel(e.target.value as HighlightLevel)} aria-label="Highlights" title={HIGHLIGHT_LEVELS.find((l) => l.id === highlights.level)?.hint} data-testid="highlights">
+              {HIGHLIGHT_LEVELS.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          )}
+          {highlights?.setKeyMoments && (
+            <button type="button" className={`btn sm md-moments ${highlights.keyMoments ? 'on' : ''}`} onClick={() => highlights.setKeyMoments?.(!highlights.keyMoments)} aria-pressed={!!highlights.keyMoments} aria-label="Key moments: the camera on big chances and goal replays" title={highlights.keyMoments ? 'Key moments on: the camera leans in on big chances and goals are replayed' : 'Key moments off: no camera moves or goal replays'} data-testid="key-moments">
+              <Clapperboard size={15} aria-hidden="true" />
+            </button>
+          )}
+          {highlights?.fast && !clock.finished && (
+            <span className="chip info md-fast" data-testid="highlights-fast" title="A quiet spell: the clock runs fast to the next moment">
+              ⏩
+            </span>
+          )}
+          {highlights?.wound && (
+            <span className="chip" data-testid="highlights-wound" title="Extended highlights wind down to Key while a side is three goals clear">
+              Highlights wound down: {highlights.wound}
+            </span>
+          )}
+          {!clock.finished && (
+            <button className="btn sm" onClick={clock.skip} data-testid="skip-replay">
+              {skipLabel(clock.stopAt)}
+            </button>
+          )}
+          {playback && (
+            <label className={`chip-toggle ${playback.auto ? 'on' : ''}`} title="The assistant makes the calls at the stops still to come">
+              <input type="checkbox" checked={playback.auto} onChange={(e) => playback.setAuto(e.target.checked)} data-testid="auto-toggle" /> Auto from here
+            </label>
+          )}
+          {playback?.simResult && (
+            <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title="The assistant makes any remaining calls and the match goes straight to the whistle and the report">
+              Sim result
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

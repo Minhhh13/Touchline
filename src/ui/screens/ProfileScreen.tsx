@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
+import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
 import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { persistLine, usePersistState } from '../persistStorage'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
+import { BadgeCheck, BrickWall, CalendarCheck, CalendarClock, Footprints, Heart, Hourglass, Layers, Link as LinkIcon, Moon, Mountain, PiggyBank, Route, ScrollText, Users, Zap } from 'lucide-react'
+import { milestonesEarned, milestoneStates } from '@game/logic/milestoneBadges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
 import { MODE_TITLE, arenaFormatLabel, isQuickLike } from '@game/logic/modes'
@@ -12,7 +15,8 @@ import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, honourDetail, honourLabel, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
 import { RunInsTable } from '../components/RunInsTable'
-import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
+import { ClubBadge, Flag, Info, Segmented, Stat, TeamBadge } from '../components/bits'
+import { shortNameFor } from '@game/logic/setup'
 import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
@@ -23,7 +27,7 @@ import { countPhrase } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
-import { useSoundOn } from '../sound/prefs'
+import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
@@ -65,6 +69,29 @@ const BADGE_ICON: Record<string, LucideIcon> = {
   'survival-artist': LifeBuoy,
 }
 
+/** The Trophy Room's milestones (`milestoneBadges.ts`), one Lucide icon each. */
+const MILESTONE_ICON: Record<string, LucideIcon> = {
+  invincibles: Shield,
+  'treble-winners': Crown,
+  'double-act': Layers,
+  'continental-kings': Globe,
+  'winning-machine': Zap,
+  decade: Hourglass,
+  'old-school': ScrollText,
+  moneyball: PiggyBank,
+  'perfect-day': CalendarCheck,
+  summit: Mountain,
+  'long-road': Route,
+  'under-the-lights': Moon,
+  'hot-seat': Users,
+  'old-hand': CalendarClock,
+  completist: BadgeCheck,
+  'golden-boot': Footprints,
+  'the-wall': BrickWall,
+  'chain-gang': LinkIcon,
+  loyalty: Heart,
+}
+
 async function exportSave(): Promise<void> {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
   await exportTextFile(exportSaveJson(), `touchline-save-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
@@ -73,6 +100,7 @@ async function exportSave(): Promise<void> {
 export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
   const [soundOn, setSoundOn] = useSoundOn()
+  const [matchSound, setMatchSound] = useMatchSoundOn()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
   const boxes = useBoxes(PROFILE)
@@ -87,6 +115,7 @@ export function ProfileScreen() {
   const runsBySeed = new Map<string, LeaderboardEntry[]>()
   for (const e of profile.leaderboard) if (isQuickLike(e.mode)) runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
   const fileRef = useRef<HTMLInputElement>(null)
+  const persist = usePersistState()
   // Trophy Room: leagues won in come from the titled hosts' leagues, the loaded clubs first, then the packs' club lists
   const cabinet = normaliseCabinet(profile.cabinet ?? {})
   const [clubLeagues, setClubLeagues] = useState<Record<string, { leagueId: string; name: string }> | null>(null)
@@ -103,6 +132,7 @@ export function ProfileScreen() {
     }
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
+  const milestones = milestoneStates({ cabinet, profile })
   const [filter, setFilterState] = useState<BoardFilter>(readFilter)
   const setFilter = (f: BoardFilter) => {
     setFilterState(f)
@@ -129,7 +159,8 @@ export function ProfileScreen() {
       {/* The team cell wraps, so on a phone the format, result and score stay in view */}
       <td style={{ whiteSpace: 'normal' }}>
         <span className="row wrap" style={{ gap: 6 }}>
-          {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} <b>{e.teamName}</b>
+          {/* An arena side's own badge, as on its hub: the colours' club is never shown as ours */}
+          <TeamBadge code={shortNameFor(e.teamName)} size={20} /> <b>{e.teamName}</b>
           {e.challenge && (
             <span className={`chip ${e.score > e.challenge.score ? 'good' : e.score < e.challenge.score ? 'bad' : ''}`} data-testid="run-vs">
               vs {e.challenge.name} {e.challenge.score}
@@ -224,10 +255,18 @@ export function ProfileScreen() {
             </div>
             <div className="field">
               <span>
-                Sound <Info label="About the sound">The case reel's ticks and reveal sounds, made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
+                Sound <Info label="About the sound">Every sound in the game: the case reel, the draft, the match and the trophies, all made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
               </span>
               <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
             </div>
+            {soundOn && (
+              <div className="field">
+                <span>
+                  Match sounds <Info label="About the match sounds">The referee's whistle, the crowd, the net, cards and substitutions on match day. Off keeps the rest of the sound. Kept on this device only.</Info>
+                </span>
+                <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'match-sound-on' }, { value: 'off', label: 'Off', testId: 'match-sound-off' }]} />
+              </div>
+            )}
             <div className="field">
               <span>
                 Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, about seven seconds; Quick takes under three. Re-spins always run quick, and a tap on the reel skips to the landing. Kept on this device only.</Info>
@@ -351,6 +390,33 @@ export function ProfileScreen() {
                 )
               })}
             </div>
+            {/* Milestones: more badges read from the same cabinet and records, with a bar to the next tier */}
+            <h4 className="milestones-head" data-testid="milestones-head">
+              <BadgeCheck size={16} aria-hidden="true" /> Milestones <span className="small muted">{milestonesEarned(milestones)} of {milestones.length} earned</span>
+            </h4>
+            <div className="badges milestones">
+              {milestones.map((m) => {
+                const Icon = MILESTONE_ICON[m.badge.id] ?? Award
+                const label = m.stamp ? m.badge.counts : countPhrase(m.value, m.badge.counts)
+                return (
+                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${m.badge.title}: ${label}${m.badge.fromBoard ? ' (from your 50 best seasons)' : ''}`}>
+                    <span className={`badge-ring ${m.tier ?? ''}`}>
+                      <Icon size={20} aria-hidden="true" />
+                    </span>
+                    <span className="milestone-text">
+                      <div className="title">{m.badge.title}</div>
+                      <div className="desc">{label}</div>
+                      <div className="small muted">{m.tier && !m.stamp ? `${m.tier[0].toUpperCase()}${m.tier.slice(1)} · ${m.progress}` : m.stamp ? (m.tier ? 'Earned' : m.progress) : m.progress}</div>
+                      {!m.stamp && m.tier !== 'gold' && (
+                        <span className="milestone-meter" role="img" aria-label={m.progress}>
+                          <span style={{ width: `${Math.round(m.toward * 100)}%` }} />
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
             {won.leagues.length > 0 && <div className="small muted" data-testid="leagues-won">Leagues won in: {won.leagues.map((id) => u?.available.find((l) => l.id === id)?.name ?? id).join(', ')}</div>}
             {cabinet.rebuilt && <div className="small muted" data-testid="cabinet-rebuilt">Counted from your 50 best seasons before the Trophy Room.</div>}
           </div>
@@ -358,14 +424,14 @@ export function ProfileScreen() {
           {on('chase') && (
           <div className="panel" data-testid="quick-bests">
             <h3>The 38-0 chase</h3>
-            <div className="kv">
+            <dl className="kv">
               <dt>Best record</dt>
               <dd data-testid="best-record">{bests.bestRecord ? `${recordLabel(bests.bestRecord.won, bests.bestRecord.drawn, bests.bestRecord.lost)} · ${bests.bestRecord.points} pts` : '—'}</dd>
               <dt>Longest perfect run</dt>
               <dd data-testid="best-run">{bests.longestPerfectRun ? `${bests.longestPerfectRun}-0` : '—'}</dd>
               <dt>Perfect seasons</dt>
               <dd data-testid="perfect-seasons">{bests.perfectSeasons ?? 0}</dd>
-            </div>
+            </dl>
             <p className="help" style={{ margin: '8px 0 0' }}>Quick Draft and Daily seasons in this browser. The goal: win every game.</p>
           </div>
           )}
@@ -429,6 +495,18 @@ export function ProfileScreen() {
                 <Trash2 size={16} aria-hidden="true" /> Delete all data
               </button>
             </div>
+            {persist.state && (
+              <div className="row wrap" style={{ gap: 'var(--space-2)' }}>
+                <span className={`small ${persist.state === 'persisted' ? 'muted' : ''}`} data-testid="persist-line">
+                  {persistLine(persist.state)}
+                </span>
+                {persist.state === 'best-effort' && (
+                  <button className="btn sm" onClick={persist.ask} data-testid="persist-ask">
+                    <ShieldCheck size={14} aria-hidden="true" /> Protect my save
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           )}
           {on('seasons') && (
@@ -528,7 +606,8 @@ export function ProfileScreen() {
                 <span className="empty-icon" aria-hidden="true">
                   <Award size={26} />
                 </span>
-                <p className="muted small">No arena runs yet: try the Cup or the Gauntlet from Home.</p>
+                <h3>No runs yet</h3>
+                <p className="muted small">Try the Cup or the Gauntlet from Home.</p>
               </div>
             )}
             {!!profile.arenaRuns?.length && (

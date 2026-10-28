@@ -3,6 +3,7 @@ import { ChartBar } from 'lucide-react'
 import { useStore } from '@game/store'
 import { USER_TEAM } from '@engine/season'
 import { playerLookup } from '@game/logic/players'
+import { seasonRecords } from '@game/logic/seasonRecords'
 import { analystPicks, ANALYST_INTERVAL, ANALYST_MIN_SHOTS, dataHubRows, dataHubTotals } from '@game/logic/dataHub'
 import { ClubBadge, Info, Rating } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
@@ -51,40 +52,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
       .sort((a, b) => b.v - a.v || b.s.seasonStats.apps - a.s.seasonStats.apps)
       .slice(0, 25)
   }, [u, game, stat])
-  const records = useMemo(() => {
-    if (!game?.season) return null
-    const mine = game.season.fixtures.filter((f) => f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)).sort((a, b) => a.matchweek - b.matchweek)
-    if (!mine.length) return null
-    let bigWin: { f: (typeof mine)[number]; margin: number } | null = null
-    let bigLoss: { f: (typeof mine)[number]; margin: number } | null = null
-    let unbeaten = 0
-    let bestUnbeaten = 0
-    let winning = 0
-    let bestWinning = 0
-    let cleanSheets = 0
-    let scoredIn = 0
-    for (const f of mine) {
-      const home = f.homeTeamId === USER_TEAM
-      const gf = home ? f.result!.homeGoals : f.result!.awayGoals
-      const ga = home ? f.result!.awayGoals : f.result!.homeGoals
-      const margin = gf - ga
-      if (margin > 0 && (!bigWin || margin > bigWin.margin)) bigWin = { f, margin }
-      if (margin < 0 && (!bigLoss || margin < bigLoss.margin)) bigLoss = { f, margin }
-      unbeaten = margin >= 0 ? unbeaten + 1 : 0
-      winning = margin > 0 ? winning + 1 : 0
-      bestUnbeaten = Math.max(bestUnbeaten, unbeaten)
-      bestWinning = Math.max(bestWinning, winning)
-      if (ga === 0) cleanSheets++
-      if (gf > 0) scoredIn++
-    }
-    const describe = (x: { f: (typeof mine)[number] } | null) => {
-      if (!x) return '–'
-      const home = x.f.homeTeamId === USER_TEAM
-      const opp = home ? x.f.awayTeamId : x.f.homeTeamId
-      return `${x.f.result!.homeGoals}-${x.f.result!.awayGoals} ${home ? 'v' : 'at'} ${u?.clubById[opp]?.shortName ?? opp} (MW ${x.f.matchweek})`
-    }
-    return { played: mine.length, bigWin: describe(bigWin), bigLoss: describe(bigLoss), bestUnbeaten, bestWinning, cleanSheets, scoredIn, unbeatenNow: unbeaten, winningNow: winning }
-  }, [u, game])
+  const records = useMemo(() => (game?.season ? seasonRecords(game.season, (id) => u?.clubById[id]?.shortName ?? id) : null), [u, game])
   const hub = useMemo(() => (u && game?.season ? dataHubRows(game, u) : []), [u, game])
   if (!u || !game?.season) return null
   const totals = dataHubTotals(hub)
@@ -96,7 +64,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
       {!on('records') ? null : records ? (
         <div className="panel">
           <h3>Season records</h3>
-          <div className="kv">
+          <dl className="kv">
             <dt>Biggest win</dt>
             <dd>{records.bigWin}</dd>
             <dt>Heaviest defeat</dt>
@@ -119,7 +87,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
             <dd>
               {records.scoredIn} of {records.played}
             </dd>
-          </div>
+          </dl>
         </div>
       ) : (
         <div className="panel">

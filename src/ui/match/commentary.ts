@@ -10,13 +10,17 @@
  * Pure: no React, no DOM.
  */
 import type { MatchFeed } from '@engine/matchFeed'
-import { minutesInWords } from '@engine/matchFeed'
+import { minutesInWords, scoreAt } from '@engine/matchFeed'
 import { SHOUTS, type TimelineEntry } from '@engine/match'
 import { hashString } from '@engine/rng'
 import type { MatchEvent } from '@engine/types'
 import type { MatchPath } from './epochs'
 import type { BallKeyframe, PlayTag, SetPieceKind } from './possession'
 import type { Side } from './pitchGeometry'
+import { flavourChance } from '@game/logic/flavour'
+import { cardColour, chanceColour, fullTimeColour, goalColour, halfTimeColour, injuryColour, moodLine, preMatchLine, subColour, type CommentaryContext, type MatchState } from './commentaryColour'
+
+export type { CommentaryContext } from './commentaryColour'
 
 export type CommentaryKind = 'goal' | 'card' | 'sub' | 'injury' | 'chance' | 'change' | 'elsewhere' | 'whistle' | 'board' | 'play'
 
@@ -84,28 +88,28 @@ export function boardText(n: number): string {
   return `The fourth official holds up the board: ${minutesInWords(n)} minute${n === 1 ? '' : 's'} of added time.`
 }
 
-const PASS_LINES = ['{a} finds {b} {zone}.', '{a} plays it into {b} {zone}.', 'Neat from {a}, and {b} carries it {zone}.', '{a} and {b} combine {zone}.', '{a} slides it across to {b} {zone}.']
-const KEEPER_LINES = ['{a} plays it short to {b}.', '{a} rolls it out to {b}.', '{a} takes his time, then finds {b}.']
-const TURNOVER_LINES = ['{b} wins it back {zone}.', '{b} nips in and takes it {zone}.', 'Loose ball, and {b} gets there first {zone}.']
-const QUIET_LINES = ['{team} keep the ball {zone}.', '{team} probe {zone}.', 'Patient stuff from {team}.']
+const PASS_LINES = ['{a} finds {b} {zone}.', '{a} plays it into {b} {zone}.', 'Neat from {a}, and {b} carries it {zone}.', '{a} and {b} combine {zone}.', '{a} slides it across to {b} {zone}.', '{a} threads it to {b} {zone}.', 'Tidy from {a}: {b} has it {zone}.', '{a} lays it off to {b} {zone}.', 'One touch from {a}, and {b} takes over {zone}.']
+const KEEPER_LINES = ['{a} plays it short to {b}.', '{a} rolls it out to {b}.', '{a} takes his time, then finds {b}.', '{a} starts it again through {b}.', 'Calm from {a}, out to {b}.']
+const TURNOVER_LINES = ['{b} wins it back {zone}.', '{b} nips in and takes it {zone}.', 'Loose ball, and {b} gets there first {zone}.', 'Sloppy, and {b} pounces {zone}.', 'Possession changes hands {zone}: {b} has it.', '{b} pinches it {zone}.']
+const QUIET_LINES = ['{team} keep the ball {zone}.', '{team} probe {zone}.', 'Patient stuff from {team}.', '{team} knock it about {zone}.', '{team} are in no hurry.', 'A spell of possession for {team}.']
 
 /** Lines for the plays the ball path tags (playbook.ts), `{a}` the man who played it, `{b}` the man it reached, `{team}` his side. */
 export const PLAY_LINES: Partial<Record<PlayTag | SetPieceKind, string[]>> = {
-  corner: ['Corner to {team}. {a} goes over to take it.', 'Corner to {team}: {a} stands over it as the box fills.'],
-  freekick: ['Free kick to {team} {zone}, after a foul on {a}.', '{a} is brought down {zone}: free kick to {team}.'],
-  goalkick: ['Goal kick. {a} goes to {b}.', '{a} takes the goal kick, and {team} start again.'],
-  throw: ['Throw-in to {team}: {a} finds {b}.', 'A quick throw from {a}.'],
-  switch: ['{a} switches the play out to {b}.', '{a} spreads it wide to {b}.', 'Big diagonal from {a} to {b}.'],
-  through: ['{a} tries to slip {b} in behind.', '{a} looks for {b} over the top.'],
-  cross: ['{a} whips in a cross, and {b} heads it clear.', 'In comes the cross from {a}, cleared by {b}.'],
-  claim: ['{b} comes off his line to claim it.', '{b} gathers comfortably.'],
-  press: ['{team} press high and force the turnover: {b} has it.', '{b} hunts it down {zone}.'],
-  tackle: ['{b} wins it back with a tackle {zone}.', 'Strong challenge from {b} {zone}.'],
-  interception: ['{b} reads it and cuts it out {zone}.', '{b} steps in to intercept {zone}.'],
-  long: ['{a} goes long for {b}.', 'Long ball from {a}, and {b} brings it down.'],
-  dribble: ['{a} drives forward {zone}.', '{a} runs at them {zone}.'],
+  corner: ['Corner to {team}. {a} goes over to take it.', 'Corner to {team}: {a} stands over it as the box fills.', 'Corner to {team}, and the big men go forward.', 'Corner to {team}. {a} has a look at what is on.'],
+  freekick: ['Free kick to {team} {zone}, after a foul on {a}.', '{a} is brought down {zone}: free kick to {team}.', '{a} goes down {zone}, and the whistle goes: free kick to {team}.', 'Clipped from behind, {a} wins {team} a free kick {zone}.'],
+  goalkick: ['Goal kick. {a} goes to {b}.', '{a} takes the goal kick, and {team} start again.', 'Goal kick, and {a} picks out {b}.'],
+  throw: ['Throw-in to {team}: {a} finds {b}.', 'A quick throw from {a}.', 'Throw to {team}, taken quickly by {a}.'],
+  switch: ['{a} switches the play out to {b}.', '{a} spreads it wide to {b}.', 'Big diagonal from {a} to {b}.', 'Lovely switch from {a}, and {b} has acres.', '{a} changes the point of attack to {b}.'],
+  through: ['{a} tries to slip {b} in behind.', '{a} looks for {b} over the top.', '{a} threads one through for {b}.', 'Defence-splitting ball from {a} for {b}.'],
+  cross: ['{a} whips in a cross, and {b} heads it clear.', 'In comes the cross from {a}, cleared by {b}.', '{a} swings it in, {b} gets his head to it first.', 'Dangerous delivery from {a}, but {b} deals with it.'],
+  claim: ['{b} comes off his line to claim it.', '{b} gathers comfortably.', 'Safe hands from {b}.', '{b} plucks it out of the air.'],
+  press: ['{team} press high and force the turnover: {b} has it.', '{b} hunts it down {zone}.', '{team} swarm the ball, and {b} comes away with it.', 'Relentless from {team}: {b} wins it {zone}.'],
+  tackle: ['{b} wins it back with a tackle {zone}.', 'Strong challenge from {b} {zone}.', 'Crunching tackle from {b} {zone}, and he gets the ball.', '{b} slides in and takes it clean {zone}.'],
+  interception: ['{b} reads it and cuts it out {zone}.', '{b} steps in to intercept {zone}.', '{b} saw that coming a mile off.', 'Good anticipation from {b} {zone}.'],
+  long: ['{a} goes long for {b}.', 'Long ball from {a}, and {b} brings it down.', '{a} launches it towards {b}.', 'Route one from {a}, aimed at {b}.'],
+  dribble: ['{a} drives forward {zone}.', '{a} runs at them {zone}.', '{a} skips past one {zone}.', '{a} carries it {zone}, and nobody gets near him.'],
   distribution: ['{a} plays it short to {b}.', '{a} rolls it out to {b}.'],
-  back: ['{team} recycle it {zone}.', '{a} goes back to {b}.'],
+  back: ['{team} recycle it {zone}.', '{a} goes back to {b}.', 'Nothing on, so {a} turns it back to {b}.', '{team} reset {zone}.'],
 }
 /** Which play makes the line when several happen in the moment it describes (a set piece first). */
 const PLAY_RANK: Array<PlayTag | SetPieceKind> = ['corner', 'freekick', 'throw', 'goalkick', 'switch', 'through', 'cross', 'claim', 'press', 'tackle', 'interception', 'long', 'dribble', 'distribution', 'back']
@@ -125,6 +129,11 @@ export const PLAY_LOOKAHEAD = 0.2
 
 /** One line of play for a minute with nothing on the log, from the keyframes around its start. */
 export function playLine(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined): CommentaryLine {
+  return playLineOf(feed, mpath, minute, names, getName).line
+}
+
+/** The line of play and whether a tagged play (a set piece, a switch, a tackle) made it, so a word on the mood never replaces one. */
+function playLineOf(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined): { line: CommentaryLine; tagged: boolean } {
   const h = hashString(`${feed.key}-${minute}`)
   const keepers = new Set<string>()
   for (const e of mpath.epochs) for (const p of [...e.home, ...e.away]) if (p.position === 'GK') keepers.add(p.psId)
@@ -182,32 +191,61 @@ export function playLine(feed: MatchFeed, mpath: MatchPath, minute: number, name
   }
   tagged.sort((x, y) => x.rank - y.rank)
   const pick = tagged.length ? tagged[0] : options.length ? options[Math.floor(h / 7) % options.length] : null
-  if (pick) return { minute, text: capitalise(pick.text), kind: 'play', side: pick.side, weight: KIND_WEIGHT.play }
-  const side: Side = (feed.momentum[Math.min(17, Math.max(0, Math.ceil(minute / 5) - 1))] ?? 0.5) >= 0.5 ? 'home' : 'away'
+  if (pick) return { line: { minute, text: capitalise(pick.text), kind: 'play', side: pick.side, weight: KIND_WEIGHT.play }, tagged: tagged.length > 0 }
+  const side = momentumSide(feed, minute)
   const tpl = QUIET_LINES[h % QUIET_LINES.length]
-  return { minute, text: tpl.replace('{team}', names[side]).replace('{zone}', 'in midfield'), kind: 'play', side, weight: KIND_WEIGHT.play }
+  return { line: { minute, text: tpl.replace('{team}', names[side]).replace('{zone}', 'in midfield'), kind: 'play', side, weight: KIND_WEIGHT.play }, tagged: false }
+}
+
+/** The side on top in the minute's five-minute momentum band. */
+function momentumSide(feed: MatchFeed, minute: number): Side {
+  return (feed.momentum[Math.min(17, Math.max(0, Math.ceil(minute / 5) - 1))] ?? 0.5) >= 0.5 ? 'home' : 'away'
 }
 
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-/** Every line up to `minute`, in order: within a minute the play first, then the events, the whistles last. */
-export function commentaryUpTo(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined, elsewhere: Array<{ minute: number; text: string }>): CommentaryLine[] {
+/**
+ * Every line up to `minute`, in order: within a minute the play first, then the events, the whistles last. Each event
+ * keeps its own text first (a goal with the new score) and may gain a sentence of colour (`commentaryColour.ts`), read
+ * off the match so far and the optional `context`; kick-off may be followed by a word on the occasion, and now and
+ * then a quiet minute's line is a word on the mood. All of it by a pure hash: display only.
+ */
+export function commentaryUpTo(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined, elsewhere: Array<{ minute: number; text: string }>, context: CommentaryContext = {}): CommentaryLine[] {
   const lines: Array<CommentaryLine & { seq: number }> = []
   const score = { home: 0, away: 0 }
+  const worst = { home: 0, away: 0 }
+  const reds = { home: 0, away: 0 }
+  const tallies = new Map<string, number>()
   const busy = new Set<number>()
+  const label = feed.importanceLabel
   for (const e of feed.events) {
     if (e.minute > minute) continue
     const kind = kindOf(e.type)
+    const before = { ...score }
     let text = e.text
+    let tally = 0
     if (kind === 'goal') {
       score[e.side]++
       text = `${e.text} ${names.home} ${score.home}-${score.away} ${names.away}.`
+      if (e.playerId && e.type !== 'own_goal') {
+        tally = (tallies.get(e.playerId) ?? 0) + 1
+        tallies.set(e.playerId, tally)
+      }
     }
+    if (e.type === 'red') reds[e.side]++
+    const state: MatchState = { before, after: { ...score }, tally, worst: { ...worst }, reds: { ...reds }, label }
+    const colour = colourOf(feed, e, state, names, context)
+    if (colour) text = `${text} ${colour}`
+    worst.home = Math.max(worst.home, score.away - score.home)
+    worst.away = Math.max(worst.away, score.home - score.away)
     const closing = e.type === 'half_time' || e.type === 'full_time'
     lines.push({ minute: e.minute, text, kind, side: kind === 'whistle' ? undefined : e.side, weight: KIND_WEIGHT[kind], seq: closing ? 3 : e.type === 'kickoff' ? 0 : 1 })
-    if (e.type !== 'kickoff') busy.add(e.minute)
+    if (e.type === 'kickoff') {
+      const pre = preMatchLine(feed.key, names, label, context)
+      if (pre) lines.push({ minute: e.minute, text: pre, kind: 'whistle', weight: KIND_WEIGHT.whistle, seq: 0.5 })
+    } else busy.add(e.minute)
   }
   for (const t of feed.timeline) {
     if (t.by === 'kickoff' || t.minute > minute) continue
@@ -219,11 +257,55 @@ export function commentaryUpTo(feed: MatchFeed, mpath: MatchPath, minute: number
   for (const x of elsewhere) if (x.minute <= minute) lines.push({ minute: x.minute, text: x.text, kind: 'elsewhere', weight: KIND_WEIGHT.elsewhere, seq: 2 })
   if (feed.addedTime > 0 && minute >= 90) lines.push({ minute: 90, text: boardText(feed.addedTime), kind: 'board', weight: KIND_WEIGHT.board, seq: 2 })
   const quietTo = Math.min(minute, feed.lastMinute)
-  for (let m = 1; m <= quietTo; m++) if (!busy.has(m)) lines.push({ ...playLine(feed, mpath, m, names, getName), seq: -1 })
+  let lastMood = -MOOD_GAP
+  for (let m = 1; m <= quietTo; m++) {
+    if (busy.has(m)) continue
+    const { line, tagged } = playLineOf(feed, mpath, m, names, getName)
+    // Now and then (about one untagged minute in four, never two within `MOOD_GAP`) the line is the mood of the match instead
+    const mood = !tagged && m - lastMood >= MOOD_GAP && flavourChance(`${feed.key}|mood|${m}`, 1, 4) ? moodLine(feed.key, m, scoreAt(feed.events, m - 1), redsBefore(feed.events, m), momentumSide(feed, m), names) : null
+    if (mood) lastMood = m
+    lines.push({ ...line, ...(mood ? { text: mood } : {}), seq: -1 })
+  }
   return lines
     .map((l, i) => ({ l, i }))
     .sort((a, b) => a.l.minute - b.l.minute || a.l.seq - b.l.seq || a.i - b.i)
     .map(({ l }) => ({ minute: l.minute, text: l.text, kind: l.kind, side: l.side, weight: l.weight }))
+}
+
+/** The fewest minutes between two words on the mood. */
+export const MOOD_GAP = 8
+
+/** Red cards each side has had before `minute`. */
+function redsBefore(events: MatchEvent[], minute: number): { home: number; away: number } {
+  const reds = { home: 0, away: 0 }
+  for (const e of events) if (e.type === 'red' && e.minute < minute) reds[e.side]++
+  return reds
+}
+
+/** The sentence of colour after an event's own text, or null. */
+function colourOf(feed: MatchFeed, e: MatchEvent, s: MatchState, names: { home: string; away: string }, ctx: CommentaryContext): string | null {
+  switch (e.type) {
+    case 'goal':
+    case 'penalty':
+    case 'own_goal':
+      return goalColour(feed.key, e, s, names, ctx)
+    case 'chance':
+    case 'save':
+      return chanceColour(feed.key, e, s, names)
+    case 'yellow':
+    case 'red':
+      return cardColour(feed.key, e, s)
+    case 'substitution':
+      return subColour(feed.key, e, s)
+    case 'injury':
+      return injuryColour(feed.key, e, names)
+    case 'half_time':
+      return halfTimeColour(feed.key, s.after, names)
+    case 'full_time':
+      return fullTimeColour(feed.key, feed.events, names, s.label)
+    default:
+      return null
+  }
 }
 
 /** The line for the banner: within the latest minute, the most important (goal > card > injury > substitution > change > elsewhere > chance > whistle > board > play). */

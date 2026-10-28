@@ -56,14 +56,18 @@ describe('the rest of the round at the user’s minute', { timeout: 30_000 }, ()
       expect(at0.map((r) => r.teamId)).toEqual(before.map((r) => r.teamId))
       expect(at0.every((r) => r.movement === 0 && !r.playing && r.position === r.previous)).toBe(true)
       expect(at0.find((r) => r.isUser)?.name).toBe(g.settings.teamName)
-      // In play: everyone in the round has one more game, the user's at his score
+      // At 1': the round is in play, so the points stand as they are and nobody has played another game yet
+      const at1 = liveTable(g, u, ref, 1, { home: 0, away: 0 }, live.userIsHome, false)!
+      for (const r of at1) expect(r.played).toBe(before.find((x) => x.teamId === r.teamId)!.played)
+      expect(at1.some((r) => r.playing)).toBe(true)
+      // In play: everyone in the round counts at his score (the user's at his), P once the match ends
       advanceLiveMatch(g, u, {})
       advanceLiveMatch(g, u, {}, false, true)
       const mp = g.live!.mp
       const at60 = liveTable(g, u, ref, 60, scoreAt(mp.events, 60), live.userIsHome, false)!
       for (const r of at60) {
         const b = before.find((x) => x.teamId === r.teamId)!
-        expect(r.played).toBe(b.played + (r.playing ? 1 : 0))
+        expect(r.played).toBe(b.played)
         expect(r.movement).toBe(Math.sign(r.previous - r.position))
       }
       expect(at60.filter((r) => r.playing).length).toBeGreaterThanOrEqual(at60.length - 1)
@@ -71,7 +75,7 @@ describe('the rest of the round at the user’s minute', { timeout: 30_000 }, ()
       const whistle = liveTable(g, u, ref, 94, final, live.userIsHome, true)!
       completeLiveMatch(g, u)
       const truth = computeTable(g.season!.fixtures.filter((f) => f.matchweek <= ref.matchweek), [USER_TEAM, ...Object.keys(g.season!.ai)])
-      expect(whistle.map((r) => [r.teamId, r.points, r.goalsFor, r.goalsAgainst])).toEqual(truth.map((r) => [r.teamId, r.points, r.goalsFor, r.goalsAgainst]))
+      expect(whistle.map((r) => [r.teamId, r.played, r.points, r.goalsFor, r.goalsAgainst])).toEqual(truth.map((r) => [r.teamId, r.played, r.points, r.goalsFor, r.goalsAgainst]))
       expect(whistle.every((r) => !r.playing)).toBe(true)
     }
   })

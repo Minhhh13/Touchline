@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
+import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Link, Medal, Minus, Plus, PoundSterling, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
+import { nextSeasonLeagues } from '@game/logic/leagueLoad'
+import { LeagueRetry } from '../components/LeagueRetry'
+import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
+import { FirstNext } from '../components/FirstNext'
 import { continentalRun } from '@game/logic/week'
 import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
 import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
 import { realityLine, storyForGame } from '@game/logic/story'
 import { SeasonStoryPanel } from '../components/SeasonStory'
 import { capLine } from '@game/logic/cap'
+import { casualChips } from '@game/logic/casualChips'
 import { inRecordBooks } from '@game/logic/records'
 import { chainCodes, chainLine } from '@game/logic/chain'
 import { shareText } from '@engine/awards'
@@ -23,7 +28,7 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
-import { versusReal } from '../screenText'
+import { cupWinsLine, runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
@@ -37,6 +42,7 @@ import { challengeFromGame, claimCupsLine, claimOf, verdictLine } from '@game/lo
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
+import { draftAgainSettings } from '@game/logic/draftAgain'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
@@ -47,9 +53,10 @@ import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
 import { ChaseStatus } from '../online/ChaseStatus'
-import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
+import { summaryMainCall } from '@game/logic/summaryCall'
 import { ManagerChip } from '../components/ManagerPick'
 import { caseIconIn, caseLine } from '@game/logic/endCase'
 import { managerLine } from '@game/logic/managers'
@@ -57,8 +64,18 @@ import { draftGradeLine } from '@game/logic/draftRecap'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
+import { Mic } from 'lucide-react'
+import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
+import { WorkspaceTabs } from '../components/WorkspaceTabs'
+import { useMediaQuery } from '../components/LivePitch'
+import '../mobileSummary.css'
+
+type SummaryPhoneTab = 'results' | 'cups' | 'stats'
 
 export function Summary() {
+  const [phoneTab, setPhoneTab] = useState<SummaryPhoneTab>('results')
+  const phone = useMediaQuery('(max-width: 720px), (max-width: 1100px) and (pointer: coarse)')
+  const phoneId = 'summary-phone'
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
   const [copied, setCopied] = useState(false)
   const [link, setLink] = useState<string | null>(null)
@@ -74,6 +91,14 @@ export function Summary() {
   // A challenge link made before a cup was played would leave the cup out: make it again on the next click
   const cupClaim = `${game?.quickResult?.cup?.reached ?? ''}|${game?.quickResult?.continentalCup?.reached ?? ''}`
   useEffect(() => setLink(null), [cupClaim])
+  // When the clipboard refuses the link, the toast says it is below: bring its box into view, the link selected
+  const [linkShown, setLinkShown] = useState(0)
+  useEffect(() => {
+    if (!linkShown) return
+    const el = document.querySelector<HTMLInputElement>('[data-testid="challenge-link-url"]')
+    el?.scrollIntoView({ block: 'center' })
+    el?.focus({ preventScroll: true })
+  }, [linkShown])
   // Every hook runs before the early return below
   const q = game?.quickResult
   const season = game?.season
@@ -112,6 +137,8 @@ export function Summary() {
   const story = useMemo(() => (u && game ? storyForGame(game, u) : null), [game, u])
   const allBoxes = useBoxes(SUMMARY)
   if (!u || !game || !record) return null
+  // The first result ever (a quick-like season): where to go next; null on every later summary
+  const firstNext = firstResultNext(profile, game.settings.mode, !!profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`], resultsFinished(profile) === 1 && !!game.quickResult && (['cup', 'continental'] as const).some((c) => quickCupStatus(game, u, c).state === 'open'))
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
   const formation = getFormation(game.tactics.formationId)
@@ -234,7 +261,8 @@ export function Summary() {
       await navigator.clipboard.writeText(url)
       showToast(share.code ? `Short link ${share.code} copied. Send it to a friend.` : `Challenge link copied (${url.length} characters). Send it to a friend.`)
     } catch {
-      showToast('Could not copy. The link is below.')
+      showToast('Could not copy. The link is below, selected.')
+      setLinkShown((n) => n + 1)
     }
   }
   const runItBack = () => {
@@ -255,6 +283,7 @@ export function Summary() {
   }
   const makeCard = async () => {
     const codes = chainCodes(u, game)
+    const cupWins = cupWinsLine(honourCups)
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
@@ -267,7 +296,7 @@ export function Summary() {
         getPlayer: get,
         footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
         // The Treble or a Double in gold under the record
-        ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : {}),
+        ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : cupWins ? { honour: cupWins } : {}),
         ...(gradeLine ? { grade: gradeLine } : {}),
         strip: story?.strip,
         moment: story?.moment,
@@ -275,6 +304,7 @@ export function Summary() {
         ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${record.points} points · finished ${ordinal(record.position)}`, ...codes] } : {}),
       })
       setCardUrl(url)
+      setPhoneTab('stats')
       await downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
       showToast('Could not create or export the share card.')
@@ -282,6 +312,11 @@ export function Summary() {
   }
 
   const modeName = modeLabel(game, 'heading')
+  // A meta line too long for one row wraps with its dot first: such a line puts the season and mode on a row of their own
+  const metaChars = game.settings.teamName.length + (game.settings.mode === 'quick' ? (superOn ? leagueName.length + 1 : 0) : seasonLabel(game.settings.leagueSeason).length + modeName.length + 3) + (modeLine ? modeLine.length + 3 : 0)
+  // The pundit's verdict on the result (display only, picked by a hash of the season's id); not for a run-in or the arena
+  const verdictInput = game.settings.mode === 'runin' || game.settings.mode === 'arena' ? null : verdictInputOf(game, table.length || 20)
+  const verdict = verdictInput ? punditVerdict(verdictInput) : null
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
@@ -324,11 +359,80 @@ export function Summary() {
     </span>
   )
 
+  const hasPhoneCups = !!q && game.settings.mode === 'quick'
+  const activePhoneTab = phoneTab === 'cups' && !hasPhoneCups ? 'results' : phoneTab
+  const phoneTabs: Array<{ id: SummaryPhoneTab; label: string }> = [{ id: 'results', label: 'Results' }, ...(hasPhoneCups ? [{ id: 'cups' as const, label: 'Cups' }] : []), { id: 'stats', label: 'Stats' }]
+  const bannerDetails = (
+    <>
+        {!replay.playing && (
+          <p className="tier-blurb" data-testid="tier-blurb">
+            {superOn ? superTierBlurb(tier, record.position, table.length || 20) : tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+          </p>
+        )}
+        {!replay.playing && story && (
+          <p className="tier-blurb" data-testid="moment">
+            {story.moment}
+          </p>
+        )}
+        {!replay.playing && verdict && (
+          <p className="tier-blurb pundit-verdict" data-testid="pundit-verdict">
+            <Mic size={13} aria-hidden="true" /> <b>Pundit:</b> {verdict}
+          </p>
+        )}
+    </>
+  )
+  const bannerChips = (
+        <div className="banner-chips">
+          {!replay.playing && honour === 'treble' && (
+            <span className="chip gold icon-chip honour-chip treble" data-testid="banner-treble" title={honourDetail(honourCups)}>
+              <Crown size={14} aria-hidden="true" /> Treble
+            </span>
+          )}
+          {!replay.playing && honour === 'double' && (
+            <span className="chip gold icon-chip honour-chip" data-testid="banner-double" title={honourDetail(honourCups)}>
+              <Trophy size={12} aria-hidden="true" /> {honourLabel(honour, honourCups) === 'The Double' ? 'Double' : 'League and Continental double'}
+            </span>
+          )}
+          {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, 'Cup winners', 'gold')}</span>}
+          {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, 'Continental champions', 'gold')}</span>}
+          {game.manager && <ManagerChip manager={game.manager} />}
+          {caseIconIn(game) && (
+            <span className="chip case-icon-chip" data-tier="icons" data-testid="summary-case-icon" title="An Icon from the end-of-draft case played: a non-standard season, kept out of the record book">
+              ★ Case Icon
+            </span>
+          )}
+          {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
+          {season?.sacked && <span className="chip bad">Sacked</span>}
+          {casualChips(game).map((c) => (
+            <span key={c.key} className="chip icon-chip" title={c.title} data-testid={`summary-${c.key}`}>
+              {c.key === 'cap' ? <PoundSterling size={12} aria-hidden="true" /> : <Link size={12} aria-hidden="true" />} {c.text}
+            </span>
+          ))}
+          {tags.map((t) => (
+            <span key={t} className="chip">
+              {t}
+            </span>
+          ))}
+          {game.settings.rules.onlyNation && (
+            <span className="chip">
+              <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)} only
+            </span>
+          )}
+          {season?.objectives?.length ? iconChip(objectivesMet === season.objectives.length ? Check : Landmark, `Objectives ${objectivesMet}/${season.objectives.length}`, objectivesMet === season.objectives.length ? 'good' : '') : null}
+          {/* Against the real side whose place you took, without naming it: the replaced club stays off the result */}
+          {!replay.playing && vsReal && (
+            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`} title={`Against the real side's ${ordinal(realRow?.position ?? 0)} that season`}>
+              {vsReal.delta > 0 ? <TrendingUp size={12} aria-hidden="true" /> : vsReal.delta < 0 ? <TrendingDown size={12} aria-hidden="true" /> : <Minus size={12} aria-hidden="true" />}
+              {vsReal.delta === 0 ? 'Same place as the real side' : `${vsReal.label} than the real side`}
+            </span>
+          )}
+        </div>
+  )
   return (
-    <div className="page summary" data-testid="summary">
+    <div className="page summary" data-testid="summary" data-phone-tab={activePhoneTab}>
       <div className="tier-banner result-banner">
         {!replay.playing && <ResultArt kind={resultArtKind(tier)} />}
-        <div className="banner-meta">
+        <div className={`banner-meta${metaChars > 42 ? ' long' : ''}`}>
           <span className="bm-team">
             <TeamBadge code={game.settings.shortName} size={22} />
             {game.settings.teamName}
@@ -354,9 +458,9 @@ export function Summary() {
               <span className="vp-sep" aria-hidden="true">·</span>
               <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
             </span>
-            {(runs || bests.longestPerfectRun) ? (
+            {runsSummary(runs, bests.longestPerfectRun, chase.perfectRun) ? (
               <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-                {[runs, bests.longestPerfectRun ? `${runs ? 'your' : 'Your'} best run ${bests.longestPerfectRun}-0` : null].filter(Boolean).join(' · ')}
+                {runsSummary(runs, bests.longestPerfectRun, chase.perfectRun)}
               </span>
             ) : null}
           </div>
@@ -373,16 +477,7 @@ export function Summary() {
             </div>
           </div>
         )}
-        {!replay.playing && (
-          <p className="tier-blurb" data-testid="tier-blurb">
-            {superOn ? superTierBlurb(tier, record.position, table.length || 20) : tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
-          </p>
-        )}
-        {!replay.playing && story && (
-          <p className="tier-blurb" data-testid="moment">
-            {story.moment}
-          </p>
-        )}
+        {!phone && bannerDetails}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!q && !replay.playing && (
           <div className="record">
@@ -418,84 +513,67 @@ export function Summary() {
             ))}
           </div>
         )}
-        <div className="banner-chips">
-          {!replay.playing && honour === 'treble' && (
-            <span className="chip gold icon-chip honour-chip treble" data-testid="banner-treble" title={honourDetail(honourCups)}>
-              <Crown size={14} aria-hidden="true" /> Treble
-            </span>
-          )}
-          {!replay.playing && honour === 'double' && (
-            <span className="chip gold icon-chip honour-chip" data-testid="banner-double" title={honourDetail(honourCups)}>
-              <Trophy size={12} aria-hidden="true" /> {honourLabel(honour, honourCups) === 'The Double' ? 'Double' : 'League and Continental double'}
-            </span>
-          )}
-          {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, 'Cup winners', 'gold')}</span>}
-          {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, 'Continental champions', 'gold')}</span>}
-          {game.manager && <ManagerChip manager={game.manager} />}
-          {caseIconIn(game) && (
-            <span className="chip case-icon-chip" data-tier="icons" data-testid="summary-case-icon" title="An Icon from the end-of-draft case played: a non-standard season, kept out of the record book">
-              ★ Case Icon
-            </span>
-          )}
-          {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
-          {season?.sacked && <span className="chip bad">Sacked</span>}
-          {tags.map((t) => (
-            <span key={t} className="chip">
-              {t}
-            </span>
-          ))}
-          {game.settings.rules.onlyNation && (
-            <span className="chip">
-              <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)} only
-            </span>
-          )}
-          {season?.objectives?.length ? iconChip(objectivesMet === season.objectives.length ? Check : Landmark, `Objectives ${objectivesMet}/${season.objectives.length}`, objectivesMet === season.objectives.length ? 'good' : '') : null}
-          {/* Against the real side whose place you took, without naming it: the replaced club stays off the result */}
-          {!replay.playing && vsReal && (
-            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`} title={`Against the real side's ${ordinal(realRow?.position ?? 0)} that season`}>
-              {vsReal.delta > 0 ? <TrendingUp size={12} aria-hidden="true" /> : vsReal.delta < 0 ? <TrendingDown size={12} aria-hidden="true" /> : <Minus size={12} aria-hidden="true" />}
-              {vsReal.delta === 0 ? 'Same place as the real side' : `${vsReal.label} than the real side`}
-            </span>
-          )}
-        </div>
+        {!phone && bannerChips}
         <div className="banner-actions">
-          <button className={`btn ${continuing ? '' : 'primary'}`} onClick={copy}>
+          <button className={`btn ${continuing || (q && !replay.playing && summaryMainCall(game, u) !== 'copy') ? '' : 'primary'}`} onClick={copy} data-testid="summary-copy">
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
           </button>
           <button className="btn" onClick={makeCard}>
-            <ImageDown size={16} aria-hidden="true" /> Download share card
+            <ImageDown size={16} aria-hidden="true" /> <span className="summary-action-long">Download share card</span><span className="summary-action-short">Share card</span>
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: randomSeed() })}>
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} data-testid="summary-draft-again">
               <Dices size={16} aria-hidden="true" /> Draft again
             </button>
           )}
           {canChallenge && (
-            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend">
-              <Send size={16} aria-hidden="true" /> Challenge a friend
+            <button className="btn" onClick={() => { setPhoneTab('results'); void makeChallenge() }} data-testid="challenge-friend">
+              <Send size={16} aria-hidden="true" /> <span className="summary-action-long">Challenge a friend</span><span className="summary-action-short">Challenge</span>
             </button>
           )}
           {canChallenge && (
             <button className="btn" onClick={runItBack} data-testid="run-it-back" title="Draft this wheel again against your own result">
-              <RotateCcw size={16} aria-hidden="true" /> Run it back
+              <RotateCcw size={16} aria-hidden="true" /> <span className="summary-action-long">Run it back</span><span className="summary-action-short">Replay</span>
             </button>
           )}
+          {continuing && <LeagueRetry needs={nextSeasonLeagues(game, u.available.map((l) => l.id))} />}
           {continuing && (
-            <button className="btn primary" onClick={() => nextSeason()} disabled={loadingLeagues}>
-              {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `Continue with ${clubName(u, game.settings.hostClubId)} →`}
+            <button className="btn primary" onClick={() => nextSeason()} disabled={loadingLeagues} data-testid="summary-next-year">
+              {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `On to year ${game.year + 1} →`}
             </button>
           )}
-          <button className="btn ghost" onClick={() => { abandonGame(); go('home') }}>
+          {continuing && game.jobOffers.length > 0 && !game.pendingMove && (
+            <button className="btn ghost sm" onClick={() => { setPhoneTab('results'); requestAnimationFrame(() => document.getElementById('job-offers')?.scrollIntoView({ block: 'start' })) }} data-testid="job-offers-link">
+              <Briefcase size={14} aria-hidden="true" /> {game.jobOffers.length} job offer{game.jobOffers.length === 1 ? '' : 's'} below
+            </button>
+          )}
+          <button className="btn ghost" onClick={() => { if (continuing && !confirm(`End this Dynasty after year ${game.year}? It cannot be picked up again.`)) return; abandonGame(); go('home') }} data-testid="summary-new-game">
             <Plus size={16} aria-hidden="true" /> New game
           </button>
         </div>
       </div>
 
+      <WorkspaceTabs id={phoneId} label="Season summary sections" tabs={phoneTabs} value={activePhoneTab} onChange={setPhoneTab} />
       {/* Everything under the result: on a desktop one panel that scrolls inside itself */}
       <div className="summary-body fill" data-testid="summary-body">
+      <div className="summary-phone-status" data-summary-pane="results">
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
-      {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
+      </div>
+      {hasPhoneCups && !replay.playing && (
+        <section className="summary-phone-pane" data-summary-pane="cups" role="tabpanel" id={`${phoneId}-panel-cups`} aria-labelledby={`${phoneId}-cups`}>
+          <CupRuns game={game} u={u} onReveal={onCupReveal} />
+        </section>
+      )}
+      <section className="summary-phone-pane" data-summary-pane="results" role="tabpanel" id={`${phoneId}-panel-results`} aria-labelledby={`${phoneId}-results`}>
+      {phone && !replay.playing && (
+        <div className="panel summary-phone-description">
+          {bannerDetails}
+          {q && <p className="small muted">Against {perfectTarget(games)} · {versusPerfectLine(record.won, record.lost, games)}{runsSummary(runs, bests.longestPerfectRun, chase.perfectRun) ? ` · ${runsSummary(runs, bests.longestPerfectRun, chase.perfectRun)}` : ''}</p>}
+          {bannerChips}
+        </div>
+      )}
+      {firstNext && !replay.playing && <FirstNext steps={firstNext} onDaily={() => go('setup', 'daily')} onSetup={() => go('setup', 'quick')} />}
       {q && results.length > 0 && on('games') && (
         <GameByGame
           results={results}
@@ -709,7 +787,7 @@ export function Summary() {
       )}
 
       {game.jobOffers.length > 0 && (
-        <div className="panel" style={{ borderColor: 'var(--gold)' }}>
+        <div className="panel" id="job-offers" style={{ borderColor: 'var(--gold)' }}>
           <div className="panel-head">
             <span className="head-title">
               <h3 className="icon-title" style={{ color: 'var(--gold-text)' }}>
@@ -745,6 +823,8 @@ export function Summary() {
           </div>
         </div>
       )}
+      </section>
+      <section className="summary-phone-pane" data-summary-pane="stats" role="tabpanel" id={`${phoneId}-panel-stats`} aria-labelledby={`${phoneId}-stats`}>
       {(lowerLeft || lowerRight) && (
       <div className={`grid two ${lower.className}`} style={lower.style}>
         {lowerLeft && (
@@ -754,7 +834,7 @@ export function Summary() {
             <div className="panel-head">
               <h3>Your XI</h3>
               {q && (
-                <span className="unit-strip" aria-label="Unit ratings">
+                <span className="unit-strip" role="group" aria-label="Unit ratings">
                   {(
                     [
                       ['GK', q.strength.goalkeeping],
@@ -873,7 +953,7 @@ export function Summary() {
                     <tr>
                       <th>Year</th>
                       <th>Season</th>
-                      <th>As</th>
+                      <th>Replaced</th>
                       <th className="num">Pos</th>
                       <th className="num">Pts</th>
                       <th>Result</th>
@@ -949,6 +1029,7 @@ export function Summary() {
         )}
       </div>
       )}
+      </section>
       </div>
     </div>
   )

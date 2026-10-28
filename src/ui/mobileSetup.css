@@ -1,0 +1,403 @@
+/* The wrappers disappear into the existing desktop layout. */
+.home-phone-content,
+.home-phone-panel {
+  display: contents;
+}
+
+@media (max-width: 720px), (max-width: 1100px) and (pointer: coarse) {
+  .app > .page.home {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .home > .hero {
+    flex: none;
+    min-height: 0;
+  }
+  .home .hero-content {
+    padding: 12px 14px;
+  }
+  .home .hero h1 .tl-lockup {
+    --h: 42px;
+  }
+  .home .hero .tag {
+    margin: 6px 0 0;
+    font-size: 12px;
+  }
+  .home .hero:has(.first-run) .tag,
+  .home .first-note .linklike {
+    display: none;
+  }
+  .home .hero-stats,
+  .home .hero-flags,
+  .home .first-steps li > span:last-child > span {
+    display: none;
+  }
+  .home .first-run {
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .home .first-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .home .first-steps li {
+    gap: 5px;
+  }
+  .home .first-step-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .home .first-steps b {
+    font-size: 11px;
+  }
+  .home .first-go {
+    gap: 6px;
+  }
+  .home .first-go > .btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .home .first-note {
+    font-size: 11px;
+  }
+  .home > .phone-tabs {
+    flex: none;
+  }
+  .home-phone-content {
+    display: flex;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .home .home-phone-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .home[data-phone-tab='play'] [data-phone-panel]:not([data-phone-panel='play']),
+  .home[data-phone-tab='challenges'] [data-phone-panel]:not([data-phone-panel='challenges']),
+  .home[data-phone-tab='more'] [data-phone-panel]:not([data-phone-panel='more']) {
+    display: none;
+  }
+  .home .resume-list {
+    display: flex;
+    flex: none;
+    gap: 8px;
+    max-height: 116px;
+    overflow: auto;
+    scroll-snap-type: x proximity;
+  }
+  .home .resume-list > .resume-card {
+    flex: 0 0 100%;
+    min-width: 0;
+    padding: 10px;
+    scroll-snap-align: start;
+    flex-wrap: nowrap;
+  }
+  .home .resume-who {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .home .resume-name,
+  .home .resume-status {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home .resume-actions {
+    flex: none;
+    gap: 4px;
+  }
+  .home .resume-card .btn {
+    min-height: 44px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+  .home .modes {
+    display: grid;
+    flex: 1 0 auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    min-height: 0;
+  }
+  .home .mode-card,
+  .home .mode-card-body {
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+  }
+  .home .mode-card-body {
+    flex: 1 1 auto;
+  }
+  .home .mode-art {
+    display: flex;
+    flex: 0 0 40px;
+    align-items: center;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px 0;
+  }
+  .home .mode-art .mode-scene {
+    display: none;
+  }
+  .home .mode-icon {
+    position: static;
+    width: 30px;
+    height: 30px;
+  }
+  .home .mode-text {
+    flex: 1 1 auto;
+    padding: 8px 12px 12px;
+  }
+  .home .mode-card h3 {
+    font-size: 17px;
+  }
+  .home .mode-card p {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .home .mode-card .foot {
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 10px;
+  }
+  .home .mode-card.daily > .btn {
+    min-height: 44px;
+    margin: 0 8px 8px;
+    padding: 6px;
+    font-size: 12px;
+  }
+  .home .home-tiles,
+  .home .home-tiles.casual {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .home .home-tile {
+    flex-direction: row;
+    align-items: center;
+    min-height: 64px;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .home .home-tile .tile-text span {
+    white-space: normal;
+  }
+  .home [data-phone-panel='more'] > p {
+    margin: 0 !important;
+  }
+
+  /* Setup keeps only the chosen group above an always-visible Start action. */
+  .app > .page.setup-page.has-bottom-bar {
+    display: flex;
+    overflow: hidden;
+    padding-bottom: 12px;
+  }
+  .setup-page .setup-flow {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-height: 0;
+    gap: 8px;
+  }
+  .setup-page .setup-flow > .row,
+  .setup-page .setup-flow > .phone-tabs {
+    flex: none;
+  }
+  .setup-page .setup-flow > .row {
+    align-items: center !important;
+  }
+  .setup-page .setup-flow h1 {
+    font-size: 24px;
+  }
+  .setup-page .setup-sub {
+    display: none;
+  }
+  .setup-page .setup-flow > .row > .btn {
+    min-height: 44px;
+  }
+  .setup-page .setup-grid {
+    display: grid;
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .setup-page .setup-rules-box {
+    display: contents;
+  }
+  .setup-page .setup-team-box,
+  .setup-page .setup-rules-panel {
+    grid-row: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px;
+    gap: 8px;
+  }
+  .setup-page .setup-rules-panel {
+    background: var(--panel);
+    border: var(--border);
+    border-radius: var(--radius);
+  }
+  .setup-page[data-phone-tab='team'] [data-phone-panel='rules'],
+  .setup-page[data-phone-tab='rules'] [data-phone-panel='team'] {
+    display: none;
+  }
+  .setup-page .setup-step {
+    gap: 6px;
+  }
+  .setup-page .setup-step + .setup-step {
+    padding-top: 8px;
+  }
+  .setup-page .step-head {
+    font-size: 16px;
+  }
+  .setup-page .step-num {
+    width: 22px;
+    height: 22px;
+  }
+  .setup-page .setup-preview:not(.setup-preview-only) {
+    display: none;
+  }
+  .setup-page .setup-name .team-field > label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .setup-page .step-head-row {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .setup-page .step-head-row > .step-head {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .setup-page .step-head-row > .season-pick {
+    flex: 0 0 auto;
+    width: 120px;
+    min-width: 0;
+  }
+  .setup-page .setup-preview-only .pitch-mini {
+    max-width: 120px;
+    margin-inline: auto;
+  }
+  .setup-page .formations {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .setup-page .formations button {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    min-height: 44px;
+    padding: 5px 3px;
+    gap: 3px;
+    text-align: left;
+  }
+  .setup-page .formations .fthumb {
+    width: 22px;
+  }
+  .setup-page .formations .fname {
+    font-size: 13px;
+  }
+  .setup-page .formations .fname-sub {
+    font-size: 9px;
+  }
+  .setup-page .setup-league > .segmented {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .setup-page .setup-league > .segmented > button {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+  .setup-page .setup-rules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 8px;
+  }
+  .setup-page .setup-rules .setup-wide-opt {
+    grid-column: 1 / -1;
+  }
+  .setup-page .choice-card {
+    min-height: 56px;
+    padding: 6px 4px;
+  }
+  .setup-page .choice-card .cline {
+    display: none;
+  }
+  .setup-page .setup-start.bottom-bar {
+    position: static;
+    grid-row: 2;
+    padding: 10px 12px;
+    margin: 0;
+    border: var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: none;
+    background: var(--panel);
+  }
+  .setup-page .setup-start > .step-head {
+    display: none;
+  }
+  .setup-page .setup-start .btn {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .setup-page [data-testid='setup-summary'] {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .setup-page .setup-summary-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The Rules tab and its More options fold expose these choices without a duplicate shortcut in the footer. */
+  .setup-page [data-testid='setup-change'],
+  .setup-page .setup-change-separator {
+    display: none;
+  }
+
+  @media (max-height: 800px) {
+    .home .hero-content {
+      padding: 10px 12px;
+    }
+    .home .hero h1 .tl-lockup {
+      --h: 36px;
+    }
+    .home .first-run {
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .home .mode-art {
+      flex-basis: 26px;
+      min-height: 26px;
+      padding: 4px 10px 0;
+    }
+    .home .mode-icon {
+      width: 22px;
+      height: 22px;
+    }
+    .home .mode-text {
+      padding: 6px 10px 8px;
+    }
+  }
+}

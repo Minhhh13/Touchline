@@ -51,7 +51,9 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
   return (
     <details className="panel opposition" open={startOpen} style={{ marginBottom: 'var(--space-4)' }}>
       <summary className="panel-head">
-        <h3>Opposition report: {club.name}</h3>
+        <h3>
+          Opposition report<span className="opp-of">: {club.name}</span>
+        </h3>
         <span className="small muted">
           {neutral ? 'Neutral' : home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
           <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
@@ -62,7 +64,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
       <div className="grid three opp-grid">
         <div className="col opp-units" style={{ gap: 6 }}>
           <div className="eyebrow">Units</div>
-          <div className="kv">
+          <dl className="kv">
             <dt>Rating</dt>
             <dd>{strength.overall.toFixed(1)}</dd>
             <dt>GK / DEF</dt>
@@ -86,7 +88,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
               {injured > 0 && <Bandage size={13} className="ic-injury" aria-hidden="true" />}
               {injured}
             </dd>
-          </div>
+          </dl>
         </div>
         <div className="col opp-danger" style={{ gap: 6 }}>
           <div className="eyebrow">Danger men</div>

@@ -75,3 +75,34 @@ export function distinctLabels(labels: readonly string[]): string[] {
   return out
 }
 
+
+/**
+ * The quick summary's runs line under the record: this season's runs (`runsLine`) and the Profile's longest perfect
+ * start, named as such ("best perfect start 5-0": a bare "best run 1-0" read as a score). A best of one game says
+ * nothing a player wants to hear, so it shows from two; null when there is nothing to say. When `thisRun` (this
+ * season's perfect run) is the best, the line says so instead of repeating it.
+ */
+export function runsSummary(runs: string | null, longestPerfectRun: number | undefined, thisRun?: number): string | null {
+  // This season set the best: say so rather than print its run twice ("Perfect run 2-0 · best perfect start 2-0")
+  if (runs && thisRun !== undefined && thisRun >= 2 && thisRun === longestPerfectRun) return `${runs} · your best perfect start`
+  const best = (longestPerfectRun ?? 0) >= 2 ? `${runs ? 'best' : 'Best'} perfect start ${longestPerfectRun}-0` : null
+  const parts = [runs, best].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}
+
+/**
+ * The playback's moment chip when the perfect run ends: the game that ended it ("Lost 0-1 to Brentford", "Drew 2-2
+ * with Everton"), since the chase banner above already says "Perfect run over at 4-0".
+ */
+export function brokeMoment(gf: number, ga: number, opponent: string): string {
+  return gf < ga ? `Lost ${gf}-${ga} to ${opponent}` : `Drew ${gf}-${ga} with ${opponent}`
+}
+
+/**
+ * The share card's gold line for cups won without the league (a title and a cup is the Double, which has its own
+ * line): "Cup winners", "Continental champions", or both. Null with no cup won.
+ */
+export function cupWinsLine(cups: ReadonlyArray<'cup' | 'continental'>): string | null {
+  const words = [cups.includes('cup') ? 'Cup winners' : null, cups.includes('continental') ? 'Continental champions' : null].filter((w): w is string => !!w)
+  return words.length ? words.join(' · ') : null
+}

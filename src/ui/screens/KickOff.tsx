@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Crown, Hourglass, Link2, Shuffle, TrendingDown } from 'lucide-react'
 import { QUICK_CONTINENTAL_PLACES } from '@game/logic/quickCups'
 import { useStore } from '@game/store'
@@ -24,6 +24,7 @@ import { MANAGER_STYLE_HELP } from '@engine/managers'
 import { caseIconIn, kickoffStep } from '@game/logic/endCase'
 import { ManagerSpin } from '../components/ManagerSpin'
 import { EndCase } from '../components/EndCase'
+import { WorkspaceTabs } from '../components/WorkspaceTabs'
 
 /**
  * The step between a quick draft (or the Daily) and its season, the way 38-0 shows a finished squad: the goal (win
@@ -32,9 +33,13 @@ import { EndCase } from '../components/EndCase'
  * defaults" plays it with the default tactics instead.
  */
 export function KickOff() {
-  const { universe: u, game, setTactics, setCaptain, kickOff, pickManager } = useStore()
+  const { universe: u, game, setTactics, setCaptain, kickOffSoon, kickingOff: kicking, warmKickOff, pickManager } = useStore()
   const [showTactics, setShowTactics] = useState(false)
   const [showManagers, setShowManagers] = useState(false)
+  const [phoneTab, setPhoneTab] = useState<'overview' | 'xi' | 'tactics'>('overview')
+  // The season plays in a worker (the store's kickOffSoon), "Simulating" on the button meanwhile; its packs load now,
+  // and the worker goes with the screen
+  useEffect(() => warmKickOff(), [warmKickOff])
   if (!u || !game) return null
   // A Quick Draft with the manager spin or the end-of-draft case shows those first, in that order
   const step = kickoffStep(game)
@@ -52,7 +57,7 @@ export function KickOff() {
   const edge = game.manager ? managerEdge(game, game.manager.style, get) : null
   const hint = game.manager && edge ? edgeHint(game.manager.style, edge) : null
   return (
-    <div className="page fit" data-testid="kickoff">
+    <div className="page fit kickoff-page" data-testid="kickoff" data-phone-tab={phoneTab}>
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>Squad complete</h1>
@@ -70,12 +75,13 @@ export function KickOff() {
           <span className="small">The goal: {perfectTarget(quickSeasonGames(u, s))}, the perfect season</span>
         </div>
       </div>
+      <WorkspaceTabs id="kickoff-phone" label="Pre-season workspace" tabs={[{ id: 'overview', label: 'Overview' }, { id: 'xi', label: 'Your XI' }, { id: 'tactics', label: 'Tactics' }]} value={phoneTab} onChange={(tab) => { setPhoneTab(tab); if (tab === 'tactics') setShowTactics(true) }} />
       <div className="fit-grid c3">
-        <div className="fit-cell">
+        <div className="fit-cell" data-phone-panel="overview" id="kickoff-phone-panel-overview" role="tabpanel" aria-labelledby="kickoff-phone-overview">
           <SquadComplete game={game} u={u} hideRatings={hide}>
             <div className="col sc-foot" style={{ gap: 8 }}>
-              <button className="btn primary big sc-go" onClick={() => kickOff()} data-testid="kickoff-go">
-                Simulate season
+              <button className="btn primary big sc-go" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go">
+                {kicking ? 'Simulating…' : 'Simulate season'}
               </button>
               <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
                 {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
@@ -84,7 +90,7 @@ export function KickOff() {
             </div>
           </SquadComplete>
         </div>
-        <div className="panel col fit-cell">
+        <div className="panel col fit-cell" data-phone-panel="xi" id="kickoff-phone-panel-xi" role="tabpanel" aria-labelledby="kickoff-phone-xi">
           <h3>Your XI · {formation.name}</h3>
           <div inert className="pitch-fit" data-testid="kickoff-pitch">
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={hide} />
@@ -102,7 +108,7 @@ export function KickOff() {
             </div>
           )}
         </div>
-        <div className="panel col fit-cell">
+        <div className="panel col fit-cell" data-phone-panel="tactics" id="kickoff-phone-panel-tactics" role="tabpanel" aria-labelledby="kickoff-phone-tactics">
           {game.manager && (
             <div className="col" data-testid="kickoff-manager" style={{ gap: 8 }}>
               <div className="row between wrap" style={{ gap: 8 }}>
@@ -134,10 +140,10 @@ export function KickOff() {
               <h3>Team instructions</h3>
               <TeamInstructions t={t} onChange={setTactics} />
               <div className="row wrap" style={{ gap: 10 }}>
-                <button className="btn primary" onClick={() => kickOff()} data-testid="kickoff-go-tactics">
-                  Simulate season
+                <button className="btn primary" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-tactics">
+                  {kicking ? 'Simulating…' : 'Simulate season'}
                 </button>
-                <button className="btn ghost" onClick={() => kickOff(true)} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
+                <button className="btn ghost" onClick={() => void kickOffSoon(true)} disabled={kicking} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
                   Simulate with the default tactics
                 </button>
               </div>
@@ -145,6 +151,11 @@ export function KickOff() {
           )}
           {report && <ScoutingReport r={report} />}
         </div>
+      </div>
+      <div className="kickoff-phone-start">
+        <button className="btn primary block" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-phone">
+          {kicking ? 'Simulating…' : 'Simulate season'}
+        </button>
       </div>
     </div>
   )

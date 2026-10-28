@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countPhrase, developmentLists, distinctLabels, modeLabel, shownGames, versusReal } from '../screenText'
+import { brokeMoment, countPhrase, cupWinsLine, developmentLists, distinctLabels, modeLabel, runsSummary, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -65,3 +65,33 @@ describe('distinctLabels', () => {
   })
 })
 
+
+describe('runsSummary', () => {
+  it('names the best as a perfect start, from two games, beside the season runs', () => {
+    expect(runsSummary('Unbeaten for the first 2 games', 1)).toBe('Unbeaten for the first 2 games')
+    expect(runsSummary('Unbeaten for the first 2 games', 6)).toBe('Unbeaten for the first 2 games · best perfect start 6-0')
+    expect(runsSummary(null, 6)).toBe('Best perfect start 6-0')
+    expect(runsSummary(null, 1)).toBeNull()
+    expect(runsSummary(null, undefined)).toBeNull()
+    // This season's run is the best: named once, not twice
+    expect(runsSummary('Perfect run 2-0 · unbeaten for the first 7', 2, 2)).toBe('Perfect run 2-0 · unbeaten for the first 7 · your best perfect start')
+    expect(runsSummary('Perfect run 2-0', 5, 2)).toBe('Perfect run 2-0 · best perfect start 5-0')
+    expect(runsSummary('Unbeaten for the first 4 games', 3, 1)).toBe('Unbeaten for the first 4 games · best perfect start 3-0')
+  })
+})
+
+describe('brokeMoment', () => {
+  it('names the game that ended the perfect run, never the line the banner already shows', () => {
+    expect(brokeMoment(0, 1, 'Brentford')).toBe('Lost 0-1 to Brentford')
+    expect(brokeMoment(2, 2, 'Everton')).toBe('Drew 2-2 with Everton')
+  })
+})
+
+describe('cupWinsLine', () => {
+  it('names the cups won for the share card, nothing without one', () => {
+    expect(cupWinsLine([])).toBeNull()
+    expect(cupWinsLine(['cup'])).toBe('Cup winners')
+    expect(cupWinsLine(['continental'])).toBe('Continental champions')
+    expect(cupWinsLine(['cup', 'continental'])).toBe('Cup winners · Continental champions')
+  })
+})

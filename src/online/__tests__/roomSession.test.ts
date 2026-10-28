@@ -130,6 +130,50 @@ describe('two devices play a room through the session', () => {
   }, T)
 })
 
+describe('a room abandoned mid-draft', () => {
+  it('the other manager vanishes after a few picks: the room times out, polling stops, and a late pick is told why', async () => {
+    const h = makeHarness(new Date('2026-10-26T10:00:00Z'), LIVE)
+    const a = device(h, VISITOR)
+    const b = device(h, VISITOR2)
+    const made = await a.session.create(SETTINGS, ANA, ENGINE_VERSION, u.generatedAt)
+    const code = made.ok ? made.code : ''
+    await b.session.open(code)
+    await b.session.join(BEN, ENGINE_VERSION, u.generatedAt)
+    // three picks, then b's tab is closed in the middle of the draft (no leave)
+    for (let i = 0; i < 3; i++) {
+      await a.session.poll()
+      await b.session.poll()
+      const view = a.session.state!.view!
+      const mover = view.turn === 0 ? a : b
+      const mine = mover.session.state!.view!
+      const c = autoChoice(u, draftFromEvents(u, mine.settings, mine.managers as [H2HManager, H2HManager], mine.events))
+      expect(await mover.session.pick(c.p, c.k)).toBe(true)
+    }
+    await a.session.poll()
+    expect(a.session.state?.view?.status).toBe('drafting')
+    // a network drop on a's poll: said once, polling goes on, and the next answer clears it
+    const rpc = a.session['d'].transport.rpc
+    a.session['d'].transport.rpc = async () => {
+      throw new Error('Load failed')
+    }
+    await a.session.poll()
+    expect(a.session.state).toMatchObject({ errorCode: 'network' })
+    expect(a.timers.length).toBeGreaterThan(0)
+    a.session['d'].transport.rpc = rpc
+    h.clock.now = new Date(h.clock.now.getTime() + 16 * 60000)
+    a.timers.splice(0)
+    await a.session.poll()
+    expect(a.session.state?.view?.status).toBe('timed_out')
+    expect(a.session.state?.errorCode).toBeNull()
+    expect(a.timers).toHaveLength(0)
+    // a pick sent from a screen still showing the draft is refused with the reason, never applied
+    const before = h.rooms.get(code)!.version
+    expect(await a.session.pick('nobody', 'GK')).toBe(false)
+    expect(a.session.state?.errorCode).toMatch(/room_closed|not_your_turn|stale/)
+    expect(h.rooms.get(code)!.version).toBe(before)
+  }, T)
+})
+
 describe('session helpers', () => {
   it('polls fast while the other manager picks, slower otherwise, and stops once the room ends', () => {
     const view = (status: RoomView['status'], turn: 0 | 1 | null) => ({ status, turn }) as RoomView

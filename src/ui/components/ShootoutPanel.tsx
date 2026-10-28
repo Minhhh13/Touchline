@@ -72,7 +72,7 @@ export function ShootoutPanel() {
                   <span className="mono" style={{ width: 22 }}>{i + 1}</span>
                   <span className="name">
                     {p?.name ?? id}
-                    {p && <span className="muted small"> · shooting {p.attributes.shooting} · composure {p.attributes.mentality}</span>}
+                    {p && <span className="muted small taker-meta">shooting {p.attributes.shooting} · composure {p.attributes.mentality}</span>}
                   </span>
                   <span className="row" style={{ gap: 4 }}>
                     <button type="button" className="btn sm ghost" aria-label={`Move ${p?.name ?? id} up`} disabled={i === 0} onClick={() => move(i, -1)}>
@@ -118,13 +118,18 @@ export function ShootoutPanel() {
         <h2>
           Penalties {us}-{them}
         </h2>
-        {done && (
+        {done ? (
           <span className={`chip ${pens.us > pens.them ? 'good' : 'bad'}`} data-testid="shootout-result">
             {pens.us > pens.them ? `Won ${pens.us}-${pens.them} on penalties` : `Lost ${pens.us}-${pens.them} on penalties`}
           </span>
+        ) : (
+          // In the head beside the score, so the box keeps one line of kicks under it
+          <button type="button" className="btn sm ghost" onClick={() => setShown(pens.kicks.length)}>
+            Show them all
+          </button>
         )}
       </div>
-      <div className="row wrap" style={{ gap: 6 }}>
+      <div className="row wrap shootout-kicks" style={{ gap: 6 }}>
         {kicks.map((k, i) => (
           <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`} title={k.us ? 'Ours' : 'Theirs'}>
             {k.us ? '' : '⇢ '}
@@ -133,11 +138,6 @@ export function ShootoutPanel() {
         ))}
       </div>
       {pens.keeperSwap && <p className="help">{get(pens.keeperSwap.on)?.name} came off the bench to face them, for {get(pens.keeperSwap.off)?.name}.</p>}
-      {!done && (
-        <button type="button" className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => setShown(pens.kicks.length)}>
-          Show them all
-        </button>
-      )}
     </div>
   )
 }

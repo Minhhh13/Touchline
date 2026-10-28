@@ -1387,7 +1387,11 @@ function applyPendingSubstitutions(live: LivePlayer[], team: MatchTeamInput, sid
   pending.length = 0
 }
 
-/** The best fit on the bench for the man coming off: not on the pitch, not already promised to a parked change, fit and unsuspended. */
+/**
+ * The best fit on the bench for the man coming off: not on the pitch, not already promised to a parked change, fit and
+ * unsuspended. A keeper-only man never comes on for an outfielder (`eligibleReplacement`); an outfielder may still go
+ * in goal for an injured keeper when no keeper is left, the emergency case.
+ */
 function replacementFor(live: LivePlayer[], team: MatchTeamInput, off: LivePlayer, reserved: Substitution[]): PlayerSeason | undefined {
   const used = new Set(live.map((p) => p.psId))
   for (const r of reserved) used.add(r.on)
@@ -1396,7 +1400,7 @@ function replacementFor(live: LivePlayer[], team: MatchTeamInput, off: LivePlaye
   for (const id of team.bench) {
     if (used.has(id)) continue
     const ps = team.getPlayer(id)
-    if (!ps) continue
+    if (!ps || !eligibleReplacement(ps, off.position)) continue
     const st = team.getState(id)
     if (st?.injury || (st?.suspension ?? 0) > 0) continue
     const s = ps.overall * positionFactor(ps, off.position) * ((st?.condition ?? 90) / 100 + 0.5)
@@ -1406,6 +1410,14 @@ function replacementFor(live: LivePlayer[], team: MatchTeamInput, off: LivePlaye
     }
   }
   return best
+}
+
+/**
+ * Whether an automatic change may bring `on` into a slot of `position`: a man who plays only in goal never comes on
+ * outfield. Every outfielder may (the slot's fit is scored by the caller), in goal too as the emergency keeper. Pure.
+ */
+export function eligibleReplacement(on: Pick<PlayerSeason, 'positions'>, position: Position): boolean {
+  return position === 'GK' || !on.positions.every((x) => x === 'GK')
 }
 
 function bringOn(live: LivePlayer[], team: MatchTeamInput, off: LivePlayer, minute: number, side: 'home' | 'away', events: MatchEvent[], subs: Substitution[], reason: string, reserved: Substitution[]): boolean {

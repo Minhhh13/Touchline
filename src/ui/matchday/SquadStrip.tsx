@@ -30,18 +30,18 @@ export function SquadStrip({ feed, minute, side, view, ratings, squad, selected,
   const made = fs.subs.filter((s) => s.minute <= at).length
   const subsLeft = MAX_SUBS - made
   return (
-    <div className="md-strip" aria-label={`${view.name} on the pitch`}>
+    <div className="md-strip" role="group" aria-label={`${view.name} on the pitch`}>
       <button type="button" className="md-strip-squad" onClick={() => hand.open('subs')} disabled={!hand.editable} aria-haspopup="dialog" title={hand.editable ? 'Make a substitution' : hand.landing.text}>
         <span className="md-strip-title">
           <SubIcon />
           <b>Squad</b>
         </span>
         <span className="mono">
-          <b>{subsLeft}</b>/{MAX_SUBS} subs
+          <b>{subsLeft}</b>/{MAX_SUBS} subs left
         </span>
         {live && (
           <span className="mono">
-            <b>{hand.windowsLeft}</b>/{MAX_WINDOWS} stoppages
+            <b>{hand.windowsLeft}</b>/{MAX_WINDOWS} stoppages left
           </span>
         )}
       </button>

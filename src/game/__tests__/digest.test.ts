@@ -205,6 +205,24 @@ describe('while you were away', () => {
     expect(d.injuries.map((n) => n.title)).toEqual(['Setback'])
   })
 
+  it('folds the same call, answer and outcome into one counted line', () => {
+    const g = newGame(u)
+    sim(g, u, 1)
+    const snap = digestSnapshot(g)!
+    for (const mw of [1, 2]) {
+      postNews(g, { matchweek: mw, kind: 'event', title: `${ASSISTANT_DECIDED}Press conference`, body: 'One game at a time' })
+      postNews(g, { matchweek: mw, kind: 'event', title: 'Press conference', body: 'Nothing to see here.' })
+      postNews(g, { matchweek: mw + 1, kind: 'result', title: 'Won', body: '2-0' })
+    }
+    postNews(g, { matchweek: 3, kind: 'event', title: `${ASSISTANT_DECIDED}Press conference`, body: 'Talk it up' })
+    g.season!.matchweek += 3
+    const d = buildDigest(snap, g)!
+    expect(d.decisions).toEqual([
+      { title: 'Press conference', choice: 'Talk it up' },
+      { title: 'Press conference', choice: 'One game at a time', outcome: 'Nothing to see here.', count: 2 },
+    ])
+  })
+
   it('a managed week makes no decision item without a pending event, and a hand-played one never does', () => {
     const g = newGame(u)
     sim(g, u, 1)

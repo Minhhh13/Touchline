@@ -4,15 +4,15 @@
  * from that squad who rates best there, and the spins are matched to the slots to make the XI's total the highest it
  * can be (an exact search over the 2^11 slot sets, no draws). A man drafted from two spins is used once.
  *
- * It reads the draft log the way `pickGrades` does (the same squads, the same rating in a slot). Your own slots, each
+ * It reads the draft log the way `pickGrades` does (the same squads, the same rating in a slot: `inSlotRating`, the pitch disc's number). Your own slots, each
  * with its spin's best man, are always one of the XIs it weighs, so the Hindsight XI is never below yours. Pure and draft-preserving: nothing about a seed moves.
  * A draft under the salary cap or the teammate chain has no hindsight (the same spins could not be rearranged freely).
  */
 import type { DraftRules, DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
-import { ratingAt } from '@engine/positions'
 import type { LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason } from '@engine/types'
+import { inSlotRating } from './pickGrades'
 
 export interface HindsightPick {
   /** The spin (index in the draft history) the man comes from. */
@@ -21,7 +21,7 @@ export interface HindsightPick {
   /** The player-season id. */
   id: string
   name: string
-  /** His rating in the slot, rounded as the pick grades show it. */
+  /** His rating in the slot as the pick grades and his pitch disc show it (`inSlotRating`). */
   rating: number
   /** The man you drafted into this slot, from the same spin. */
   yours: boolean
@@ -69,7 +69,7 @@ export function hindsightXI(u: LoadedUniverse, d: DraftLog, get: (id: string) =>
         let top: { p: PlayerSeason; r: number } | null = null
         for (const p of x.squad) {
           if (banned[i].has(p.playerId)) continue
-          const r = Math.round(ratingAt(p, sl.position))
+          const r = inSlotRating(p, sl.position)
           if (!top || r > top.r || (r === top.r && p.id === x.picked.id && sl.id === x.slotId)) top = { p, r }
         }
         return top
@@ -133,7 +133,7 @@ export function hindsightXI(u: LoadedUniverse, d: DraftLog, get: (id: string) =>
     const order = new Map(d.formation.slots.map((s, k) => [s.id, k]))
     picks.sort((a, b) => (order.get(a.slotId) ?? 0) - (order.get(b.slotId) ?? 0))
     const rating = round1(picks.reduce((s, p) => s + p.rating, 0) / n)
-    const yours = round1(spins.reduce((s, x) => s + Math.round(ratingAt(x.picked, slots.find((sl) => sl.id === x.slotId)!.position)), 0) / n)
+    const yours = round1(spins.reduce((s, x) => s + inSlotRating(x.picked, slots.find((sl) => sl.id === x.slotId)!.position), 0) / n)
     return { xi: picks, rating, yours, gap: round1(rating - yours), kept: picks.filter((p) => p.yours).length }
   }
   return null

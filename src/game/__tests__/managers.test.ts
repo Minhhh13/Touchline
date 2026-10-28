@@ -111,15 +111,16 @@ describe('picking the manager', () => {
 /** The parent commit's quick seasons for these seeds (before managers existed): points, W, D, L, GF, GA, Cup reach, Cup scores. */
 // Re-pinned on 2026-10-25 for the data packs of #38 (2008-14 positions and traits fixed): the code before that merge
 // (season-release at 4698cbb, where these pins passed on the old packs) gives exactly these values on the new packs
+// Re-pinned for ENGINE_VERSION '5' (the playtest fixes moved every quick season); a passed January still changes nothing
 const PINNED: Array<[string, boolean, number, number, number, number, number, number, string, string]> = [
-  ['mgr-pin-1', false, 61, 17, 10, 11, 59, 43, 'SF', '5-2 5-0 2-3'],
-  ['mgr-pin-1', true, 61, 17, 10, 11, 59, 43, 'SF', '5-2 5-0 2-3'],
-  ['mgr-pin-2', false, 81, 24, 9, 5, 91, 36, 'R16', '0-0'],
-  ['mgr-pin-2', true, 81, 24, 9, 5, 91, 36, 'R16', '0-0'],
-  ['mgr-pin-3', false, 71, 21, 8, 9, 64, 32, 'W', '1-0 2-0 5-4 1-1'],
-  ['mgr-pin-3', true, 71, 21, 8, 9, 64, 32, 'W', '1-0 2-0 5-4 1-1'],
-  ['mgr-pin-4', false, 54, 15, 9, 14, 45, 45, 'R16', '1-1'],
-  ['mgr-pin-4', true, 54, 15, 9, 14, 45, 45, 'R16', '1-1'],
+  ['mgr-pin-1', false, 62, 17, 11, 10, 56, 43, 'R16', '1-2'],
+  ['mgr-pin-1', true, 62, 17, 11, 10, 56, 43, 'R16', '1-2'],
+  ['mgr-pin-2', false, 77, 24, 5, 9, 90, 43, 'W', '1-0 3-2 2-0 2-0'],
+  ['mgr-pin-2', true, 77, 24, 5, 9, 90, 43, 'W', '1-0 3-2 2-0 2-0'],
+  ['mgr-pin-3', false, 76, 21, 13, 4, 65, 32, 'QF', '1-0 1-2'],
+  ['mgr-pin-3', true, 76, 21, 13, 4, 65, 32, 'QF', '1-0 1-2'],
+  ['mgr-pin-4', false, 66, 18, 12, 8, 80, 43, 'SF', '1-0 4-1 0-4'],
+  ['mgr-pin-4', true, 66, 18, 12, 8, 80, 43, 'SF', '1-0 4-1 0-4'],
 ]
 
 describe('no manager leaves every seed as it was', () => {

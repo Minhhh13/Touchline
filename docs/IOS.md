@@ -38,6 +38,10 @@ Native email/OAuth redirects need a callback flow back into the app and the corr
 
 ## Phone verification
 
+The phone app fills the viewport below a single-row app bar. Home has Play / Challenges / More; Setup has Team / Rules and a Start action that stays in view. The Draft has Spin / Players / Your XI and opens Players when the reel lands, returning to Spin after a pick. The three manager reels form a sideways carousel so every manager's card and Pick action fit without a long vertical stack. Pre-season, the Dugout squad and the live match have their own workspaces. January, the chart and the bench are separate playback tabs; Summary separates Results / Cups / Stats. Long lists and detailed settings scroll within their panel; very short landscape windows may still need panel scrolling. Keyboard arrows, Home and End move between workspace tabs. Desktop panels remain side by side, and these local tab choices never change the saved game.
+
+All styles read the shared `--safe-top`, `--safe-right`, `--safe-bottom` and `--safe-left` tokens. Browser QA can use `safeAreaOverride` from `src/ui/safeArea.ts` to emulate a notch and home indicator; do not add a second family of inset tokens.
+
 - Check Home → Quick Draft → Setup → Draft → season result and Season → a live match through both decision stops.
 - Test light/dark themes at 360–430 px portrait widths and in landscape.
 - Check the top bar, its hidden/restore state, bottom actions, player card and full-screen substitution sheets against the notch and home indicator.

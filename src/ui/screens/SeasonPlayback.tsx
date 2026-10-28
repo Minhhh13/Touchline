@@ -13,6 +13,7 @@ import { Pitch } from '../components/Pitch'
 import { playbackDelay, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { gapLine, momentAt, positionSeries, rivalsOf, tableAfterGame, weeklyTables } from '@game/logic/liveTable'
 import { chaseAt, chaseLine, perfectOverLabel } from '@game/logic/perfect'
+import { brokeMoment } from '../screenText'
 import { USER_TEAM } from '@engine/season'
 import { LiveTable, PositionChart } from '../components/LiveLeague'
 import { QuickTeamLine } from '../components/QuickTeamLine'
@@ -27,6 +28,10 @@ import { ordinal } from '../format'
 import { sideNamer } from '@game/logic/superLeague'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PLAYBACK } from '../boxSets'
+import { workspaceTabKey } from '../workspaceTabs'
+
+type PlaybackTab = 'list' | 'table' | 'january' | 'chart' | 'bench'
+const PLAYBACK_TAB_LABEL: Record<PlaybackTab, string> = { list: 'Games', table: 'Table', january: 'January', chart: 'Chart', bench: 'Bench' }
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -46,7 +51,7 @@ export function SeasonPlayback() {
   const pb = useSeasonPlayback(results.length, from)
   const [hlWeek, setHlWeek] = useState<number | null>(null)
   // The phone's tab: the January window opens on the box that holds it, until another tab is chosen there
-  const [tabState, setTabState] = useState<{ at: string; tab: 'list' | 'table' | 'chart' }>({ at: 'play', tab: 'list' })
+  const [tabState, setTabState] = useState<{ at: string; tab: PlaybackTab }>({ at: 'play', tab: 'list' })
   const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
   const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
   const allBoxes = useBoxes(PLAYBACK)
@@ -69,6 +74,7 @@ export function SeasonPlayback() {
   const before = tableAfterGame(tables, results, pb.revealed - 1)
   const gap = gapLine(table, USER_TEAM)
   const moment = momentAt(tables, results, pb.revealed, USER_TEAM)
+  const momentText = moment === 'top' ? 'Top of the league!' : moment === 'top4' ? 'Into the top four' : moment === 'perfect' ? `${chase.won}-0 and counting` : moment === 'broke' && results[pb.revealed - 1] ? brokeMoment(results[pb.revealed - 1].gf, results[pb.revealed - 1].ga, sideName(results[pb.revealed - 1].opponentId)) : perfectOverLabel(chase.perfectRun)
   const teams = table.length || total / 2 + 1
   const series = tables.length ? positionSeries(tables, results, USER_TEAM, pb.revealed) : results.slice(0, pb.revealed).map((r) => r.position)
   const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(sideName(id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
@@ -80,10 +86,11 @@ export function SeasonPlayback() {
   // The bench shares the third column with the chart: that column takes a little more width, so the pitch can sit beside the bench
   const benchShown = benchOn && boxes.on('bench')
   const panes = { list: boxes.on('games'), table: boxes.on('table'), chart: janOpen || boxes.on('chart') || (benchOn && boxes.on('bench')) }
-  const paneIds = (['list', 'table', 'chart'] as const).filter((t) => panes[t])
-  const wanted = tabState.at === at ? tabState.tab : janOpen ? 'chart' : tabState.tab
-  const tab = panes[wanted] ? wanted : paneIds[0] ?? 'list'
-  const setTab = (t: 'list' | 'table' | 'chart') => setTabState({ at, tab: t })
+  const phonePanes = { list: panes.list, table: panes.table, january: janOpen, chart: boxes.on('chart'), bench: benchShown }
+  const paneIds = (['list', 'table', 'january', 'chart', 'bench'] as const).filter((t) => phonePanes[t])
+  const wanted = tabState.at === at ? tabState.tab : janOpen ? 'january' : tabState.tab
+  const tab = phonePanes[wanted] ? wanted : paneIds[0] ?? 'list'
+  const setTab = (t: PlaybackTab) => setTabState({ at, tab: t })
   const pbGrid = boxes.grid([
     { track: 'minmax(0, 1fr)', ids: ['games'] },
     { track: 'minmax(0, 1fr)', ids: ['table'] },
@@ -139,15 +146,25 @@ export function SeasonPlayback() {
           </span>
         )}
         {moment && pb.revealed > 0 && (
-          <span key={`m${pb.revealed}`} className={`moment ${moment}`} data-testid="playback-moment" data-moment={moment} role="status">
-            {moment === 'top' ? 'Top of the league!' : moment === 'top4' ? 'Into the top four' : moment === 'perfect' ? `${chase.won}-0 and counting` : perfectOverLabel(chase.perfectRun)}
+          <span key={`m${pb.revealed}`} className={`moment ${moment}`} data-testid="playback-moment" data-moment={moment}>
+            {momentText}
           </span>
         )}
+        {/* One short line for a screen reader: the big moments and the end, never every game (the tally is not live) */}
+        <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="playback-live">
+          {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${game.quickResult?.points ?? 0} points.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText}` : ''}
+        </span>
       </div>
       <div className="pb-tabs segmented" role="tablist" aria-label="Season views">
         {paneIds.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)} data-testid={`pb-tab-${t}`}>
-            {t === 'list' ? 'Games' : t === 'table' ? 'Table' : janOpen ? 'January' : 'Chart'}
+          <button key={t} role="tab" aria-selected={tab === t} tabIndex={tab === t ? 0 : -1} className={tab === t ? 'active' : ''} onClick={() => setTab(t)} data-testid={`pb-tab-${t}`} onKeyDown={(event) => {
+            const next = workspaceTabKey(paneIds, tab, event.key)
+            if (!next) return
+            event.preventDefault()
+            setTab(next)
+            event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-testid="pb-tab-${next}"]`)?.focus()
+          }}>
+            {PLAYBACK_TAB_LABEL[t]}
           </button>
         ))}
       </div>
@@ -202,7 +219,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
   const canPlay = canPlayFor(game)
   const targets = choosing && chosenP ? formation.slots.filter((s) => view.lineup[s.id] && canPlay(chosenP, s.position)).map((s) => s.id) : []
   return (
-    <div className="panel col bench-panel" data-testid="bench-panel">
+    <div className="panel col bench-panel" data-phone-block="bench" data-testid="bench-panel">
       <div className="panel-head">
         <h3>{view.next === null ? 'The XI and the bench' : `For matchweek ${view.next}`}</h3>
         <span className={`chip ${view.changesLeft ? '' : 'warn'}`} data-testid="changes-left">
