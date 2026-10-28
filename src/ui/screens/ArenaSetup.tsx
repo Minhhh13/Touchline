@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, slotOf } from '@game/store'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
-import { shortNameFor } from '@game/logic/setup'
+import { rememberTeamName, useTeamName } from '../teamName'
 import { ARENA_FIELDS, arenaNeedsAllLeagues, colourClubs, CUP_SQUAD, cupGameSettings, DEFAULT_CUP_SIZE, DEFAULT_DECADE, GAUNTLET_SQUAD, GAUNTLET_SQUAD_CAP, gauntletGameSettings, latestCompleteSeason, summariseArena } from '@game/logic/arena'
 import { arenaFormatText } from '../i18n/modeText'
 import { rich, B } from '../i18n/rich'
@@ -56,7 +56,8 @@ export function ArenaSetup() {
   const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, arenaSetupFormat } = useStore()
   const [format, setFormat] = useState<'cup' | 'gauntlet'>(arenaSetupFormat)
   const gauntlet = format === 'gauntlet'
-  const [teamName, setTeamName] = useState('Touchline XI')
+  // An invented club name, or the one this viewer last typed (teamName.ts)
+  const team = useTeamName()
   const [formationId, setFormationId] = useState('4-3-3')
   const [size, setSize] = useState<CupSize>(DEFAULT_CUP_SIZE)
   const final = !gauntlet && size === 2
@@ -101,9 +102,9 @@ export function ArenaSetup() {
   }
   const buildSettings = (preview: boolean): GameSettings | null => {
     if (!ready || !season) return null
-    const name = teamName.trim() || 'Touchline XI'
+    const name = team.name
     const c = { teamName: name, formationId, field, wheelLeagues, ...eraRange(era, u.firstSeason), difficulty, seed: seed.trim() || (preview ? t('seedLater') : randomSeed()), hardMode, twists, hostClubId: hostClubId || undefined, size, decade, capXI: capXI(cap) }
-    return gauntlet ? gauntletGameSettings(u, c, shortNameFor(name)) : cupGameSettings(u, c, shortNameFor(name))
+    return gauntlet ? gauntletGameSettings(u, c, team.shortName) : cupGameSettings(u, c, team.shortName)
   }
   const preview = buildSettings(true)
   // Starting over an unfinished run asks first, as the Daily does over a Quick Draft
@@ -112,6 +113,7 @@ export function ArenaSetup() {
     const s = buildSettings(false)
     if (!s) return
     if (unfinished && !(await askConfirm(t('newRunConfirm', { format: arenaFormatText(unfinished.settings.arena), team: unfinished.settings.teamName }), { ok: t('startOk'), danger: true }))) return
+    rememberTeamName(s.teamName)
     startGame(s)
   }
 
@@ -156,7 +158,7 @@ export function ArenaSetup() {
             <section className="setup-step setup-team">
               <StepHead n={2} title={t('stepName')} />
               <div className="setup-name">
-                <TeamNameField value={teamName} onChange={setTeamName} fallback="Touchline XI" />
+                <TeamNameField value={team.value} onChange={team.setValue} fallback={team.fallback} />
               </div>
             </section>
           </div>

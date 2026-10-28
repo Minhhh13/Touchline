@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react'
-import { Dice5, X, type LucideIcon } from 'lucide-react'
+import { Shuffle, X, type LucideIcon } from 'lucide-react'
 import { seasonStop } from '@engine/era'
-import { randomTeamName } from '@game/logic/teamNames'
+import { generateTeamName } from '@game/logic/teamNames'
 import { seasonLabel } from '../format'
 import { InfoTip } from './PowerUpButton'
 import { translator } from '../i18n'
@@ -49,9 +49,9 @@ export function SectionHead({ title, info, right, testId }: { title: string; inf
 }
 
 /**
- * A team name field with Clear (empties it and puts the cursor in it) and Randomise (an invented name from our own list).
- * The dice is UI randomness only: a name never touches the seed. An empty field starts as `fallback`; the dice never
- * lands on a name in `taken`.
+ * A team name field with Clear (empties it and puts the cursor in it) and Shuffle (`team-name-shuffle`: another invented
+ * club name from `generateTeamName`). Shuffle is UI randomness only: a name never touches the seed. An empty field starts
+ * as `fallback`; Shuffle never lands on the name in the field or a name in `taken`.
  */
 export function TeamNameField({ label = t('teamName'), value, onChange, fallback, maxLength = 28, testId = 'team-name', taken }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string; taken?: readonly string[] }) {
   const ref = useRef<HTMLInputElement>(null)
@@ -74,8 +74,8 @@ export function TeamNameField({ label = t('teamName'), value, onChange, fallback
           <X size="1em" aria-hidden="true" />
           <span className="name-btn-label">{t('clear')}</span>
         </button>
-        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={t('randomiseField', { label: label.toLowerCase() })} title={t('randomise')} data-testid={`${testId}-random`}>
-          <Dice5 size="1em" aria-hidden="true" />
+        <button type="button" className="btn sm name-btn" onClick={() => onChange(generateTeamName(Math.random, [value, ...(taken ?? [])]).name.slice(0, maxLength))} aria-label={t('randomiseField', { label: label.toLowerCase() })} title={t('randomise')} data-testid={`${testId}-shuffle`}>
+          <Shuffle size="1em" aria-hidden="true" />
           <span className="name-btn-label">{t('randomise')}</span>
         </button>
       </div>
