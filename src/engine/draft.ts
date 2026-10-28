@@ -13,7 +13,7 @@
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
 import { Rng, type RngState } from './rng'
-import { canCover, positionFactor, type Fit } from './positions'
+import { POSITIONS, canCover, positionFactor, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
 import { formerTeammates, sharedClubSeasons } from './teammates'
 import { primeOf } from './prime'
@@ -601,16 +601,62 @@ function candidateSlots(d: DraftState): Formation['slots'] {
 }
 
 /**
+ * What `usableFor` reads off the draft, worked out once for a pass over the wheel rather than once per player: the
+ * drafted humans, the Teammate Chain's set (null when the chain does not bind), whether the XI is still being filled,
+ * the positions of the slots in play and the cap's room (Infinity without a cap). Nothing here changes during a pass.
+ */
+interface UsableCtx {
+  taken: Set<string>
+  mates: Set<string> | null
+  filling: boolean
+  /** The slots' positions as bits (`coverMask`). */
+  slotMask: number
+  room: number
+}
+
+function usableCtx(d: DraftState, slots: Formation['slots'], mates: Set<string> | null = chainSet(d)): UsableCtx {
+  let slotMask = 0
+  for (const s of slots) slotMask |= POSITION_BIT[s.position]
+  return { taken: new Set(d.takenPlayers), mates, filling: fillingXI(d), slotMask, room: capRoom(d) }
+}
+
+const POSITION_BIT = Object.fromEntries(POSITIONS.map((pos, i) => [pos, 1 << i])) as Record<Position, number>
+const coverMasks = new WeakMap<readonly Position[], Partial<Record<Fit, number>>>()
+
+/**
+ * The positions a player can cover at a minimum fit (`canCover`), as bits of `POSITION_BIT`: worked out once per
+ * positions list and fit, since the answer depends on nothing else. A cache beside the universe, never a change to it.
+ */
+function coverMask(p: Pick<PlayerSeason, 'positions'>, minFit: Fit): number {
+  let byFit = coverMasks.get(p.positions)
+  if (!byFit) coverMasks.set(p.positions, (byFit = {}))
+  let mask = byFit[minFit]
+  if (mask === undefined) {
+    mask = 0
+    for (const pos of POSITIONS) if (canCover(p, pos, minFit)) mask |= POSITION_BIT[pos]
+    byFit[minFit] = mask
+  }
+  return mask
+}
+
+/** `usableFor` against a context built once for the pass (`usableCtx`): the same checks in the same order. */
+function usableWith(d: DraftState, p: PlayerSeason, c: UsableCtx): boolean {
+  if (c.taken.has(p.playerId)) return false
+  const floor = d.ageFloor?.[p.playerId]
+  if (floor !== undefined && p.age < floor) return false
+  if (!nationAllows(d, p)) return false
+  if (c.mates && !c.mates.has(p.playerId)) return false
+  if (d.rules.budget !== undefined && !(capPrice(p) <= c.room + 1e-9)) return false
+  if (c.filling) return (coverMask(p, d.rules.minFit) & c.slotMask) !== 0
+  return true
+}
+
+/**
  * Whether a player is usable for one of `slots` (anyone undrafted for the bench once the XI is full). `mates` is the
- * Teammate Chain's set (null when the chain does not bind), passed in so a pass over the wheel builds it once.
+ * Teammate Chain's set (null when the chain does not bind). A pass over the wheel builds a `usableCtx` once instead.
  */
 function usableFor(d: DraftState, p: PlayerSeason, slots: Formation['slots'], mates: Set<string> | null = chainSet(d)): boolean {
-  if (isTaken(d, p)) return false
-  if (!nationAllows(d, p)) return false
-  if (mates && !mates.has(p.playerId)) return false
-  if (!affordable(d, p)) return false
-  if (fillingXI(d)) return slots.some((s) => canCover(p, s.position, d.rules.minFit))
-  return true
+  return usableWith(d, p, usableCtx(d, slots, mates))
 }
 
 export function canUse(d: DraftState, p: PlayerSeason): boolean {
@@ -632,7 +678,8 @@ export function draftRating(u: LoadedUniverse, d: DraftState, p: PlayerSeason): 
  * someone usable (`mates` the chain's teammates, or null): the expensive pass, independent of the twist.
  */
 function rulesPool(u: LoadedUniverse, d: DraftState, slots: Formation['slots'] = candidateSlots(d), mates: Set<string> | null = chainSet(d)): ClubSeason[] {
-  return u.clubSeasons.filter((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableFor(d, p, slots, mates)))
+  const c = usableCtx(d, slots, mates)
+  return u.clubSeasons.filter((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableWith(d, p, c)))
 }
 
 /** The era, club and league rules for one club-season (the cheap half of `rulesPool`). */
@@ -712,7 +759,8 @@ function narrowPool(u: LoadedUniverse, d: DraftState, twist: Twist | null | unde
   if (!d.rules.uniqueClubSeasons) return allowed
   // Each club-season once, but when a narrow wheel (one club, a short era) has used them all,
   // the wheel reopens rather than stopping the draft with slots still to fill
-  const fresh = allowed.filter((cs) => !d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`))
+  const used = new Set(d.usedClubSeasons)
+  const fresh = allowed.filter((cs) => !used.has(`${cs.clubId}@${cs.season}`))
   return fresh.length ? fresh : allowed
 }
 
@@ -738,7 +786,8 @@ export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
 
 /** Whether some club-season the rules admit holds a player usable in this slot (the wheel would not be empty). */
 function slotSpinnable(u: LoadedUniverse, d: DraftState, slot: Formation['slots'][number]): boolean {
-  return u.clubSeasons.some((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableFor(d, p, [slot], null)))
+  const c = usableCtx(d, [slot], null)
+  return u.clubSeasons.some((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableWith(d, p, c)))
 }
 
 /**
@@ -772,9 +821,13 @@ export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): vo
  * about twice as likely as a relegated side), and clubs with more useful players, so late picks are not hopeless.
  */
 export function spinWeight(d: DraftState, cs: ClubSeason, mates: Set<string> | null = chainSet(d)): number {
+  return spinWeightWith(d, cs, usableCtx(d, candidateSlots(d), mates))
+}
+
+/** `spinWeight` against a context built once for a pass over many club-seasons. */
+function spinWeightWith(d: DraftState, cs: ClubSeason, c: UsableCtx): number {
   const quality = cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6
-  const slots = candidateSlots(d)
-  return quality * (1 + Math.min(10, cs.squad.filter((p) => usableFor(d, p, slots, mates)).length) / 10)
+  return quality * (1 + Math.min(10, cs.squad.filter((p) => usableWith(d, p, c)).length) / 10)
 }
 
 /** Gamble: whether the Icons spin has come in this draft (landed on, re-spun or picked from). */
@@ -822,6 +875,8 @@ export function spinOdds(u: LoadedUniverse, d: DraftState): SpinOdds {
   }
   const byKey = new Map<string, { cs: ClubSeason; p: number }>()
   let reachable = false
+  // Every club-season's weight reads the same draft state: the context is built once, not once per club-season
+  const weightCtx = usableCtx(view, candidateSlots(view))
   for (const t of twists) {
     const pool = narrowPool(u, view, t, base)
     if (!pool.length) continue
@@ -829,7 +884,7 @@ export function spinOdds(u: LoadedUniverse, d: DraftState): SpinOdds {
     const seasons = [...new Set(pool.map((cs) => cs.season))]
     for (const season of seasons) {
       const inSeason = pool.filter((cs) => cs.season === season)
-      const weights = inSeason.map((cs) => Math.max(0, spinWeight(view, cs)))
+      const weights = inSeason.map((cs) => Math.max(0, spinWeightWith(view, cs, weightCtx)))
       const total = weights.reduce((a, b) => a + b, 0)
       inSeason.forEach((cs, i) => {
         const share = total > 0 ? weights[i] / total : 1 / inSeason.length
@@ -892,7 +947,8 @@ export function spin(u: LoadedUniverse, d: DraftState, main: Rng): ClubSeason {
   const seasons = [...new Set(pool.map((cs) => cs.season))]
   const season = rng.pick(seasons)
   const inSeason = pool.filter((cs) => cs.season === season)
-  const chosen = rng.pickWeighted(inSeason, (cs) => spinWeight(d, cs, mates))
+  const weightCtx = usableCtx(d, candidateSlots(d), mates)
+  const chosen = rng.pickWeighted(inSeason, (cs) => spinWeightWith(d, cs, weightCtx))
   d.current = { clubId: chosen.clubId, season: chosen.season }
   d.spins++
   if (benchSpin) d.benchRng = rng.getState()
