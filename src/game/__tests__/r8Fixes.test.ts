@@ -92,3 +92,33 @@ describe('R8-3: the Gauntlet lifeline is never spent on the same side', () => {
     expect(st().game!.arena!.next).not.toBe(g.arena!.next)
   })
 })
+
+describe('R8-7: Sim to the next big match names the semi-final\'s first leg, where it stops', () => {
+  it('a two-legged semi-final is foreseen at its first leg', async () => {
+    const all = loadTestUniverse(['england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'portugal'])
+    const { foreseeStop, nextStop } = await import('../logic/seasonHighlights')
+    const { USER_TEAM } = await import('@engine/season')
+    const { continentalPlan } = await import('@engine/continental')
+    const g = createGame({ ...dynasty('r8-foresee'), mode: 'season', continental: true })
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(all, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, all)
+    startSeasonProper(g, all)
+    const s = g.season!
+    const plan = continentalPlan(s.matchweeks)
+    const sf = plan.rounds[1]
+    // The user drawn in a semi-final, the season played to the week before its first leg
+    const opp = Object.keys(s.continental!.clubs)[0]
+    s.continental!.ties.push({ round: 'SF', afterMatchweek: sf.afterMatchweek, homeTeamId: USER_TEAM, awayTeamId: opp, firstLeg: { afterMatchweek: sf.firstLeg! } })
+    s.matchweek = sf.firstLeg! - 1
+    s.cupEliminated = true
+    g.window = { kind: 'january' } as unknown as Game['window']
+    expect(nextStop(g, all)).toMatchObject({ kind: 'semi-final', matchweek: sf.firstLeg })
+    expect(foreseeStop(g, all)?.matchweek).toBe(sf.firstLeg)
+    // Between the legs, the second
+    s.continental!.ties.at(-1)!.firstLeg!.result = { homeTeamId: USER_TEAM, awayTeamId: opp, homeGoals: 1, awayGoals: 0, events: [], homeStats: [], awayStats: [], xg: { home: 1, away: 0 } } as never
+    s.matchweek = sf.afterMatchweek - 1
+    expect(foreseeStop(g, all)?.matchweek).toBe(sf.afterMatchweek)
+  })
+})
