@@ -54,6 +54,26 @@ export function onTabListKey(e: KeyboardEvent<HTMLElement>): void {
   tabs[next].click()
 }
 
+/**
+ * The keys of a `role="radiogroup"` of buttons (the Segmented choice): the arrows, Home and End move the focus to a
+ * choice and choose it, as WAI-ARIA's radio group does. Its radios take `radioTabIndex`, so Tab enters the group once.
+ */
+export function onRadioGroupKey(e: KeyboardEvent<HTMLElement>): void {
+  const radios = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]:not([disabled])')]
+  const i = radios.indexOf(e.target as HTMLElement)
+  if (i < 0) return
+  const next = tabStep(e.key, i, radios.length)
+  if (next === null) return
+  e.preventDefault()
+  radios[next].focus()
+  radios[next].click()
+}
+
+/** A radio's place in the Tab order: the checked one, or the first when none is checked. */
+export function radioTabIndex(index: number, checkedIndex: number): 0 | -1 {
+  return index === (checkedIndex < 0 ? 0 : checkedIndex) ? 0 : -1
+}
+
 /** A W/D/L outcome as a word, for a screen reader beside a coloured letter or block ("W" alone reads as "double-u"). */
 export function outcomeWord(o: 'W' | 'D' | 'L'): string {
   return o === 'W' ? 'won' : o === 'D' ? 'drawn' : 'lost'

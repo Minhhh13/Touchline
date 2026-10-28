@@ -23,6 +23,7 @@ import { SubBoard } from './SubBoard'
 import { translator } from '../../i18n'
 import { roleName } from '../../i18n/engineText'
 import { match } from '../../i18n/en/match'
+import { onRadioGroupKey, radioTabIndex } from '../../a11y'
 
 const tx = translator(match)
 
@@ -136,9 +137,9 @@ export function ShoutsDrawer({ hand }: DrawerProps) {
   const [s, setS] = useState<Shout>(current ?? 'keep-shape')
   return (
     <Drawer title={tx('shouts')} sub={hand.shoutsOpen ? tx('shoutsSub') : shoutsClosed()} onClose={hand.close} foot={<Foot hand={hand} canApply={hand.shoutsOpen && s !== current} onApply={() => hand.submit({ shout: s }) && hand.close()} />}>
-      <div className="md-options" role="radiogroup" aria-label={tx('touchlineShout')}>
-        {(Object.keys(SHOUTS) as Shout[]).map((k) => (
-          <button key={k} type="button" role="radio" aria-checked={s === k} className={`md-option ${s === k ? 'active' : ''}`} onClick={() => setS(k)} disabled={!hand.shoutsOpen}>
+      <div className="md-options" role="radiogroup" aria-label={tx('touchlineShout')} onKeyDown={onRadioGroupKey}>
+        {(Object.keys(SHOUTS) as Shout[]).map((k, i, all) => (
+          <button key={k} type="button" role="radio" aria-checked={s === k} tabIndex={radioTabIndex(i, all.indexOf(s))} className={`md-option ${s === k ? 'active' : ''}`} onClick={() => setS(k)} disabled={!hand.shoutsOpen}>
             <b>{shoutLabel(k)}</b>
             <span className="help">{shoutHint(k)}</span>
             {current === k && <span className="md-tag">{tx(hand.pendingShout ? 'pending' : 'inForce')}</span>}

@@ -8,6 +8,7 @@ import { translator } from '../i18n'
 import { story } from '../i18n/en/story'
 import { PREVIEW_ICON, STORY_ICON, SUMMER_ICON } from './icons'
 import { ClubBadge, Info } from './bits'
+import { resultsLabel } from '../a11y'
 
 const t = translator(story)
 
@@ -28,7 +29,7 @@ export function useStorylines(game: Game | null, u: LoadedUniverse | null) {
 function FormChips({ form, who }: { form: FormLetter[]; who: 'ours' | 'theirs' }) {
   if (!form.length) return <span className="small muted">{t('noLeagueForm')}</span>
   return (
-    <span className="story-form" role="img" aria-label={t('formAria', { who, form: form.join(' ') })}>
+    <span className="story-form" role="img" aria-label={resultsLabel(form, t('formAria', { who }))}>
       {form.map((o, i) => (
         <span key={i} className={`chip ${outcomeClass(o)}`}>
           {o}
@@ -114,6 +115,8 @@ export function StoryChip({ game, u }: { game: Game; u: LoadedUniverse }) {
   return (
     <span className="chip info story-chip" title={t('chipTip', { title: top.title, text: top.text })} data-testid="story-chip">
       <Icon size={13} aria-hidden="true" /> {top.chip}
+      {/* The tooltip's sentence for a screen reader, which never sees a title (round 4) */}
+      <span className="sr-only">{t('chipSaid', { title: top.title, text: top.text })}</span>
     </span>
   )
 }

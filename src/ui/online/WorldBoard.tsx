@@ -829,7 +829,7 @@ export function WorldBoard() {
               </span>
             </div>
             <div className="fit-scroll col">
-              <div className="world-boards" role="tablist" aria-label={tr('boards')} onKeyDown={onTabListKey}>
+              <div className="world-boards" role="tablist" aria-label={tr('boards')} aria-orientation="vertical" onKeyDown={onTabListKey}>
                 {BOARDS.map((b) => (
                   <button key={b.id} type="button" role="tab" aria-selected={tab === b.id} tabIndex={tab === b.id ? 0 : -1} className={`world-board-pick${tab === b.id ? ' active' : ''}`} title={b.meta()} onClick={() => setTab(b.id)} data-testid={`world-tab-${b.id}`}>
                     <b>{b.label()}</b>
@@ -856,10 +856,10 @@ export function WorldBoard() {
                   <input className="input" type="date" value={day} max={today} min={new Date(Date.now() - 60 * DAY).toISOString().slice(0, 10)} onChange={(e) => setDay(e.target.value || today)} aria-label={tr('day')} />
                 </label>
               )}
-              {tab === 'weekly' && <Segmented value={week} onChange={setWeek} options={[{ value: thisWeek, label: tr('thisWeek') }, { value: lastWeek, label: tr('lastWeek') }]} />}
+              {tab === 'weekly' && <Segmented label={tr('weekChoice')} value={week} onChange={setWeek} options={[{ value: thisWeek, label: tr('thisWeek') }, { value: lastWeek, label: tr('lastWeek') }]} />}
               {tab === 'weekly' && weeklyIsOpen(thisWeek, new Date()) && week === thisWeek && <WeeklyPlay weekKey={thisWeek} />}
-              {tab === 'alltime' && <Segmented value={order} onChange={setOrder} options={[{ value: 'points', label: tr('totalPoints') }, { value: 'streak', label: tr('colBestStreak') }]} />}
-              {tab === 'chase' && <Segmented value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: tr('thisWeek'), testId: 'chase-scope-week' }, { value: 'alltime', label: tr('allTime'), testId: 'chase-scope-alltime' }]} />}
+              {tab === 'alltime' && <Segmented label={tr('orderBy')} value={order} onChange={setOrder} options={[{ value: 'points', label: tr('totalPoints') }, { value: 'streak', label: tr('colBestStreak') }]} />}
+              {tab === 'chase' && <Segmented label={tr('chaseScope')} value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: tr('thisWeek'), testId: 'chase-scope-week' }, { value: 'alltime', label: tr('allTime'), testId: 'chase-scope-alltime' }]} />}
               {tab === 'chase' && <ChasePlay />}
               {tab === 'arena' && (
                 <label className="field">
@@ -867,7 +867,7 @@ export function WorldBoard() {
                   <input className="input" type="date" value={arenaDay} max={today} min={new Date(Date.now() - 60 * DAY).toISOString().slice(0, 10)} onChange={(e) => setArenaDay(e.target.value || today)} aria-label={tr('day')} data-testid="arena-day" />
                 </label>
               )}
-              {(tab === 'themed' || tab === 'runin') && <Segmented value={casualWeek} onChange={setCasualWeek} options={[{ value: thisWeek, label: tr('thisWeek') }, { value: lastWeek, label: tr('lastWeek') }]} />}
+              {(tab === 'themed' || tab === 'runin') && <Segmented label={tr('weekChoice')} value={casualWeek} onChange={setCasualWeek} options={[{ value: thisWeek, label: tr('thisWeek') }, { value: lastWeek, label: tr('lastWeek') }]} />}
               {tab === 'runin' && casualWeek === thisWeek && <RunInWeekPlay />}
               <p className="help world-help">{help}</p>
             </div>

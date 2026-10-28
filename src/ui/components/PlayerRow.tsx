@@ -16,16 +16,17 @@ const t = translator(draft)
 /**
  * `showLabels` prints Cond, Shp and Mor under the two state bars and the morale face (the Key toggle), for screens that cannot hover; `highlight` marks a row that fits the slot being filled (Position First).
  * With `state`, the name line carries one form arrow (`FormArrow`, from `squadDisplay.formTrend`), the sparkline and the MOTM star; the morale face (`data-testid="morale-face"`) replaces the morale bar.
+ * `actions` are the row's own buttons, kept outside its button (a button never holds another).
  * `hideChampion` drops the title-winner flag where the whole list shares it (a champion squad on the draft).
  */
-export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, hideRatings, showClub, extra, showLabels, hideChampion, range }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; highlight?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode; showLabels?: boolean; hideChampion?: boolean; range?: { lo: number; hi: number } }) {
+export function PlayerRow({ p, state, right, actions, onClick, dim, selected, highlight, hideRatings, showClub, extra, showLabels, hideChampion, range }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; actions?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; highlight?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode; showLabels?: boolean; hideChampion?: boolean; range?: { lo: number; hi: number } }) {
   const u = useStore((s) => s.universe)
   const flags: ReactNode[] = []
   if (state?.injury) flags.push(<span key="inj" className="chip bad icon-chip" title={state.injury.description}><Bandage size={12} aria-hidden="true" /> {t('weeksOut', { n: state.injury.weeksOut })}</span>)
   if (state && state.suspension > 0) flags.push(<span key="sus" className="chip bad icon-chip" title={t('suspendedFor', { n: state.suspension })}><RedCard size={12} /> {state.suspension}</span>)
   if (!hideChampion && p.accolades.includes('Champion')) flags.push(<span key="ch" className="chip gold icon-chip" title={t('wonLeague')} role="img" aria-label={t('champion')}><Trophy size={12} aria-hidden="true" /></span>)
   if (u && isEstimated(u, p)) flags.push(<EstimatedChip key="est" compact />)
-  return (
+  const row = (
     <button type="button" className={`prow ${dim ? 'dim' : ''} ${selected ? 'selected' : ''} ${highlight ? 'fit' : ''} ${range && range.hi > range.lo && !hideRatings ? 'ranged' : ''}`} onClick={dim ? undefined : onClick} disabled={dim && !onClick} aria-disabled={dim || undefined}>
       <Rating value={p.overall} hidden={hideRatings} range={range} label={t('overall')} />
       <span className="col" style={{ gap: 2 }}>
@@ -67,5 +68,13 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, 
       </span>
       <span className="right">{right}</span>
     </button>
+  )
+  // `actions`: buttons of the row's own (compare, shortlist), drawn over its right end but outside its button
+  if (!actions) return row
+  return (
+    <div className="prow-shell">
+      {row}
+      <span className="prow-actions">{actions}</span>
+    </div>
   )
 }

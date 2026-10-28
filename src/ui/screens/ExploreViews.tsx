@@ -38,16 +38,15 @@ export function WheelLine({ chance, leagueName }: { chance: WheelChance | null; 
 }
 
 /**
- * A toggle inside a player row. The row is itself a button, and a button may not hold another, so this is a focusable
- * `role="button"` that takes Enter and Space and keeps its press from reaching the row.
+ * A toggle on a player row (compare, shortlist). It rides in `PlayerRow`'s `actions`, outside the row's own button (a
+ * button may not hold another), so it is a real button (round 4); its press still stops short of anything around it.
  */
 function RowToggle({ on, onClick, className, title, label, testId, children }: { on: boolean; onClick: () => void; className: string; title: string; label: string; testId?: string; children: ReactNode }) {
   return (
-    <span
+    <button
+      type="button"
       className={className}
       title={title}
-      role="button"
-      tabIndex={0}
       aria-label={label}
       aria-pressed={on}
       data-testid={testId}
@@ -55,15 +54,9 @@ function RowToggle({ on, onClick, className, title, label, testId, children }: {
         e.stopPropagation()
         onClick()
       }}
-      onKeyDown={(e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return
-        e.preventDefault()
-        e.stopPropagation()
-        onClick()
-      }}
     >
       {children}
-    </span>
+    </button>
   )
 }
 
@@ -192,7 +185,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
 
       <div className="panel" data-testid="club-side">
         <div className="panel-head">
-          <Segmented value={side} onChange={setSide} options={[{ value: 'squad', label: line ? tx('squadSeason', { season: seasonLabel(line.cs.season) }) : tx('squad'), testId: 'club-side-squad' }, { value: 'xi', label: tx('bestXiEver'), testId: 'club-side-xi', hint: tx('bestXiHint') }]} />
+          <Segmented label={tx('clubSideLabel')} value={side} onChange={setSide} options={[{ value: 'squad', label: line ? tx('squadSeason', { season: seasonLabel(line.cs.season) }) : tx('squad'), testId: 'club-side-squad' }, { value: 'xi', label: tx('bestXiEver'), testId: 'club-side-xi', hint: tx('bestXiHint') }]} />
         </div>
         {side === 'squad' && line && (
           <>
@@ -477,7 +470,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
           ))}
         </div>
         <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
-          <Segmented value={form.every ? 'season' : 'player'} onChange={(v) => set('every', v === 'season')} options={[{ value: 'player', label: tx('bestEach'), testId: 'filter-one' }, { value: 'season', label: tx('everySeason'), testId: 'filter-every' }]} />
+          <Segmented label={tx('rowsLabel')} value={form.every ? 'season' : 'player'} onChange={(v) => set('every', v === 'season')} options={[{ value: 'player', label: tx('bestEach'), testId: 'filter-one' }, { value: 'season', label: tx('everySeason'), testId: 'filter-every' }]} />
           {changed && (
             <button type="button" className="btn sm ghost" onClick={() => setForm(BLANK_SEARCH)} data-testid="filter-clear">
               <X size={14} aria-hidden="true" /> {tx('clear')}
@@ -517,11 +510,11 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
                   {h.from === h.to ? seasonLabel(h.from) : tx('seasonRange', { from: seasonLabel(h.from), to: seasonLabel(h.to) })} · {tx('seasonCount', { n: h.seasons })} · {money(h.p.value)}
                 </span>
               }
-              right={
-                <span className="row" style={{ gap: 2 }}>
+              actions={
+                <>
                   <CompareButton on={compare.includes(h.p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => toggleCompare(h.p.playerId)} />
                   <ShortlistStar on={shortlist.includes(h.p.id)} onClick={() => toggleShortlist(h.p.id)} />
-                </span>
+                </>
               }
             />
           ))}
