@@ -11,7 +11,6 @@ import { weeklyStartSettings } from '../../online/daily'
 import { PIN_NOTE, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
-import { RUN_IN_TEMPLATE_LABEL } from '@game/logic/runin'
 import { isWeeklyRunIn, runInWeekSeed, weeklyRunInJob, weeklyRunInPlan } from '@game/logic/runinWeekly'
 import { Info, Segmented } from '../components/bits'
 import { seasonLabel } from '../format'
@@ -23,6 +22,7 @@ import { onTabListKey } from '../a11y'
 import { translator } from '../i18n'
 import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
+import { templateText } from '../runInText'
 
 const tr = translator(online)
 
@@ -688,7 +688,7 @@ function RunInWeekPlay() {
         <div className="small muted">
           {job ? (
             <>
-              {rich(tr('runInWeekJob', { brief: RUN_IN_TEMPLATE_LABEL[job.template], club: u.clubById[job.clubId]?.name ?? job.clubId, season: seasonLabel(job.season), pos: job.projected.position, week: job.takeover }), B)}{' '}
+              {rich(tr('runInWeekJob', { brief: templateText(job.template), club: u.clubById[job.clubId]?.name ?? job.clubId, season: seasonLabel(job.season), pos: job.projected.position, week: job.takeover }), B)}{' '}
             </>
           ) : (
             tr('runInWeekLoading')

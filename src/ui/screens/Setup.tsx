@@ -35,7 +35,7 @@ import { useOnline } from '../../online/state'
 import { SignInPrompt } from '../online/SignInPrompt'
 import { modeTitle } from '../i18n/modeText'
 import { quickSetupLineFull } from '@game/logic/setupLine'
-import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
+import { weeklyGameSettings, weeklyPlan, weeklySettings } from '@game/logic/weekly'
 import { previousWeeklySeed, weeklySeed } from '@engine/rng'
 import { weeklyRecord } from '@game/logic/weeklyRecord'
 import { WeeklyRecordBox } from '../components/WeeklyRecordBox'
@@ -47,6 +47,7 @@ import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
 import { B, rich } from '../i18n/rich'
 import { formationBlurb, modeCardInfo, modeCardLine, modeCardTitle, powerUpTitle, ruleChipsText } from '../i18n/engineText'
+import { weeklyThemeLineText, weeklyThemeText } from '../i18n/weeklyThemeText'
 
 const t = translator(setup)
 
@@ -443,8 +444,8 @@ export function Setup() {
                 {fixed?.kind === 'weekly' && weekPlan && (
                   <div className="notice" data-testid="weekly-notice">
                     {week
-                      ? rich(t('weeklyNotice', { week: weekPlan.week, theme: weeklyThemeLine(u, week), formation: formationName(weekPlan.formationId), article: leagueArticle(leagueNameOf(week.leagueId)), league: leagueNameOf(week.leagueId), season: seasonLabel(week.season), difficulty: t(`diff_${week.difficulty}`) }), B)
-                      : rich(t('weeklyNoticeLoading', { week: weekPlan.week, theme: weekPlan.theme, formation: formationName(weekPlan.formationId) }), B)}
+                      ? rich(t('weeklyNotice', { week: weekPlan.week, theme: weeklyThemeLineText(u, week), formation: formationName(weekPlan.formationId), article: leagueArticle(leagueNameOf(week.leagueId)), league: leagueNameOf(week.leagueId), season: seasonLabel(week.season), difficulty: t(`diff_${week.difficulty}`) }), B)
+                      : rich(t('weeklyNoticeLoading', { week: weekPlan.week, theme: weeklyThemeText(weekPlan.theme), formation: formationName(weekPlan.formationId) }), B)}
                   </div>
                 )}
                 {fixed?.kind === 'weekly' && weekPlan && <WeeklyRecordBox theme={weekPlan.theme} record={weeklyRecord(profile, weekPlan.seed, previousWeeklySeed)} />}

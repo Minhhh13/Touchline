@@ -144,3 +144,43 @@ describe('the mode cards and the fixed-rules chips', () => {
     }
   })
 })
+
+describe('the Weekly themes', () => {
+  it('name and line every theme as weeklyThemes.ts and weekly.ts do', async () => {
+    const { WEEKLY_THEMES, weeklyThemeName } = await import('@game/logic/weeklyThemes')
+    const { weeklyThemeLine } = await import('@game/logic/weekly')
+    const { weeklyThemeLineText, weeklyThemeText } = await import('../i18n/weeklyThemeText')
+    const { loadTestUniverse } = await import('../../engine/__tests__/helpers')
+    const u = loadTestUniverse(['england'])
+    for (const id of Object.keys(WEEKLY_THEMES) as (keyof typeof WEEKLY_THEMES)[]) {
+      expect(weeklyThemeText(id)).toBe(weeklyThemeName(id))
+      for (const rules of [{}, { onlyNation: 'fr' }]) expect(weeklyThemeLineText(u, { theme: id, rules })).toBe(weeklyThemeLine(u, { theme: id, rules: rules as never }))
+    }
+    expect(weeklyThemeText('a-newer-theme')).toBe('a-newer-theme')
+    expect(weeklyThemeText(undefined)).toBe('')
+  })
+})
+
+describe('the Run-in and the arena fields', () => {
+  it('say what runin.ts and arena.ts say', async () => {
+    const { gapLine, jobLine, RUN_IN_TEMPLATE_LABEL } = await import('@game/logic/runin')
+    const { ARENA_FIELDS } = await import('@game/logic/arena')
+    const { gapText, jobText, templateText } = await import('../runInText')
+    const { translator } = await import('../i18n')
+    const { arena } = await import('../i18n/en/arena')
+    const ta = translator(arena)
+    for (const k of ['title', 'europe', 'survival'] as const) {
+      expect(templateText(k)).toBe(RUN_IN_TEMPLATE_LABEL[k])
+      for (const [target, pos] of [[1, 1], [1, 3], [4, 2], [4, 6], [17, 15], [17, 19]])
+        for (const gap of pos > target ? [-3, -1, 0] : [0, 1, 4]) {
+          expect(gapText(k, target, pos, gap)).toBe(gapLine(k, target, pos, gap))
+          const job = { template: k, target, gap, takeover: 28, projected: { position: pos, points: 40 } }
+          expect(jobText(job as never)).toBe(jobLine(job as never))
+        }
+    }
+    for (const f of ARENA_FIELDS) {
+      expect(ta(`field_${f.value}`)).toBe(f.label)
+      expect(ta(`fieldHint_${f.value}`)).toBe(f.hint)
+    }
+  })
+})

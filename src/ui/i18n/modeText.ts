@@ -5,7 +5,7 @@
  */
 import type { ArenaSettings, Mode } from '@game/types'
 import { isQuickLike, type LabelledGame } from '@game/logic/modes'
-import { weeklyThemeName } from '@game/logic/weeklyThemes'
+import { weeklyThemeText as weeklyThemeName } from './weeklyThemeText'
 import { translator } from './index'
 import { common } from './en/common'
 
