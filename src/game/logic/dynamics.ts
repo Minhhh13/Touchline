@@ -6,7 +6,7 @@
  * here changes a result yet (effects are Batch 3 of the FM-depth plan).
  */
 import type { Game } from '../types'
-import type { LoadedUniverse } from '@engine/universe'
+import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { STATUS_LABEL, type SquadStatus } from '@engine/status'
 import { squadPlayers } from './players'
@@ -100,8 +100,6 @@ const DEMONYM: Record<string, string> = {
   SRB: 'Serbs', CZE: 'Czechs', USA: 'Americans', MEX: 'Mexicans', JPN: 'Japanese', KOR: 'Koreans', TUR: 'Turks', GRE: 'Greeks', CHI: 'Chileans', ECU: 'Ecuadorians',
   JAM: 'Jamaicans', AUS: 'Australians', CAN: 'Canadians', MLI: 'Malians', EGY: 'Egyptians', UKR: 'Ukrainians', RUS: 'Russians', SVK: 'Slovaks', SVN: 'Slovenes', HUN: 'Hungarians',
 }
-
-const seasonLabel = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, '0')}`
 
 function ageBand(age: number): { id: string; label: string } {
   if (age <= 21) return { id: 'young', label: 'The youngsters' }
