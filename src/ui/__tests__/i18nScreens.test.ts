@@ -142,7 +142,7 @@ const CEILING: Record<string, number> = {
   'Kick-off': 2,
   'Season playback': 7,
   'Summary': 8,
-  'Dugout': 5,
+  'Dugout': 3,
   'Match': 3,
   'Arena': 4,
   'Arena summary': 3,
