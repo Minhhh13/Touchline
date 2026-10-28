@@ -9,12 +9,12 @@ import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE } from '@engine/roles'
 import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
-import { staffWages, STAFF, STAFF_ROLES, staffTier } from '@engine/staff'
+import { STAFF, STAFF_ROLES, staffTier } from '@engine/staff'
 import { TRAINING_LABEL } from '@engine/training'
 import type { Objective } from '@engine/objectives'
 import type { TeamTalk } from '@engine/match'
 import { playerLookup, squadPlayers } from './players'
-import { lineupProblems } from './squad'
+import { lineupProblems, squadWages } from './squad'
 import { nextOpponent, upcomingCupTie } from './week'
 import { riskiestStarter } from './medical'
 
@@ -144,7 +144,6 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
   const items: BriefingItem[] = []
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
-  const squad = squadPlayers(game, u)
   const check = (id: string, done: boolean, text: string, hint: string, action?: BriefingAction) => items.push({ id, level: done ? 'ok' : 'info', text, hint, done, action })
 
   const played = Math.min(FRIENDLIES, game.friendliesPlayed)
@@ -158,7 +157,7 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
   check('roles', rolesTouched, 'Roles', 'Each player has a rating in his role, and the team rating follows.', rolesTouched ? undefined : { label: 'Tactics', tab: 'tactics' })
 
   const hired = STAFF_ROLES.some((r) => staffTier(game.staff, r) > 0)
-  const room = game.finances.wageCap - squad.reduce((s, x) => s + x.p.wage, 0) - staffWages(game.staff)
+  const room = game.finances.wageCap - squadWages(game, u)
   const cheapest = Math.min(...STAFF_ROLES.map((r) => STAFF[r].tiers[1].wage))
   check('staff', hired, `Staff ${STAFF_ROLES.filter((r) => staffTier(game.staff, r) > 0).length}/${STAFF_ROLES.length}`, hired ? 'Backroom staff are paid from the wage cap.' : room >= cheapest ? `£${Math.round(room)}k a week of wage room; a senior physio costs £${cheapest}k.` : `No wage room for staff (£${Math.round(room)}k a week); they are paid from the cap.`, hired ? undefined : { label: 'Club', tab: 'club' })
 

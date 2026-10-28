@@ -155,6 +155,10 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   }
   game.squad = newSquad
   game.contracts = newContracts
+  // Every man carries a new id into the new season: the copies made for the old ids (last summer's ageing, the
+  // season's development and wage changes, the men who left) are read by nothing now, and would pile up a squad a year
+  const inUse = new Set([...Object.keys(newSquad), ...(game.youthIntake?.candidates ?? [])])
+  for (const id of Object.keys(game.customPlayers)) if (!inUse.has(id)) delete game.customPlayers[id]
   game.lineup = {}
   game.bench = []
   game.consecutiveMissed = {}

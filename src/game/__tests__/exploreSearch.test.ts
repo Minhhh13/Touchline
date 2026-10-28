@@ -67,3 +67,42 @@ describe("Explore's Highest rated", () => {
     expect(keepers.length).toBeGreaterThan(0)
   })
 })
+
+/**
+ * `searchPlayers` as a fresh pass over every player-season per query, as it was before it read the shared index, but for
+ * one thing: of two spellings of a name the same length it keeps the earlier season's, as the filter always did (the
+ * scan kept the first in the index, which moves with the order the packs load in).
+ */
+function searchByScan(query: string, opts: { position?: 'ST' | 'GK'; limit?: number } = {}) {
+  const words = foldName(query).trim().split(/\s+/).filter(Boolean)
+  if (!words.length || words.join('').length < 2) return []
+  const by = new Map<string, Array<(typeof u.index)[string]>>()
+  for (const p of Object.values(u.index)) by.set(p.playerId, [...(by.get(p.playerId) ?? []), p])
+  const hits = []
+  for (const [playerId, list] of by) {
+    const ordered = [...list].sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
+    const names = [...new Set(ordered.map((p) => p.name))]
+    const folded = names.map(foldName)
+    if (!folded.some((n) => words.every((w) => n.includes(w)))) continue
+    const best = ordered.reduce((m, p) => (p.overall > m.overall ? p : m), ordered[0])
+    if (opts.position && best.positions[0] !== opts.position) continue
+    const starts = folded.some((n) => words.every((w) => n.split(/[\s.'-]+/).some((part) => part.startsWith(w))))
+    const clubs: string[] = []
+    for (const p of ordered) if (!clubs.includes(p.clubId)) clubs.push(p.clubId)
+    hits.push({ playerId, name: names.reduce((m, n) => (n.length > m.length ? n : m), names[0]), best, latest: ordered[ordered.length - 1], seasons: new Set(ordered.map((p) => p.season)).size, from: ordered[0].season, to: ordered[ordered.length - 1].season, clubs, rank: starts ? 0 : 1 })
+  }
+  hits.sort((a, b) => a.rank - b.rank || b.best.overall - a.best.overall || a.name.localeCompare(b.name) || a.playerId.localeCompare(b.playerId))
+  return hits.slice(0, opts.limit ?? SEARCH_LIMIT).map(({ rank: _rank, ...hit }) => hit)
+}
+
+describe("Explore's search over the shared index", () => {
+  it('finds exactly what a fresh scan finds, row for row, and hands out its own club lists', () => {
+    for (const q of ['kane', 'haaland', 'mo sa', 'son', 'de', 'muller', 'ja']) {
+      expect(searchPlayers(u, q)).toEqual(searchByScan(q))
+      expect(searchPlayers(u, q, { position: 'ST', limit: 20 })).toEqual(searchByScan(q, { position: 'ST', limit: 20 }))
+    }
+    const first = searchPlayers(u, 'haaland')[0]
+    first.clubs.push('nowhere')
+    expect(searchPlayers(u, 'haaland')[0].clubs).not.toContain('nowhere')
+  })
+})
