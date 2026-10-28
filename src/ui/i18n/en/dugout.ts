@@ -428,7 +428,7 @@ export const dugout = catalog('dugout', {
   hierarchy: 'Hierarchy',
   aboutHierarchy: 'About the hierarchy',
   hierarchyInfo: 'Who carries weight in the dressing room: mentality, age, reputation, time at the club, apps and squad status. The captain leads it.',
-  nPlayers: '{n} players',
+  nPlayers: '{n, plural, one {# player} other {# players}}',
   atmosphere: 'Atmosphere',
   aboutAtmosphere: 'About the atmosphere',
   atmosphereInfo: 'Morale weighted by influence (leaders count three times), with the XI\'s chemistry. A read-out for now: it does not change results.',
