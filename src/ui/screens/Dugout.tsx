@@ -53,6 +53,7 @@ import { InboxActions } from '../components/InboxActions'
 import { HappinessCard } from '../components/Happiness'
 import { personalityOf } from '@game/logic/personality'
 import { RecruitmentPanel, ScoutModal, ScoutReportsPanel } from './Recruitment'
+import { listingFit, sortListings, type ListingSort } from '@game/logic/marketFit'
 import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_BUDGET, SHIFT_LIMIT, SHIFT_WAGE, wageRoom } from '@game/logic/board'
 import { ContractCard, ContractTalks } from '../components/ContractTalks'
 import { dugoutKey, isControlTarget } from '../dugoutKeys'
@@ -62,6 +63,8 @@ import { BoxesMenu, useBoxes, type Boxes } from '../components/Boxes'
 import { DUGOUT_ALL, DUGOUT_HEAD, DUGOUT_TABS } from '../boxSets'
 import type { BoxSet } from '../boxes'
 import type { Game } from '@game/types'
+import type { LoadedUniverse } from '@engine/universe'
+import type { Listing } from '@engine/market'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { newsBody } from '@game/logic/newsFlavour'
 import { watchSeasonSounds } from '../sound/seasonWatch'
@@ -69,6 +72,7 @@ import { askConfirm } from '../confirm'
 import { InboxStorylines, MatchPreviewPanel, StoryChip, SummerHeadline } from '../components/Storylines'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import { WeekStrip } from '../components/WeekStrip'
 import { rich } from '../i18n/rich'
 
 const t = translator(dugout)
@@ -319,6 +323,7 @@ export function Dugout() {
                 </div>
               </div>
             )}
+            {headBoxes.on('briefing') && <WeekStrip game={game} u={u} onInbox={() => setTab('inbox')} />}
             {headBoxes.on('briefing') && <BriefingList items={briefing} onAction={act} checklist={preseason} />}
           </div>
           <div className="cta-bar" ref={barRef} data-testid="cta-bar">
@@ -1247,6 +1252,28 @@ function CupTab({ comp }: { comp: Competition }) {
 /** Listings a phone shows before "Show all" (styles.css hides the rest under 720 px; a desktop's box scrolls them all). */
 export const PHONE_LISTINGS = 8
 
+/** A listing against the club: the fee and wage it cannot pay, and what he would be at his position (r8). */
+function FitChips({ game, u, listing }: { game: Game; u: LoadedUniverse; listing: Listing }) {
+  const fit = listingFit(game, u, listing)
+  if (!fit) return null
+  return (
+    <>
+      {!fit.fee && <span className="chip warn" data-testid="fit-fee">{t('overBudget')}</span>}
+      {!fit.wages && <span className="chip warn" data-testid="fit-wage">{t('noWageRoom')}</span>}
+      {fit.upgrade !== null && fit.upgrade > 0 && (
+        <span className="chip good" data-testid="fit-upgrade" title={t(fit.estimate ? 'marketEstimateTip' : 'marketFitTip')}>
+          {t('fitUpgrade', { n: fit.upgrade, pos: fit.position, est: fit.estimate ? 'yes' : 'no' })}
+        </span>
+      )}
+      {fit.upgrade !== null && fit.upgrade <= 0 && fit.rank !== null && (
+        <span className="chip" data-testid="fit-rank" title={t(fit.estimate ? 'marketEstimateTip' : 'marketFitTip')}>
+          {t('fitRank', { rank: fit.rank, pos: fit.position })}
+        </span>
+      )}
+    </>
+  )
+}
+
 function MarketTab({ boxes }: { boxes: Boxes }) {
   const store = useStore()
   const { universe: u, game } = store
@@ -1256,6 +1283,9 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
   const [exchange, setExchange] = useState<Record<string, string>>({})
   const [sellOn, setSellOn] = useState<Record<string, number>>({})
   const [filter, setFilterState] = useState<'all' | Position>('all')
+  // r8: only the men the club can pay for, and the order (by overall, or by how much each improves his position)
+  const [affordOnly, setAffordOnly] = useState(false)
+  const [sortBy, setSortBy] = useState<ListingSort>('overall')
   // On a phone the window lists its first few men until "Show all" (40 stacked listings ran to 18,000 px in January)
   const [allListed, setAllListed] = useState(false)
   // "Show all" goes once pressed: the focus moves on to the first listing it brought into view
@@ -1386,7 +1416,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
       </div>
     )
   }
-  const listings = w.listings.filter((l) => l.status === 'available' || l.status === 'bidding').filter((l) => filter === 'all' || get(l.playerSeasonId)?.positions.includes(filter)).sort((a, b) => (get(b.playerSeasonId)?.overall ?? 0) - (get(a.playerSeasonId)?.overall ?? 0))
+  const listings = sortListings(game, u, w.listings.filter((l) => l.status === 'available' || l.status === 'bidding').filter((l) => filter === 'all' || get(l.playerSeasonId)?.positions.includes(filter)).sort((a, b) => (get(b.playerSeasonId)?.overall ?? 0) - (get(a.playerSeasonId)?.overall ?? 0)), { affordable: affordOnly, sort: sortBy })
   const offers = w.offers.map((o, i) => ({ o, i })).filter(({ o }) => o.status === 'open')
   return (
     <div className="grid dugout">
@@ -1422,6 +1452,15 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
             </button>
           ))}
         </div>
+        <div className="toolbar" style={{ marginBottom: 'var(--space-3)' }} data-testid="market-sort">
+          <button type="button" className={`chip-btn ${affordOnly ? 'active' : ''}`} aria-pressed={affordOnly} onClick={() => setAffordOnly((v) => !v)} data-testid="market-affordable">
+            {t('affordableOnly')}
+          </button>
+          <button type="button" className={`chip-btn ${sortBy === 'upgrade' ? 'active' : ''}`} aria-pressed={sortBy === 'upgrade'} onClick={() => setSortBy((v) => (v === 'upgrade' ? 'overall' : 'upgrade'))} title={t('byUpgradeTip')} data-testid="market-upgrade">
+            {t('byUpgrade')}
+          </button>
+          {affordOnly && !listings.length && <span className="small muted">{t('nothingAffordable')}</span>}
+        </div>
         <div ref={listingsRef} className={`col listings ${!allListed && listings.length > PHONE_LISTINGS ? 'capped' : ''}`} style={{ gap: 'var(--space-2)' }} data-testid="listings">
           {listings.map((l) => {
             const p = get(l.playerSeasonId)
@@ -1434,6 +1473,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                 <div>
                   <PlayerRow p={p} showClub range={rangeOf(p)} onClick={() => setScoutId(p.id)} right={<span className="small muted">{wage(p.wage)}</span>} />
                   <div className="tags">
+                    <FitChips game={game} u={u} listing={l} />
                     {l.tags.map((t) => (
                       <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' || t === 'Scouted' ? 'good' : ''}`}>
                         {t}

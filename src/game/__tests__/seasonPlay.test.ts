@@ -17,7 +17,7 @@ import { playMatchweek, startSeasonProper, upcomingCupTie } from '../logic/week'
 import { advanceToNextSeason, postRenewals, settleRenewals } from '../logic/dynasty'
 import { playerLookup } from '../logic/players'
 import { weeklyBriefing } from '../logic/briefing'
-import { BOARD_DANGER, BOARD_WATCH, boardLine, boardStakes, CONTRACT_REMINDER_WEEKS, contractsEnding, europeLine, europeStake, promiseSlot, restPlan, restTired, SACK_CONFIDENCE, SACK_FROM_MATCHWEEK, startPromised, TIRED_CONDITION, tiredStarters } from '../logic/seasonPlay'
+import { BOARD_DANGER, BOARD_WATCH, weekChanges, boardLine, boardStakes, CONTRACT_REMINDER_WEEKS, contractsEnding, europeLine, europeStake, promiseSlot, restPlan, restTired, SACK_CONFIDENCE, SACK_FROM_MATCHWEEK, startPromised, TIRED_CONDITION, tiredStarters } from '../logic/seasonPlay'
 import { BRIEFING_CONDITION } from '../logic/briefing'
 import type { Game, GameSettings } from '../types'
 import type { Fixture } from '@engine/types'
@@ -313,4 +313,36 @@ describe('objectives already gone', () => {
     score(homes[1], 0, 1)
     expect(weeklyBriefing(g, u).some((i) => i.id === 'objective-home-form')).toBe(false)
   })
+})
+
+describe('the last week strip', () => {
+  it('reads the result, the move in the table and the week\'s news from the season, the same after every week', () => {
+    for (const seed of ['play-week-1', 'play-week-2']) {
+      const g = newGame(seed, { jobSecurity: false, mode: 'dynasty', wheelLeagues: LEAGUES, rules: { ...SEASON_RULES, leagues: LEAGUES, squadSize: 20 }, leagueSeason: 2024, continental: true })
+      expect(weekChanges(g)).toBeNull()
+      let lastPos = 0
+      let cupLines = 0
+      for (let wk = 0; wk < 14; wk++) {
+        const before = JSON.stringify(g)
+        playMatchweek(g, u, true)
+        const w = weekChanges(g)!
+        expect(w.matchweek).toBe(g.season!.matchweek)
+        const f = g.season!.fixtures.find((x) => x.matchweek === w.matchweek && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
+        if (f?.result) expect(w.result).toEqual({ opponentId: f.homeTeamId === USER_TEAM ? f.awayTeamId : f.homeTeamId, home: f.homeTeamId === USER_TEAM, gf: f.homeTeamId === USER_TEAM ? f.result.homeGoals : f.result.awayGoals, ga: f.homeTeamId === USER_TEAM ? f.result.awayGoals : f.result.homeGoals })
+        else expect(w.result).toBeUndefined()
+        expect(w.positionFrom).toBe(wk === 0 ? 0 : lastPos)
+        lastPos = w.positionTo
+        const week = g.season!.news.filter((n) => n.matchweek === w.matchweek)
+        expect(w.posted).toBe(week.length)
+        expect(w.injuries).toBe(week.filter((n) => n.kind === 'injury').length)
+        cupLines += w.cup.length
+        // Reading it twice changes nothing
+        const after = JSON.stringify(g)
+        expect(weekChanges(g)).toEqual(w)
+        expect(JSON.stringify(g)).toBe(after)
+        expect(after).not.toBe(before)
+      }
+      expect(cupLines).toBeGreaterThan(0)
+    }
+  }, 60_000)
 })

@@ -261,3 +261,43 @@ export function contractsEnding(game: Game, u: LoadedUniverse): string[] {
     })
     .sort((a, b) => get(b)!.overall - get(a)!.overall || a.localeCompare(b))
 }
+
+/** What the last matchweek changed, for the Dugout's "last week" strip. */
+export interface WeekChanges {
+  matchweek: number
+  /** The user's league match of the week, from his side; absent on a free weekend. */
+  result?: { opponentId: string; home: boolean; gf: number; ga: number }
+  positionFrom: number
+  positionTo: number
+  injuries: number
+  suspensions: number
+  /** The cup and Continental Cup lines the week posted (results, draws, exits), oldest first. */
+  cup: string[]
+  /** Inbox items the week posted. */
+  posted: number
+}
+
+/**
+ * The last played matchweek as the season remembers it: the user's result, the league position before and after it,
+ * and what the week's inbox held. Read from the fixtures and the news alone, so it needs nothing stored and is the same
+ * after a reload. Null before the first matchweek, and once the season is over.
+ */
+export function weekChanges(game: Game): WeekChanges | null {
+  const s = game.season
+  if (!s || s.matchweek <= 0 || s.matchweek >= s.matchweeks || s.sacked || game.phase === 'preseason') return null
+  const mw = s.matchweek
+  const f = s.fixtures.find((x) => x.matchweek === mw && x.result && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
+  const home = f?.homeTeamId === USER_TEAM
+  const before = seasonTable({ ...s, fixtures: s.fixtures.filter((x) => x.matchweek < mw) })
+  const week = s.news.filter((n) => n.matchweek === mw)
+  return {
+    matchweek: mw,
+    ...(f?.result ? { result: { opponentId: home ? f.awayTeamId : f.homeTeamId, home, gf: home ? f.result.homeGoals : f.result.awayGoals, ga: home ? f.result.awayGoals : f.result.homeGoals } } : {}),
+    positionFrom: mw > 1 ? positionOf(before, USER_TEAM) : 0,
+    positionTo: positionOf(seasonTable(s), USER_TEAM),
+    injuries: week.filter((n) => n.kind === 'injury').length,
+    suspensions: week.filter((n) => n.kind === 'suspension').length,
+    cup: week.filter((n) => n.kind === 'cup').map((n) => n.title).reverse(),
+    posted: week.length,
+  }
+}
