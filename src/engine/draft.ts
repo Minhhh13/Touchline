@@ -12,7 +12,7 @@
  *  - casual modes: a salary cap (Moneyball) and the Teammate Chain (every pick after the first a former teammate of the one before).
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
-import { Rng, type RngState } from './rng'
+import { Rng, compareText, type RngState } from './rng'
 import { POSITIONS, canCover, positionFactor, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
 import { formerTeammates, sharedClubSeasons } from './teammates'
@@ -731,7 +731,7 @@ export function bottomHalf(u: LoadedUniverse, cs: ClubSeason): boolean {
       else groups.set(key, [x])
     }
     for (const g of groups.values()) {
-      const ranked = g.map((x) => ({ x, s: squadStrength(x) })).sort((a, b) => b.s - a.s || a.x.clubId.localeCompare(b.x.clubId))
+      const ranked = g.map((x) => ({ x, s: squadStrength(x) })).sort((a, b) => b.s - a.s || compareText(a.x.clubId, b.x.clubId))
       ranked.forEach((r, i) => {
         if (i + 1 > ranked.length / 2) set!.add(`${r.x.clubId}@${r.x.season}`)
       })
@@ -864,7 +864,8 @@ export function spinOdds(u: LoadedUniverse, d: DraftState): SpinOdds {
   const chained = chainedPool(u, { ...d, twist: null })
   // A spin that breaks the chain draws from the free wheel, as `spin` does
   const view: DraftState = { ...d, twist: null, ...(chained.broken ? { chainMates: null } : {}) }
-  const icons = d.gambleRng && !iconsUsed(d) && iconsFit(u, view) ? ICONS_CHANCE : 0
+  // `spin` rolls for the Icons before it breaks the chain, so whether an icon fits is read on the draft as it stands
+  const icons = d.gambleRng && !iconsUsed(d) && iconsFit(u, d) ? ICONS_CHANCE : 0
   const base = chained.pool
   const forced = view.forcedTwist && narrowPool(u, view, view.forcedTwist, base).length > 0 ? view.forcedTwist : null
   let twists: Array<Twist | null> = [null]

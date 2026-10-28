@@ -5,6 +5,7 @@
  * signing's status sets his wage demand and whether he signs at all.
  */
 import type { PlayerSeason, SquadPlayer } from './types'
+import { compareText } from './rng'
 
 export type SquadStatus = 'key' | 'first-team' | 'rotation' | 'backup' | 'prospect'
 
@@ -64,7 +65,7 @@ export interface StatusCandidate {
  * because the shape, not his rating, decides how much he can play.
  */
 export function defaultStatuses(squad: StatusCandidate[], startingXI?: Set<string>): Record<string, SquadStatus> {
-  const sorted = [...squad].sort((a, b) => b.overall - a.overall || a.id.localeCompare(b.id))
+  const sorted = [...squad].sort((a, b) => b.overall - a.overall || compareText(a.id, b.id))
   const median = medianOf(sorted.map((x) => x.overall))
   const out: Record<string, SquadStatus> = {}
   sorted.forEach((x, i) => {

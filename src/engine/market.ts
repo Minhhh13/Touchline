@@ -275,6 +275,8 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
     const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0) + (listed ? 0.6 : 0) + (shopped ? SHOPPED_BOOST : 0)
     if (desirability <= 0) continue
     if (rng.chance((listed || shopped ? 0.12 : 0.05) * desirability)) {
+      // No other club in the league, no buyer (the roll is still made, so every other day draws as it did)
+      if (!clubsInLeague.length) continue
       const { price } = askingPrice(p, ctx, state)
       const amount = roundM(price * rng.float(0.75, 1.1))
       const fromClubId = rng.pick(clubsInLeague)

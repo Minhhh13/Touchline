@@ -5,7 +5,7 @@
  */
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import { familiarityGainFactor } from './depth'
-import type { Rng } from './rng'
+import { compareText, type Rng } from './rng'
 import { isClassicSeason, ordinal, poolClubSeasons, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
@@ -328,7 +328,7 @@ export function computeTable(fixtures: Fixture[], teamIds: string[], carryIn?: R
     if (h.form.length > 5) h.form.shift()
     if (a.form.length > 5) a.form.shift()
   }
-  return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || x.teamId.localeCompare(y.teamId))
+  return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || compareText(x.teamId, y.teamId))
 }
 
 /**

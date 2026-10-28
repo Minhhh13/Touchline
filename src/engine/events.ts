@@ -156,7 +156,7 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
       make: () => ({
         id: 'press-job',
         title: 'Press conference: are you worried about your job?',
-        body: `${ctx.position}th with the board expecting ${ctx.boardTarget}th or better. The question was always coming.`,
+        body: `${ordinal(ctx.position)} with the board expecting ${ordinal(ctx.boardTarget)} or better. The question was always coming.`,
         choices: [
           { id: 'confident', label: 'I have the full backing of the board', hint: 'Bold. Pays off or blows up.' },
           { id: 'focus', label: 'My focus is the next match', hint: 'Nothing changes.' },
@@ -232,7 +232,7 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
       make: () => ({
         id: 'board',
         title: 'The board wants a word',
-        body: `You sit ${ctx.position}th; the board expected ${ordinal(ctx.boardTarget)}. They want to hear a plan.`,
+        body: `You sit ${ordinal(ctx.position)}; the board expected ${ordinal(ctx.boardTarget)}. They want to hear a plan.`,
         choices: [
           { id: 'backing', label: 'Ask for backing in the market', hint: 'Budget up if they agree, confidence down if not.' },
           { id: 'time', label: 'Ask for time', hint: 'Small confidence recovery, nothing else.' },
