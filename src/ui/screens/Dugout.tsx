@@ -132,14 +132,16 @@ export function Dugout() {
     // `posted` is the trigger: a batch arriving while the tab is open moves the divider to the new batch
   }, [tab, posted])
   // The keyboard (Space plays the week, 1 to 0 open the tabs): one listener reading the latest render through a ref
-  const keys = useRef<{ play: (() => void) | null; tabs: Tab[] }>({ play: null, tabs: [] })
+  const keys = useRef<{ play: (() => void) | null; tabs: Tab[]; manage: { autoPick: () => void; rest: () => void } | null }>({ play: null, tabs: [], manage: null })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = keys.current
-      const out = dugoutKey(e.key, { onControl: isControlTarget(e.target as HTMLElement | null), modalOpen: !!document.querySelector('.modal-back, .md-drawer, [aria-modal="true"]'), modifier: e.ctrlKey || e.metaKey || e.altKey, canPlay: !!k.play, tabs: k.tabs.length })
+      const out = dugoutKey(e.key, { onControl: isControlTarget(e.target as HTMLElement | null), modalOpen: !!document.querySelector('.modal-back, .md-drawer, [aria-modal="true"]'), modifier: e.ctrlKey || e.metaKey || e.altKey, canPlay: !!k.play, tabs: k.tabs.length, canManage: !!k.manage })
       if (!out) return
       e.preventDefault()
       if (out.kind === 'play') k.play?.()
+      else if (out.kind === 'autoPick') k.manage?.autoPick()
+      else if (out.kind === 'rest') k.manage?.rest()
       else setTab(k.tabs[out.index])
     }
     window.addEventListener('keydown', onKey)
@@ -178,10 +180,17 @@ export function Dugout() {
   // Highlights: the stop the last run made (only while the game still stands where it stopped) and whether the next week is itself one
   const stopped = store.simStop && store.simStop.gameId === game.id && store.simStop.year === game.year && store.simStop.matchweek === season.matchweek ? store.simStop.stop : null
   const bigNext = done ? null : nextStop(game, u)
+  // Rest the tired starters (one, or all the plan finds a fresher man for), with a toast saying what changed
+  const rest = (id?: string) => {
+    const n = store.restTired(id)
+    store.showToast(n ? t('rested', { count: n }) : t('restNone'))
+  }
   const act = (a: BriefingAction) => {
     if (a.op === 'autoPick') store.autoPick()
     else if (a.op === 'friendly') store.playFriendly()
     else if (a.op === 'player' && a.playerId) setPlayerModal(a.playerId)
+    else if (a.op === 'rest') rest(a.playerId)
+    else if (a.op === 'startPromised') store.startPromised()
     else if (a.op === 'event') document.querySelector('[data-testid="event-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     if (a.tab) setTab(a.tab)
   }
@@ -201,7 +210,7 @@ export function Dugout() {
     { id: 'inbox', label: t('tabInbox'), alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: t('tabClub') },
   ]
-  keys.current = { play: done || game.pendingEvent || simming ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent || simming ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id), manage: done ? null : { autoPick: () => { store.autoPick(); store.showToast(t('autoPicked')) }, rest: () => rest() } }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)

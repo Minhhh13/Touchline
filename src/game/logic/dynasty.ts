@@ -259,6 +259,7 @@ export function settleRenewals(game: Game, u: LoadedUniverse): { renewed: string
   const rank = all.map((x) => x.p).sort((a, b) => b.overall - a.overall || a.id.localeCompare(b.id))
   const top = new Set(rank.slice(0, RENEW_TOP).map((p) => p.id))
   const keepers = new Set(rank.filter((p) => p.positions[0] === 'GK').slice(0, 2).map((p) => p.id))
+  const terms: string[] = []
   for (const id of ids) {
     const p = get(id)
     const s = game.squad[id]
@@ -270,15 +271,18 @@ export function settleRenewals(game: Game, u: LoadedUniverse): { renewed: string
     if (willing && worth && p.age <= RENEW_MAX_AGE) {
       const status = c.status ?? 'rotation'
       const demand = contractDemand(game, u, id, status)
-      if (demand) kept = proposeContract(game, u, id, { wage: demand.wage, years: Math.min(demand.maxYears, p.age >= 32 ? 1 : 2), status, signingFee: 0, release: c.clauses?.release, appearance: c.clauses?.appearance ?? 0, goal: c.clauses?.goal ?? 0 }).accepted
+      if (demand) kept = proposeContract(game, u, id, { wage: demand.wage, years: Math.min(demand.maxYears, p.age >= 32 ? 1 : 2), status, signingFee: 0, release: c.clauses?.release, appearance: c.clauses?.appearance ?? 0, goal: c.clauses?.goal ?? 0 }, { quiet: true }).accepted
     }
-    if (kept) out.renewed.push(p.name)
-    else {
+    // The terms ride in the one summary item (the renewals post nothing of their own)
+    if (kept) {
+      out.renewed.push(p.name)
+      terms.push(`${p.name} (£${get(id)?.wage ?? p.wage}k, ${game.contracts[id]?.years ?? 1} season${(game.contracts[id]?.years ?? 1) === 1 ? '' : 's'})`)
+    } else {
       releasePlayer(game, u, id)
       out.left.push(p.name)
     }
   }
-  const lines = [out.renewed.length ? `Renewed by the assistant: ${out.renewed.join(', ')}.` : '', out.left.length ? `Left on a free: ${out.left.join(', ')}.` : ''].filter(Boolean)
+  const lines = [out.renewed.length ? `Renewed by the assistant: ${terms.join(', ')}.` : '', out.left.length ? `Left on a free: ${out.left.join(', ')}.` : ''].filter(Boolean)
   postNews(game, { matchweek: 0, kind: 'transfer', title: 'Contracts settled', body: lines.join(' ') })
   return out
 }
