@@ -1175,7 +1175,7 @@ function Instruction({ label, help, children }: { label: string; help: string; c
   )
 }
 
-function CupTab({ comp }: { comp: Competition }) {
+export function CupTab({ comp }: { comp: Competition }) {
   const { universe: u, game } = useStore()
   if (!u || !game?.season) return null
   const season = game.season

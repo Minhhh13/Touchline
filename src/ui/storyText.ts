@@ -254,6 +254,8 @@ export function summerText(r: SummerReview, u: LoadedUniverse, key: string): Sum
   const cups: string[] = []
   if (rec.cupWon) cups.push('won the Cup')
   if (rec.continentalWon) cups.push('won the Continental Cup')
+  // Engine 7's group stage: out in the groups is never "reached the knockouts"
+  else if (rec.continentalRun === 'G') cups.push('went out in the Continental Cup group stage')
   else if (rec.continentalRun && rec.continentalRun !== 'W') cups.push(`reached the Continental Cup ${ROUND_NAME[rec.continentalRun]?.toLowerCase() ?? 'knockouts'}`)
   if (cups.length) lines.push({ id: 'cups', text: `${list(cups).replace(/^./, (c) => c.toUpperCase())}.` })
   const awards: string[] = []
