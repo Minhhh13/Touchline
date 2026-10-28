@@ -981,6 +981,40 @@ export interface Cabinet {
    * its best honour. Optional (absent on cabinets before the bracket); read with `??`, filled by `normaliseCabinet`.
    */
   honours?: HonourEntry[]
+  /**
+   * The r8 feats (`src/game/logic/feats.ts`): engine 7's Continental Cup groups and comebacks, the Dynasty's length and
+   * academy, titles by season, under a cap and in classic seasons, perfect drafts and the Run-in of the week. Optional
+   * (absent on cabinets before them); read through `featsOf`, backfilled once from the leaderboard (`featsFromBoard`).
+   */
+  feats?: CabinetFeats
+}
+
+/** Counts the r8 milestones read; every list holds distinct keys, so a replay never counts twice. */
+export interface CabinetFeats {
+  /** Continental Cup groups finished top (engine 7). */
+  groupsWon: number
+  /** Group stages won with every match won. */
+  groupsPerfect: number
+  /** Two-legged ties won after losing the first leg. */
+  comebacks: number
+  /** The most seasons finished in one Dynasty. */
+  dynastyBest: number
+  /** Academy prospects promoted and still in the squad at the season's end. */
+  graduates: number
+  /** League titles in classic seasons (before 2008-09), every one, not only the leaderboard's 50. */
+  classicTitles: number
+  /** League titles drafted under a salary cap. */
+  cappedTitles: number
+  /** Titles under a cap with at least a quarter of it left unspent. */
+  thriftyTitles: number
+  /** The real seasons (start years) you have won a league in, each once, ascending. */
+  seasonsTitled: number[]
+  /** Seeds of drafts where every pick took an A (`pickGrades`), each once (at most `FEAT_LIST_CAP`). */
+  perfectDrafts: string[]
+  /** Run-in of the week keys (`2026-W44`) whose brief was met, each once (at most `FEAT_LIST_CAP`). */
+  runInWeeks: string[]
+  /** Post-season cups already read for feats (`resultId:comp`), so a cup is counted once (the last `FEAT_LIST_CAP`). */
+  seen: string[]
 }
 
 /** A Treble (league, Cup and Continental Cup) or a Double (the league and one cup), on the Trophy Room's honours board. */

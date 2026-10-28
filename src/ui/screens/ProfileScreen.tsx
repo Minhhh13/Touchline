@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
+import { Award, CalendarDays, ChevronsUp, Crown, Download, Flame, Gem, Lock, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload } from 'lucide-react'
 import { exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { persistLine, usePersistState } from '../persistStorage'
@@ -7,7 +7,11 @@ import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
 import { TrophyShelf, type ShelfTrophy } from '../components/TrophyShelf'
-import { BadgeCheck, BrickWall, CalendarCheck, CalendarClock, Footprints, Heart, Hourglass, Layers, Link as LinkIcon, Moon, Mountain, PiggyBank, Route, ScrollText, Users, Zap } from 'lucide-react'
+import { trophyIcon } from '../trophyIcons'
+import { useTrophyReveal } from '../trophyReveal'
+import { ChaseBlock } from '../components/BadgeUnlocks'
+import { trophyItems } from '@game/logic/trophyChase'
+import { BadgeCheck } from 'lucide-react'
 import { milestonesEarned, milestoneStates } from '@game/logic/milestoneBadges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
@@ -70,45 +74,6 @@ function readFilter(): BoardFilter {
   }
 }
 
-/** The Trophy Room's badges drawn as Lucide icons (the badge's emoji stays as data, for the manager card). */
-const BADGE_ICON: Record<string, LucideIcon> = {
-  'serial-winner': Trophy,
-  centurion: Target,
-  perfectionist: Gem,
-  'cup-collector': Medal,
-  globetrotter: Compass,
-  international: FlagIcon,
-  'grounds-tour': Landmark,
-  regular: CalendarDays,
-  'sunday-league': CalendarRange,
-  ironman: ChevronsUp,
-  'giant-killer': Axe,
-  'survival-artist': LifeBuoy,
-}
-
-/** The Trophy Room's milestones (`milestoneBadges.ts`), one Lucide icon each. */
-const MILESTONE_ICON: Record<string, LucideIcon> = {
-  invincibles: Shield,
-  'treble-winners': Crown,
-  'double-act': Layers,
-  'continental-kings': Globe,
-  'winning-machine': Zap,
-  decade: Hourglass,
-  'old-school': ScrollText,
-  moneyball: PiggyBank,
-  'perfect-day': CalendarCheck,
-  summit: Mountain,
-  'long-road': Route,
-  'under-the-lights': Moon,
-  'hot-seat': Users,
-  'old-hand': CalendarClock,
-  completist: BadgeCheck,
-  'golden-boot': Footprints,
-  'the-wall': BrickWall,
-  'chain-gang': LinkIcon,
-  loyalty: Heart,
-}
-
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
   // Downloaded; shared where a download goes nowhere (an iOS home-screen app or web view: saveFile.ts)
@@ -165,6 +130,14 @@ export function ProfileScreen() {
   const chase = nextBadge(badges)
   // A badge or tier earned since this viewer last looked: the medal's ring, once
   useBadgeSound([...badges, ...milestones].flatMap((b) => (b.tier ? [`${b.badge.id}:${b.tier}`] : [])))
+  // Unlocks this viewer has not seen: marked New while the page is open, then filed as seen
+  const trophyList = trophyItems(badges, milestones)
+  const reveal = useTrophyReveal(trophyList)
+  const [newIds] = useState(() => new Set(reveal.fresh.map((i) => i.id)))
+  const markTrophiesSeen = reveal.markSeen
+  useEffect(() => {
+    markTrophiesSeen()
+  }, [markTrophiesSeen])
   const career = careerOverview(profile, cabinet)
   const [achView, setAchView] = useState<AchievementView>('all')
   const achievements = orderAchievements(ACHIEVEMENTS, profile.achievements, achView)
@@ -408,16 +381,18 @@ export function ProfileScreen() {
                 <Download size={16} aria-hidden="true" /> {t('managerCard')}
               </button>
             </div>
+            <ChaseBlock items={trophyList} n={3} />
             <div className="badges">
               {badges.map((b) => {
-                const Icon = BADGE_ICON[b.badge.id] ?? Award
+                const Icon = trophyIcon('badge', b.badge.id)
+                const isNew = newIds.has(b.badge.id)
                 return (
-                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}${chase?.state.badge.id === b.badge.id ? ' next' : ''}`} data-testid="badge" data-tier={b.tier ?? 'none'} data-next={chase?.state.badge.id === b.badge.id ? 'yes' : undefined} title={`${badgeTitle(b.badge)}: ${badgeCount(b.badge, b.value)}`}>
-                    <span className={`badge-ring ${b.tier ?? ''}`}>
+                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}${chase?.state.badge.id === b.badge.id ? ' next' : ''}${isNew ? ' fresh' : ''}`} data-testid="badge" data-tier={b.tier ?? 'none'} data-next={chase?.state.badge.id === b.badge.id ? 'yes' : undefined} title={`${badgeTitle(b.badge)}: ${badgeCount(b.badge, b.value)}`}>
+                    <span className={`badge-ring ${b.tier ?? ''}${isNew ? ' unlock-medal' : ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
                     <span>
-                      <div className="title">{badgeTitle(b.badge)}</div>
+                      <div className="title">{badgeTitle(b.badge)}{isNew && <span className="chip info new-chip">{t('newChip')}</span>}</div>
                       <div className="desc">
                         {badgeCount(b.badge, b.value)}
                       </div>
@@ -438,16 +413,17 @@ export function ProfileScreen() {
             </h4>
             <div className="badges milestones">
               {milestones.map((m) => {
-                const Icon = MILESTONE_ICON[m.badge.id] ?? Award
+                const Icon = trophyIcon('milestone', m.badge.id)
                 const label = milestoneCount(m.badge, m.value)
                 const progress = progressText(m.badge.tiers, m.value, m.stamp)
+                const isNew = newIds.has(m.badge.id)
                 return (
-                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${milestoneTitle(m.badge)}: ${label}${m.badge.fromBoard ? t('fromBoard') : ''}`}>
-                    <span className={`badge-ring ${m.tier ?? ''}`}>
+                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}${isNew ? ' fresh' : ''}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${milestoneTitle(m.badge)}: ${label}${m.badge.fromBoard ? t('fromBoard') : ''}`}>
+                    <span className={`badge-ring ${m.tier ?? ''}${isNew ? ' unlock-medal' : ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
                     <span className="milestone-text">
-                      <div className="title">{milestoneTitle(m.badge)}</div>
+                      <div className="title">{milestoneTitle(m.badge)}{isNew && <span className="chip info new-chip">{t('newChip')}</span>}</div>
                       <div className="desc">{label}</div>
                       <div className="small muted">{m.tier && !m.stamp ? t('tierProgress', { tier: t(`tier_${m.tier}`), progress }) : m.stamp ? (m.tier ? t('earned') : progress) : progress}</div>
                       {!m.stamp && m.tier !== 'gold' && (
