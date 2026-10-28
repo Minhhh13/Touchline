@@ -223,4 +223,6 @@ export const arena = catalog('arena', {
   og: ' (og)',
   theXI: 'The XI · {name}',
   shareText: 'Share text',
+  kickLine: 'Kick {n}, {side, select, us {ours} other {theirs}}: {taker} {scored, select, yes {scores} other {misses}}. {us}-{them}.{end, select, yes { {verdict}.} other {}}',
+  takerMoved: '{name} takes kick {n}.',
 })
