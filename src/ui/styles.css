@@ -16858,15 +16858,51 @@ table.tbl td.strong {
 .sc-chances > :nth-child(n + 6) {
   animation-delay: calc(var(--stagger) * 1.5);
 }
-/* Home's casual row: the meta line takes two lines before it is cut (the Daily Arena's was cut mid-word), wherever the
-   height allows it; a short desktop window (720 px) keeps one line, so the mode cards' art keeps its size */
-@media (max-width: 1099px), (min-height: 821px) {
-  .home-tiles.casual .tile-text span {
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+/* Home's casual row, the one row of tiles left under the four modes (the links that repeated the top bar's nav are
+   gone): a small "More modes" label over it, and the meta line takes two lines before it is cut (the Daily Arena's
+   "The Gauntlet on the Premier League wheel" was cut mid-word) */
+.home-more {
+  margin: 0 0 calc(-1 * var(--space-1));
+  padding-inline: var(--space-1);
+}
+.home-tiles.casual .tile-text span {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+/* The mode cards keep their picture and lose the small icon badge on its edge (one picture is enough), so the text
+   starts at the card's own padding rather than under the badge */
+.mode-text {
+  padding-top: var(--space-4);
+}
+.app.shell .page.home .mode-text {
+  padding-top: var(--space-3);
+}
+@media (max-width: 520px) {
+  .mode-text {
+    padding-top: var(--space-3);
+    padding-left: var(--space-3);
+  }
+}
+/* Today's Daily as the current game: the card carries its result or its progress, with Clear or Abandon beside it */
+.daily-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-4);
+}
+.daily-actions > .btn.primary {
+  flex: 1 1 auto;
+}
+@media (min-width: 1100px) and (max-height: 820px) {
+  .app.shell .page.home .daily-actions .btn {
+    min-height: 36px;
+  }
+}
+@media (max-width: 520px) {
+  .daily-actions {
+    margin: 0 var(--space-3) var(--space-3);
   }
 }
 /* Squad complete: the prediction scrolls under its sticky Simulate season foot; a short fade over the foot's top edge
