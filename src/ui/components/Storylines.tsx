@@ -6,6 +6,7 @@ import { previewLines, previewTitle, storylineText, summerText } from '../storyT
 import { ordinal, outcomeClass } from '../format'
 import { PREVIEW_ICON, STORY_ICON, SUMMER_ICON } from './icons'
 import { ClubBadge, Info } from './bits'
+import { resultsLabel } from '../a11y'
 
 /** The key every storyline's wording hangs on: the game, its year and the week, so a week always reads the same. */
 export function storyKey(game: Game): string {
@@ -24,7 +25,7 @@ export function useStorylines(game: Game | null, u: LoadedUniverse | null) {
 function FormChips({ form, label }: { form: FormLetter[]; label: string }) {
   if (!form.length) return <span className="small muted">no league form</span>
   return (
-    <span className="story-form" role="img" aria-label={`${label}: ${form.join(' ')}, oldest first`}>
+    <span className="story-form" role="img" aria-label={resultsLabel(form, `${label}, oldest first`)}>
       {form.map((o, i) => (
         <span key={i} className={`chip ${outcomeClass(o)}`}>
           {o}
@@ -110,6 +111,10 @@ export function StoryChip({ game, u }: { game: Game; u: LoadedUniverse }) {
   return (
     <span className="chip info story-chip" title={`${top.title}: ${top.text}`} data-testid="story-chip">
       <Icon size={13} aria-hidden="true" /> {top.chip}
+      {/* The tooltip's sentence for a screen reader, which never sees a title (round 4) */}
+      <span className="sr-only">
+        : {top.title}. {top.text}
+      </span>
     </span>
   )
 }

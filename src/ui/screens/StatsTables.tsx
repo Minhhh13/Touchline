@@ -53,7 +53,7 @@ export function PlayerStatsTable() {
     <div className="panel stats-players" data-testid="stats-players">
       <div className="panel-head">
         <h3>Player statistics</h3>
-        <Segmented value={who} onChange={setWho} options={[{ value: 'all', label: 'Whole league', testId: 'stats-who-all' }, { value: 'mine', label: 'Our squad', testId: 'stats-who-mine' }]} />
+        <Segmented label="Players from" value={who} onChange={setWho} options={[{ value: 'all', label: 'Whole league', testId: 'stats-who-all' }, { value: 'mine', label: 'Our squad', testId: 'stats-who-mine' }]} />
       </div>
       <div className="tbl-wrap">
         <table className="tbl sticky-head stats-tbl">

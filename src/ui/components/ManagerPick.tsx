@@ -6,6 +6,7 @@ import { clubName, seasonLabel } from '../format'
 import { useStore } from '@game/store'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import { onRadioGroupKey, radioTabIndex } from '../a11y'
 
 const t = translator(season)
 
@@ -28,9 +29,9 @@ export function ManagerPick({ options, picked, onPick }: { options: Manager[]; p
         <h3>{t('pickManager')}</h3>
         <span className="small muted">{t(picked ? 'picked' : 'defaultFirst')}</span>
       </div>
-      <div className="manager-cards" role="radiogroup" aria-label={t('manager')}>
-        {options.map((m) => (
-          <button key={m.id} type="button" role="radio" aria-checked={m.id === current} className={`choice-card manager-card ${m.id === current ? 'active' : ''}`} onClick={() => onPick(m.id)} data-testid={`manager-${m.id}`}>
+      <div className="manager-cards" role="radiogroup" aria-label={t('manager')} onKeyDown={onRadioGroupKey}>
+        {options.map((m, i) => (
+          <button key={m.id} type="button" role="radio" aria-checked={m.id === current} tabIndex={radioTabIndex(i, options.findIndex((o) => o.id === current))} className={`choice-card manager-card ${m.id === current ? 'active' : ''}`} onClick={() => onPick(m.id)} data-testid={`manager-${m.id}`}>
             <span className="row" style={{ gap: 8 }}>
               {m.clubId && !m.archetype ? <ClubBadge clubId={m.clubId} size={24} /> : <span className="manager-mono" aria-hidden="true">?</span>}
               <span className="ctitle manager-name">{m.name}</span>

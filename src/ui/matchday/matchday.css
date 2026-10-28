@@ -268,21 +268,11 @@
   .matchday .md-formation .md-man-name {
     display: none;
   }
-  .matchday .md-formation .md-man {
-    --md-man-dy: -50%;
-  }
-  .matchday .md-formation .md-man-shirt {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-  }
-  .matchday .md-formation .md-man-shirt .md-shirt {
-    width: 20px;
-    height: 20px;
-  }
   .matchday .md-formation .md-man-shirt .md-rating {
-    position: static;
+    right: auto;
+    left: 50%;
+    top: calc(100% + 1px);
+    transform: translateX(-50%);
     min-width: 0;
     padding: 0 2px;
     font-size: 10px; /* px: on the formation pitch */
@@ -302,21 +292,21 @@
   /* A size container: each man's place (--x, --y, per cent of the layer) is a transform in cqw and cqh (motion rule 2) */
   container-type: size;
 }
+/* The button is his shirt alone (24 px, WCAG 2.5.8): the rating pill and the name are drawn outside its box and take
+   no pointer, so two centre-backs 28 px apart no longer overlap as targets (round 4; it was the whole label block) */
 .matchday .md-man {
   position: absolute;
   left: 0;
   top: 0;
-  transform: translate(calc(var(--x, 0) * 1cqw - 50%), calc(var(--y, 0) * 1cqh + var(--md-man-dy, -42%)));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
+  transform: translate(calc(var(--x, 0) * 1cqw - 50%), calc(var(--y, 0) * 1cqh - 75%));
+  display: block;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
   background: none;
   color: #fff;
   cursor: pointer;
-  max-width: 76px;
   transition: transform calc(var(--dur-1) * 4) var(--ease-out);
 }
 .matchday .md-man:focus-visible {
@@ -334,6 +324,10 @@
   position: relative;
   display: block;
   line-height: 0;
+}
+.matchday .md-man-shirt .md-rating,
+.matchday .md-man-name {
+  pointer-events: none;
 }
 .matchday .md-man-shirt .md-rating {
   position: absolute;
@@ -356,8 +350,13 @@
   height: 10px;
 }
 .matchday .md-man-name {
-  /* The man's own width caps it: 76px, or the gap to a team-mate level with him (labelRoom) */
-  max-width: 100%;
+  /* Under his shirt, outside the button's box; 76px wide at most, or the gap to a team-mate level with him (labelRoom) */
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: var(--md-name-max, 76px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

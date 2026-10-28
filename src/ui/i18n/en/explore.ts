@@ -54,6 +54,8 @@ export const explore = catalog('explore', {
   topPlayers: 'Highest rated players',
   topSeasons: 'Highest rated player-seasons',
   everySeason: 'Every season',
+  clubSideLabel: 'Squad or best XI',
+  rowsLabel: 'Rows',
   bestEach: 'Best season each',
   bestEachHint: 'Each player once, at his best season in this league',
   allSeasons: 'All seasons',

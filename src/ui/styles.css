@@ -6000,8 +6000,11 @@ dl.kv {
 .depth-names .chip {
   cursor: pointer;
 }
+/* An unavailable man: struck through, grey ink and a dashed edge, no opacity (it took the name to 2.5:1 in Daylight; round 4) */
 .depth-names .chip.dim {
-  opacity: 0.45;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px dashed var(--line-2);
   text-decoration: line-through;
 }
 
@@ -8589,6 +8592,41 @@ dl.kv {
 .star {
   display: inline-flex;
   cursor: pointer;
+}
+button.star {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: calc(var(--fs-h3) - 1px);
+  border-radius: var(--radius-s);
+}
+/* A row with its own buttons (Explore's compare and shortlist): they sit over the row's right end, beside its button
+   rather than inside it (round 4: a button inside a button is not one control to a screen reader or axe) */
+.prow-shell {
+  position: relative;
+}
+.prow-shell > .prow {
+  padding-right: var(--prow-actions-w, 84px);
+}
+.prow-actions {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.plist.lined > .prow-shell > .prow {
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  padding-block: 10px;
+}
+.plist.lined > .prow-shell > .prow:hover {
+  background: var(--bg-3);
+  box-shadow: none;
 }
 /* Profile */
 .profile-stats {
@@ -12707,8 +12745,11 @@ html {
   border: 0;
   font-family: inherit;
 }
+/* An unavailable man: struck through, grey ink and a dashed edge, no opacity (it took the name to 2.5:1 in Daylight; round 4) */
 .plan-names .chip.dim {
-  opacity: 0.55;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px dashed var(--line-2);
   text-decoration: line-through;
 }
 .plan-row .next-in {
@@ -12810,12 +12851,12 @@ table.tbl.contracts-overview .link-btn.name {
   .chip-btn {
     min-height: 36px;
   }
-  .star[role='button'] {
+  button.star {
     position: relative;
     display: inline-grid;
     place-items: center;
   }
-  .star[role='button']::after {
+  button.star::after {
     content: '';
     position: absolute;
     inset: -10px;
@@ -16157,7 +16198,7 @@ details.opposition {
   .info-btn::after {
     inset: -14px;
   }
-  .star[role='button']::after {
+  button.star::after {
     inset: -13px;
   }
   .reel-sound::after {
@@ -16427,7 +16468,7 @@ html {
 .records-kv .holders {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
+  gap: 0 10px;
   font-weight: 400;
 }
 .link-btn.holder {
@@ -16436,6 +16477,8 @@ html {
   gap: 4px;
   font-weight: 500;
   font-size: var(--fs-sm);
+  /* WCAG 2.5.8: wrapped holders 19 px tall sat 4 px apart; each is a 24 px target now (round 4) */
+  min-height: 24px;
 }
 .sub-head {
   margin: var(--space-4) 0 var(--space-2);
@@ -16713,4 +16756,11 @@ table.tbl td.strong {
   grid-template-columns: 3.5em minmax(0, 1fr) auto;
   gap: 6px;
   color: var(--text-2);
+}
+
+/* Phones: the row's own buttons are 44 px wide each (round 4) */
+@media (max-width: 720px) {
+  .prow-shell > .prow {
+    --prow-actions-w: 108px;
+  }
 }

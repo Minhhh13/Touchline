@@ -212,7 +212,7 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
       </p>
       {!onCodeStep && (
         <div data-testid="auth-mode">
-          <Segmented<AuthMode> value={mode} onChange={onMode} options={AUTH_MODES.map((m) => ({ value: m.value, label: m.label, testId: m.value === 'signin' ? 'auth-mode-signin' : 'auth-mode-create' }))} />
+          <Segmented<AuthMode> label={tr('authModeLabel')} value={mode} onChange={onMode} options={AUTH_MODES.map((m) => ({ value: m.value, label: m.label, testId: m.value === 'signin' ? 'auth-mode-signin' : 'auth-mode-create' }))} />
         </div>
       )}
       {!onCodeStep ? (

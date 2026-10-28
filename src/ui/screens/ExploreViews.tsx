@@ -162,7 +162,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
 
       <div className="panel" data-testid="club-side">
         <div className="panel-head">
-          <Segmented value={side} onChange={setSide} options={[{ value: 'squad', label: line ? `Squad ${seasonLabel(line.cs.season)}` : 'Squad', testId: 'club-side-squad' }, { value: 'xi', label: 'Best XI ever', testId: 'club-side-xi', hint: 'Each real player once, at his best season here for the slot, in a 4-3-3' }]} />
+          <Segmented label={tx('clubSideLabel')} value={side} onChange={setSide} options={[{ value: 'squad', label: line ? `Squad ${seasonLabel(line.cs.season)}` : 'Squad', testId: 'club-side-squad' }, { value: 'xi', label: 'Best XI ever', testId: 'club-side-xi', hint: 'Each real player once, at his best season here for the slot, in a 4-3-3' }]} />
         </div>
         {side === 'squad' && line && (
           <>
@@ -452,7 +452,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
           ))}
         </div>
         <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
-          <Segmented value={form.every ? 'season' : 'player'} onChange={(v) => set('every', v === 'season')} options={[{ value: 'player', label: 'Best season each', testId: 'filter-one' }, { value: 'season', label: 'Every season', testId: 'filter-every' }]} />
+          <Segmented label={tx('rowsLabel')} value={form.every ? 'season' : 'player'} onChange={(v) => set('every', v === 'season')} options={[{ value: 'player', label: 'Best season each', testId: 'filter-one' }, { value: 'season', label: 'Every season', testId: 'filter-every' }]} />
           {changed && (
             <button type="button" className="btn sm ghost" onClick={() => setForm(BLANK_SEARCH)} data-testid="filter-clear">
               <X size={14} aria-hidden="true" /> Clear
@@ -492,11 +492,11 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
                   {h.from === h.to ? seasonLabel(h.from) : `${seasonLabel(h.from)} to ${seasonLabel(h.to)}`} · {countPhrase(h.seasons, 'seasons')} · {money(h.p.value)}
                 </span>
               }
-              right={
-                <span className="row" style={{ gap: 2 }}>
+              actions={
+                <>
                   <CompareButton on={compare.includes(h.p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => toggleCompare(h.p.playerId)} />
                   <SearchStar on={shortlist.includes(h.p.id)} onClick={() => toggleShortlist(h.p.id)} />
-                </span>
+                </>
               }
             />
           ))}
@@ -510,26 +510,9 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
 
 function SearchStar({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
-    <span
-      className={on ? 'star on' : 'star'}
-      title={on ? 'On your shortlist' : 'Add to shortlist'}
-      role="button"
-      tabIndex={0}
-      aria-label={on ? 'Remove from shortlist' : 'Add to shortlist'}
-      aria-pressed={on}
-      onClick={(e) => {
-        e.stopPropagation()
-        onClick()
-      }}
-      onKeyDown={(e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return
-        e.preventDefault()
-        e.stopPropagation()
-        onClick()
-      }}
-    >
+    <button type="button" className={on ? 'star on' : 'star'} title={on ? 'On your shortlist' : 'Add to shortlist'} aria-label={on ? 'Remove from shortlist' : 'Add to shortlist'} aria-pressed={on} onClick={onClick}>
       <StarIcon size={18} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
-    </span>
+    </button>
   )
 }
 

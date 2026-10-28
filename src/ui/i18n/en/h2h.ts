@@ -5,6 +5,7 @@ export const h2h = catalog('h2h', {
   back: '← Back',
   thisDevice: 'This device',
   playOnline: 'Play with a friend',
+  whereToPlay: 'Where to play',
   title: 'Head-to-head',
   metaOnline: 'Two managers, two devices, one wheel',
   metaDevice: 'Two managers, one device, one wheel',

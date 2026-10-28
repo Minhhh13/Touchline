@@ -9,7 +9,7 @@ import { tipSeen, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
-import { onTabListKey, resultsLabel } from '../a11y'
+import { onRadioGroupKey, onTabListKey, radioTabIndex, resultsLabel } from '../a11y'
 import { playSound } from '../sound/synth'
 import { toastTone } from '../sound/cues'
 import { translator } from '../i18n'
@@ -92,11 +92,13 @@ export function Bar({ value, max = 100, colour, thick }: { value: number; max?: 
   )
 }
 
-export function Segmented<T extends string>({ options, value, onChange }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void }) {
+export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void; label?: string }) {
+  const checked = options.findIndex((o) => o.value === value)
+  // A named radio group (`label`: what is being chosen), one Tab stop, the arrows move the choice (round 4)
   return (
-    <div className="segmented" role="radiogroup">
-      {options.map((o) => (
-        <button key={o.value} type="button" className={o.value === value ? 'active' : ''} onClick={() => onChange(o.value)} title={o.hint} role="radio" aria-checked={o.value === value} data-testid={o.testId}>
+    <div className="segmented" role="radiogroup" aria-label={label} onKeyDown={onRadioGroupKey}>
+      {options.map((o, i) => (
+        <button key={o.value} type="button" className={o.value === value ? 'active' : ''} onClick={() => onChange(o.value)} title={o.hint} role="radio" aria-checked={o.value === value} tabIndex={radioTabIndex(i, checked)} data-testid={o.testId}>
           {o.label}
         </button>
       ))}

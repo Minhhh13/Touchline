@@ -70,6 +70,7 @@ import { InboxStorylines, MatchPreviewPanel, StoryChip, SummerHeadline } from '.
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
 import { rich } from '../i18n/rich'
+import { onRadioGroupKey, radioTabIndex } from '../a11y'
 
 const t = translator(dugout)
 
@@ -326,10 +327,10 @@ export function Dugout() {
                 )}
               </div>
             )}
-            <div className="match-play" data-testid="match-play" role="radiogroup" aria-label={t('howToPlay')}>
+            <div className="match-play" data-testid="match-play" role="radiogroup" aria-label={t('howToPlay')} onKeyDown={onRadioGroupKey}>
               <span className="small muted">{t('matchLabel')}</span>
-              {MATCH_PLAY_MODES.map((m) => (
-                <button key={m.id} type="button" role="radio" aria-checked={playMode === m.id} className={`chip-btn ${playMode === m.id ? 'active' : ''}`} title={m.hint} onClick={() => store.setMatchPlay(m.id)} data-testid={`match-play-${m.id}`}>
+              {MATCH_PLAY_MODES.map((m, i) => (
+                <button key={m.id} type="button" role="radio" aria-checked={playMode === m.id} tabIndex={radioTabIndex(i, MATCH_PLAY_MODES.findIndex((x) => x.id === playMode))} className={`chip-btn ${playMode === m.id ? 'active' : ''}`} title={m.hint} onClick={() => store.setMatchPlay(m.id)} data-testid={`match-play-${m.id}`}>
                   {m.label}
                 </button>
               ))}
@@ -423,9 +424,9 @@ export function Dugout() {
                 <button type="button" className={`chip key-chip ${showKey ? 'info' : ''}`} aria-pressed={showKey} onClick={toggleKey} data-testid="key-toggle" title={t('keyTip')}>
                   {t('key')}
                 </button>
-                <span className="segmented squad-views-seg" role="radiogroup" aria-label={t('squadView')} data-testid="squad-view">
-                  {SQUAD_VIEWS.map((v) => (
-                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
+                <span className="segmented squad-views-seg" role="radiogroup" aria-label={t('squadView')} data-testid="squad-view" onKeyDown={onRadioGroupKey}>
+                  {SQUAD_VIEWS.map((v, i) => (
+                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} tabIndex={radioTabIndex(i, SQUAD_VIEWS.findIndex((x) => x.id === view))} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
                       {v.label}
                     </button>
                   ))}
@@ -657,9 +658,9 @@ export function Dugout() {
               </span>
             )}
           </div>
-          <div className="inbox-filters row wrap" role="radiogroup" aria-label={t('show')} data-testid="inbox-filter">
-            {INBOX_FILTERS.map((f) => (
-              <button key={f.id} type="button" role="radio" aria-checked={inboxFilter === f.id} className={`chip-btn ${inboxFilter === f.id ? 'active' : ''}`} onClick={() => setInboxFilter(f.id)}>
+          <div className="inbox-filters row wrap" role="radiogroup" aria-label={t('show')} data-testid="inbox-filter" onKeyDown={onRadioGroupKey}>
+            {INBOX_FILTERS.map((f, i) => (
+              <button key={f.id} type="button" role="radio" aria-checked={inboxFilter === f.id} tabIndex={radioTabIndex(i, INBOX_FILTERS.findIndex((x) => x.id === inboxFilter))} className={`chip-btn ${inboxFilter === f.id ? 'active' : ''}`} onClick={() => setInboxFilter(f.id)}>
                 {f.label}
                 {f.id !== 'all' && <span className="muted"> {filterNews(season.news, f.id).length}</span>}
               </button>

@@ -59,21 +59,18 @@ function PosFilter({ value, onChange }: { value: 'all' | Position; onChange: (p:
 }
 
 function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
+  const icon = <StarIcon size={18} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
+  // A real button when it toggles (round 4: it was a span with a button role, out of the Tab order)
+  if (!onClick)
+    return (
+      <span className={on ? 'star on' : 'star'} title={t(on ? 'onShortlist' : 'addShortlist')}>
+        {icon}
+      </span>
+    )
   return (
-    <span
-      className={on ? 'star on' : 'star'}
-      title={t(on ? 'onShortlist' : 'addShortlist')}
-      role={onClick ? 'button' : undefined}
-      aria-label={onClick ? t(on ? 'removeShortlist' : 'addShortlist') : undefined}
-      aria-pressed={onClick ? on : undefined}
-      onClick={(e) => {
-        if (!onClick) return
-        e.stopPropagation()
-        onClick()
-      }}
-    >
-      <StarIcon size={18} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
-    </span>
+    <button type="button" className={on ? 'star on' : 'star'} title={t(on ? 'onShortlist' : 'addShortlist')} aria-label={t(on ? 'removeShortlist' : 'addShortlist')} aria-pressed={on} onClick={onClick}>
+      {icon}
+    </button>
   )
 }
 
@@ -313,7 +310,7 @@ export function Explore() {
                 </div>
                 <div className="plist lined explore-list">
                   {selected.squad.map((p) => (
-                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} right={<span className="row" style={{ gap: 2 }}><CompareButton on={compare.includes(p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => flipCompare(p.playerId)} /><Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} /></span>} />
+                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} actions={<><CompareButton on={compare.includes(p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => flipCompare(p.playerId)} /><Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} /></>} />
                   ))}
                 </div>
               </>
@@ -330,7 +327,7 @@ export function Explore() {
             <PosFilter value={posFilter} onChange={setPosFilter} />
           </div>
           <div className="row wrap explore-filters" style={{ gap: 'var(--space-2)' }}>
-            <Segmented value={onePerPlayer ? 'player' : 'season'} onChange={(v) => setOnePerPlayer(v === 'player')} options={[{ value: 'season', label: t('everySeason'), testId: 'legends-every' }, { value: 'player', label: t('bestEach'), hint: t('bestEachHint'), testId: 'legends-one' }]} />
+            <Segmented label={t('rowsLabel')} value={onePerPlayer ? 'player' : 'season'} onChange={(v) => setOnePerPlayer(v === 'player')} options={[{ value: 'season', label: t('everySeason'), testId: 'legends-every' }, { value: 'player', label: t('bestEach'), hint: t('bestEachHint'), testId: 'legends-one' }]} />
             <select className="input" style={{ width: 'auto' }} aria-label={t('season')} data-testid="legends-season" value={legendSeason} onChange={(e) => setLegendSeason(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
               <option value="all">{t('allSeasons')}</option>
               {[...seasons].reverse().map((s) => (
