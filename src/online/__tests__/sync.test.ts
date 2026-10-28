@@ -789,3 +789,61 @@ describe('cloud sync of arena runs and Run-ins', () => {
     expect(a.store.s.game!.id).toBe(run.id)
   })
 })
+
+describe('a refused claim leaves no object behind (r8 audit)', () => {
+  const season = managed('season', 'SYNC-R8-CLAIM')
+  const objects = (b: FakeBackend) => [...b.objects.keys()].filter((k) => k.startsWith('user-a/'))
+
+  /** The device's transport refuses the next claims with `errors`, one per claim. */
+  function refuseClaims(t: FakeTransport, errors: OnlineError[]) {
+    const real = t.claim.bind(t)
+    t.claim = async (a) => {
+      const e = errors.shift()
+      if (e) throw e
+      return real(a)
+    }
+  }
+
+  it('removes the upload when the database refuses the claim (the hourly limit), so retries never fill the 16-object folder', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    refuseClaims(a.transport, Array.from({ length: 20 }, () => new OnlineError('rate', 'too many cloud saves this hour', 'PT429', 429)))
+    for (let i = 0; i < 20; i++) {
+      tick()
+      const out = await a.engine.sync({ force: true })
+      expect(out.error?.kind).toBe('rate')
+      expect(objects(b)).toEqual([])
+    }
+    // Once the hour has passed, the next pass saves as usual
+    tick()
+    expect((await a.engine.sync({ force: true })).ok).toBe(true)
+    expect(row(b, 'season')).toMatchObject({ revision: 1, gameId: season.id })
+    expect(objects(b)).toEqual([row(b, 'season')!.objectPath])
+  })
+
+  it('removes the upload on a definite refusal (a bad request) too', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    refuseClaims(a.transport, [new OnlineError('bad', 'the upload has no usable size', '22023', 400)])
+    expect((await a.engine.sync({ force: true })).ok).toBe(false)
+    expect(objects(b)).toEqual([])
+  })
+
+  it('keeps the upload when the claim got no answer (it may have landed): the orphan sweep, which skips what a row names, takes it later', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    refuseClaims(a.transport, [new OnlineError('network', 'Load failed'), new OnlineError('unavailable', 'Bad gateway', '502', 502)])
+    await a.engine.sync({ force: true })
+    expect(objects(b)).toHaveLength(1)
+    tick()
+    await a.engine.sync({ force: true })
+    expect(objects(b)).toHaveLength(2)
+    tick()
+    expect((await a.engine.sync({ force: true })).ok).toBe(true)
+    await a.engine.sweepOrphans()
+    expect(objects(b)).toEqual([row(b, 'season')!.objectPath])
+  })
+})

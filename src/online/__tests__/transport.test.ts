@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { corsHeaders } from '@supabase/supabase-js/cors'
 import { onlineConfigFrom } from '../config'
-import { functionUrl, SupabaseTransport } from '../transport'
+import { functionUrl, OnlineError, SupabaseTransport, timedFetch } from '../transport'
 
 const cfg = onlineConfigFrom({ VITE_SUPABASE_URL: 'https://yvqpmyqomkwtudxmkeou.supabase.co', VITE_SUPABASE_ANON_KEY: ['sb', 'publishable', 'test-key-0000'].join('_') })!
 
@@ -58,5 +58,70 @@ describe('the browser transport to the Edge Function', () => {
     expect(new URL(seen[0]).pathname).toBe('/functions/v1/touchline-e4')
     expect(new URL(seen[1]).pathname).toBe(`/functions/v1/${cfg.functionName}`)
     expect(new URL(seen[2]).pathname).toBe(`/functions/v1/${cfg.functionName}`)
+  })
+})
+
+describe('requests that never settle (r8 audit)', () => {
+  /** A fetch that answers only when aborted, as an iOS tab put away mid-request can leave one. */
+  const hanging = (calls: RequestInit[]) =>
+    ((_url: string | URL | Request, init?: RequestInit) => {
+      calls.push(init ?? {})
+      // As fetch does: an aborted signal rejects at once, a later abort rejects then
+      return new Promise<Response>((_, reject) => (init?.signal?.aborted ? reject(init.signal.reason) : init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))))
+    }) as typeof fetch
+
+  /** Timers the test fires by hand. */
+  function manualTimers() {
+    const due: Array<{ fn: () => void; ms: number; live: boolean }> = []
+    return {
+      due,
+      set: (fn: () => void, ms: number) => {
+        const t = { fn, ms, live: true }
+        due.push(t)
+        return t
+      },
+      clear: (t: unknown) => void ((t as { live: boolean }).live = false),
+      fire: () => due.filter((t) => t.live).forEach((t) => ((t.live = false), t.fn())),
+    }
+  }
+
+  it('gives up on a request after its timeout, as a request with no answer', async () => {
+    const calls: RequestInit[] = []
+    const timers = manualTimers()
+    const f = timedFetch(hanging(calls), 60000, timers)
+    const p = f('https://example.test/rest/v1/cloud_saves')
+    expect(timers.due.map((t) => t.ms)).toEqual([60000])
+    timers.fire()
+    await expect(p).rejects.toMatchObject({ name: 'TimeoutError' })
+    expect(calls[0].signal?.aborted).toBe(true)
+  })
+
+  it("passes an answer through and clears its timer; the caller's own signal still aborts", async () => {
+    const timers = manualTimers()
+    const ok = timedFetch((async () => new Response('{}', { status: 200 })) as typeof fetch, 1000, timers)
+    expect((await ok('https://example.test/a')).status).toBe(200)
+    expect(timers.due.every((t) => !t.live)).toBe(true)
+    const calls: RequestInit[] = []
+    const f = timedFetch(hanging(calls), 1000, manualTimers())
+    const own = new AbortController()
+    const p = f('https://example.test/b', { signal: own.signal })
+    own.abort(new Error('the caller gave up'))
+    await expect(p).rejects.toThrow('the caller gave up')
+    const already = new AbortController()
+    already.abort(new Error('before it started'))
+    await expect(f('https://example.test/c', { signal: already.signal })).rejects.toThrow('before it started')
+  })
+
+  it('turns an Edge Function call that never answers into a network error the outbox retries', async () => {
+    const timers = manualTimers()
+    const sb = { auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-token' } } }) } } as unknown as SupabaseClient
+    const t = new SupabaseTransport(sb, cfg, timedFetch(hanging([]), 90000, timers))
+    const p = t.invoke({ op: 'daily.submit' })
+    await Promise.resolve()
+    await Promise.resolve()
+    timers.fire()
+    const e = await p.catch((x: unknown) => x)
+    expect(e).toBeInstanceOf(OnlineError)
+    expect((e as OnlineError).kind).toBe('network')
   })
 })
