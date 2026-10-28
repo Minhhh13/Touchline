@@ -70,7 +70,7 @@ Make one batch branch from the latest `main` and real-merge the branches in this
 - **Bigger features:**
   - `claude/r8-season-play`: Season and Dynasty usability.
   - `claude/r8-fm-depth`: Football Manager depth. That means club transfer negotiations with counters, transfer requests from unhappy players, promises, player talks and squad status. Every roll runs on a forked copy, so untouched games are unchanged.
-  - `claude/e7-daily`, if it exists: the Daily rotating through the seven leagues from a future start date as a dated epoch, and a slightly easier Super League. It changes the e7 bundle, so ship it with a new `touchline-e7` loader deploy, or fold it into engine 8.
+  - **`claude/e7-daily` (566327f, ready, all checks green; URGENT):** the Daily rotating through the seven leagues from 2026-10-30 as a dated epoch (every earlier Daily unchanged), plus a slightly easier Super League behind the new optional `superEase` rule (old Super League games replay unchanged). It changes the e7 bundle (`verifier-533df0bd10128be8.js`), so after merging, redeploy the `touchline-e7` loader with the new hash. It must be live **before 2026-10-31 00:00 UTC** (the first La Liga day; 2026-10-30 is a Premier League day and identical on both builds). If that slips, move `DAILY_EPOCHS`' start to a later day. Runbook in its ONLINE.md.
 
 Resolve conflicts by keeping both sides' intent. For `docs/HANDOVER.md`, keep both change-log lines; never delete others' lines.
 
