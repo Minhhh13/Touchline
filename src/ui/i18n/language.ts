@@ -114,7 +114,8 @@ async function apply(pref: LanguagePref): Promise<void> {
     if (state.pref !== pref) return
     show(want, mod.default.messages as LoadedLocale['messages'])
   } catch {
-    show('en', {})
+    // A failed load falls back to English only while it is still the choice: a later one has already been shown
+    if (state.pref === pref) show('en', {})
   }
 }
 

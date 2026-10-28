@@ -35,7 +35,8 @@ import { cueTimes, goalHolds } from '../match/possession'
 import { matchPace } from '../match/timing'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
-import { emptyDraft, highlightedMan, nextSelection, type StopDraft } from './controls'
+import { emptyDraft, highlightedMan, nextSelection, pauseKeyFires, type StopDraft } from './controls'
+import { openLayers } from '../dialogLayers'
 import { ActiveDrawer } from './drawers/Drawers'
 import { useManagerHand } from './useManagerHand'
 import { elsewhereLines, resumeMinute, segmentStart, stopTarget } from './model'
@@ -163,13 +164,13 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   useEffect(() => {
     setBoost(boost)
   }, [boost, setBoost])
-  // P pauses and resumes, except while typing or on a focused control
+  // P pauses and resumes, except while typing, on a focused control or under an open drawer or dialog
   const toggleClock = clock.toggle
   const canToggle = !clock.finished
   useEffect(() => {
     if (!canToggle) return
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key !== 'p' && e.key !== 'P') || e.ctrlKey || e.metaKey || e.altKey || isControlTarget(e.target as HTMLElement | null)) return
+      if (!pauseKeyFires(e, isControlTarget(e.target as HTMLElement | null), openLayers() > 0)) return
       e.preventDefault()
       toggleClock()
     }

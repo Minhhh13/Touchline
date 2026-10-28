@@ -251,7 +251,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
   ctx.textAlign = 'center'
   ctx.fillText(input.footer, W / 2, H - 132)
   drawLockup(ctx, W / 2, H - 72, 76)
-  return canvas.toDataURL('image/png')
+  return pngAndRelease(canvas)
 }
 
 /**
@@ -578,7 +578,7 @@ export async function renderMatchCard(input: MatchCardInput): Promise<string> {
   ctx.font = font(20, 400, body)
   ctx.fillText(input.footer, W / 2, H - 120)
   drawLockup(ctx, W / 2, H - 62, 48)
-  return canvas.toDataURL('image/png')
+  return pngAndRelease(canvas)
 }
 
 export interface ManagerCardInput {
@@ -711,7 +711,19 @@ export function renderManagerCard(input: ManagerCardInput): string {
   ctx.fillStyle = C.good
   ctx.font = font(34)
   ctx.fillText('TOUCHLINE', W / 2, H - 28)
-  return canvas.toDataURL('image/png')
+  return pngAndRelease(canvas)
+}
+
+/**
+ * The card as a PNG data URL, then the canvas's pixels given back at once: a 1080 by 1350 canvas holds about 5.8 MB
+ * until it is collected, and Safari counts every live canvas against a fixed budget (past it `getContext` returns
+ * null), so a few shares in a row on an iPhone could leave the next card unable to draw.
+ */
+export function pngAndRelease(canvas: { toDataURL(type: string): string; width: number; height: number }): string {
+  const url = canvas.toDataURL('image/png')
+  canvas.width = 0
+  canvas.height = 0
+  return url
 }
 
 /** Shorten a label until it fits `max` pixels in the current font. */

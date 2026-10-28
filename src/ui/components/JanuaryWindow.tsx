@@ -26,6 +26,7 @@ import { useFocusOnLanding } from '../a11y'
 import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import { reelSkipKey } from '../reelKeys'
 
 const t = translator(season)
 
@@ -223,7 +224,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key !== ' ' && e.key !== 'Enter') || e.repeat) return
+      if (!reelSkipKey(e)) return
       e.preventDefault()
       setSkip((n) => n + 1)
     }

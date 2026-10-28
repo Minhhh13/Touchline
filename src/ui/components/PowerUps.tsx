@@ -29,7 +29,13 @@ type Sheet = 'reroll' | 'swap' | 'armband' | 'lock'
  * it, and its confirm button acts only while the store's draft is still on that turn.
  */
 export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled, onRolling }: { u: LoadedUniverse; d: DraftState; get: (id: string) => PlayerSeason | undefined; hideRatings: boolean; /** The reel is running. */ busy: boolean; onRerolled: () => void; /** The Upgrader's dial is turning (the Speedrun clock waits for it as for the reel). */ onRolling?: (rolling: boolean) => void }) {
-  const { game, upgradePlayer, rerollSeason, peekSpin, swapSlots, giveArmband, lockPlayer } = useStore()
+  const drafting = useStore((s) => s.game?.phase === 'draft')
+  const upgradePlayer = useStore((s) => s.upgradePlayer)
+  const rerollSeason = useStore((s) => s.rerollSeason)
+  const peekSpin = useStore((s) => s.peekSpin)
+  const swapSlots = useStore((s) => s.swapSlots)
+  const giveArmband = useStore((s) => s.giveArmband)
+  const lockPlayer = useStore((s) => s.lockPlayer)
   const turn = draftTurnKey(d)
   const [win, setWin] = useState<TurnWindow<Sheet> | null>(null)
   const sheet = openWindow(win, turn)
@@ -37,7 +43,6 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled, onRollin
   const [from, setFrom] = useState<string | null>(null)
   const [to, setTo] = useState<string | null>(null)
   const [who, setWho] = useState<string | null>(null)
-  const drafting = game?.phase === 'draft'
   const complete = isComplete(d)
   const players = upgradeCandidates(d).flatMap((id) => get(id) ?? [])
   const options = rerollOptions(u, d)

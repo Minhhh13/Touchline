@@ -38,7 +38,7 @@ import { epochAt, type MatchPath } from '../match/epochs'
 import { celebrationEnvelope, confetti, flightProgress, netBulge, scorerRun } from '../match/celebration'
 import { finishOf, goalFlightAt } from '../match/finish'
 import { ballSprite, ballView } from '../match/flight'
-import { capFrame, frameCap, wakeCap } from '../match/frameCap'
+import { capFrame, frameCap, wakeCap, type FrameCap } from '../match/frameCap'
 import { cornerDelivery, dotName, passFlash, shotMarks, shotTrailAt, xgBand, type ShotMark } from '../match/overlays'
 import { BUILD_UP, CAMERA, REPLAY, buildUpAt, cameraTransform, celebrationMs, focusAt, focusMoments, replayFrame, shooterRing, type FocusMoment, type ReplayFrame, type ViewBox } from '../match/keyMoments'
 import { shotXg } from '@engine/matchStats'
@@ -340,10 +340,29 @@ function writeTag(text: SVGTextElement | null, bg: SVGRectElement | null, name: 
 }
 
 /** The camera this frame: eased towards where it wants to be, as a transform on the pitch's group. */
-interface Camera {
+export interface Camera {
   x: number
   y: number
   s: number
+}
+/**
+ * What the loop keeps across its restarts on one pitch (a substitution's new placements, a new path, a new feed): the
+ * frame-time record and the cap belong to the device, so a slow phone stays in lite mode instead of warming up again
+ * for 90 frames at every change; the camera belongs to the picture, so it carries on unless the orientation or the
+ * match changed (it used to snap out to the whole pitch and lean in again).
+ */
+export interface LoopKeep {
+  perf: { mean: number; frames: number; lite: boolean }
+  cap: FrameCap
+  cam: Camera
+  view: string
+}
+export function loopKeep(prev: LoopKeep | null, portrait: boolean, seed: string): LoopKeep {
+  const view = `${portrait ? 'p' : 'l'}|${seed}`
+  if (prev && prev.view === view) return prev
+  const box = viewBoxOf(portrait)
+  const cam: Camera = { x: box.x + box.w / 2, y: box.y + box.h / 2, s: 1 }
+  return prev ? { ...prev, cam, view } : { perf: { mean: 16.7, frames: 0, lite: false }, cap: frameCap(), cam, view }
 }
 function aimCamera(cam: Camera, want: Camera, dt: number, snap: boolean): void {
   if (snap) {
@@ -437,6 +456,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const chances = useMemo(() => focusMoments(events, ranges), [events, ranges])
   const moments = useMemo(() => (keyMoments ? chances : []), [keyMoments, chances])
   const markKey = useMemo(() => (highlightId ? [...placed.keys()].find((k) => placed.get(k)!.psId === highlightId) : undefined), [highlightId, placed])
+  const keepRef = useRef<LoopKeep | null>(null)
 
   // The animation: one frame reads the shared clock, works out where everything should be and
   // eases what is on screen towards it. It runs while the clock does (a goal's hold counts):
@@ -458,15 +478,16 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     let id = 0
     let caption = ''
     const box = viewBoxOf(portrait)
-    const cam: Camera = { x: box.x + box.w / 2, y: box.y + box.h / 2, s: 1 }
+    const keep = (keepRef.current = loopKeep(keepRef.current, portrait, seed))
+    const cam = keep.cam
     let tag = ''
     let markTag = ''
     let inReplay = false
     let leftReplay = -1
     // A device that cannot keep up drops the camera and the pass lines while it struggles (liteMode: a running mean of the frame time, with hysteresis)
-    const perf = { mean: 16.7, frames: 0, lite: false }
+    const perf = keep.perf
     // One that keeps missing 60 fps draws every other frame (frameCap.ts): the same picture at fewer moments
-    const cap = frameCap()
+    const cap = keep.cap
     const at = (x: number, y: number) => {
       const [sx, sy] = map(x, y)
       return `translate(${sx.toFixed(2)} ${sy.toFixed(2)})`

@@ -2,6 +2,8 @@ import { catalog } from '../index'
 
 /** Words shared by many screens: the modes' names (modeText.ts), the shared components in bits.tsx. */
 export const common = catalog('common', {
+  confirmOk: 'OK',
+  confirmCancel: 'Cancel',
   title_quick: 'Quick Draft',
   title_daily: 'Daily Challenge',
   title_season: 'Season',

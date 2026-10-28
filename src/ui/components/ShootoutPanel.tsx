@@ -5,19 +5,11 @@ import { playerLookup } from '@game/logic/players'
 import { aiLookup } from '@engine/reserve'
 import { useMediaQuery } from './LivePitch'
 import { kickLine, takerMoved } from '../arenaText'
+import { prefersReducedMotion } from '../motion'
 import { translator } from '../i18n'
 import { arena } from '../i18n/en/arena'
 
 const t = translator(arena)
-
-/** The kicks reveal one at a time, at once for anyone who asked the system for less motion. */
-function prefersReducedMotion(): boolean {
-  try {
-    return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  } catch {
-    return false
-  }
-}
 
 /**
  * An arena shoot-out. While a live match level at 90 waits (`arena.pending`):
@@ -26,7 +18,10 @@ function prefersReducedMotion(): boolean {
  * them), the kicks reveal one at a time.
  */
 export function ShootoutPanel() {
-  const { universe: u, game, takePenalties } = useStore()
+  // Each field on its own: the whole store would re-render the match screen's panel on every store write
+  const u = useStore((s) => s.universe)
+  const game = useStore((s) => s.game)
+  const takePenalties = useStore((s) => s.takePenalties)
   const pending = game?.arena?.pending?.shootout ?? null
   const [order, setOrder] = useState<string[] | null>(null)
   const [keeper, setKeeper] = useState<string | null>(null)

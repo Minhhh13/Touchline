@@ -3,13 +3,12 @@
  * (live and on the report), and the report's shot map, possession and
  * territory pair and tactics overlay. All SVG, all cheap: a few dozen shapes.
  */
-import { useMemo } from 'react'
 import type { Appearance, FullMatchResult } from '@engine/match'
 import { binOf, MOMENTUM_BINS } from '@engine/matchDetail'
 import { ROLE_BY_ID } from '@engine/roles'
 import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
 import { placeSide, toShared, type Side } from '../match/pitchGeometry'
-import { momentumScale, territory as territoryOf, xgSeries } from '../match/charts'
+import { momentumScale, territory as territoryOf } from '../match/charts'
 import { momentumSpells } from '../matchday/model'
 import { ROLE_CODE } from '../match/shirts'
 import { shotXg } from '@engine/matchStats'
@@ -113,68 +112,6 @@ export function MomentumBar({ momentum, clock, events, home, away, strip = false
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-export function XgRace({ momentum, xg, clock, events, home, away }: { momentum: number[]; xg: { home: number; away: number }; clock: number; events: MatchEvent[]; home: PitchSide; away: PitchSide }) {
-  const W = 360
-  const H = 130
-  const px = 30
-  const py = 10
-  const pw = W - px - 12
-  const ph = H - py - 20
-  const hs = useMemo(() => xgSeries(momentum, xg.home, 'home'), [momentum, xg.home])
-  const as = useMemo(() => xgSeries(momentum, xg.away, 'away'), [momentum, xg.away])
-  const upto = Math.max(0, Math.min(90, clock))
-  const yMax = Math.max(0.5, Math.ceil(Math.max(xg.home, xg.away) * 2) / 2)
-  const X = (m: number) => px + (m / 90) * pw
-  const Y = (v: number) => py + ph - (v / yMax) * ph
-  const line = (s: number[]) => s.slice(0, upto + 1).map((v, m) => `${X(m).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')
-  const goals = events.filter((e) => GOAL_TYPES.has(e.type) && e.minute <= clock)
-  const ticks = [0, yMax / 2, yMax]
-  return (
-    <div className="mchart" data-testid="xg-race">
-      <div className="row between small">
-        <span className="row" style={{ gap: 6 }}>
-          <span className="swatch" style={{ background: home.colour }} />
-          {home.shortName} <b className="mono">{hs[upto].toFixed(2)}</b>
-        </span>
-        <span className="muted">{tx('xgRace')}</span>
-        <span className="row" style={{ gap: 6 }}>
-          <b className="mono">{as[upto].toFixed(2)}</b> {away.shortName}
-          <span className="swatch" style={{ background: away.colour }} />
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tx('xgRaceAria')}>
-        {ticks.map((t) => (
-          <g key={t}>
-            <line x1={px} y1={Y(t)} x2={px + pw} y2={Y(t)} stroke="var(--line)" strokeWidth="1" />
-            <text x={px - 4} y={Y(t) + 3} fontSize="8" textAnchor="end" fill="var(--text-3)">
-              {String(+t.toFixed(2))}
-            </text>
-          </g>
-        ))}
-        {[0, 45, 90].map((m) => (
-          <text key={m} x={X(m)} y={H - 6} fontSize="8" textAnchor={m === 0 ? 'start' : m === 90 ? 'end' : 'middle'} fill="var(--text-3)">
-            {m === 0 ? "0'" : m === 45 ? tx('ht') : tx('ft')}
-          </text>
-        ))}
-        {upto > 0 && <polyline points={line(hs)} fill="none" stroke="var(--text-3)" strokeWidth="3.5" strokeLinejoin="round" opacity="0.6" />}
-        {upto > 0 && <polyline points={line(as)} fill="none" stroke="var(--text-3)" strokeWidth="3.5" strokeLinejoin="round" opacity="0.6" />}
-        {upto > 0 && <polyline points={line(hs)} fill="none" stroke={home.colour} strokeWidth="2" strokeLinejoin="round" />}
-        {upto > 0 && <polyline points={line(as)} fill="none" stroke={away.colour} strokeWidth="2" strokeLinejoin="round" />}
-        {goals.map((g, i) => {
-          const m = Math.min(90, g.minute)
-          const s = g.side === 'home' ? hs : as
-          return (
-            <g key={i}>
-              <circle cx={X(m)} cy={Y(s[m])} r="3.5" fill={g.side === 'home' ? home.colour : away.colour} stroke="var(--panel)" strokeWidth="1.5" />
-              <title>{`${minuteLabel(g.minute)} ${g.playerName ?? tx('goal')}`}</title>
-            </g>
-          )
-        })}
-      </svg>
     </div>
   )
 }

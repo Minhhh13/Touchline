@@ -682,17 +682,6 @@
   gap: 4px;
   align-self: stretch;
 }
-.matchday .md-cond {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--bg-3);
-  overflow: hidden;
-}
-.matchday .md-cond > span {
-  display: block;
-  height: 100%;
-}
 
 /* ------------------------------------------------------------------ event lists */
 .matchday .md-events,
@@ -1117,75 +1106,13 @@
   font-size: var(--fs-xs);
   text-align: center;
 }
-.matchday .md-goals {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-}
 
 /* ------------------------------------------------------------------ stop panel */
-.matchday .md-stop {
-  border-color: var(--primary);
-  border-radius: var(--radius-s);
-  padding: 10px 12px;
-}
-.matchday .md-stop .panel-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin-bottom: 8px;
-}
-.matchday .md-stop .panel-head h2 {
-  font-size: calc(var(--fs-h2) - 2px);
-}
-.matchday .md-stop-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-.matchday .md-stop-actions .btn.big {
-  padding: 8px 16px;
-  font-size: calc(var(--fs-base) + 1px);
-}
 .matchday .md-stop-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   align-items: start;
-}
-.matchday .md-stop .field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: var(--fs-meta);
-  font-weight: 600;
-}
-.matchday .md-stop .field .help {
-  font-weight: 400;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.matchday .md-stop .segmented {
-  align-self: flex-start;
-  flex-wrap: wrap;
-}
-.matchday .md-stop .segmented button {
-  padding: 4px 8px;
-  font-size: var(--fs-meta);
-}
-.matchday .md-stop .col {
-  gap: 8px;
-  min-width: 0;
-}
-.matchday .md-stop .plist {
-  max-height: 220px;
-  overflow: auto;
-}
-.matchday .md-stop .prow {
-  padding: 3px 6px;
-  font-size: var(--fs-meta);
 }
 .matchday .md-two {
   display: grid;
@@ -1222,11 +1149,6 @@
 .matchday.compact .md-pulse > .mchart {
   background: var(--panel);
   padding: 6px 10px;
-}
-.matchday.compact .md-stack {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--md-gap);
 }
 .matchday.compact .md-slot-body {
   flex: none;
@@ -1268,7 +1190,6 @@
     padding-left: 6px;
   }
   .matchday.compact .md-pulse,
-  .matchday.compact .md-stack,
   .matchday .md-two {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1281,14 +1202,11 @@
   .matchday .md-stop-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .matchday .md-stop-actions {
-    margin-left: 0;
-  }
 }
 
 /* ------------------------------------------------------------------ motion */
 @media (prefers-reduced-motion: reduce) {
-  .matchday .md-banner .txt,
+  .matchday .md-banner.key .txt,
   .matchday .md-ev,
   .matchday .md-line,
   .matchday .md-score.fresh .res {

@@ -351,6 +351,18 @@ export function tabKey(tabs: PhoneTab[], id: string, key: string): string | null
   return null
 }
 
+// ------------------------------------------------------------------ the P key
+
+/**
+ * Whether a key press pauses or resumes the clock: P (no Ctrl, Cmd or Alt, not a held key's repeat), never while
+ * typing or on a focused control, and never while a dialog is open over the board (a drawer pauses the match: P on
+ * the drawer itself used to start it again behind the drawer). Pure.
+ */
+export function pauseKeyFires(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean; repeat?: boolean }, onControl: boolean, dialogOpen: boolean): boolean {
+  if (e.key !== 'p' && e.key !== 'P') return false
+  return !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && !onControl && !dialogOpen
+}
+
 // ------------------------------------------------------------------ the man picked out
 
 /** A tap on a man (a squad strip card, a formation panel's shirt): picks him, or lets him go when he is already picked. */
