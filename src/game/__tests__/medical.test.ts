@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { createGame, beginSeason } from '../logic/setup'
@@ -28,11 +28,12 @@ function seeded(seed: string): Game {
 describe('the medical view', () => {
   // 1,500 matches: on engine 6's stream 600 held only 35 injuries to high-risk starters (a ratio of 1.42 that 2,400 matches
   // put at 1.98), too few for the 1.5 bound to be more than a coin toss
-  it('over 1,500 seeded matches, high-risk starters are injured at least 1.5 times as often as low-risk ones', () => {
+  it('over 1,500 seeded matches, high-risk starters are injured at least 1.5 times as often as low-risk ones', async () => {
     const starts: Record<RiskBand, number> = { low: 0, medium: 0, high: 0 }
     const injuries: Record<RiskBand, number> = { low: 0, medium: 0, high: 0 }
     let matches = 0
     for (let i = 0; matches < 1500; i++) {
+      await breathe()
       const g = seeded(`medical-${i}`)
       const get = playerLookup(g, u)
       // The test's own stream spreads the squad's condition over the engine's bands, so every risk band gets starts

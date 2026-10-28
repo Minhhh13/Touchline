@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { freshTestUniverse, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import type { LoadedUniverse } from '@engine/universe'
@@ -22,7 +22,7 @@ describe('player names as the game shows them', { timeout: 180_000 }, () => {
 
   it('cleans every faulty name in the seven packs, in the index and in every squad, and nothing else', () => {
     const raw = loadTestUniverse(ALL)
-    const u = loadTestUniverse(ALL)
+    const u = freshTestUniverse(ALL)
     // 54 league-and-name pairs, 53 names: J. Inamoto,20 is in the German and the French pack
     const faulty = new Set(Object.values(raw.index).filter((p) => STRAY.test(p.name)).map((p) => p.name))
     expect(faulty.size).toBe(53)
@@ -43,7 +43,7 @@ describe('player names as the game shows them', { timeout: 180_000 }, () => {
 
   it('moves no seeded game: quick seasons on a raw and a tidied universe differ only by those names', () => {
     const raw = loadTestUniverse(['england', 'portugal'])
-    const tidy = tidyUniverseNames(loadTestUniverse(['england', 'portugal'])).universe
+    const tidy = tidyUniverseNames(freshTestUniverse(['england', 'portugal'])).universe
     const renames = Object.values(raw.index).filter((p) => STRAY.test(p.name)).map((p) => [p.name, p.name.replace(STRAY, '')] as const)
     const settings = (seed: string, leagueId: string, hostClubId: string, leagueSeason: number): GameSettings => ({ mode: 'quick', seed, formationId: '4-3-3', teamName: 'Names XI', shortName: 'NAM', leagueId, wheelLeagues: [leagueId], hostClubId, leagueSeason, rules: { ...QUICK_RULES, leagues: [leagueId] }, jobSecurity: false, difficulty: 'calibrated', january: true, continental: false })
     const fix = (text: string): string => {

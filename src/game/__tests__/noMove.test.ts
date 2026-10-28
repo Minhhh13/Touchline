@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES, SEASON_RULES } from '@engine/draft'
 import { computeTable, USER_TEAM } from '@engine/season'
@@ -86,14 +86,22 @@ describe('the See your squad batch moves no seeded outcome', () => {
     expect(hash(pins)).toBe(SEASON_BASELINE)
   }, 300_000)
 
-  it('plays 30 seeded Quick Drafts to the same result', () => {
-    const pins = Array.from({ length: 30 }, (_, i) => quickPin(quickSettings(`pin-quick-${i}`)))
+  it('plays 30 seeded Quick Drafts to the same result', async () => {
+    const pins: string[] = []
+    for (let i = 0; i < 30; i++) {
+      if (i % 5 === 0) await breathe()
+      pins.push(quickPin(quickSettings(`pin-quick-${i}`)))
+    }
     expect(hash(pins)).toBe(QUICK_BASELINE)
   }, 300_000)
 
-  it('plays 60 Dailies to the same result', () => {
+  it('plays 60 Dailies to the same result', async () => {
     const seeds = Array.from({ length: 60 }, (_, i) => `daily-2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + (i % 28)).padStart(2, '0')}`)
-    const pins = seeds.map((seed) => quickPin(dailyGameSettings(u, seed, 'Pin XI')))
+    const pins: string[] = []
+    for (const [i, seed] of seeds.entries()) {
+      if (i % 5 === 0) await breathe()
+      pins.push(quickPin(dailyGameSettings(u, seed, 'Pin XI')))
+    }
     expect(hash(pins)).toBe(DAILY_BASELINE)
   }, 300_000)
 })

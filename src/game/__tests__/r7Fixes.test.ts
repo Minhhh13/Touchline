@@ -12,7 +12,7 @@ vi.hoisted(() => {
   })
 })
 vi.setConfig({ testTimeout: 60_000 })
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { BUDGET_FLOOR, QUICK_RULES, canBench, canSpin, capRoom, capSpent, eligibleSlots, isComplete, openSlots, spinClubSeason } from '@engine/draft'
 import { wheelSeasons } from '@engine/era'
 import { useStore } from '../store'
@@ -195,16 +195,18 @@ describe('R7-4: a capped Quick Draft with a bench never strands its XI', () => {
     return { stranded: false, owedOk }
   }
 
-  it('the drafts that ran dry with XI slots open (a keeper unaffordable) now fill their XI', () => {
+  it('the drafts that ran dry with XI slots open (a keeper unaffordable) now fill their XI', async () => {
     // Each of these ran dry on release-e6 with XI slots open and no money left for them (a keeper unaffordable)
     for (const [seed, preset, bench] of [['r7-strand-6', 'shoestring', 3], ['r7-strand-9', 'shoestring', 5], ['r7-strand-18', 'moneyball', 5], ['r7-strand-20', 'shoestring', 3], ['r7-strand-21', 'shoestring', 5]] as const) {
+      await breathe()
       const r = draftBenchingEarly(seed, preset, bench)
       expect(r, seed).toEqual({ stranded: false, owedOk: true })
     }
   })
 
-  it('a bench pick while XI slots are open keeps the floor for every one of them; an XI pick for the others', () => {
+  it('a bench pick while XI slots are open keeps the floor for every one of them; an XI pick for the others', async () => {
     for (let i = 0; i < 12; i++) {
+      await breathe()
       const r = draftBenchingEarly(`r7-cap-floor-${i}`, i % 2 ? 'moneyball' : 'shoestring', i % 3 ? 5 : 3)
       expect(r.stranded).toBe(false)
       expect(r.owedOk).toBe(true)

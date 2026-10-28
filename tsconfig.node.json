@@ -16,5 +16,5 @@
     "noUncheckedSideEffectImports": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "src/online/buildInfo.ts", "scripts/online/edgeBundle.d.mts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "vitest.fast.config.ts", "src/online/buildInfo.ts", "scripts/online/edgeBundle.d.mts"]
 }

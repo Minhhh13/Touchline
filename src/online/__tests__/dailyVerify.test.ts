@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { loadTestUniverse } from '@engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '@engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, canUse, eligibleSlots, isComplete, pick, respin, spin } from '@engine/draft'
 import { decodeChallenge, encodeChallenge, historyKey, picksFromHistory, replayDraft, rulesDiff, type ChallengePayload, type QuickChallengePayload } from '@engine/challenge'
@@ -248,9 +248,10 @@ describe('strictReplayDraft: the tamper suite over 200 Daily dates', () => {
     strictReplayDraft(u, createGame(settings), c)
   }
 
-  it('passes every honest draft and refuses every tampered one, naming where it broke', () => {
+  it('passes every honest draft and refuses every tampered one, naming where it broke', async () => {
     const start = Date.UTC(2026, 0, 1)
     for (let i = 0; i < 200; i++) {
+      if (i % 10 === 0) await breathe()
       const seed = `daily-${new Date(start + i * 86400000).toISOString().slice(0, 10)}`
       const { settings, p, k } = honestFor(seed)
       expect(() => replay(settings, p, k)).not.toThrow()

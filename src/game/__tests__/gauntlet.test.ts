@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
 import { advanceArenaMatch, arenaContinueLabel, arenaShareInput, arenaStepInfo, beginArena, changeTheDraw, closeArenaMatch, finalGameSettings, finishArena, gauntletGameSettings, GAUNTLET_SQUAD, nextArenaOpponent, playArenaStep, resolveArenaStep, rungOpponent, simArenaToEnd, stepWon, takePenalties, type ArenaChoices } from '../logic/arena'
@@ -404,8 +404,12 @@ describe('the Gauntlet: the rules', () => {
 })
 
 describe('the Gauntlet: balance guard (300 assistant runs, England wheel)', () => {
-  it('calibrated: a mean climb between 3.5 and 6.5 rungs, 4% to 25% reaching ten', () => {
-    const rungs = Array.from({ length: 300 }, (_, i) => rungsWon(climbed(`gauntlet-guard-${i}`)))
+  it('calibrated: a mean climb between 3.5 and 6.5 rungs, 4% to 25% reaching ten', async () => {
+    const rungs: number[] = []
+    for (let i = 0; i < 300; i++) {
+      if (i % 25 === 0) await breathe()
+      rungs.push(rungsWon(climbed(`gauntlet-guard-${i}`)))
+    }
     const mean = rungs.reduce((t, x) => t + x, 0) / rungs.length
     const ten = rungs.filter((x) => x >= 10).length / rungs.length
     expect(mean).toBeGreaterThan(3.5)
@@ -414,8 +418,12 @@ describe('the Gauntlet: balance guard (300 assistant runs, England wheel)', () =
     expect(ten).toBeLessThan(0.25)
   }, 120_000)
 
-  it('realistic: a mean climb below 2 rungs', () => {
-    const rungs = Array.from({ length: 300 }, (_, i) => rungsWon(climbed(`gauntlet-guard-${i}`, { difficulty: 'realistic' })))
+  it('realistic: a mean climb below 2 rungs', async () => {
+    const rungs: number[] = []
+    for (let i = 0; i < 300; i++) {
+      if (i % 25 === 0) await breathe()
+      rungs.push(rungsWon(climbed(`gauntlet-guard-${i}`, { difficulty: 'realistic' })))
+    }
     expect(rungs.reduce((t, x) => t + x, 0) / rungs.length).toBeLessThan(2)
   }, 120_000)
 })
