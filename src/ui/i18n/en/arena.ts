@@ -201,6 +201,8 @@ export const arena = catalog('arena', {
   copyResult: 'Copy result',
   downloadCard: 'Download share card',
   playAgain: 'Play again',
+  playAgainTip: 'The same format on a new wheel',
+  newGameTip: 'Set up a new arena run',
   handTip: 'Managed by hand: your friend sees the draft and the ladder replay, and your scores as your word',
   assistantTip: 'Played by the assistant: your friend’s build replays and verifies it',
   challengeFriend: 'Challenge a friend',

@@ -3,7 +3,7 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { seasonTable, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
 import { compactGame } from '../logic/compact'
-import { AVG_MIN_APPS, playerStatRows, sortPlayerStats, sortTeamStats, teamRank, teamStatRows, teamStatValue } from '../logic/statsTables'
+import { AVG_MIN_APPS, LEADER_MIN_APPS, LEADERS, playerStatRows, statLeaders, sortPlayerStats, sortTeamStats, teamRank, teamStatRows, teamStatValue } from '../logic/statsTables'
 import { clone, seasonGame } from './seasonGame'
 
 const u = loadTestUniverse(['england'])
@@ -61,5 +61,29 @@ describe("the Stats tab's tables", () => {
     const rank = teamRank(teams, USER_TEAM, 'points')
     expect(rank).toBe(1 + teams.filter((t) => t.points > teams.find((x) => x.teamId === USER_TEAM)!.points).length)
     expect(teamStatValue(teams[0], 'homePoints') + teamStatValue(teams[0], 'awayPoints')).toBe(teams[0].points)
+  })
+})
+
+describe("the Overview's league leaders (r8 audit: the rules out of the screen)", () => {
+  const g = seasonGame(u, 'stats-leaders', 14)
+  const get = playerLookup(g, u)
+  const rows = playerStatRows(g.squad, g.season!, get)
+  it('ranks the same men the sortable table does, at most 25, best first', () => {
+    for (const stat of ['goals', 'assists', 'motm'] as const) {
+      const top = statLeaders(g.squad, g.season!, get, stat)
+      expect(top.length).toBeLessThanOrEqual(LEADERS)
+      expect(top.length).toBeGreaterThan(0)
+      for (let i = 1; i < top.length; i++) expect(top[i - 1].v).toBeGreaterThanOrEqual(top[i].v)
+      // Every leader is a row of the table with the same figure, and nobody left out has more
+      for (const r of top) expect(rows.find((x) => x.id === r.id && x.teamId === r.teamId)?.[stat]).toBe(r.v)
+      const floor = top[top.length - 1].v
+      expect(rows.filter((x) => x[stat] > floor).length).toBeLessThanOrEqual(top.length)
+    }
+  })
+  it('an average rating needs five appearances; clean sheets are keepers only; a zero never lists', () => {
+    const rating = statLeaders(g.squad, g.season!, get, 'rating')
+    expect(rating.every((r) => r.s.seasonStats.apps >= LEADER_MIN_APPS)).toBe(true)
+    expect(statLeaders(g.squad, g.season!, get, 'cleanSheets').every((r) => r.p.positions[0] === 'GK' && r.v > 0)).toBe(true)
+    expect(statLeaders(g.squad, g.season!, get, 'goals').every((r) => r.v > 0)).toBe(true)
   })
 })

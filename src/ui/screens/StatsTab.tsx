@@ -7,7 +7,7 @@ import { seasonRecords } from '@game/logic/seasonRecords'
 import { analystPicks, ANALYST_INTERVAL, ANALYST_MIN_SHOTS, dataHubRows, dataHubTotals } from '@game/logic/dataHub'
 import { ClubBadge, Info, Rating } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
-import type { SquadPlayer } from '@engine/types'
+import { statLeaders, type LeaderStat } from '@game/logic/statsTables'
 import { PlayerPeek } from '../components/PlayerPeek'
 import type { Boxes } from '../components/Boxes'
 import { Segmented } from '../components/bits'
@@ -23,7 +23,7 @@ function signedOne(v: number): string {
   return `${v > 0.05 ? '+' : v < -0.05 ? '−' : ''}${Math.abs(v).toFixed(1)}`
 }
 
-type Stat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
+type Stat = LeaderStat
 
 /**
  * The Stats tab, three boxes side by side: the season's records, league-wide player statistics (your squad and every
@@ -34,32 +34,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const { universe: u, game } = useStorePick('universe', 'game')
   const [view, setView] = useState<'overview' | 'players' | 'team'>('overview')
   const [stat, setStat] = useState<Stat>('goals')
-  const rows = useMemo(() => {
-    if (!u || !game?.season) return []
-    const get = playerLookup(game, u)
-    const out: Array<{ id: string; teamId: string; s: SquadPlayer }> = []
-    for (const [id, s] of Object.entries(game.squad)) out.push({ id, teamId: USER_TEAM, s })
-    for (const club of Object.values(game.season.ai)) for (const [id, s] of Object.entries(club.state)) if (s.seasonStats.apps > 0) out.push({ id, teamId: club.id, s })
-    const value = (s: SquadPlayer) => {
-      switch (stat) {
-        case 'goals':
-          return s.seasonStats.goals
-        case 'assists':
-          return s.seasonStats.assists
-        case 'rating':
-          return s.seasonStats.apps >= 5 ? s.seasonStats.ratingSum / s.seasonStats.apps : -1
-        case 'cleanSheets':
-          return get(s.playerSeasonId)?.positions[0] === 'GK' ? s.seasonStats.cleanSheets : -1
-        case 'motm':
-          return s.seasonStats.motm
-      }
-    }
-    return out
-      .map((r) => ({ ...r, v: value(r.s), p: get(r.id) }))
-      .filter((r) => r.p && r.v > 0)
-      .sort((a, b) => b.v - a.v || b.s.seasonStats.apps - a.s.seasonStats.apps)
-      .slice(0, 25)
-  }, [u, game, stat])
+  const rows = useMemo(() => (u && game?.season ? statLeaders(game.squad, game.season, playerLookup(game, u), stat) : []), [u, game, stat])
   const records = useMemo(() => (game?.season ? seasonRecords(game.season, (id) => u?.clubById[id]?.shortName ?? id) : null), [u, game])
   const hub = useMemo(() => (u && game?.season ? dataHubRows(game, u) : []), [u, game])
   if (!u || !game?.season) return null
@@ -68,7 +43,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const on = (id: string) => boxes?.on(id) ?? true
   const switcher = (
     <div className="stats-switch">
-      <Segmented value={view} onChange={setView} options={[{ value: 'overview', label: 'Overview', testId: 'stats-view-overview' }, { value: 'players', label: 'Players', testId: 'stats-view-players', hint: 'Every player in the league, sorted by any column' }, { value: 'team', label: 'Team', testId: 'stats-view-team', hint: 'Our numbers ranked against every side' }]} />
+      <Segmented value={view} onChange={setView} options={[{ value: 'overview', label: t('statsOverview'), testId: 'stats-view-overview' }, { value: 'players', label: t('statsPlayers'), testId: 'stats-view-players', hint: t('statsPlayersHint') }, { value: 'team', label: t('statsTeam'), testId: 'stats-view-team', hint: t('statsTeamHint') }]} />
     </div>
   )
   if (view === 'players')
@@ -154,9 +129,9 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
               <td>{i + 1}</td>
               <td>
                 <span className="row" style={{ gap: 6 }}>
-                  <Rating value={r.p!.overall} />{' '}
+                  <Rating value={r.p.overall} />{' '}
                   <PlayerPeek p={r.p} s={r.s}>
-                    <span className="one-line">{r.p!.name}</span>
+                    <span className="one-line">{r.p.name}</span>
                   </PlayerPeek>
                 </span>
               </td>

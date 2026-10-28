@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react'
 import { USER_TEAM } from '@engine/season'
 import { useStorePick } from '../useStorePick'
 import { playerLookup } from '@game/logic/players'
-import { playerStatRows, sortPlayerStats, sortTeamStats, teamRank, teamStatRows, type PlayerStatKey, type TeamStatKey } from '@game/logic/statsTables'
+import { playerStatRows, sortPlayerStats, sortTeamStats, teamRank, teamStatRows, teamStatValue, type PlayerStatKey, type TeamStatKey } from '@game/logic/statsTables'
 import { ClubBadge, Pos, Rating, Segmented } from '../components/bits'
 import { PlayerPeek } from '../components/PlayerPeek'
-import { ordinal } from '../format'
-import { countPhrase } from '../screenText'
+import { fixed } from '../format'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 /**
  * The Stats tab's Players and Team views: every player's season numbers in a table sorted by any column, and every
@@ -52,26 +55,26 @@ export function PlayerStatsTable() {
   return (
     <div className="panel stats-players" data-testid="stats-players">
       <div className="panel-head">
-        <h3>Player statistics</h3>
-        <Segmented value={who} onChange={setWho} options={[{ value: 'all', label: 'Whole league', testId: 'stats-who-all' }, { value: 'mine', label: 'Our squad', testId: 'stats-who-mine' }]} />
+        <h3>{t('playerStats')}</h3>
+        <Segmented value={who} onChange={setWho} options={[{ value: 'all', label: t('wholeLeague'), testId: 'stats-who-all' }, { value: 'mine', label: t('ourSquad'), testId: 'stats-who-mine' }]} />
       </div>
       <div className="tbl-wrap">
         <table className="tbl sticky-head stats-tbl">
           <thead>
             <tr>
               <th>#</th>
-              <SortHead k="name" label="Player" num={false} {...head} />
-              <SortHead k="team" label="Club" num={false} {...head} />
-              <SortHead k="position" label="Pos" num={false} {...head} />
-              <SortHead k="apps" label="Apps" {...head} />
-              <SortHead k="minutes" label="Min" title="Minutes" {...head} />
-              <SortHead k="goals" label="G" title="Goals" {...head} />
-              <SortHead k="assists" label="A" title="Assists" {...head} />
-              <SortHead k="ga" label="G+A" title="Goals and assists" {...head} />
-              <SortHead k="per90" label="/90" title="Goals and assists per 90 minutes (90 minutes or more)" {...head} />
-              <SortHead k="avg" label="Avg" title="Average match rating" {...head} />
-              <SortHead k="motm" label="MOTM" title="Man of the match" {...head} />
-              <SortHead k="cleanSheets" label="CS" title="Clean sheets (keepers)" {...head} />
+              <SortHead k="name" label={t('sortPlayer')} num={false} {...head} />
+              <SortHead k="team" label={t('sortClub')} num={false} {...head} />
+              <SortHead k="position" label={t('sortPos')} num={false} {...head} />
+              <SortHead k="apps" label={t('sortApps')} {...head} />
+              <SortHead k="minutes" label={t('sortMin')} title={t('sortMinTip')} {...head} />
+              <SortHead k="goals" label={t('sortG')} title={t('sortGTip')} {...head} />
+              <SortHead k="assists" label={t('sortA')} title={t('sortATip')} {...head} />
+              <SortHead k="ga" label={t('sortGa')} title={t('sortGaTip')} {...head} />
+              <SortHead k="per90" label={t('sortPer90')} title={t('sortPer90Tip')} {...head} />
+              <SortHead k="avg" label={t('sortAvg')} title={t('sortAvgTip')} {...head} />
+              <SortHead k="motm" label={t('sortMotm')} title={t('sortMotmTip')} {...head} />
+              <SortHead k="cleanSheets" label={t('sortCs')} title={t('sortCsTip')} {...head} />
             </tr>
           </thead>
           <tbody>
@@ -99,8 +102,8 @@ export function PlayerStatsTable() {
                 <td className="num">{r.goals}</td>
                 <td className="num">{r.assists}</td>
                 <td className="num strong">{r.ga}</td>
-                <td className="num">{r.per90 === null ? '–' : r.per90.toFixed(2)}</td>
-                <td className="num">{r.avg === null ? '–' : r.avg.toFixed(2)}</td>
+                <td className="num">{r.per90 === null ? '–' : fixed(r.per90, 2)}</td>
+                <td className="num">{r.avg === null ? '–' : fixed(r.avg, 2)}</td>
                 <td className="num">{r.motm}</td>
                 <td className="num">{r.cleanSheets ?? '–'}</td>
               </tr>
@@ -108,7 +111,7 @@ export function PlayerStatsTable() {
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={13} className="muted">
-                  No statistics yet.
+                  {t('noStatsYet')}
                 </td>
               </tr>
             )}
@@ -117,22 +120,23 @@ export function PlayerStatsTable() {
       </div>
       {sorted.length > PAGE && (
         <button type="button" className="btn sm ghost" style={{ marginTop: 'var(--space-2)' }} onClick={() => setAll(!all)} data-testid="stats-show-all">
-          {all ? `Show the first ${PAGE}` : `Show all ${countPhrase(sorted.length, 'players')}`}
+          {all ? t('showFirstN', { n: PAGE }) : t('showAllPlayers', { n: sorted.length })}
         </button>
       )}
     </div>
   )
 }
 
-const RANKED: Array<{ key: TeamStatKey; label: string }> = [
-  { key: 'points', label: 'Points' },
-  { key: 'goalsFor', label: 'Goals scored' },
-  { key: 'goalsAgainst', label: 'Goals conceded' },
-  { key: 'goalDiff', label: 'Goal difference' },
-  { key: 'cleanSheets', label: 'Clean sheets' },
-  { key: 'failedToScore', label: 'Games without a goal' },
-  { key: 'homePoints', label: 'Home points' },
-  { key: 'awayPoints', label: 'Away points' },
+/** The figures our side is ranked on, worded when the tab renders. */
+const ranked = (): Array<{ key: TeamStatKey; label: string }> => [
+  { key: 'points', label: t('rankPoints') },
+  { key: 'goalsFor', label: t('rankGoalsFor') },
+  { key: 'goalsAgainst', label: t('rankGoalsAgainst') },
+  { key: 'goalDiff', label: t('rankGoalDiff') },
+  { key: 'cleanSheets', label: t('rankCleanSheets') },
+  { key: 'failedToScore', label: t('rankFailedToScore') },
+  { key: 'homePoints', label: t('rankHomePoints') },
+  { key: 'awayPoints', label: t('rankAwayPoints') },
 ]
 
 export function TeamStats() {
@@ -157,65 +161,65 @@ export function TeamStats() {
       <div className="panel">
         <h3>{game.settings.teamName}</h3>
         {!me || me.played === 0 ? (
-          <p className="small muted">No league matches played yet.</p>
+          <p className="small muted">{t('noLeagueMatches')}</p>
         ) : (
           <>
             <div className="team-cards">
-              {RANKED.map((m) => {
-                const v = m.key === 'homePoints' ? 3 * me.home.won + me.home.drawn : m.key === 'awayPoints' ? 3 * me.away.won + me.away.drawn : me[m.key]
+              {ranked().map((m) => {
+                const v = teamStatValue(me, m.key)
                 const rank = teamRank(rows, USER_TEAM, m.key)
                 return (
                   <div key={m.key} className={`team-card ${rank === 1 ? 'top' : ''}`} data-testid={`team-${m.key}`}>
                     <span className="eyebrow">{m.label}</span>
                     <strong className="team-card-val">{m.key === 'goalDiff' && v > 0 ? `+${v}` : v}</strong>
-                    <span className="small muted">{ordinal(rank)} of {rows.length}</span>
+                    <span className="small muted">{t('rankOf', { rank, n: rows.length })}</span>
                   </div>
                 )
               })}
             </div>
             <dl className="kv" style={{ marginTop: 'var(--space-3)' }}>
-              <dt>Record</dt>
+              <dt>{t('recordLabel')}</dt>
               <dd>
-                {me.won}-{me.drawn}-{me.lost} in {countPhrase(me.played, 'games')}
+                {t('recordIn', { record: `${me.won}-${me.drawn}-${me.lost}`, n: me.played })}
               </dd>
-              <dt>At home</dt>
+              <dt>{t('atHome')}</dt>
               <dd>
                 {me.home.won}-{me.home.drawn}-{me.home.lost} · {me.home.goalsFor}-{me.home.goalsAgainst}
               </dd>
-              <dt>Away</dt>
+              <dt>{t('awayLabel')}</dt>
               <dd>
                 {me.away.won}-{me.away.drawn}-{me.away.lost} · {me.away.goalsFor}-{me.away.goalsAgainst}
               </dd>
-              <dt>Goals a game</dt>
+              <dt>{t('goalsAGame')}</dt>
               <dd>
-                {me.forPerGame.toFixed(2)} scored · {me.againstPerGame.toFixed(2)} conceded
+                {t('perGameLine', { scored: fixed(me.forPerGame, 2), conceded: fixed(me.againstPerGame, 2) })}
               </dd>
-              <dt>Biggest win</dt>
-              <dd>{me.biggestWin ? `by ${me.biggestWin}` : '–'}</dd>
+              <dt>{t('biggestWinLabel')}</dt>
+              <dd>{me.biggestWin ? t('byMargin', { n: me.biggestWin }) : '–'}</dd>
             </dl>
           </>
         )}
       </div>
       <div className="panel" data-testid="team-table">
-        <h3>Every side</h3>
-        {game.season.carryIn && <p className="help" style={{ marginTop: 0 }}>Since the takeover: the games before it are not in the results.</p>}
+        <h3>{t('everySide')}</h3>
+        {game.season.carryIn && <p className="help" style={{ marginTop: 0 }}>{t('sinceTakeover')}</p>}
         <div className="tbl-wrap">
           <table className="tbl sticky-head stats-tbl">
             <thead>
               <tr>
                 <th>#</th>
-                <th>Team</th>
-                <SortHead k="played" label="P" title="Played" {...head} />
-                <SortHead k="won" label="W" title="Won" {...head} />
-                <SortHead k="drawn" label="D" title="Drawn" {...head} />
-                <SortHead k="lost" label="L" title="Lost" {...head} />
-                <SortHead k="goalsFor" label="GF" title="Goals scored" {...head} />
-                <SortHead k="goalsAgainst" label="GA" title="Goals conceded" {...head} />
-                <SortHead k="goalDiff" label="GD" title="Goal difference" {...head} />
-                <SortHead k="cleanSheets" label="CS" title="Clean sheets" {...head} />
-                <SortHead k="homePoints" label="Home" title="Points at home" {...head} />
-                <SortHead k="awayPoints" label="Away" title="Points away" {...head} />
-                <SortHead k="points" label="Pts" title="Points" {...head} />
+                <th>{t('teamCol')}</th>
+                <SortHead k="played" label={t('sortP')} title={t('sortPTip')} {...head} />
+                <SortHead k="won" label={t('sortW')} title={t('sortWTip')} {...head} />
+                <SortHead k="drawn" label={t('sortD')} title={t('sortDTip')} {...head} />
+                <SortHead k="lost" label={t('sortL')} title={t('sortLTip')} {...head} />
+                <SortHead k="goalsFor" label={t('sortGf')} title={t('sortGfTip')} {...head} />
+                <SortHead k="goalsAgainst" label={t('sortGaCol')} title={t('sortGaColTip')} {...head} />
+                <SortHead k="goalDiff" label={t('sortGd')} title={t('sortGdTip')} {...head} />
+                <SortHead k="cleanSheets" label={t('sortCs')} title={t('sortCsTeamTip')} {...head} />
+                <SortHead k="homePoints" label={t('sortHome')} title={t('sortHomeTip')} {...head} />
+                <SortHead k="awayPoints" label={t('sortAway')} title={t('sortAwayTip')} {...head} />
+                <SortHead k="points" label={t('sortPts')} title={t('sortPtsTip')} {...head} />
               </tr>
             </thead>
             <tbody>
@@ -236,8 +240,8 @@ export function TeamStats() {
                   <td className="num">{r.goalsAgainst}</td>
                   <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
                   <td className="num">{r.cleanSheets}</td>
-                  <td className="num">{3 * r.home.won + r.home.drawn}</td>
-                  <td className="num">{3 * r.away.won + r.away.drawn}</td>
+                  <td className="num">{teamStatValue(r, 'homePoints')}</td>
+                  <td className="num">{teamStatValue(r, 'awayPoints')}</td>
                   <td className="num strong">{r.points}</td>
                 </tr>
               ))}

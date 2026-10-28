@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
@@ -129,8 +129,10 @@ export function Home() {
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
   // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
-  const dailyStart = dailyReady ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
-  const daily = dailyReady ? (dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, host: dailyStart.settings.hostClubId, season: dailyStart.settings.leagueSeason } : dailySettings(u, todaysDailySeed())) : null
+  // Both scan every club-season, so they are worked out once per universe, day and pin, not on every render of Home
+  const dailySeed = todaysDailySeed()
+  const dailyStart = useMemo(() => (dailyReady && u ? dailyStartSettings(u, dailySeed, 'Touchline XI', pin) : null), [dailyReady, u, dailySeed, pin])
+  const daily = useMemo(() => (!dailyReady || !u ? null : dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, host: dailyStart.settings.hostClubId, season: dailyStart.settings.leagueSeason } : dailySettings(u, dailySeed)), [dailyReady, u, dailySeed, dailyStart])
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
   const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
   const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)

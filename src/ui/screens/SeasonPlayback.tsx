@@ -290,11 +290,11 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
             )
           })}
           <span className="help" data-testid="bench-help">
-            {choosing ? (targets.length ? t('tapStarter', { name: nameOf(inId!), n: view.next }) : t('cannotPlay', { name: nameOf(inId!) })) : problem ? (view.next === null ? t('changesMade', { n: used }) : problem + '.') : t('benchHowTo')}
+            {choosing ? (targets.length ? t('tapStarter', { name: nameOf(inId!), n: view.next }) : t('cannotPlay', { name: nameOf(inId!) })) : problem ? (view.next === null ? t('changesMade', { n: used }) : t('changeProblem', { problem })) : t('benchHowTo')}
           </span>
           {/* The starters he may replace, by name: on a small pitch the discs show ratings only */}
           {choosing && targets.length > 0 && (
-            <div className="pill-list" role="group" aria-label={`Starters ${nameOf(inId!)} can replace`} data-testid="bench-targets">
+            <div className="pill-list" role="group" aria-label={t('startersCanReplace', { name: nameOf(inId!) })} data-testid="bench-targets">
               {targets.map((slotId) => {
                 const slot = formation.slots.find((s) => s.id === slotId)
                 const outId = view.lineup[slotId]
@@ -309,7 +309,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
                     }}
                     data-testid="bench-target"
                   >
-                    {slot?.position ?? slotId} · {outId ? nameOf(outId) : 'empty'}
+                    {t('targetLine', { pos: slot?.position ?? slotId, name: outId ? nameOf(outId) : t('emptySlot') })}
                   </button>
                 )
               })}
