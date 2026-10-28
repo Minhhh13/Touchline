@@ -118,7 +118,6 @@ export function overallOf(player: Pick<PlayerSeason, 'positions' | 'attributes'>
   return Math.round(rateAttributesAt(player.attributes, player.positions[0]))
 }
 
-/** Can a player reasonably fill a slot? Natural or accomplished only, by default. */
 /** Fits from best to worst. */
 export const FIT_ORDER: Fit[] = ['natural', 'accomplished', 'awkward', 'unsuited']
 
@@ -127,6 +126,7 @@ export function bestFit(fits: Fit[]): Fit | undefined {
   return [...fits].sort((a, b) => FIT_ORDER.indexOf(a) - FIT_ORDER.indexOf(b))[0]
 }
 
+/** Can a player reasonably fill a slot? Natural or accomplished only, by default. */
 export function canCover(
   player: Pick<PlayerSeason, 'positions'>,
   position: Position,

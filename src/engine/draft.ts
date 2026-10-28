@@ -1092,13 +1092,6 @@ export function neededPositions(d: DraftState): Position[] {
 }
 
 /**
- * The assistant's pick from a club-season: the man who would play best where he would go, his rating (career best under
- * Prime) times his `positionFactor` in the slot `bestSlotFor` gives him (natural first, then the scarcest open place);
- * the highest rating onto the bench once the XI is full. Null when no one can be used. No RNG.
- *
- * ENGINE_VERSION 4 and before charged every cover a flat 0.92 and took the first slot of a tie in formation order.
- */
-/**
  * Keepers in an assistant-drafted squad (engine 6, item 3): at least `MIN_KEEPERS` in a squad of `FULL_SQUAD` places or
  * more (one keeper in 18 put an outfielder in goal when he was hurt), and never more than `MAX_KEEPERS` (Dynasty summer
  * drafts reached six or seven in 23). The XI's own keeper slot is filled as before; the rule only steers bench picks.
@@ -1125,6 +1118,13 @@ function benchNeed(d: DraftState, get: (id: string) => PlayerSeason | undefined)
   return { need: 'keeper', keeperShort: left < min - held }
 }
 
+/**
+ * The assistant's pick from a club-season: the man who would play best where he would go, his rating (career best under
+ * Prime) times his `positionFactor` in the slot `bestSlotFor` gives him (natural first, then the scarcest open place);
+ * the highest rating onto the bench once the XI is full. Null when no one can be used. No RNG.
+ *
+ * ENGINE_VERSION 4 and before charged every cover a flat 0.92 and took the first slot of a tie in formation order.
+ */
 export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason, get: (id: string) => PlayerSeason | undefined = (id) => u.index[id]): { id: string; slot: string | 'bench' } | null {
   // Under a salary cap the assistant spreads the money (`capCandidates`); everyone is a candidate without one
   let candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))

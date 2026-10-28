@@ -6,6 +6,9 @@
 import type { PlayerSeason, SquadPlayer } from './types'
 import type { Rng } from './rng'
 import { EXPECTED_SHARE, STATUS_LABEL, STATUS_RANK, type SquadStatus } from './status'
+import { ordinal } from './universe'
+
+export { ordinal }
 
 export interface EventChoice {
   id: string
@@ -496,10 +499,4 @@ function renewalStatus(status: SquadStatus | undefined): SquadStatus {
 
 function isSenior(status: SquadStatus | undefined): boolean {
   return !!status && STATUS_RANK[status] >= STATUS_RANK['first-team']
-}
-
-export function ordinal(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
 }

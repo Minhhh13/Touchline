@@ -16,7 +16,6 @@ import { aiLookup, reserveKeeper } from './reserve'
 import type { ContinentalGroup } from './continental'
 
 export const USER_TEAM = 'user'
-/** Matchweeks in a double round robin of `teams` clubs. */
 /** League matchweeks: a double round-robin; an odd number of clubs adds a bye slot. */
 export function matchweeksFor(teams: number): number {
   const slots = teams % 2 === 1 ? teams + 1 : teams
@@ -406,11 +405,11 @@ export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng
 }
 
 /**
- * The Continental Cup field: the fifteen strongest clubs from the other loaded
- * leagues in the same season, by league position then squad rating. Leagues
- * without that season contribute their nearest one.
+ * The Continental Cup's field: the `n` strongest clubs of the other loaded leagues, four per league (its top four that
+ * season, by league position then squad rating; a league without that season gives its nearest one), topped up with
+ * the strongest other clubs within a season of it when that makes fewer than `n`, then the strongest `n` of them.
+ * `taken` as in `buildAiClubs`: the field is chosen on full squads, then the user's humans leave them.
  */
-/** The Continental Cup's field: the strongest clubs of the other loaded leagues. `taken` as in `buildAiClubs`: the field is chosen on full squads, then the user's humans leave them. */
 export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const others = u.leagues.filter((l) => l.id !== leagueId)
   const picked: ClubSeason[] = []
