@@ -6,7 +6,12 @@ import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
-import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
+import { arenaDailySeed, dailySeed, randomSeed, weeklySeed } from '@engine/rng'
+import { badgeStates } from '@engine/badges'
+import { emptyCabinet, leaguesWon } from '@game/logic/cabinet'
+import { dailyNudge, nextBadge, personalBests, type Best } from '@game/logic/shareInvite'
+import { recordLabel } from '@game/logic/perfect'
+import { badgeCount, badgeTitle } from '../i18n/trophyText'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
 import { startingTeamName, teamShortName } from '../teamName'
@@ -182,6 +187,12 @@ export function Home() {
     const settings = u && dailyReady ? firstDraftSettings(u, randomSeed(), name) : null
     if (settings) withViewTransition(() => startGame({ ...settings, shortName: teamShortName(name) }))
   }
+  // A returning manager's own figures in the hero (the database's when there are none yet) and the reasons to come back
+  const bests = personalBests(profile, profile.dailyStreak > 0 ? 2 : 3)
+  const nudge = dailyNudge(profile, todaysDailySeed(), dailySeed(new Date(Date.now() - 86400000)))
+  const cabinet = profile.cabinet ?? emptyCabinet()
+  const chase = nextBadge(badgeStates(cabinet, { leaguesWon: leaguesWon(cabinet, profile.leaderboard, (id) => u?.clubById[id]?.leagueId).leagues.length }))
+  const bestStat = (b: Best) => (b.id === 'record' ? recordLabel(b.won, b.drawn, b.lost) : String(b.n))
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? (streak ? t('streakDone', { done, n: streak }) : done) : streak ? t('streakFallback', { n: streak, fallback }) : fallback)
   return (
     <div className="page home">
@@ -199,7 +210,22 @@ export function Home() {
           ) : (
           <>
           <dl className="hero-stats" aria-live="polite">
-            {u ? (
+            {profile.dailyStreak > 0 || bests.length ? (
+              <>
+                {profile.dailyStreak > 0 && (
+                  <div data-testid="home-best-streak">
+                    <dt>{t('best_streak')}</dt>
+                    <dd>{profile.dailyStreak}</dd>
+                  </div>
+                )}
+                {bests.map((b) => (
+                  <div key={b.id} data-testid={`home-best-${b.id}`}>
+                    <dt>{t(`best_${b.id}`)}</dt>
+                    <dd>{bestStat(b)}</dd>
+                  </div>
+                ))}
+              </>
+            ) : u ? (
               <>
                 <div>
                   <dt>{t('playerSeasons')}</dt>
@@ -223,13 +249,19 @@ export function Home() {
               </div>
             )}
           </dl>
-          {u && (
-            <div className="row wrap hero-flags" role="group" aria-label={t('leagues')}>
-              {u.available.map((l) => (
-                <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
-              ))}
-            </div>
-          )}
+          {/* Why come back today: the Daily (a streak that ends tonight first) and the badge nearest its next tier */}
+          <div className="home-nudges" data-testid="home-nudges">
+            <span className={`home-nudge${nudge.kind === 'atRisk' ? ' hot' : ''}`} data-testid="daily-nudge" data-kind={nudge.kind}>
+              <Flame size={14} aria-hidden="true" />
+              {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
+            </span>
+            {chase && (
+              <button type="button" className="home-nudge linklike" onClick={() => go('profile')} data-testid="badge-nudge">
+                <Award size={14} aria-hidden="true" />
+                {t('nudgeBadge', { badge: badgeTitle(chase.state.badge), count: badgeCount(chase.state.badge, chase.left), tier: chase.tier })}
+              </button>
+            )}
+          </div>
           </>
           )}
         </div>

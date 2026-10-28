@@ -16741,3 +16741,36 @@ table.tbl td.strong {
 .one-more {
   margin: var(--space-2) 0 0;
 }
+/* Home's reasons to come back, where the league flags sat for a newcomer: the Daily's line and the next badge (r8 share) */
+.home-nudges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-4);
+}
+.home-nudge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--on-photo-2);
+}
+.home-nudge.hot {
+  color: var(--photo-accent);
+  font-weight: 600;
+}
+button.home-nudge.linklike {
+  color: var(--on-photo-2);
+  text-decoration: none;
+}
+button.home-nudge.linklike:hover {
+  color: var(--photo-accent);
+}
+/* The Trophy Room's next badge: the one nearest its next tier, outlined in the primary with its chip (r8 share) */
+.badge-tile.next {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.badge-next {
+  margin-top: var(--space-1);
+}
