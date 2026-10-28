@@ -120,7 +120,7 @@ export const setup = catalog('setup', {
   noteBench: 'After the XI, more spins for substitutes you can bring on between games.',
   noteRange: 'The wheel only lands on seasons from {range}.',
   loadingLeague: 'Loading {article}{league}…',
-  challenge: 'Challenge',
+  playingDraft: "You're playing {name}'s draft",
   beatScore: "Same seed, same wheel: beat {name}'s score.",
   goal: '<b>Win every game:</b> the perfect season is 38-0.',
   back: '← Back',

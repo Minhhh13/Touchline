@@ -10828,7 +10828,7 @@ table.tbl.match-stats th {
   pointer-events: none;
 }
 .lt-zone.title {
-  background: color-mix(in srgb, var(--good) 12%, transparent);
+  background: var(--good-soft);
   border-bottom: 2px solid color-mix(in srgb, var(--good) 55%, transparent);
 }
 .lt-zone.top4 {
@@ -16713,4 +16713,31 @@ table.tbl td.strong {
   grid-template-columns: 3.5em minmax(0, 1fr) auto;
   gap: 6px;
   color: var(--text-2);
+}
+
+/* The Draft's challenge chip: whose draft this is and the result to beat, lit in the primary so it reads first (r8 share) */
+.chip.challenge-chip {
+  gap: var(--space-1);
+  color: var(--text);
+  font-weight: 600;
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.chip.challenge-chip b {
+  color: var(--accent);
+}
+/* A head-to-head won: the verdict in the good colour (Summary's head-to-head panel) */
+.notice.good {
+  border-color: color-mix(in srgb, var(--good) 40%, var(--line));
+  background: var(--good-soft);
+}
+.h2h-verdict {
+  gap: var(--space-2);
+}
+.h2h-verdict .notice {
+  flex: 1 1 260px;
+}
+/* Summary's "one more" line under the actions: how this season stands against the best record */
+.one-more {
+  margin: var(--space-2) 0 0;
 }

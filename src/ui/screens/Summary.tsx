@@ -588,6 +588,58 @@ export function Summary() {
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
       {!replay.playing && <CasualStatus game={game} />}
+      {challenge && mine && !replay.playing && (
+        <div className="panel" data-testid="head-to-head">
+          <div className="panel-head">
+            <span className="head-title">
+              <h3>{t('headToHead', { name: challenge.name })}</h3>
+              <Info label={t('aboutChallenge')}>
+                {t('sameSeed')}{' '}
+                {challenge.verified === 'yes' && t('verifiedInfo', { name: challenge.name, pts: challenge.claim.pts })}
+                {challenge.verified === 'unverified' && t('unverifiedInfo', { reason: challenge.reason ?? t('differentData') })}
+                {challenge.verified === 'no' && t('notVerifiedInfo', { reason: challenge.reason ?? t('noReplay') })}
+              </Info>
+            </span>
+            <span className={`chip icon-chip ${challenge.verified === 'yes' ? 'good' : challenge.verified === 'no' ? 'bad' : ''}`}>
+              {challenge.verified === 'yes' ? <ShieldCheck size={12} aria-hidden="true" /> : <ShieldQuestion size={12} aria-hidden="true" />}
+              {t(challenge.verified === 'yes' ? 'verified' : challenge.verified === 'no' ? 'notVerified' : 'unverified')}
+            </span>
+          </div>
+          <div className="grid two">
+            <div className="col">
+              <div className="row between wrap">
+                <b>{challenge.name}</b>
+                <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
+                  {t('claimLine', { pts: challenge.claim.pts, tier: tierName(challenge.claim.t, undefined, superOn), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` })}
+                </span>
+              </div>
+              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
+              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{t('picksUnresolved', { name: challenge.name })}</div>}
+            </div>
+            <div className="col">
+              <div className="row between wrap">
+                <b>{game.settings.teamName}</b>
+                <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
+                  {t('claimLine', { pts: mine.pts, tier: tierName(mine.t, undefined, superOn), record: `${mine.w}-${mine.d}-${mine.l}` })}
+                </span>
+              </div>
+              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
+            </div>
+          </div>
+          <div className="row between wrap h2h-verdict" style={{ marginTop: 'var(--space-3)' }}>
+            <div className={`notice ${versus?.won === true ? 'good' : versus?.won === false ? 'danger' : ''}`} data-testid="verdict">
+              {tidyShareText(verdictLine(challenge, mine))}
+            </div>
+            {canChallenge && (
+              <button className="btn primary" onClick={() => void makeChallenge()} data-testid="send-it-back" title={t('sendBackTip', { name: challenge.name })}>
+                <Send size={16} aria-hidden="true" /> {t('sendBack', { name: challenge.name })}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
       {firstNext && !replay.playing && <FirstNext steps={firstNext} onDaily={() => go('setup', 'daily')} onSetup={() => go('setup', 'quick')} />}
       {q && results.length > 0 && on('games') && (
@@ -713,51 +765,6 @@ export function Summary() {
               {t('copyLongLink')}
             </button>
           )}
-        </div>
-      )}
-
-      {challenge && mine && (
-        <div className="panel" data-testid="head-to-head">
-          <div className="panel-head">
-            <span className="head-title">
-              <h3>{t('headToHead', { name: challenge.name })}</h3>
-              <Info label={t('aboutChallenge')}>
-                {t('sameSeed')}{' '}
-                {challenge.verified === 'yes' && t('verifiedInfo', { name: challenge.name, pts: challenge.claim.pts })}
-                {challenge.verified === 'unverified' && t('unverifiedInfo', { reason: challenge.reason ?? t('differentData') })}
-                {challenge.verified === 'no' && t('notVerifiedInfo', { reason: challenge.reason ?? t('noReplay') })}
-              </Info>
-            </span>
-            <span className={`chip icon-chip ${challenge.verified === 'yes' ? 'good' : challenge.verified === 'no' ? 'bad' : ''}`}>
-              {challenge.verified === 'yes' ? <ShieldCheck size={12} aria-hidden="true" /> : <ShieldQuestion size={12} aria-hidden="true" />}
-              {t(challenge.verified === 'yes' ? 'verified' : challenge.verified === 'no' ? 'notVerified' : 'unverified')}
-            </span>
-          </div>
-          <div className="grid two">
-            <div className="col">
-              <div className="row between wrap">
-                <b>{challenge.name}</b>
-                <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
-                  {t('claimLine', { pts: challenge.claim.pts, tier: tierName(challenge.claim.t, undefined, superOn), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` })}
-                </span>
-              </div>
-              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
-              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{t('picksUnresolved', { name: challenge.name })}</div>}
-            </div>
-            <div className="col">
-              <div className="row between wrap">
-                <b>{game.settings.teamName}</b>
-                <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
-                  {t('claimLine', { pts: mine.pts, tier: tierName(mine.t, undefined, superOn), record: `${mine.w}-${mine.d}-${mine.l}` })}
-                </span>
-              </div>
-              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
-              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
-            </div>
-          </div>
-          <div className="notice" style={{ marginTop: 'var(--space-3)' }} data-testid="verdict">
-            {verdictLine(challenge, mine)}
-          </div>
         </div>
       )}
 

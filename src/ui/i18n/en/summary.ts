@@ -138,6 +138,8 @@ export const summary = catalog('summary', {
   downloadCard: 'Download share card',
   draftAgain: 'Draft again',
   challengeFriend: 'Challenge a friend',
+  sendBack: 'Send it back to {name}',
+  sendBackTip: 'A link to the same wheel with your result: {name} plays against you now',
   challengeTip: 'A link to this wheel: your friend drafts the same spins and plays against your result',
   inviteTip: 'Send this result to a friend with a link to TouchLine',
   inviteCopied: 'Result and link copied: paste it to a friend',

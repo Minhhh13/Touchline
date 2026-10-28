@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Dices, Ghost, Package, Trophy } from 'lucide-react'
+import { Dices, Ghost, Package, Swords, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
@@ -287,7 +287,12 @@ export function Draft() {
             <span>
               {game.settings.teamName} · {formationName(game.settings.formationId)}
             </span>
-            {challenge && <span className="chip info">{t('vsChallenger', { name: challenge.name, headline: challengeHeadline(challenge, game.settings.arena?.format) })}</span>}
+            {challenge && (
+              <span className="chip challenge-chip" data-testid="challenge-playing">
+                <Swords size={14} aria-hidden="true" />
+                {rich(t('playingDraft', { name: challenge.name, headline: challengeHeadline(challenge, game.settings.arena?.format) }), B)}
+              </span>
+            )}
             {d.rules.onlyClub && <span className="chip">{t('clubOnly', { club: clubName(u, d.rules.onlyClub) })}</span>}
             {nation && <span className="chip">{rich(t('nationOnly'), { nation: () => nationLabel })}</span>}
             {(d.rules.fromSeason || d.rules.toSeason) && (

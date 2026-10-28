@@ -42,7 +42,7 @@ export function ArenaChallengeSetup() {
   return (
     <div className="page">
       <div className="row between wrap" style={{ marginBottom: 12 }}>
-        <h1>{t('challengeTitle', { format: arenaFormatText(settings.arena) })}</h1>
+        <h1 data-testid="challenge-title">{t('playingRun', { name: ch.name, format: arenaFormatText(settings.arena) })}</h1>
         <button className="btn ghost" onClick={() => go('home')}>
           {t('back')}
         </button>
