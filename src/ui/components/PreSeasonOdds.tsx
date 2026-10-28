@@ -133,11 +133,11 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
         <div className="col" style={{ gap: 10 }}>
           <div className="sc-big">
             <div className="sc-big-box" data-testid="odds-finish">
-              <span className="sc-big-num">{odds ? t('ordinal', { n: odds.projectedFinish }) : '…'}</span>
+              <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? t('ordinal', { n: odds.projectedFinish }) : '…'}</span>
               <span className="tally-label">{t('projectedFinish')}</span>
             </div>
             <div className="sc-big-box" data-testid="odds-points">
-              <span className="sc-big-num">{odds ? odds.expectedPoints : '…'}</span>
+              <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? odds.expectedPoints : '…'}</span>
               <span className="tally-label">{t('expectedPoints')}</span>
             </div>
           </div>

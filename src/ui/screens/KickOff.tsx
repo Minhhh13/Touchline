@@ -59,7 +59,7 @@ export function KickOff() {
   const edge = game.manager ? managerEdge(game, game.manager.style, get) : null
   const hint = game.manager && edge ? edgeHintText(game.manager.style, edge) : null
   return (
-    <div className="page fit" data-testid="kickoff">
+    <div className="page fit kickoff" data-testid="kickoff">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{t('squadComplete')}</h1>

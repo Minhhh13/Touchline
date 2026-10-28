@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, type ReactNode } from 'react'
-import { ArrowRight, Award, Sparkles, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Dices, Flame, Globe, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { dailyLoaded, dailyPlan, dailySettings } from '@game/logic/setup'
@@ -12,10 +12,10 @@ import { dailyNudge, personalBests, type Best } from '@game/logic/shareInvite'
 import { recordLabel } from '@game/logic/perfect'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer, nextUpFor } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
+import { onlineAvailable } from '../../online/api'
 import { startingTeamName, teamShortName } from '../teamName'
 import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { useOnline } from '../../online/state'
-import { onlineAvailable } from '../../online/api'
 import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel, formationName } from '../format'
 import { TeamBadge } from '../components/bits'
@@ -37,14 +37,11 @@ function compact(n: number): string {
   return n >= 10_000 ? t('thousands', { n: Math.floor(n / 1000) }) : n.toLocaleString()
 }
 
-/** The card's picture is our own drawing (components/Art.tsx), with the mode's icon on the edge. */
-function ModeArt({ kind, icon: Icon }: { kind: ModeArtKind; icon: LucideIcon }) {
+/** The card's picture is our own drawing (components/Art.tsx). It used to carry the mode's icon on its edge too: one picture is enough. */
+function ModeArt({ kind }: { kind: ModeArtKind }) {
   return (
     <span className="mode-art">
       <ModeScene kind={kind} />
-      <span className="mode-icon">
-        <Icon size={20} />
-      </span>
     </span>
   )
 }
@@ -171,7 +168,6 @@ export function Home() {
     // The button opens the Daily setup, as the card does: the team name, today's puzzle, and Start Draft there
     go('setup', 'daily')
   }
-  const achievements = Object.keys(profile.achievements).length
   // The Daily Arena: today's run continues wherever it is (active or parked); any other unfinished arena run is only dropped on a yes
   const arenaSeed = arenaDailySeed()
   const arenaToday = dailyArenaSettings(arenaSeed)
@@ -204,6 +200,9 @@ export function Home() {
   const nextUp = newcomer ? null : nextUpFor(profile, { dailyPlayedToday: dailyDone, online: onlineAvailable() })
   // A finished game on the resume strip (a Dynasty's summary goes on to next year, so it is never finished here)
   const finishedHere = !!game && game.phase === 'summary' && game.settings.mode !== 'dynasty'
+  // Today's Daily as the current game shows on the Daily card itself (See the result, Continue), not twice on Home
+  const dailyIsGame = !!game && game.settings.mode === 'daily' && game.settings.seed === todaysDailySeed()
+  const stripGame = dailyIsGame ? null : game
   const playFirstDraft = () => {
     // The first draft takes an invented club name too (or one typed before), never Touchline XI
     const name = startingTeamName()
@@ -287,9 +286,9 @@ export function Home() {
 
       <ConflictCards />
 
-      {(game || Object.keys(parked).length > 0) && (
-        <div className="resume-list" data-testid="resume-list" data-count={(game ? 1 : 0) + Object.keys(parked).length}>
-          {game && (
+      {(stripGame || Object.keys(parked).length > 0) && (
+        <div className="resume-list" data-testid="resume-list" data-count={(stripGame ? 1 : 0) + Object.keys(parked).length}>
+          {stripGame && game && (
             <div className="panel resume-card row between" data-testid="resume-current">
               <div className="row resume-who">
                 <TeamBadge code={game.settings.shortName} size={36} />
@@ -343,7 +342,7 @@ export function Home() {
 
       <div className="modes">
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
-          <ModeArt kind="quick" icon={Dices} />
+          <ModeArt kind="quick" />
           <span className="mode-text">
             <h3>{t('quickTitle')}</h3>
             <p>{t('quickLine')}</p>
@@ -355,7 +354,7 @@ export function Home() {
         </button>
         <div className={`mode-card daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
           <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
-            <ModeArt kind="daily" icon={CalendarDays} />
+            <ModeArt kind="daily" />
             <span className="mode-text">
               <h3>{t('dailyTitle')}</h3>
               {nextUp === 'daily' && <NextUpChip />}
@@ -389,12 +388,30 @@ export function Home() {
               </span>
             </span>
           </button>
-          <button type="button" className={`btn block${newcomer || (dailyDone && !dailyUnderWay) ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
-            {t(!dailyReady ? 'loading' : dailyUnderWay ? 'continueDaily' : dailyDone ? 'playAgainFun' : 'playDaily')}
-          </button>
+          {dailyIsGame ? (
+            <div className="daily-actions">
+              <button type="button" className="btn primary" onClick={() => go('game')} data-testid="daily-play">
+                {t(finishedHere ? 'seeResult' : 'continueDaily')}
+              </button>
+              {/* A finished result is already in the record: clearing it loses nothing, so it asks nothing */}
+              {finishedHere ? (
+                <button type="button" className="btn ghost" onClick={() => abandonGame()} data-testid="resume-clear" title={t('clearTip')}>
+                  {t('clear')}
+                </button>
+              ) : (
+                <button type="button" className="btn danger ghost" onClick={() => void askConfirm(t('abandonConfirm'), { ok: t('abandon'), danger: true }).then((ok) => { if (ok) abandonGame() })} data-testid="resume-abandon">
+                  {t('abandon')}
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" className={`btn block${newcomer || (dailyDone && !dailyUnderWay) ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
+              {t(!dailyReady ? 'loading' : dailyUnderWay ? 'continueDaily' : dailyDone ? 'playAgainFun' : 'playDaily')}
+            </button>
+          )}
         </div>
         <button className={`mode-card${nextUp === 'season' ? ' next-up' : ''}`} onClick={() => go('setup', 'season')} data-testid="season-card">
-          <ModeArt kind="season" icon={ClipboardList} />
+          <ModeArt kind="season" />
           <span className="mode-text">
             <h3>{t('seasonTitle')}</h3>
             {nextUp === 'season' && <NextUpChip />}
@@ -406,7 +423,7 @@ export function Home() {
           </span>
         </button>
         <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
-          <ModeArt kind="dynasty" icon={Crown} />
+          <ModeArt kind="dynasty" />
           <span className="mode-text">
             <h3>{t('dynastyTitle')}</h3>
             <p>{t('dynastyLine')}</p>
@@ -419,7 +436,8 @@ export function Home() {
       </div>
 
       {/* The casual modes: one sitting each, beside the four ways to play above */}
-      <div className="home-tiles casual" data-testid="casual-row" role="group" aria-label={t('moreWays')}>
+      <h2 className="home-more eyebrow" id="home-more">{t('moreModes')}</h2>
+      <div className="home-tiles casual" data-testid="casual-row" role="group" aria-labelledby="home-more">
         <Tile icon={Zap} testId="arena-daily-card" title={t('arenaDaily')} meta={streakMeta(arenaDone ? t('playedLabel', { label: arenaDone.label }) : null, profile.arenaDaily?.streak, u ? t(arenaToday.format === 'gauntlet' ? 'arenaDayGauntlet' : 'arenaDayCup', { size: arenaToday.size ?? 16, wheel: u.available.find((l) => l.id === arenaToday.leagueId)?.name ?? arenaToday.leagueId }) : t('sameDraw'))} onClick={playArenaDaily} disabled={!dailyReady} />
         <Tile icon={CalendarRange} testId="weekly-card" title={t('weeklyTitle')} meta={streakMeta(weekDone ? t('playedPoints', { n: weekDone.points }) : null, profile.weekly?.streak, weekPlan ? t('weekEnds', { theme: weeklyThemeName(weekPlan.theme) || t('thisWeek') }) : t('weeklyFallback'))} onClick={playWeekly} disabled={!u} />
         <Tile icon={Award} testId="arena-cup-card" title={t('cupTitle')} meta={t('cupMeta')} onClick={() => openArenaSetup('cup')} />
@@ -427,13 +445,12 @@ export function Home() {
         <Tile icon={Timer} testId="runin-card" title={t('runinTitle')} meta={t('runinMeta')} onClick={() => go('setup', 'runin')} />
       </div>
 
-      <div className="home-tiles">
-        <Tile icon={Swords} title={t('h2hTitle')} meta={t('h2hMeta')} onClick={() => go('h2h')} />
-        {onlineAvailable() && <Tile icon={Globe} title={t('worldTitle')} meta={nextUp === 'boards' ? t('worldNext') : t('worldMeta')} onClick={() => go('world')} testId="world-card" next={nextUp === 'boards'} />}
-        <Tile icon={Search} title={t('exploreTitle')} meta={u ? t('exploreMeta', { n: u.available.length }) : t('exploreFallback')} onClick={() => go('explore')} />
-        <Tile icon={Trophy} title={t('profileTitle')} meta={t('profileMeta', { seasons: profile.seasonsSimulated, achievements })} onClick={() => go('profile')} />
-        <Tile icon={BookOpen} title={t('howToTitle')} meta={t('howToMeta')} onClick={() => go('howto')} />
-      </div>
+      {/* The other screens live in the nav; the World board shows here only while it is an early player's next step */}
+      {onlineAvailable() && nextUp === 'boards' && (
+        <div className="home-tiles">
+          <Tile icon={Globe} title={t('worldTitle')} meta={t('worldNext')} onClick={() => go('world')} testId="world-card" next />
+        </div>
+      )}
       <p className="muted small" style={{ marginTop: 16, textAlign: 'center' }}>
         {t('footer')}{' '}
         <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="privacy-link">
