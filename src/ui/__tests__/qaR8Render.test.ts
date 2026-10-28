@@ -14,6 +14,9 @@ import { renderToString } from 'react-dom/server'
 import { createElement, type ComponentType } from 'react'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { SEASON_RULES } from '@engine/draft'
+import { Rng } from '@engine/rng'
+import { continentalRounds, drawFirstRound, USER_TEAM } from '@engine/season'
+import type { Game } from '@game/types'
 import { useStore } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { setLocaleMessages } from '../i18n'
@@ -73,15 +76,28 @@ function settings(mode: Mode, seed: string, leagueId: string, leagueSeason: numb
   return { mode, seed, formationId: '4-3-3', teamName: 'R8 United', shortName: 'R8U', leagueId, wheelLeagues: [leagueId], hostClubId: clubs[seed.length % clubs.length], leagueSeason, rules: { ...SEASON_RULES, leagues: [leagueId] }, jobSecurity: false, difficulty: 'calibrated', continental: true }
 }
 
-function walk(seed: string, s: GameSettings, fails: string[], english: string[]): number {
+/** The cup as engine 6 drew it: the round of 16 at once, no groups (a save from before engine 7). */
+function asEngine6(g: Game): Game {
+  const copy = JSON.parse(JSON.stringify(g)) as Game
+  const c = copy.season!.continental!
+  delete c.groups
+  c.ties = drawFirstRound([USER_TEAM, ...Object.keys(c.clubs)], new Rng(`e6:${g.settings.seed}`), continentalRounds(copy.season!.matchweeks))
+  return copy
+}
+
+function walk(seed: string, s: GameSettings, fails: string[], english: string[], e6 = false): number {
   const ch = new Chooser(seed)
   show({ universe: u, loadedLeagues: ALL, game: null, parked: {}, toast: null, digest: null, playback: null, screen: 'game', offseason: null, matchView: 'ticker' })
   st().startGame(s)
   const seen = new Set<string>()
   let europe = 0
   for (let i = 0; i < 900; i++) {
-    const g = st().game
+    let g = st().game
     if (!g) return europe
+    if (e6 && g.year === 1 && g.season?.continental?.groups && g.season.matchweek === 0) {
+      useStore.setState({ game: asEngine6(g) })
+      g = st().game!
+    }
     const c = g.season?.continental
     const stage = c ? `${c.groups ? 'g' : 'k'}${c.ties.length}${c.eliminated ? 'x' : ''}${c.won ? 'w' : ''}` : ''
     const key = [g.year, g.phase, g.live ? `${g.live.comp ?? g.live.kind}${g.live.leg ?? ''}${g.live.mp.clock ?? 45}` : '', stage, st().matchView, st().digest ? 'digest' : ''].join('|')
@@ -128,6 +144,18 @@ function walk(seed: string, s: GameSettings, fails: string[], english: string[])
 }
 
 describe('QA r8: the Continental Cup on screen, in English and the pseudo-locale', () => {
+  it('an engine 6 cup (no groups) plays on and renders, and the next summer draws groups', () => {
+    const fails: string[] = []
+    const seed = 'r8-render-e6-italy'
+    const europe = walk(seed, settings('dynasty', seed, 'italy', 2022), fails, [], true)
+    expect(europe).toBeGreaterThan(5)
+    expect([...new Set(fails)].slice(0, 12)).toEqual([])
+    const g = st().game!
+    // The second season's cup, when qualified, is engine 7's
+    if (g.year === 2 && g.season?.continental) expect(g.season.continental.groups).toHaveLength(4)
+    expect(g.history[0].continentalRun === undefined || ['R16', 'QF', 'SF', 'F', 'W'].includes(g.history[0].continentalRun)).toBe(true)
+  }, 300_000)
+
   const runs: Array<[Mode, string, number]> = [['season', 'england', 2024], ['dynasty', 'spain', 2023], ['season', 'germany', 2015]]
   for (const [mode, leagueId, season] of runs)
     it(`${mode} in ${leagueId} ${season}`, () => {
