@@ -9,7 +9,7 @@ import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
 import { FirstNext } from '../components/FirstNext'
 import { continentalRun } from '@game/logic/week'
 import { USER_TEAM, seasonTable } from '@engine/season'
-import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
+import { isQuickLike, isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
 import { modeText } from '../i18n/modeText'
 import { B, rich } from '../i18n/rich'
 import { realityLine, storyForGame } from '@game/logic/story'
@@ -70,7 +70,7 @@ import { draftGradeLine } from '@game/logic/draftRecap'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
-import { Mic } from 'lucide-react'
+import { Mic, PartyPopper } from 'lucide-react'
 import { useFlash } from '../useFlash'
 import { copyText } from '../shareSheet'
 import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
@@ -145,6 +145,7 @@ export function Summary() {
   const allBoxes = useBoxes(SUMMARY)
   if (!u || !game || !record) return null
   // The first result ever (a quick-like season): where to go next; null on every later summary
+  const firstEver = resultsFinished(profile) === 1 && isQuickLike(game.settings.mode)
   const firstNext = firstResultNext(profile, game.settings.mode, !!profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`], resultsFinished(profile) === 1 && !!game.quickResult && (['cup', 'continental'] as const).some((c) => quickCupStatus(game, u, c).state === 'open'))
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
@@ -411,7 +412,12 @@ export function Summary() {
           </div>
         ) : (
           <div className="tier-wrap">
-            <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} />
+            <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} first={firstEver} />
+            {firstEver && (
+              <span className="chip good first-season-chip" data-testid="first-season">
+                <PartyPopper size={13} aria-hidden="true" /> {t('firstSeasonDone')}
+              </span>
+            )}
             <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
               {tierText(tier, record.position, superOn)}
             </div>

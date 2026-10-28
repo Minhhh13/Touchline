@@ -2172,6 +2172,14 @@ kbd {
 .tip .btn {
   flex-shrink: 0;
 }
+/* Got it, with 'No more tips' under it */
+.tip .tip-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
 
 /* The pitch key: what the disc number and its rings mean */
 .pitch-legend {
@@ -3815,6 +3823,16 @@ table.tbl.contracts .btn.sm {
   cursor: pointer;
   transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
 }
+.home-tile.next-up,
+.mode-card.next-up {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.next-up-chip {
+  align-self: flex-start;
+  gap: 4px;
+  color: var(--accent);
+}
 .home-tile:hover {
   transform: translateY(-2px);
   border-color: var(--primary);
@@ -4082,6 +4100,12 @@ table.tbl.contracts .btn.sm {
 }
 .tier-wrap {
   position: relative;
+}
+/* A first result ever: one chip above the tier, over the flare */
+.first-season-chip {
+  position: relative;
+  gap: 4px;
+  margin-bottom: var(--space-1);
 }
 .celebrate {
   position: absolute;

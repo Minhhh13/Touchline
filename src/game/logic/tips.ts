@@ -24,3 +24,16 @@ export function withTipSeen<P extends Pick<Profile, 'seenTips'>>(profile: P, id:
 export function tipsSeenCount(profile: Pick<Profile, 'seenTips'>): number {
   return TIP_IDS.filter((id) => tipSeen(profile, id)).length
 }
+
+/**
+ * Which of the tips on screen right now gets shown: one at a time, the first in `TIP_IDS` order that is not yet
+ * dismissed; the rest wait their turn (each comes up once the one before it is dismissed or leaves the screen).
+ */
+export function tipInTurn(profile: Pick<Profile, 'seenTips'>, mounted: readonly TipId[]): TipId | null {
+  return TIP_IDS.find((id) => mounted.includes(id) && !tipSeen(profile, id)) ?? null
+}
+
+/** The profile with every tip dismissed on `date` ('No more tips'); tips already dismissed keep their first date. */
+export function withAllTipsSeen<P extends Pick<Profile, 'seenTips'>>(profile: P, date: string): P {
+  return TIP_IDS.reduce((p, id) => withTipSeen(p, id, date), profile)
+}

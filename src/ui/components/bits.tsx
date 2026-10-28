@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { Position } from '@engine/types'
 import { POSITION_GROUP } from '@engine/positions'
 import { inkOn, ratingBand } from '../format'
 import { useStore } from '@game/store'
-import { tipSeen, type TipId } from '@game/logic/tips'
+import { tipInTurn, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
@@ -344,20 +344,54 @@ function useTabInk(value: string, count: number) {
   return { ref, style, ready }
 }
 
+/** The coach marks on screen now (mounted, seen or not), so only one shows at a time (`tipInTurn`). */
+let mountedTips: readonly TipId[] = []
+const tipListeners = new Set<() => void>()
+const tipsOnScreen = {
+  add(id: TipId) {
+    mountedTips = [...mountedTips, id]
+    tipListeners.forEach((f) => f())
+  },
+  remove(id: TipId) {
+    const i = mountedTips.indexOf(id)
+    if (i < 0) return
+    mountedTips = [...mountedTips.slice(0, i), ...mountedTips.slice(i + 1)]
+    tipListeners.forEach((f) => f())
+  },
+  subscribe(f: () => void) {
+    tipListeners.add(f)
+    return () => void tipListeners.delete(f)
+  },
+  get: () => mountedTips,
+}
+
 /**
  * A coach mark: a short callout inline in the page flow, shown until its 'Got it'
  * is pressed (remembered on the profile). Never an overlay, never blocks a button.
+ * One at a time: a second tip on screen waits until the first is dismissed or leaves.
+ * 'No more tips' dismisses all eight at once (Profile's 'Show tips again' brings them back).
  */
 export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
-  const seen = useStore((s) => tipSeen(s.profile, id))
+  const mounted = useSyncExternalStore(tipsOnScreen.subscribe, tipsOnScreen.get, tipsOnScreen.get)
+  const shown = useStore((s) => tipInTurn(s.profile, mounted) === id)
   const dismiss = useStore((s) => s.dismissTip)
-  if (seen) return null
+  const dismissAll = useStore((s) => s.dismissAllTips)
+  useEffect(() => {
+    tipsOnScreen.add(id)
+    return () => tipsOnScreen.remove(id)
+  }, [id])
+  if (!shown) return null
   return (
     <div className="tip" role="note" data-testid={`tip-${id}`}>
       <span className="tip-text">{children}</span>
-      <button type="button" className="btn sm" onClick={() => dismiss(id)}>
-        {t('gotIt')}
-      </button>
+      <span className="tip-actions">
+        <button type="button" className="btn sm" onClick={() => dismiss(id)} data-testid="tip-got-it">
+          {t('gotIt')}
+        </button>
+        <button type="button" className="linklike small" onClick={() => dismissAll()} data-testid="tip-no-more">
+          {t('noMoreTips')}
+        </button>
+      </span>
     </div>
   )
 }

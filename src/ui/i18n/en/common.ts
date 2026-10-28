@@ -96,4 +96,5 @@ export const common = catalog('common', {
   weeklyNationBlurb: 'every pick from {nation}',
   weeklyThemeLine: '{name}: {blurb}',
   newBadge: '{n} new',
+  noMoreTips: 'No more tips',
 })
