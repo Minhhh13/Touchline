@@ -276,7 +276,6 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
               {tr('anotherEmail')}
             </button>
           </div>
-          <p className="help">{tr('emailLink')}</p>
         </form>
       )}
       {msg && (
