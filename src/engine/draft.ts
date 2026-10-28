@@ -539,7 +539,10 @@ export const CAP_AUTO_STRETCH = 2
 /** The candidates the assistant weighs under a cap: those within `CAP_AUTO_STRETCH` shares, else the cheapest; everyone without a cap. */
 function capCandidates(d: DraftState, candidates: PlayerSeason[]): PlayerSeason[] {
   if (d.rules.budget === undefined) return candidates
-  const share = (d.rules.budget - capSpent(d)) / Math.max(1, d.rules.squadSize - picksMade(d))
+  // This pick and the ones the cap still keeps its floor for (`picksOwed`): every pick up to the squad size, or a bench
+  // draft's open XI slots. Counting a bench pick against the eleven (engine 7 and before) halved the picks left and
+  // doubled the share, so an early bench pick let the assistant spend twice what the XI could spare
+  const share = (d.rules.budget - capSpent(d)) / (picksOwed(d) + 1)
   const within = candidates.filter((p) => capPrice(p) <= share * CAP_AUTO_STRETCH)
   if (within.length) return within
   const cheapest = Math.min(...candidates.map((p) => capPrice(p)))
