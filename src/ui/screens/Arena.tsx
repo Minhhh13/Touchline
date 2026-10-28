@@ -156,7 +156,7 @@ export function Arena() {
                   </div>
                 </div>
                 {gauntlet && (
-                  <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined || !lifelineChanges(a)} data-testid="arena-lifeline" title={t(a.lifelineUsed === undefined && !lifelineChanges(a) ? 'lifelineSame' : 'lifelineTip')}>
+                  <button className="btn sm arena-lifeline" onClick={changeDraw} disabled={a.lifelineUsed !== undefined || !lifelineChanges(a)} data-testid="arena-lifeline" title={t(a.lifelineUsed === undefined && !lifelineChanges(a) ? 'lifelineSame' : 'lifelineTip')}>
                     {t(a.lifelineUsed !== undefined ? 'lifelineUsed' : 'changeDraw')}
                   </button>
                 )}

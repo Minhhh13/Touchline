@@ -273,7 +273,7 @@ export function App() {
   else body = <Home />
 
   return (
-    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`} ref={watchMainLandmark}>
+    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''} ${screen === 'game' && game?.phase === 'match' && !shell ? 'dock-off' : ''}`} ref={watchMainLandmark}>
       <a className="skip-link" href="#main" onClick={skipToMain} data-testid="skip-link">
         {t('skipToContent')}
       </a>

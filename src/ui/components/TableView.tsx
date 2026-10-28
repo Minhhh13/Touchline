@@ -19,12 +19,12 @@ export function TableView({ rows, teamName, teamCode, compact, highlightTop, nam
           <th>#</th>
           <th>{t('club')}</th>
           <th className="num">{t('colP')}</th>
-          {!compact && <th className="num">{t('colW')}</th>}
-          {!compact && <th className="num">{t('colD')}</th>}
-          {!compact && <th className="num">{t('colL')}</th>}
+          {!compact && <th className="num tv-wdl">{t('colW')}</th>}
+          {!compact && <th className="num tv-wdl">{t('colD')}</th>}
+          {!compact && <th className="num tv-wdl">{t('colL')}</th>}
           <th className="num">{t('colGD')}</th>
           <th className="num">{t('colPts')}</th>
-          {!compact && <th>{t('form')}</th>}
+          {!compact && <th className="tv-form">{t('form')}</th>}
         </tr>
       </thead>
       <tbody>
@@ -41,13 +41,13 @@ export function TableView({ rows, teamName, teamCode, compact, highlightTop, nam
                 </span>
               </td>
               <td className="num">{r.played}</td>
-              {!compact && <td className="num">{r.won}</td>}
-              {!compact && <td className="num">{r.drawn}</td>}
-              {!compact && <td className="num">{r.lost}</td>}
+              {!compact && <td className="num tv-wdl">{r.won}</td>}
+              {!compact && <td className="num tv-wdl">{r.drawn}</td>}
+              {!compact && <td className="num tv-wdl">{r.lost}</td>}
               <td className="num">{r.goalsFor - r.goalsAgainst > 0 ? '+' : ''}{r.goalsFor - r.goalsAgainst}</td>
               <td className="num" style={{ fontWeight: 700 }}>{r.points}</td>
               {!compact && (
-                <td>
+                <td className="tv-form">
                   <FormDots form={r.form} />
                 </td>
               )}

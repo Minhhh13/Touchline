@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react'
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { Position } from '@engine/types'
@@ -9,6 +9,7 @@ import { tipInTurn, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
+import { SHEET_DRAG_START, sheetCloses, sheetOffset } from '../sheetDrag'
 import { onTabListKey, resultsLabel } from '../a11y'
 import { playSound } from '../sound/synth'
 import { toastTone } from '../sound/cues'
@@ -116,10 +117,12 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId, cla
   const boxRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   useDialog(backRef, boxRef, open, onClose)
+  const drag = useSheetDrag(boxRef, onClose)
   if (!open) return null
   return (
     <div ref={backRef} className={`modal-back ${sheet ? 'sheet-back' : ''}`} onClick={onClose}>
-      <div ref={boxRef} className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} data-testid={testId}>
+      <div ref={boxRef} className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} data-testid={testId} {...drag}>
+        {onClose && <div className="sheet-grip" aria-hidden="true" data-testid="sheet-grip" />}
         {title && (
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
@@ -134,6 +137,41 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId, cla
       </div>
     </div>
   )
+}
+
+/** A phone's bottom sheet can be pulled down from its grip or its header to close (sheetDrag.ts decides when) */
+function useSheetDrag(boxRef: RefObject<HTMLDivElement | null>, onClose?: () => void) {
+  const start = useRef<{ id: number; y: number; t: number; dragging: boolean } | null>(null)
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const box = boxRef.current
+    if (!onClose || !box || e.button !== 0 || typeof window === 'undefined' || !window.matchMedia('(max-width: 720px)').matches) return
+    const target = e.target as HTMLElement
+    if (!target.closest('.sheet-grip, .modal > .panel-head') || target.closest('button, a, input, select, textarea, [role=tab]')) return
+    start.current = { id: e.pointerId, y: e.clientY, t: e.timeStamp, dragging: false }
+  }
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = start.current
+    const box = boxRef.current
+    if (!s || !box || s.id !== e.pointerId) return
+    const dy = e.clientY - s.y
+    if (!s.dragging) {
+      if (dy < SHEET_DRAG_START) return
+      s.dragging = true
+      box.setPointerCapture?.(e.pointerId)
+      box.classList.add('dragging')
+    }
+    box.style.transform = `translateY(${sheetOffset(dy)}px)`
+  }
+  const onPointerEnd = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = start.current
+    const box = boxRef.current
+    start.current = null
+    if (!s || !box || s.id !== e.pointerId || !s.dragging) return
+    box.classList.remove('dragging')
+    box.style.transform = ''
+    if (e.type === 'pointerup' && sheetCloses(e.clientY - s.y, e.timeStamp - s.t, box.getBoundingClientRect().height)) onClose?.()
+  }
+  return { onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd }
 }
 
 /** Slides up from the bottom, and for its last 220 ms slides away before it clears. */

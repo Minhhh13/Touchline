@@ -17484,6 +17484,280 @@ button.home-nudge.linklike:hover {
     display: none;
   }
 }
+/* The dock: on a phone held upright the nav is a tab bar along the bottom, in thumb reach, like a native app; the top
+   bar keeps the lockup and its two switches on one slim row. Whatever else is fixed to the bottom (a screen's
+   bottom bar, the toast, the pills) stands on it: `--dock-h` is the tab bar's height with the home indicator, and
+   `--dock-safe` the home indicator still owed by a bar with no dock under it (0 px in a browser tab). The match day
+   has its own bottom controls, so it keeps the nav up top (`.dock-off`) */
+:root {
+  --dock-h: 0px;
+  --dock-safe: var(--safe-bottom);
+}
+@media (max-width: 720px) and (min-height: 501px) {
+  .app:not(.bar-hidden):not(.dock-off) {
+    --dock-h: calc(58px + var(--safe-bottom));
+    --dock-safe: 0px;
+  }
+  .app:not(.dock-off) > .topbar {
+    /* A blurred bar would hold the fixed dock inside it (a filter makes a containing block), so it is opaque instead */
+    backdrop-filter: none;
+    background: var(--bg);
+    flex-wrap: nowrap;
+  }
+  .app:not(.bar-hidden):not(.dock-off) > .topbar {
+    /* Opacity only: a transform would also carry the dock while it plays */
+    animation-name: dock-bar-in;
+  }
+  .app:not(.dock-off) > .topbar nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 32;
+    width: auto;
+    gap: 0;
+    padding: 4px calc(6px + var(--safe-right)) calc(4px + var(--safe-bottom)) calc(6px + var(--safe-left));
+    background: var(--panel);
+    border-top: var(--border-strong);
+    box-shadow: 0 -4px 16px color-mix(in srgb, var(--bg) 40%, transparent);
+  }
+  .app.bar-hidden:not(.dock-off) > .topbar nav {
+    display: none;
+  }
+  .app:not(.dock-off) > .topbar nav button {
+    min-height: 50px;
+    padding: 4px 1px;
+    justify-content: center;
+    border-radius: var(--radius-m);
+  }
+  .app:not(.dock-off) > .topbar nav button .nav-tiny {
+    text-overflow: ellipsis;
+  }
+  .app:not(.dock-off) > .topbar nav button.active {
+    color: var(--primary);
+    border-color: transparent;
+  }
+  .app:not(.dock-off) > .topbar nav button.active svg {
+    opacity: 1;
+  }
+  .page {
+    padding-bottom: calc(80px + var(--dock-h));
+  }
+  .page.has-bottom-bar {
+    padding-bottom: calc(var(--bottom-bar-h, 130px) + 20px + var(--dock-h));
+  }
+  .bottom-bar {
+    bottom: var(--dock-h);
+    padding-bottom: calc(10px + var(--dock-safe));
+  }
+  .bottom-bar.panel {
+    padding-bottom: calc(10px + var(--dock-safe));
+  }
+  .cta-bar {
+    bottom: var(--dock-h);
+    padding-bottom: calc(10px + var(--dock-safe));
+  }
+  /* A control scrolled into view (the focus, a landed squad) stops clear of the dock; the document is what scrolls */
+  html:has(> body .app:not(.bar-hidden):not(.dock-off)) {
+    scroll-padding-bottom: calc(58px + var(--safe-bottom) + var(--space-2));
+  }
+  .toast {
+    bottom: calc(22px + var(--dock-h) + var(--dock-safe));
+  }
+  .decisions-pill,
+  .assistant-note {
+    bottom: calc(16px + var(--dock-h) + var(--dock-safe));
+  }
+  .page.has-turn-pill {
+    padding-bottom: calc(72px + var(--dock-h) + var(--dock-safe));
+  }
+  .room-turn-pill {
+    bottom: calc(12px + var(--dock-h) + var(--dock-safe));
+  }
+}
+@keyframes dock-bar-in {
+  from {
+    opacity: 0;
+  }
+}
+/* The top bar's two round switches stay 34 to 36 px to look at, with a 44 px target on a touch screen */
+@media (pointer: coarse) {
+  .theme-switch {
+    position: relative;
+  }
+  .theme-switch::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+  }
+}
+/* A touch screen keeps :hover on whatever was tapped last, so a tapped nav button read as a second active tab and a
+   tapped card stayed lifted after the screen had moved on: the hover looks stand down where nothing can hover */
+@media (hover: none) {
+  .topbar nav button:not(.active):hover {
+    background: transparent;
+    color: var(--text-2);
+  }
+  .mode-card:hover,
+  .home-tile:hover {
+    transform: none;
+    border-color: var(--line);
+    box-shadow: none;
+  }
+  .mode-card.daily:hover {
+    box-shadow: var(--panel-shadow, none);
+  }
+  .btn.ghost:hover {
+    background: transparent;
+  }
+}
+/* A league table on a phone keeps what decides the table in view: the club column takes what the numbers leave and
+   ends in an ellipsis (the full name is the cell's tooltip); the form dots go first, then W, D and L, never P, GD or Pts */
+@media (max-width: 720px) {
+  table.tbl td.tv-club {
+    width: 100%;
+    max-width: 0;
+  }
+  table.tbl td.tv-club > .row {
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+  table.tbl .tv-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 560px) {
+  table.tbl .tv-form {
+    display: none;
+  }
+}
+@media (max-width: 420px) {
+  table.tbl .tv-wdl {
+    display: none;
+  }
+}
+/* The match day on a phone held upright: the pitch is the screen, so the nav row folds away while the match plays
+   (the lockup still goes Home, and the nav is back the moment the match is over) */
+@media (max-width: 720px) and (min-height: 501px) {
+  .app.dock-off > .topbar nav {
+    display: none;
+  }
+}
+/* The keyboard: while a text field has the focus on a phone, the dock and the screen's bottom bars stand down, so a
+   window the keyboard has shrunk (Android) gives its height to the field and not to bars riding on the keyboard */
+@media (max-width: 720px) {
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) {
+    --dock-h: 0px;
+    --dock-safe: var(--safe-bottom);
+  }
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) > .topbar nav,
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .bottom-bar,
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .cta-bar {
+    visibility: hidden;
+  }
+}
+/* The bottom sheet's grip (components/bits.tsx `Modal`, sheetDrag.ts): a closable sheet is pulled down from it or its
+   header on a phone; it replaces the drawn bar, and the sheet follows the finger with no transition while held */
+.sheet-grip {
+  display: none;
+}
+@media (max-width: 720px) {
+  .modal:has(> .sheet-grip)::before {
+    display: none;
+  }
+  .modal > .sheet-grip {
+    display: block;
+    position: sticky;
+    top: calc(-1 * var(--space-3));
+    z-index: 2;
+    flex: none;
+    height: 28px;
+    margin: calc(-1 * var(--space-3)) calc(-1 * var(--gutter)) 0;
+    touch-action: none;
+    cursor: grab;
+    background: var(--panel);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .modal > .sheet-grip::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 10px;
+    width: 40px;
+    height: 5px;
+    margin-left: -20px;
+    border-radius: var(--radius-pill);
+    background: var(--line-2);
+  }
+  .modal > .panel-head {
+    touch-action: pan-x;
+  }
+  .modal.dragging {
+    transition: none;
+    user-select: none;
+  }
+  .modal:not(.dragging) {
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal:not(.dragging) {
+    transition: none;
+  }
+}
+/* Head-to-head's Start on a phone: it sits at the foot of a long setup, so it sticks to the bottom of the screen (on
+   the dock) while the managers' cards scroll past, like the other setups' start bars */
+@media (max-width: 720px) {
+  .h2h-start {
+    position: sticky;
+    bottom: var(--dock-h);
+    z-index: 5;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 10px var(--gutter) calc(10px + var(--dock-safe));
+    background: var(--panel);
+    border-top: var(--border-strong);
+  }
+  .h2h-start .btn {
+    width: 100%;
+  }
+}
+/* A small phone on its side (568x320, 667x375): a fixed bar over a 320 px screen left the page a strip. The Dugout's
+   call bar goes back into its card near the top of the page (where it stands in the markup), and a setup's start bar
+   keeps its line of choices (and its change link) over a 44 px button */
+@media (max-width: 720px) and (max-height: 500px) {
+  .cta-bar {
+    position: static;
+    padding: var(--space-2) 0 0;
+    background: none;
+    border-top: 0;
+    box-shadow: none;
+  }
+  .page.dugout-page.has-bottom-bar {
+    padding-bottom: calc(80px + var(--safe-bottom));
+  }
+  .setup-start.bottom-bar {
+    gap: 6px;
+    padding-top: 8px;
+    padding-bottom: calc(8px + var(--dock-safe));
+  }
+  .setup-start.bottom-bar > .btn.primary.big {
+    min-height: 44px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+/* The Gauntlet's lifeline keeps its label inside its border on a phone: the opponent's name wraps instead */
+.arena-lifeline {
+  flex: none;
+  max-width: 45%;
+  white-space: normal;
+  text-align: center;
+}
 /* Reduced motion, last word: entrances, presses and transitions whose own rules come after the motion section's blocks
    above and share their specificity, so those blocks never reached them (auditR8Css.test.ts keeps every animated rule
    in this file covered) */
@@ -17498,7 +17772,8 @@ button.home-nudge.linklike:hover {
   .recap-grade,
   .unlock-card.animate .unlock-item,
   .unlock-card.animate .unlock-medal,
-  .badge-tile.fresh .unlock-medal {
+  .badge-tile.fresh .unlock-medal,
+  .app:not(.bar-hidden):not(.dock-off) > .topbar {
     animation: none;
   }
   .qmode,
