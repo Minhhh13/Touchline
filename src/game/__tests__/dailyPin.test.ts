@@ -62,9 +62,11 @@ describe('the Daily is pinned to its original rules', () => {
     expect(describeRules(u, dailyGameSettings(u, 'daily-2026-10-25').rules)).toEqual(['2 re-spins', 'Ratings on', 'Squad First', 'Season ratings', 'All-time', 'Twists on'])
   })
 
+  // Engine 7 rotates the Daily's league from 2026-10-30 (DAILY_EPOCHS, dailyRotation.test.ts): the dates here after it
+  // are read on the original Premier League mapping ('england'), which every Premier League day of the rotation uses
   it('maps every date to the season, host and shape it had before the 38-0 options', () => {
     for (const seed of [...DATES, 'daily-2026-01-01', 'daily-2028-02-29']) {
-      const d = dailySettings(u, seed)
+      const d = dailySettings(u, seed, 'england')
       expect({ season: d.season, host: d.host, formationId: d.formationId }).toEqual(pre38Mapping(u, seed))
       expect(d.rules.respins).toBe(2)
     }
@@ -73,7 +75,7 @@ describe('the Daily is pinned to its original rules', () => {
   it('plays every date exactly as the pre-38-0 Daily: the same spins, the same XI, the same season', () => {
     const keys: Record<string, string> = {}
     for (const seed of DATES) {
-      const today = dailyGameSettings(u, seed, 'Pinned XI')
+      const today = dailyGameSettings(u, seed, 'Pinned XI', 'england')
       const before: GameSettings = { ...today, rules: PRE_38_0_DAILY_RULES }
       const a = play(today)
       const b = play(before)

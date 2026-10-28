@@ -91,7 +91,8 @@ describe('the classic pack moves no standard game on the release line', { timeou
   })
 
   it('the Daily is the same game on both, settings and season', () => {
-    for (const date of ['2026-10-25', '2026-01-01', '2027-02-28', '2025-07-14']) {
+    // 2026-10-30 is the rotation's first day, a Premier League one (DAILY_EPOCHS); its other leagues have no classic pack
+    for (const date of ['2026-10-25', '2026-01-01', '2026-10-30', '2025-07-14']) {
       const seed = `daily-${date}`
       const a = dailyGameSettings(full, seed)
       expect(a).toEqual(dailyGameSettings(standard, seed))

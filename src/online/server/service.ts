@@ -25,7 +25,7 @@ import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/
 import { dailyDateOf } from '@engine/rng'
 import type { LoadedUniverse, MetaFile, PlayersFile } from '@engine/universe'
 import { ENGINE_VERSION } from '@engine/version'
-import { dailyGameSettings } from '@game/logic/setup'
+import { dailyGameSettings, dailyPlan } from '@game/logic/setup'
 import type { H2HManager, H2HResult } from '@game/logic/h2h'
 import { cleanSettings, isRoomLog, roomManager, roomPick, roomStart, RoomMoveError, settingsProblem, type RoomEvent, type RoomSettings, type RoomView } from '@game/logic/h2hRoom'
 import type { BuildInfo } from '../buildInfo'
@@ -232,8 +232,18 @@ export const LIVE_BUILD_TTL_MS = 5 * 60 * 1000
 /** The shortest gap between two fetches of `build.json` per isolate (a forced recheck, or a retry after a failure). */
 export const LIVE_BUILD_RECHECK_MS = 30 * 1000
 
-/** The leagues every pinned puzzle is computed on (both mappings are England-only by design). */
+/** The leagues the ranked weekly's pin is computed on (its mapping is England-only by design). */
 export const PUZZLE_LEAGUES = ['england']
+
+/**
+ * The leagues a board's pin is computed on: the Daily's from its date alone (`dailyPlan`: the Premier League before
+ * 2026-10-30, then one of the seven leagues a day), the ranked weekly's `PUZZLE_LEAGUES`.
+ */
+export function pinLeagues(kind: BoardKind, key: string): string[] {
+  if (kind === 'weekly') return PUZZLE_LEAGUES
+  const plan = dailyPlan(`daily-${key}`)
+  return [...new Set([plan.leagueId, ...plan.wheelLeagues])]
+}
 
 /** Universes kept per isolate (England is about 18 MB; seven leagues about 63 MB). */
 export const UNIVERSE_CACHE_SIZE = 2
@@ -398,10 +408,12 @@ export function createServer(deps: ServerDeps): Server {
     if (live.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `The live site runs engine ${live.engine}; this function runs ${ENGINE_VERSION}`, { liveEngine: live.engine })
     const reg = await ensurePacks(live.data)
     if (!reg) throw refuse(503, 'packs_unavailable', `Data ${live.data} could not be archived`)
-    const u = await universe(reg, PUZZLE_LEAGUES)
+    const leagues = pinLeagues(kind, key)
+    if (leagues.some((id) => !reg.leagues.includes(id))) throw refuse(503, 'unavailable', `Data ${live.data} has no ${leagues.join(', ')} league`)
+    const u = await universe(reg, leagues)
     const full = kind === 'daily' ? dailyGameSettings(u, `daily-${key}`) : weeklyGameSettings(u, key)
     const settings = puzzleOf(full)
-    if (puzzleLeagues(settings).some((id) => !PUZZLE_LEAGUES.includes(id))) throw refuse(503, 'unavailable', 'The puzzle mapping needs leagues the pin does not load')
+    if (puzzleLeagues(settings).some((id) => !leagues.includes(id))) throw refuse(503, 'unavailable', 'The puzzle mapping needs leagues the pin does not load')
     const stored = await deps.db.pin(kind, date, settings, settingsHash(settings), ENGINE_VERSION, live.data)
     pinCache.set(cacheKey, stored)
     return stored
