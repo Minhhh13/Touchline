@@ -143,6 +143,7 @@ export function Setup() {
   })
   const [hostClubId, setHostClubId] = useState('')
   const [jobSecurity, setJobSecurity] = useState(true)
+  const [playerPower, setPlayerPower] = useState(false)
   const [continental, setContinental] = useState(false)
   // Quick Draft: the season stops at the halfway mark for a January window unless switched off
   const [january, setJanuary] = useState(true)
@@ -299,6 +300,7 @@ export function Setup() {
       leagueSeason: fixed ? fixed.season : effectiveSeason,
       rules,
       jobSecurity: isManage ? jobSecurity : false,
+      ...(isManage && playerPower && !challenge ? { playerPower: true } : {}),
       difficulty: fixed ? fixed.difficulty : opposition,
       // A Continental Cup in a managed season; a Quick Draft offers its cups after the league instead, so it never sets one
       continental: isManage && !challenge && continental && u.available.length >= 2,
@@ -644,6 +646,15 @@ export function Setup() {
                                 <Armchair size={14} aria-hidden="true" /> {t('jobSecurity')}
                               </label>
                               <InfoTip label={t('jobSecurity')} text={t('jobSecurityInfo')} />
+                            </div>
+                          )}
+                          {isManage && (
+                            <div className="toggle-row">
+                              <label className="toggle">
+                                <input type="checkbox" checked={playerPower} onChange={(e) => setPlayerPower(e.target.checked)} data-testid="player-power-toggle" />
+                                <Users size={14} aria-hidden="true" /> {t('playerPower')}
+                              </label>
+                              <InfoTip label={t('playerPower')} text={t('playerPowerInfo')} />
                             </div>
                           )}
                           {u.available.length >= 2 && (

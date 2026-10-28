@@ -18,7 +18,7 @@ import { lineupProblems } from './squad'
 import { nextOpponent, upcomingCupTie } from './week'
 import { riskiestStarter } from './medical'
 
-export type DugoutTab = 'squad' | 'next' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club' | 'dressing' | 'planner'
+export type DugoutTab = 'squad' | 'next' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club' | 'dressing' | 'planner' | 'office'
 
 export type BriefingLevel = 'block' | 'warn' | 'info' | 'ok'
 

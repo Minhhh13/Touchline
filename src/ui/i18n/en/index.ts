@@ -24,5 +24,6 @@ import { online } from './online'
 import { saving } from './saving'
 import { shell } from './shell'
 import { trophies } from './trophies'
+import { office } from './office'
 
-export const CATALOGS = { app, boxes, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online, saving, shell, trophies } as const
+export const CATALOGS = { app, boxes, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online, saving, shell, trophies, office } as const
