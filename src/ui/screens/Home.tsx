@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailySettings } from '@game/logic/setup'
@@ -7,11 +7,8 @@ import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@gam
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
 import { arenaDailySeed, dailySeed, randomSeed, weeklySeed } from '@engine/rng'
-import { badgeStates } from '@engine/badges'
-import { emptyCabinet, leaguesWon } from '@game/logic/cabinet'
-import { dailyNudge, nextBadge, personalBests, type Best } from '@game/logic/shareInvite'
+import { dailyNudge, personalBests, type Best } from '@game/logic/shareInvite'
 import { recordLabel } from '@game/logic/perfect'
-import { badgeTitle, progressText } from '../i18n/trophyText'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
 import { startingTeamName, teamShortName } from '../teamName'
@@ -30,6 +27,8 @@ import { home } from '../i18n/en/home'
 import { modeText } from '../i18n/modeText'
 
 const t = translator(home)
+/** The next-badge line reads the trophies' catalogue: its own chunk, out of the first download. */
+const HomeBadgeNudge = lazy(() => import('../components/HomeBadgeNudge'))
 import { askConfirm } from '../confirm'
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
@@ -190,8 +189,6 @@ export function Home() {
   // A returning manager's own figures in the hero (the database's when there are none yet) and the reasons to come back
   const bests = personalBests(profile, profile.dailyStreak > 0 ? 2 : 3)
   const nudge = dailyNudge(profile, todaysDailySeed(), dailySeed(new Date(Date.now() - 86400000)))
-  const cabinet = profile.cabinet ?? emptyCabinet()
-  const chase = nextBadge(badgeStates(cabinet, { leaguesWon: leaguesWon(cabinet, profile.leaderboard, (id) => u?.clubById[id]?.leagueId).leagues.length }))
   const bestStat = (b: Best) => (b.id === 'record' ? recordLabel(b.won, b.drawn, b.lost) : String(b.n))
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? (streak ? t('streakDone', { done, n: streak }) : done) : streak ? t('streakFallback', { n: streak, fallback }) : fallback)
   return (
@@ -255,12 +252,9 @@ export function Home() {
               <Flame size={14} aria-hidden="true" />
               {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
             </span>
-            {chase && (
-              <button type="button" className="home-nudge linklike" onClick={() => go('profile')} data-testid="badge-nudge">
-                <Award size={14} aria-hidden="true" />
-                {t('nudgeBadge', { badge: badgeTitle(chase.state.badge), progress: progressText(chase.state.badge.tiers, chase.state.value) })}
-              </button>
-            )}
+            <Suspense fallback={null}>
+              <HomeBadgeNudge onOpen={() => go('profile')} />
+            </Suspense>
           </div>
           </>
           )}
