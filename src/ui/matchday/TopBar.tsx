@@ -158,7 +158,13 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           {home.code}
         </span>
         <span className="score mono">
-          {score.home} - {score.away}
+          <span key={`h${score.home}`} className="sb-num">
+            {score.home}
+          </span>{' '}
+          -{' '}
+          <span key={`a${score.away}`} className="sb-num">
+            {score.away}
+          </span>
         </span>
         <span className="md-sb-code" style={{ background: away.colour, color: textColourFor(away.colour) }} title={away.name}>
           {away.code}

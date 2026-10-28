@@ -1,0 +1,208 @@
+/*
+ * The match day's motion (round 8): the scoreboard on a goal, cards and changes on the pitch, the stop pop-ups and the
+ * whistle's card at half time and full time. DESIGN_SYSTEM.md section 12: transform and opacity only, the --dur-* and
+ * --ease-* tokens, all off under reduced motion (the block at the end). Decoration over the decided events only.
+ */
+
+/* ---- The scoreboard on a goal: a ring that lights and fades (opacity, not a box-shadow repainted every frame), and
+   the digit that changed flips in */
+.matchday .scoreboard {
+  position: relative;
+}
+.matchday .scoreboard::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: calc(var(--radius-s) + 3px);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 60%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+.matchday .scoreboard.flash {
+  animation: none;
+}
+.matchday .scoreboard.flash::after {
+  animation: md-board-ring calc(var(--dur-2) * 5) var(--ease-out);
+}
+@keyframes md-board-ring {
+  0% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.matchday .scoreboard .sb-num {
+  display: inline-block;
+  animation: md-digit var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes md-digit {
+  0% {
+    transform: translateY(-60%) scale(1.4);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+/* ---- Cards and changes on the pitch: the card or the arrows pop up over the man, a booking drops onto his disc */
+.live-flash {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+.live-flash.yellow,
+.live-flash.red {
+  animation: md-card-pop var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes md-card-pop {
+  0% {
+    transform: translateY(3px) scale(0.2) rotate(-25deg);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-1px) scale(1.25) rotate(6deg);
+    opacity: 1;
+  }
+}
+.live-flash.substitution,
+.live-flash.injury {
+  animation: md-flash-rise var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes md-flash-rise {
+  from {
+    transform: translateY(3px) scale(0.5);
+    opacity: 0;
+  }
+}
+.live-dot .dot-card {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: md-booked var(--dur-3) var(--ease-spring) backwards;
+}
+@keyframes md-booked {
+  from {
+    transform: translateY(-4px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* ---- The stops: the scrim fades in once the whistle's card has had its moment, and the decisions slide up */
+.matchday .decision-back {
+  animation: md-scrim var(--dur-3) var(--ease-out) calc(var(--dur-4) * 1.5) backwards;
+}
+@keyframes md-scrim {
+  from {
+    opacity: 0;
+  }
+}
+.matchday .decision-sheet {
+  animation: md-sheet-up var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 1.5) backwards;
+}
+@keyframes md-sheet-up {
+  from {
+    transform: translateY(36px) scale(0.97);
+    opacity: 0;
+  }
+}
+.matchday .decisions-pill {
+  animation: md-pill-in var(--dur-3) var(--ease-spring) backwards;
+}
+@keyframes md-pill-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+/* ---- The whistle's card over the pitch at half time and full time: it drops in, holds, and lifts away */
+.md-period {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 30px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 3;
+}
+.md-period-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 22px 12px;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow);
+  animation: md-period calc(var(--dur-4) * 7) var(--ease-out) both;
+}
+.md-period.ft .md-period-card {
+  border-color: var(--accent);
+}
+@keyframes md-period {
+  0% {
+    transform: translateY(-18px) scale(0.9);
+    opacity: 0;
+  }
+  10% {
+    transform: translateY(0) scale(1.03);
+    opacity: 1;
+  }
+  16% {
+    transform: scale(1);
+  }
+  85% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-12px) scale(0.96);
+    opacity: 0;
+  }
+}
+.md-period-kicker {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.md-period-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-h2);
+}
+.md-period-code {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matchday .scoreboard.flash::after,
+  .matchday .scoreboard .sb-num,
+  .live-flash.yellow,
+  .live-flash.red,
+  .live-flash.substitution,
+  .live-flash.injury,
+  .live-dot .dot-card,
+  .matchday .decision-back,
+  .matchday .decision-sheet,
+  .matchday .decisions-pill,
+  .md-period-card {
+    animation: none;
+  }
+  .md-period {
+    display: none;
+  }
+}

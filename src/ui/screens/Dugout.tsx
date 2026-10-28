@@ -69,6 +69,7 @@ import { askConfirm } from '../confirm'
 import { InboxStorylines, MatchPreviewPanel, StoryChip, SummerHeadline } from '../components/Storylines'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import '../motionSeason.css'
 import { rich } from '../i18n/rich'
 
 const t = translator(dugout)
@@ -263,7 +264,7 @@ export function Dugout() {
                 <SummerHeadline game={game} u={u} />
               </div>
             ) : next ? (
-              <div className="cta-fixture">
+              <div className="cta-fixture" key={`mw${season.matchweek}`}>
                 <ClubBadge clubId={next.clubId} size={40} />
                 <div>
                   <div className="eyebrow">{t('mwVenue', { week: season.matchweek + 1, home: next.home ? 'home' : 'away' })}</div>
@@ -287,7 +288,7 @@ export function Dugout() {
                 </div>
               </div>
             ) : (
-              <div className="cta-fixture">
+              <div className="cta-fixture" key={`mw${season.matchweek}`}>
                 <div>
                   <div className="eyebrow">
                     {t('matchweek', { week: season.matchweek + 1 })}
@@ -904,7 +905,7 @@ function SeasonStrip({ table }: { table: TableRow[] }) {
         const tieLine = c.ties.map((x) => t('stripTie', { label: x.label ?? t('stripTieRound', { comp: x.comp === 'cup' ? 'cup' : 'continental', round: x.round }), home: x.home ? 'home' : 'away', club: clubName(u, x.opp), score: x.score ? ` ${x.score}` : '' })).join('; ')
         const title = t('stripTitle', { week: c.matchweek, fixture: opp ? t('stripFixture', { home: c.home ? 'home' : 'away', club: opp, score: c.score ? ` ${c.score}` : '' }) : t('stripFree'), ties: tieLine ? t('stripThen', { ties: tieLine }) : '' })
         return (
-          <div key={c.matchweek} className={`ss-cell ${c.outcome ? 'played' : c.band ? `band-${c.band}` : 'free'} ${c.matchweek === nextMw ? 'next' : ''}`} title={title} data-testid="strip-cell">
+          <div key={c.matchweek} className={`ss-cell ${c.outcome ? 'played' : c.band ? `band-${c.band}` : 'free'} ${c.matchweek === nextMw ? 'next' : ''} ${c.outcome && c.matchweek === nextMw - 1 ? 'just' : ''}`} title={title} data-testid="strip-cell">
             <span className="ss-mw">{c.matchweek}</span>
             <span className="ss-opp">
               {c.opp ? <ClubBadge clubId={c.opp} size={18} /> : <span className="muted">–</span>}

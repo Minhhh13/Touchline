@@ -55,6 +55,8 @@ import { useMatchSounds } from '../sound/useMatchSounds'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
+import './matchday-motion.css'
+import { PeriodCard } from './PeriodCard'
 import { translator } from '../i18n'
 import { match } from '../i18n/en/match'
 
@@ -140,6 +142,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   const cued = useLiveClock((s) => s.cued ?? 0)
   const minute = panelMinute(holds, revealed, clock.clock, start, !clock.finished && cuePending(cues, cued, clock.clock, start))
   const whistle = clock.finished && final
+  // The whistle's card over the pitch: half time when the clock stops at the break, full time at the end (PeriodCard)
+  const period: 'ht' | 'ft' | null = whistle ? 'ft' : clock.atStop && stopAt === 45 ? 'ht' : null
   // The assistant's routine and injury changes for our side come up as a toast when the clock reaches them (display only)
   const subsSeen = useRef(minute)
   useEffect(() => {
@@ -311,6 +315,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
       keepers={{ home: keeper, away: keeper }}
       keyMoments={keyMoments && !reduced}
       highlightId={highlight}
+      overlay={period && !reduced ? <PeriodCard key={period} kind={period} home={home} away={away} score={scoreAt(feed.events, minute)} /> : undefined}
     />
   )
   const momentum = <MomentumBar strip momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />

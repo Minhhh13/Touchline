@@ -351,6 +351,40 @@
   }
 }
 
+/* ---- The Dugout's matchweek advance: the next fixture turns over in place, the week just played lands on the season
+   strip and the marker moves on to the next one (Dugout.tsx keys the fixture by matchweek) */
+.cta .cta-fixture {
+  animation: dg-turn var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes dg-turn {
+  from {
+    transform: translateX(18px);
+    opacity: 0;
+  }
+}
+.ss-cell.just {
+  animation: ss-land var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes ss-land {
+  from {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+}
+.ss-cell.next {
+  animation: ss-next var(--dur-4) var(--ease-out) var(--dur-2) backwards;
+}
+/* A Dynasty summer's review card in the Inbox comes up as the new season opens */
+.summer-card {
+  animation: rise var(--dur-4) var(--ease-out) var(--dur-2) backwards;
+}
+@keyframes ss-next {
+  from {
+    transform: translateY(-6px);
+    opacity: 0.4;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gbg-game.landing::after,
   .gbg-game.landing .gbg-badge,
@@ -368,7 +402,11 @@
   .pb-end .btn.primary,
   .january-panel[data-stage='halfway'],
   .january-panel .jw-head .sc-kicker,
-  .january-panel .jw-boxes .tally-box {
+  .january-panel .jw-boxes .tally-box,
+  .cta .cta-fixture,
+  .ss-cell.just,
+  .ss-cell.next,
+  .summer-card {
     animation: none;
   }
   .lt-flash,

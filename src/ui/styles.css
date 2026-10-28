@@ -4227,6 +4227,44 @@ table.tbl.contracts .btn.sm {
     animation: none !important;
   }
 }
+/* The season hub's moments (round 8, docs/DESIGN_SYSTEM.md section 12): the Sim digest deals its results in one by
+   one and its groups follow, and the Dynasty summer's review comes up line by line */
+.digest-results .chip {
+  animation: digest-deal var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--i, 0) * 40ms) backwards;
+}
+@keyframes digest-deal {
+  from {
+    transform: translateX(-10px) scale(0.85);
+    opacity: 0;
+  }
+}
+.digest > :not(.digest-results),
+.summer-review > * {
+  animation: rise var(--dur-3) var(--ease-out) backwards;
+}
+.digest > :nth-child(2),
+.summer-review > :nth-child(1) {
+  animation-delay: calc(var(--dur-3) * 1);
+}
+.digest > :nth-child(3),
+.summer-review > :nth-child(2) {
+  animation-delay: calc(var(--dur-3) * 1.4);
+}
+.digest > :nth-child(4),
+.summer-review > :nth-child(3) {
+  animation-delay: calc(var(--dur-3) * 1.8);
+}
+.digest > :nth-child(n + 5),
+.summer-review > :nth-child(n + 4) {
+  animation-delay: calc(var(--dur-3) * 2.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .digest-results .chip,
+  .digest > *,
+  .summer-review > * {
+    animation: none;
+  }
+}
 /* Reduced motion, continued: hover and press transitions and an entrance the block above did not reach (a more
    specific rule's own animation shorthand outranks it, as the other side's goal banner did) */
 @media (prefers-reduced-motion: reduce) {
