@@ -8,7 +8,7 @@ import { LeagueRetry } from '../components/LeagueRetry'
 import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
 import { FirstNext } from '../components/FirstNext'
 import { continentalRun } from '@game/logic/week'
-import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
+import { USER_TEAM, seasonTable } from '@engine/season'
 import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
 import { modeText } from '../i18n/modeText'
 import { B, rich } from '../i18n/rich'
@@ -35,7 +35,7 @@ import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, clubShort, money, nationName, ordinal, seasonLabel, signedValue, tierName } from '../format'
 import { LeagueFlag, NationFlag, QuickLeagueFlag } from '../components/Flag'
-import { isSuperLeague, quickLeagueName, sideNamer, superTierBlurb } from '@game/logic/superLeague'
+import { isSuperLeague, quickLeagueName, sideNamer } from '@game/logic/superLeague'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
@@ -50,7 +50,6 @@ import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { januaryGambleLine } from '@game/logic/januaryGamble'
-import { tierName as rarityName } from '@game/logic/rarity'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
@@ -76,6 +75,8 @@ import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
+import { tierBlurbText, tierText } from '../i18n/tierText'
+import { reelTierName } from '../i18n/engineText'
 
 const t = translator(summary)
 
@@ -411,13 +412,13 @@ export function Summary() {
           <div className="tier-wrap">
             <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} />
             <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-              {tierName(tier, record.position, superOn)}
+              {tierText(tier, record.position, superOn)}
             </div>
           </div>
         )}
         {!replay.playing && (
           <p className="tier-blurb" data-testid="tier-blurb">
-            {superOn ? superTierBlurb(tier, record.position, table.length || 20) : tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+            {superOn ? tierBlurbText(tier, record.position, table.length || 20, { superLeague: true }) : tierBlurbText(tier, record.position, table.length || 20, { sacked: !!season?.sacked })}
           </p>
         )}
         {!replay.playing && story && (
@@ -600,8 +601,8 @@ export function Summary() {
           <div className="small">
             {q.januaryGamble.kind === 'spin'
               ? q.januaryGamble.outName
-                ? t('caseLandedIn', { inName: q.januaryGamble.inName, tier: rarityName(q.januaryGamble.tier), outName: q.januaryGamble.outName })
-                : t('caseLandedKept', { inName: q.januaryGamble.inName, tier: rarityName(q.januaryGamble.tier) })
+                ? t('caseLandedIn', { inName: q.januaryGamble.inName, tier: reelTierName(q.januaryGamble.tier), outName: q.januaryGamble.outName })
+                : t('caseLandedKept', { inName: q.januaryGamble.inName, tier: reelTierName(q.januaryGamble.tier) })
               : t('upgraderLine', { name: q.januaryGamble.name, chance: q.januaryGamble.chance, boost: q.januaryGamble.boost, won: q.januaryGamble.won ? 'yes' : 'no', delta: q.januaryGamble.delta })}
           </div>
         </div>
@@ -704,7 +705,7 @@ export function Summary() {
               <div className="row between wrap">
                 <b>{challenge.name}</b>
                 <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
-                  {t('claimLine', { pts: challenge.claim.pts, tier: tierName(challenge.claim.t, undefined, superOn), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` })}
+                  {t('claimLine', { pts: challenge.claim.pts, tier: tierText(challenge.claim.t, undefined, superOn), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` })}
                 </span>
               </div>
               {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
@@ -714,7 +715,7 @@ export function Summary() {
               <div className="row between wrap">
                 <b>{game.settings.teamName}</b>
                 <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
-                  {t('claimLine', { pts: mine.pts, tier: tierName(mine.t, undefined, superOn), record: `${mine.w}-${mine.d}-${mine.l}` })}
+                  {t('claimLine', { pts: mine.pts, tier: tierText(mine.t, undefined, superOn), record: `${mine.w}-${mine.d}-${mine.l}` })}
                 </span>
               </div>
               {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
@@ -971,7 +972,7 @@ export function Summary() {
                           <td className="num">{h.points}</td>
                           <td>
                             <span className="row" style={{ gap: 4 }}>
-                              {tierName(h.tier, h.position)}
+                              {tierText(h.tier, h.position)}
                               {h.cupWon && (
                                 <span className="chip gold icon-chip" title={t('cupWinners')}>
                                   <Medal size={12} aria-hidden="true" /> {t('cupChip')}

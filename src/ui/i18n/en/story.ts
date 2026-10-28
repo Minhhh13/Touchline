@@ -223,4 +223,18 @@ export const story = catalog('story', {
   yearBefore: 'The year before: {pos, ordinal} on {points}.',
   era: '{titles} in {n} seasons in charge.',
   legend: 'All-time top scorer: {name}, {goals} in {games}.',
+
+  noLeagueForm: 'no league form',
+  formAria: '{who, select, ours {Your form} other {Their form}}: {form}, oldest first',
+  tablePair: 'You {ours, ordinal}, {oursPts} pts · them {theirs, ordinal}, {theirsPts} pts',
+  you: 'You',
+  them: 'Them',
+  previewTitle: 'Match preview',
+  aboutPreview: 'About the preview',
+  previewInfo: 'Form is the last five league games, oldest first. The player to watch is their top scorer who is fit, or their best player; yours is the starter in the best recent form.',
+  chipTip: '{title}: {text}',
+  storylines: 'Storylines',
+  lastSeason: 'The story of last season',
+  summer: 'Summer',
+  now: 'Now',
 })

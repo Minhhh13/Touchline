@@ -1,7 +1,8 @@
 import { catalog } from '../index'
 
 /**
- * The engine's display words (formations, roles, power-ups, manager styles, training, staff) for the screens: each
+ * The engine's and the game logic's display words (formations, roles, power-ups, manager styles and their edge, training,
+ * staff, the reel's tiers, the case's rarities, the odds note) for the screens: each
  * message equals its engine English (`engineText` in `src/ui/__tests__/copyMirror.test.ts`), keyed by the engine's id.
  * The engine keeps its own strings for the share text and the logic; screens read these through `i18n/engineText.ts`.
  */
@@ -152,4 +153,28 @@ export const engineText = catalog('engineText', {
   staffTierBlurb_scout_1: '+1 extra listing a market day. Hidden traits shown on the market.',
   staffTier_scout_2: 'Global network',
   staffTierBlurb_scout_2: '+2 extra listings a market day. Hidden traits shown; weak link named in opposition reports.',
+  edge: '{attack} goals · {defence} conceded',
+  edgeYouth: '{young} of your {xi} starters are {age} or under',
+  edgeSuits: 'Your team instructions suit him',
+  oddsExact: 'exact odds',
+  oddsRounded: 'odds (rounded)',
+  caseIconTitle: 'Icon',
+  caseIconLine: 'One of the best players of all time on this wheel, at his peak: he can come into this XI for the season in place of a starter.',
+  rarity_common: 'Common',
+  rarity_rare: 'Rare',
+  rarity_epic: 'Epic',
+  rarity_icon: 'Icon',
+  tierColour_icons: 'Icons',
+  tierColour_gold: 'Gold',
+  tierColour_red: 'Red',
+  tierColour_pink: 'Pink',
+  tierColour_purple: 'Purple',
+  tierColour_blue: 'Blue',
+  tierLabel_icons: 'All-time great',
+  tierLabel_gold: 'Elite',
+  tierLabel_red: 'Great',
+  tierLabel_pink: 'Good',
+  tierLabel_purple: 'Decent',
+  tierLabel_blue: 'Underdog',
+  tierPair: '{colour} · {label}',
 })

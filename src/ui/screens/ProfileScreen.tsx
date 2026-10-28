@@ -44,6 +44,7 @@ import { profile as profileText } from '../i18n/en/profile'
 import { arenaFormatText, modeTitle } from '../i18n/modeText'
 import { languageOptions, LOCALE_NAMES, setLanguage, useLanguage } from '../i18n/language'
 import { powerUpTitle } from '../i18n/engineText'
+import { tierText } from '../i18n/tierText'
 
 const t = translator(profileText)
 
@@ -702,7 +703,7 @@ export function ProfileScreen() {
                             {e.won}-{e.drawn}-{e.lost}
                           </td>
                           <td>
-                            {tierName(e.tier, e.position, e.superLeague)}
+                            {tierText(e.tier, e.position, e.superLeague)}
                             <div className="small muted">{ordinal(e.position)}</div>
                           </td>
                         </tr>

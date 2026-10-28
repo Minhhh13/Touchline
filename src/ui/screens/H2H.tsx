@@ -35,6 +35,7 @@ import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
 import { formationBlurb } from '../i18n/engineText'
+import { tierText } from '../i18n/tierText'
 
 const t = translator(h2hText)
 
@@ -595,7 +596,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label={t('winner')} />}
               </div>
-              <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierName(r.tiers[i], r.positions[i])}</span>
+              <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierText(r.tiers[i], r.positions[i])}</span>
               <div className="record">
                 <span className="w">{t('wonN', { n: r.rows[i].won })}</span>
                 <span className="d">{t('drawnN', { n: r.rows[i].drawn })}</span>

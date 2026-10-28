@@ -23,6 +23,8 @@ import { setLocaleMessages } from '../i18n'
 import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
 import { openFiltered, show } from './qaSsr'
 import { App } from '../App'
+import { surname } from '../match/shirts'
+import { surname as shortSurname } from '@game/logic/slotSheet'
 import { Home } from '../screens/Home'
 import { HowTo } from '../screens/HowTo'
 import { ProfileScreen } from '../screens/ProfileScreen'
@@ -45,7 +47,7 @@ const u = loadTestUniverse(['england'])
 
 // Data on screen is never English to translate: names of players, clubs, nations and leagues, and the test's teams
 const DATA = new Set<string>(['QA XI', 'QA United', 'QAX', 'QAU', 'Ann', 'Bob', 'Touchline XI', 'TouchLine'])
-for (const p of Object.values(u.index)) DATA.add(p.name)
+for (const p of Object.values(u.index)) [p.name, surname(p.name), shortSurname(p.name)].forEach((n) => DATA.add(n))
 for (const c of Object.values(u.clubById)) [c.name, c.shortName].forEach((n) => n && DATA.add(n))
 for (const n of Object.values(u.nations)) DATA.add(n.name)
 for (const l of u.available) DATA.add(l.name)

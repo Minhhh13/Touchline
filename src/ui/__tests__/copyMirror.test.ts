@@ -52,8 +52,8 @@ describe('engineText mirrors the engine’s English', () => {
         expect(et.staffTierBlurb(k, i)).toBe(x.blurb)
       })
     }
-    // Every message has its engine id: nothing stale left in the catalogue
-    expect([...keys]).toEqual([])
+    // Every engine-keyed message has its engine id: nothing stale left in the catalogue
+    expect([...keys].filter((k) => /^(formation|role|powerUp|style|training|staff)/.test(k))).toEqual([])
   })
 
   it('power-ups and styles read the engine’s words', async () => {
@@ -81,5 +81,46 @@ describe('slotRatingText mirrors slotRatingLine', () => {
       expect(slotRatingText(r, 'RW')).toBe(slotRatingLine(r, 'RW'))
       expect(slotRatingText(r, 'RW', { attributes: true })).toBe(slotRatingLine(r, 'RW', { attributes: true }))
     }
+  })
+})
+
+describe('the game logic’s display words mirrored on screen', () => {
+  it('a manager’s edge, the odds note, the case guide, its rarities and the reel’s tiers', async () => {
+    const { edgeHint, edgeLine } = await import('@game/logic/managerEdge')
+    const { caseGuide } = await import('@game/logic/caseGuide')
+    const { CASE_RARITY_LABEL } = await import('@game/logic/endCase')
+    const { DISPLAY_TIER_INFO, tierName } = await import('@game/logic/rarity')
+    const { shownOdds } = await import('@game/logic/oddsDisplay')
+    for (const e of [{ attack: 3, defence: -1, suits: true, young: 4, xi: 11 }, { attack: 0, defence: 1.5, suits: false, young: 0, xi: 11 }]) {
+      expect(et.edgeText(e)).toBe(edgeLine(e))
+      for (const s of MANAGER_STYLES) expect(et.edgeHintText(s, e)).toBe(edgeHint(s, e))
+    }
+    for (const p of [[0.5, 0.5], [1 / 3, 1 / 3, 1 / 3]]) expect(et.oddsNote(shownOdds(p).exact)).toBe(shownOdds(p).note)
+    for (const r of caseGuide({ inventory: {} })) {
+      expect(et.caseRowTitle(r)).toBe(r.title)
+      expect(et.caseRowLine(r)).toBe(r.line)
+    }
+    for (const r of Object.keys(CASE_RARITY_LABEL) as (keyof typeof CASE_RARITY_LABEL)[]) expect(et.rarityText(r)).toBe(CASE_RARITY_LABEL[r])
+    for (const k of Object.keys(DISPLAY_TIER_INFO) as (keyof typeof DISPLAY_TIER_INFO)[]) {
+      expect(et.tierColour(k)).toBe(DISPLAY_TIER_INFO[k].colour)
+      expect(et.tierWord(k)).toBe(DISPLAY_TIER_INFO[k].label)
+      expect(et.reelTierName(k)).toBe(tierName(k))
+    }
+  })
+
+  it('a season tier and its line, the Super League’s included', async () => {
+    const { tierBlurb } = await import('@engine/season')
+    const { superTierBlurb } = await import('@game/logic/superLeague')
+    const { tierName } = await import('../format')
+    const { tierBlurbText, tierText } = await import('../i18n/tierText')
+    const tiers = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED'] as const
+    for (const tier of tiers)
+      for (const pos of [1, 2, 3, 4, 6, 11, 18, 20]) {
+        for (const sl of [false, true]) expect(tierText(tier, pos, sl)).toBe(tierName(tier, pos, sl))
+        expect(tierText(tier)).toBe(tierName(tier))
+        expect(tierBlurbText(tier, pos, 20)).toBe(tierBlurb(tier, pos, 20))
+        expect(tierBlurbText(tier, pos, 22, { sacked: true })).toBe(tierBlurb(tier, pos, 22, true))
+        expect(tierBlurbText(tier, pos, 20, { superLeague: true })).toBe(superTierBlurb(tier, pos, 20))
+      }
   })
 })

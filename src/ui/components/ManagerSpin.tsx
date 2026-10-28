@@ -4,7 +4,7 @@ import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { MANAGER_EDGE, MANAGER_STYLES, type Manager } from '@engine/managers'
 import { gameManagerWheel, managerSpinOdds, managerTier } from '@game/logic/managers'
-import { edgeHint, edgeLine, managerEdge } from '@game/logic/managerEdge'
+import { managerEdge } from '@game/logic/managerEdge'
 import { playerLookup } from '@game/logic/players'
 import { dealItems, managerCard, type ItemDeal } from '@game/logic/itemReel'
 import { reelLeagues } from '@game/logic/reel'
@@ -21,7 +21,7 @@ import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { B, rich } from '../i18n/rich'
-import { styleHelp, styleLabel } from '../i18n/engineText'
+import { edgeHintText, edgeText, styleHelp, styleLabel } from '../i18n/engineText'
 
 const t = translator(season)
 
@@ -138,7 +138,7 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
                     </span>
                     <span className="cline manager-help">{styleHelp(m.style)}</span>
                     <span className="cline manager-edge" data-testid={`mspin-edge-${i}`}>
-                      {rich(t('onYourXi', { edge: edgeLine(edges[m.style]) }), B)}
+                      {rich(t('onYourXi', { edge: edgeText(edges[m.style]) }), B)}
                     </span>
                     <button ref={i === 0 ? firstPick : undefined} type="button" className="btn primary sm" disabled={!done} onClick={(e) => { e.stopPropagation(); pickManager(m.id) }} data-testid={`mspin-pick-${i}`}>
                       {t('pickName', { name: surname(m.name) })}
@@ -180,10 +180,10 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
               <div key={st} className={`mspin-style${landedHere ? ' landed' : ''}`} data-testid={`mspin-style-${st}`}>
                 <span className="row between" style={{ gap: 8 }}>
                   <b>{styleLabel(st)}</b>
-                  <span className="mspin-style-edge">{edgeLine(e)}</span>
+                  <span className="mspin-style-edge">{edgeText(e)}</span>
                 </span>
                 <span className="small muted">{styleHelp(st)}</span>
-                {edgeHint(st, e) && <span className="small mspin-style-hint">{edgeHint(st, e)}</span>}
+                {edgeHintText(st, e) && <span className="small mspin-style-hint">{edgeHintText(st, e)}</span>}
               </div>
             )
           })}

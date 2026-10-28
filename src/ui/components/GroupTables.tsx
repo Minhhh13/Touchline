@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react'
 import type { GroupView } from '@game/logic/bracket'
+import { translator } from '../i18n'
+import { summary } from '../i18n/en/summary'
+
+const t = translator(summary)
 
 /** A played group match from your side, its result first: "W 3-0", "L 1-2". */
 function ourScore(m: GroupView['matches'][number], userId: string): string {
   const home = m.home === userId
   const gf = home ? m.hg! : m.ag!
   const ga = home ? m.ag! : m.hg!
-  return `${gf > ga ? 'W' : gf < ga ? 'L' : 'D'} ${gf}-${ga}`
+  return t('groupScore', { outcome: gf > ga ? 'W' : gf < ga ? 'L' : 'D', gf, ga })
 }
 
 /**
@@ -22,16 +26,16 @@ export function GroupTables({ groups, nameOf, badge, userId, fixtures = true, we
         const mine = g.rows.some((r) => r.teamId === userId)
         const ours = g.matches.filter((m) => m.home === userId || m.away === userId)
         return (
-          <section key={g.name} className={`group-card ${mine ? 'mine' : ''}`} data-testid={`group-${g.name}`} aria-label={`Group ${g.name}`}>
-            <h4>Group {g.name}</h4>
+          <section key={g.name} className={`group-card ${mine ? 'mine' : ''}`} data-testid={`group-${g.name}`} aria-label={t('groupName', { name: g.name })}>
+            <h4>{t('groupName', { name: g.name })}</h4>
             <table className="tbl">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Club</th>
-                  <th className="num">P</th>
-                  <th className="num">GD</th>
-                  <th className="num">Pts</th>
+                  <th>{t('groupClub')}</th>
+                  <th className="num" title={t('groupPlayedTip')}>{t('groupPlayed')}</th>
+                  <th className="num" title={t('groupGdTip')}>{t('groupGd')}</th>
+                  <th className="num" title={t('groupPtsTip')}>{t('groupPts')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -62,11 +66,11 @@ export function GroupTables({ groups, nameOf, badge, userId, fixtures = true, we
               <ol className="group-fixtures" data-testid="group-fixtures">
                 {ours.map((m) => (
                   <li key={`${m.matchday}-${m.home}`}>
-                    <span className="muted">MD {m.matchday}</span>
+                    <span className="muted" title={t('groupMdTip', { n: m.matchday })}>{t('groupMd', { n: m.matchday })}</span>
                     <span className="gt-name">
-                      {m.home === userId ? 'v' : 'at'} {nameOf(m.home === userId ? m.away : m.home)}
+                      {t('groupFixture', { home: m.home === userId ? 'yes' : 'no', club: nameOf(m.home === userId ? m.away : m.home) })}
                     </span>
-                    <span>{m.hg !== undefined ? ourScore(m, userId) : weeks ? `after MW ${m.matchweek}` : '–'}</span>
+                    <span title={m.hg === undefined && weeks ? t('groupAfterMwTip', { n: m.matchweek }) : undefined}>{m.hg !== undefined ? ourScore(m, userId) : weeks ? t('groupAfterMw', { n: m.matchweek }) : '–'}</span>
                   </li>
                 ))}
               </ol>

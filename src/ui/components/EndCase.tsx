@@ -5,7 +5,7 @@ import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { CASE_ITEMS, CASE_RARITIES, caseRarityOdds } from '@engine/endCase'
 import { ratingHidden } from '@game/logic/ratingVisibility'
-import { CASE_RARITY_LABEL, CASE_TIER, caseIconChoices, lockerCount } from '@game/logic/endCase'
+import { CASE_TIER, caseIconChoices, lockerCount } from '@game/logic/endCase'
 import { caseGuide } from '@game/logic/caseGuide'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
@@ -23,7 +23,7 @@ import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
 import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
-import { powerUpLine, powerUpTitle } from '../i18n/engineText'
+import { caseRowLine, caseRowTitle, powerUpLine, powerUpTitle, rarityText } from '../i18n/engineText'
 
 const t = translator(season)
 
@@ -105,7 +105,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
           )}
           {/* The reel is hidden from screen readers: the landing is said once, here */}
           <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="case-live">
-            {landed ? (c.drop.kind === 'powerup' ? t('caseLivePowerUp', { title: powerUpTitle(c.drop.powerUp), rarity: CASE_RARITY_LABEL[c.drop.rarity] }) : icon ? t('caseLiveIcon', { name: icon.name }) : '') : ''}
+            {landed ? (c.drop.kind === 'powerup' ? t('caseLivePowerUp', { title: powerUpTitle(c.drop.powerUp), rarity: rarityText(c.drop.rarity) }) : icon ? t('caseLiveIcon', { name: icon.name }) : '') : ''}
           </span>
           {spinning && (
             <button type="button" className="reel-skip" onClick={(e) => { e.stopPropagation(); setSkip((n) => n + 1) }} data-testid="case-skip">
@@ -120,7 +120,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                 </span>
                 <b className="case-name">{powerUpTitle(c.drop.powerUp)}</b>
                 {/* The case's own rarity only: the wheel's colour tier beside it ("Purple · Decent" on a Rare) read as a second scale */}
-                <span className="chip case-rarity" data-tier={card.tier}>{CASE_RARITY_LABEL[c.drop.rarity]}</span>
+                <span className="chip case-rarity" data-tier={card.tier}>{rarityText(c.drop.rarity)}</span>
               </div>
               <span className="help">{powerUpLine(c.drop.powerUp)}</span>
               <span className="small" data-testid="case-locker">
@@ -168,9 +168,9 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
             {guide
               .filter((r) => r.held !== null)
               .map((r) => (
-                <span key={r.item} className={`case-locker-item${r.held ? '' : ' empty'}`} data-tier={CASE_TIER[r.rarity]} title={r.line} data-testid={`case-held-${r.item}`}>
+                <span key={r.item} className={`case-locker-item${r.held ? '' : ' empty'}`} data-tier={CASE_TIER[r.rarity]} title={caseRowLine(r)} data-testid={`case-held-${r.item}`}>
                   <CaseItemIcon item={r.item} size={16} />
-                  <span className="name">{r.title}</span>
+                  <span className="name">{caseRowTitle(r)}</span>
                   <b className="n">×{r.held}</b>
                 </span>
               ))}
@@ -193,7 +193,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                     <i className="tier-dot" data-tier={CASE_TIER[r]} />
                   </td>
                   <td>
-                    <b>{CASE_RARITY_LABEL[r]}</b>
+                    <b>{rarityText(r)}</b>
                   </td>
                   <td className="mono">{odds[r]}%</td>
                   <td className="small">
@@ -217,8 +217,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                   <CaseItemIcon item={r.item} size={16} />
                 </span>
                 <span className="col" style={{ gap: 1, minWidth: 0 }}>
-                  <b>{r.title}</b>
-                  <span className="small muted">{r.line}</span>
+                  <b>{caseRowTitle(r)}</b>
+                  <span className="small muted">{caseRowLine(r)}</span>
                 </span>
               </li>
             ))}
