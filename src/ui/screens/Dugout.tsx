@@ -51,6 +51,8 @@ import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 import { RunInBanner } from '../components/RunInBanner'
 import { DressingRoomTab } from './DressingRoomTab'
+import { CounterBidControl, NegotiateButton, OfficeInbox, OfficeTab, officeAlertCount } from './OfficeTab'
+import { office as officeText } from '../i18n/en/office'
 import { PlannerTab } from './PlannerTab'
 import { InboxActions } from '../components/InboxActions'
 import { HappinessCard } from '../components/Happiness'
@@ -77,6 +79,7 @@ import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, traini
 import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
 
 const t = translator(dugout)
+const tOffice = translator(officeText)
 
 type Tab = DugoutTab
 
@@ -196,6 +199,7 @@ export function Dugout() {
     ...(done ? [] : [{ id: 'next' as const, label: t('tabNext') }]),
     { id: 'tactics', label: t('tabTactics') },
     { id: 'dressing', label: t('tabDressing') },
+    { id: 'office', label: tOffice('tabOffice'), badge: officeAlertCount(game, u) || undefined },
     { id: 'planner', label: t('tabPlanner') },
     { id: 'fixtures', label: t('tabFixtures') },
     { id: 'table', label: t('tabTable') },
@@ -575,6 +579,7 @@ export function Dugout() {
       {tab === 'next' && <NextMatchTab boxes={tabBoxes} />}
       {tab === 'tactics' && <TacticsTab boxes={tabBoxes} />}
       {tab === 'dressing' && <DressingRoomTab onPlayer={onPlayerClick} boxes={tabBoxes} />}
+      {tab === 'office' && <OfficeTab onPlayer={onPlayerClick} boxes={tabBoxes} />}
       {tab === 'planner' && <PlannerTab onPlayer={onPlayerClick} boxes={tabBoxes} />}
 
       {tab === 'fixtures' && (
@@ -686,6 +691,7 @@ export function Dugout() {
               )}
             </div>
           )}
+          <OfficeInbox onOpen={() => setTab('office')} />
           {inboxFilter === 'all' && <InboxStorylines game={game} u={u} />}
           <div className="news">
             {filterNews(season.news, inboxFilter).map(({ n, i }, k, shown) => (
@@ -1469,6 +1475,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     <button className="btn sm" onClick={() => setBids({ ...bids, [l.playerSeasonId]: Math.round(l.asking * 0.9 * 10) / 10 })}>
                       −10%
                     </button>
+                    <NegotiateButton listingId={l.playerSeasonId} name={p.name} />
                     <select className="input" value={years[l.playerSeasonId] ?? defaultBidYears(p.age)} onChange={(e) => setYears({ ...years, [l.playerSeasonId]: Number(e.target.value) })} title={t('contractLength')}>
                       {bidYearChoices(p.age).map((y) => (
                         <option key={y} value={y}>
@@ -1588,6 +1595,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                       <button className="btn sm" onClick={() => store.rejectOffer(i)}>
                         {t('reject')}
                       </button>
+                      <CounterBidControl index={i} name={p.name} />
                     </span>
                   </div>
                   <div className="small muted">{t('valueDay', { m: money(p.value), day: o.day })}</div>

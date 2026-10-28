@@ -20,6 +20,7 @@ export const DUGOUT_TABS: Record<string, BoxSet> = {
   next: set('dugout-next', 'Next match tab', [['preview', 'Match preview'], ['opposition', 'Opposition report'], ['match-up', 'Unit against unit'], ['team-talk', 'Team talk']]),
   tactics: set('dugout-tactics', 'Tactics tab', [['formation', 'Formation'], ['instructions', 'Team instructions'], ['training', 'Training'], ['set-pieces', 'Set pieces'], ['roles', 'Roles']]),
   dressing: set('dugout-dressing', 'Dressing room tab', [['hierarchy', 'Hierarchy'], ['groups', 'Groups and atmosphere'], ['happiness', 'Happiness']]),
+  office: set('dugout-office', 'Office tab', [['requests', 'Player requests'], ['promises', 'Promises'], ['talks', 'Conversations'], ['press', 'Press conference'], ['transfers', 'Transfer talks'], ['status', 'Squad status']]),
   planner: set('dugout-planner', 'Planner tab', [['squad-planner', 'Depth and needs'], ['contracts', 'Contracts'], ['medical', 'Medical']]),
   fixtures: set('dugout-fixtures', 'Fixtures tab', [['calendar', 'Season calendar'], ['fixture-list', 'Fixtures and results']]),
   table: set('dugout-table', 'Table tab', [['league-table', 'League table'], ['season-so-far', 'Season so far']]),

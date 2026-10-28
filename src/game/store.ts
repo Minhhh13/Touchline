@@ -46,6 +46,7 @@ import { fullScout, setAssignment, setRecruitFocus } from './logic/scouting'
 import { proposeContract, setShopped, type ContractOffer } from './logic/contracts'
 import { makeRequest, shiftWages, type RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
+import { withTick, type OfficeTick } from './logic/officeSteps'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, letContractGo, postRenewals, type OffseasonReport } from './logic/dynasty'
@@ -59,7 +60,7 @@ import { getFormation } from '@engine/formations'
 import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
-import { simToNextStop, simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
+import { simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
 import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
@@ -349,6 +350,13 @@ interface Store {
   proposeContract: (playerSeasonId: string, offer: ContractOffer) => { accepted: boolean; message: string }
   /** Have his agent find a buyer, or stop. */
   setShopped: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
+  /**
+   * One office action (Football Manager depth, round 8): `fn` is a function of `src/game/logic/office.ts` and its
+   * modules, run on the game like any action and its result returned. The office's code is not in the first download:
+   * the screens reach it through `src/game/officeActions.ts`, in the Dugout's chunk.
+   */
+  runOffice: <T>(fn: (game: Game, u: LoadedUniverse) => T, fallback: T, opts?: { unlock?: boolean }) => T
+  setPlayerPower: (on: boolean) => void
   boardRequest: (kind: RequestKind) => { ok: boolean; accepted: boolean; message: string }
   /** The wage-to-transfer slider: +1 turns £10k a week of wages into £2M of budget, −1 the other way. */
   shiftWages: (dir: 1 | -1) => { ok: boolean; message: string }
@@ -455,10 +463,32 @@ function persistedOf(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'p
   return { game: s.game ? compactGame(s.game) : null, parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }
 }
 
+/**
+ * The office's tick (`officeTick` in `src/game/logic/office.ts`), registered when its module loads (the Dugout's chunk,
+ * or on demand the first time a game with office state is changed), so the office stays out of the first download.
+ * Until then nothing ticks, and the first tick after it loads catches up: every part of it is idempotent.
+ */
+let officeHook: OfficeTick | null = null
+let officeLoading = false
+export function registerOfficeTick(fn: OfficeTick): void {
+  officeHook = fn
+}
+
 export const useStore = create<Store>()(
   persist(
     (set, get) => {
       /** Run a mutation on the current game with the loaded universe. */
+      /** The office's tick when it is loaded; a game that uses the office loads it and catches up once it has. */
+      const tickOffice: OfficeTick = (g, u, sim) => {
+        if (officeHook) return officeHook(g, u, sim)
+        if ((g.office || g.settings.playerPower) && !officeLoading) {
+          officeLoading = true
+          void import('./logic/office').then((m) => {
+            officeHook = m.officeTick
+            mutate(() => {})
+          })
+        }
+      }
       const mutate = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const { game, universe } = get()
         if (!game || !universe) return
@@ -466,6 +496,8 @@ export const useStore = create<Store>()(
           set({
             game: produce(game, (g) => {
               fn(g, universe)
+              // The office catches up after every action (a no-op for a game that never used it)
+              tickOffice(g, universe)
             }),
           })
         } catch (e) {
@@ -485,9 +517,15 @@ export const useStore = create<Store>()(
           let slice = performance.now()
           for (;;) {
             const r = steps.next()
-            if (r.done) return { next: finishDraft(box.g), value: r.value }
+            if (r.done) {
+              tickOffice(box.g, u0)
+              return { next: finishDraft(box.g), value: r.value }
+            }
             // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
-            if (r.value === WEEK_END) box.g = createDraft(finishDraft(box.g))
+            if (r.value === WEEK_END) {
+              tickOffice(box.g, u0, true)
+              box.g = createDraft(finishDraft(box.g))
+            }
             if (performance.now() - slice < sliceMs) continue
             await nextTask()
             if (get().game !== g0 || get().universe !== u0) return 'moved'
@@ -1225,7 +1263,10 @@ export const useStore = create<Store>()(
         simWeeks: (n) => {
           // Plain numbers from the saved game, read before the mutation so the digest compares before with after
           const before = digestSnapshot(get().game)
-          mutate((g, u) => runSteps(simWeeksSteps({ g }, u, n)))
+          mutate((g, u) => {
+            const box = { g }
+            runSteps(withTick(box, u, simWeeksSteps(box, u, n), tickOffice))
+          })
           afterSimWeeks(before)
         },
         simWeeksSoon: async (n, opts) => {
@@ -1246,7 +1287,8 @@ export const useStore = create<Store>()(
         simToNextBigMatch: () => {
           const out: { stop: StopReason | null } = { stop: null }
           mutate((g, u) => {
-            out.stop = simToNextStop(g, u)
+            const box = { g }
+            out.stop = runSteps(withTick(box, u, simToNextStopSteps(box, u), tickOffice))
           })
           afterSimToStop(out.stop)
         },
@@ -1501,6 +1543,19 @@ export const useStore = create<Store>()(
           })
           return out
         },
+        runOffice: (fn, fallback, opts) => {
+          let out = fallback
+          mutate((g, u) => {
+            out = fn(g, u)
+          })
+          if (opts?.unlock) unlockFromGame()
+          return out
+        },
+        setPlayerPower: (on) =>
+          mutate((g) => {
+            if (on) g.settings.playerPower = true
+            else delete g.settings.playerPower
+          }),
         boardRequest: (kind) => {
           let out = { ok: false, accepted: false, message: 'No game' }
           mutate((g, u) => {

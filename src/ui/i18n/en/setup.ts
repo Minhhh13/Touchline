@@ -215,6 +215,8 @@ export const setup = catalog('setup', {
   moreHelp: 'Seed, opposition, twists and more.',
   jobSecurity: 'Job security',
   jobSecurityInfo: "On: miss the board's target badly and you are sacked.",
+  playerPower: 'Player power',
+  playerPowerInfo: 'On: unhappy players may hand in transfer requests on their own. Off: only a broken promise makes a man ask to leave. You can change it later in the Office.',
   europeanNights: 'European Nights',
   europeInfo: 'The wheel draws from all {n} leagues, not just yours.',
   twists: 'Twists',
