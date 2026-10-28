@@ -65,9 +65,9 @@ export function ageOneYear(p: PlayerSeason, rng: Rng, year: number): PlayerSeaso
   return next
 }
 
-/** Terms that travel with a contract into the next season: the clauses and a sell-on (an agent stops shopping him in the summer). */
+/** Terms that travel with a contract into the next season: the clauses, a sell-on and the status his wage is paid for (an agent stops shopping him in the summer). */
 function carried(c: Contract): Partial<Contract> {
-  return { ...(c.clauses ? { clauses: c.clauses } : {}), ...(c.sellOn ? { sellOn: c.sellOn } : {}) }
+  return { ...(c.clauses ? { clauses: c.clauses } : {}), ...(c.sellOn ? { sellOn: c.sellOn } : {}), ...(c.paidStatus ? { paidStatus: c.paidStatus } : {}) }
 }
 
 export interface OffseasonReport {

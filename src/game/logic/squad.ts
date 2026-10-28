@@ -112,6 +112,8 @@ export function squadWages(game: Game, u: LoadedUniverse): number {
  * Change a player's squad status from the Club tab. A promotion lifts his
  * morale 6 and his wage by the ratio of the two status multipliers; a demotion
  * costs 6 morale and leaves the wage where it is (contracts do not go down).
+ * The wage is paid for the highest status reached (`Contract.paidStatus`), so
+ * moving him down and back up never raises it twice.
  */
 export function setSquadStatus(game: Game, u: LoadedUniverse, playerSeasonId: string, status: SquadStatus): void {
   const c = game.contracts[playerSeasonId]
@@ -125,5 +127,10 @@ export function setSquadStatus(game: Game, u: LoadedUniverse, playerSeasonId: st
   const before = s.morale
   s.morale = Math.max(10, Math.min(100, s.morale + (up ? 6 : -6)))
   logMorale(s, game.season?.matchweek ?? 0, before, 'status', status)
-  if (up && !c.loan) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * (WAGE_MULT[status] / WAGE_MULT[from])) }
+  const paid = c.paidStatus ?? from
+  if (STATUS_RANK[status] > STATUS_RANK[paid]) {
+    if (!c.loan) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * (WAGE_MULT[status] / WAGE_MULT[paid])) }
+    delete c.paidStatus
+  } else if (STATUS_RANK[paid] > STATUS_RANK[status]) c.paidStatus = paid
+  else delete c.paidStatus
 }

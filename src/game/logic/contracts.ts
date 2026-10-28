@@ -224,6 +224,8 @@ export function proposeContract(game: Game, u: LoadedUniverse, id: string, offer
   delete book[p.playerId]
   c.years = Math.max(1, Math.round(offer.years))
   c.status = offer.status
+  // The agreed wage is for this status: the Club tab's earlier raises no longer stand above it
+  delete c.paidStatus
   delete c.renewed
   delete c.declined
   delete c.expired
