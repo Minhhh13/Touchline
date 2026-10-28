@@ -13,7 +13,7 @@
 import { ENGINE_VERSION } from '@engine/version'
 import { useStore } from '@game/store'
 import { onlineConfig } from './config'
-import { functionUrl } from './transport'
+import { functionUrl, timedFetch } from './transport'
 import { loadRecord, updateRecord } from './localState'
 import { errorReportsOn } from './core/errorPref'
 import { ERROR_EVENT, takeEarlySignals, type ErrorSignal } from './core/errorSignal'
@@ -200,6 +200,8 @@ export function installErrorReporting(): Reporter | null {
   const cfg = onlineConfig()
   if (!cfg) return null
   const url = functionUrl(cfg)
+  // A post that never settles would hold `flushing` (and so every later report) for the rest of the page's life
+  const post = timedFetch((...a) => fetch(...a), 30000)
   const env: ReporterEnv = {
     origin: location.origin,
     userAgent: navigator.userAgent,
@@ -215,7 +217,7 @@ export function installErrorReporting(): Reporter | null {
     post: async (reports) => {
       try {
         // A guest call: the publishable key alone, never the session's JWT, so no report is tied to an account
-        const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', apikey: cfg.key }, body: JSON.stringify({ op: 'errors.report', reports }), keepalive: true })
+        const r = await post(url, { method: 'POST', headers: { 'content-type': 'application/json', apikey: cfg.key }, body: JSON.stringify({ op: 'errors.report', reports }), keepalive: true })
         await r.body?.cancel().catch(() => undefined)
         return r.status
       } catch {
