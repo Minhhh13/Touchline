@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { BookOpen, Columns3, Crown, Medal, Plus, Search, Shield, Star as StarIcon, Trophy, X } from 'lucide-react'
 import type { Position } from '@engine/types'
 import { useStore } from '@game/store'
@@ -366,7 +366,9 @@ const SORTS: Array<{ value: FilterSort; label: string }> = [
 
 export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: { form: SearchForm; setForm: (f: SearchForm) => void; onPlayer: (playerId: string) => void; compare: string[]; toggleCompare: (playerId: string) => void }) {
   const { universe: u, loadingLeagues, shortlist, toggleShortlist, ensureLeagues } = useStore()
-  const filter = useMemo(() => formFilter(form), [form])
+  // Typing stays on the input's own render: the filter over every player-season follows a beat behind
+  const deferred = useDeferredValue(form)
+  const filter = useMemo(() => formFilter(deferred), [deferred])
   const active = filterActive(filter)
   // The search covers every league: the ones not loaded yet load on the first search
   useEffect(() => {
@@ -546,7 +548,8 @@ export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: 
   const careers = useMemo(() => (u ? ids.map((id) => careerSeasons(u, id)).filter((s) => s.length > 0) : []), [u, ids])
   const shown = useMemo(() => careers.map((seasons) => seasons.find((s) => s.id === picked[seasons[0].playerId]) ?? seasons.reduce((m, s) => (s.overall > m.overall ? s : m), seasons[0])), [careers, picked])
   const rows = useMemo(() => compareRows(shown), [shown])
-  const hits = useMemo(() => (u && query.trim().length >= 2 ? searchPlayers(u, query, { limit: 6 }) : []), [u, query])
+  const deferredQuery = useDeferredValue(query)
+  const hits = useMemo(() => (u && deferredQuery.trim().length >= 2 ? searchPlayers(u, deferredQuery, { limit: 6 }) : []), [u, deferredQuery])
   if (!u) return null
   const add = (playerId: string) => {
     if (!ids.includes(playerId)) setIds([...ids, playerId].slice(-COMPARE_MAX))

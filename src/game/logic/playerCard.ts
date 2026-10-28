@@ -3,6 +3,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import { describeFit, POSITIONS, ratingAt, type Fit } from '@engine/positions'
 import { INJURY_RISK_LABEL, injuryRiskLevel } from '@engine/depth'
 import { isEstimated } from './era'
+import { playerEntry } from './exploreIndex'
 
 /**
  * The player card's derived numbers (display only, no RNG): the rating-by-season series, the
@@ -11,9 +12,8 @@ import { isEstimated } from './era'
 
 /** Every database season of one real player across the loaded leagues, oldest first. */
 export function careerSeasons(u: LoadedUniverse, playerId: string): PlayerSeason[] {
-  return Object.values(u.index)
-    .filter((p) => p.playerId === playerId)
-    .sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
+  // From the cached per-player index (one walk of the universe, not one per card); a copy, so callers may sort it
+  return [...(playerEntry(u, playerId)?.seasons ?? [])]
 }
 
 export interface SeasonPoint {

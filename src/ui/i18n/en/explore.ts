@@ -113,4 +113,5 @@ export const explore = catalog('explore', {
   average: 'average',
   riskTip: 'Injury risk {level} of 5: {note}',
   ageShort: '{n}y',
+  groupAvgTip: '{group} average: {n}',
 })
