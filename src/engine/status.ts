@@ -166,9 +166,3 @@ export function acceptsStatus(p: Pick<PlayerSeason, 'name' | 'overall' | 'age'>,
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
 }
-
-/** Status after a rank-based promotion or demotion, for the UI and the morale swing. */
-export function statusChange(from: SquadStatus, to: SquadStatus): 'up' | 'down' | 'same' {
-  const d = STATUS_RANK[to] - STATUS_RANK[from]
-  return d > 0 ? 'up' : d < 0 ? 'down' : 'same'
-}

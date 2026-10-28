@@ -8,7 +8,7 @@ import { familiarityGainFactor } from './depth'
 import { compareText, type Rng } from './rng'
 import { isClassicSeason, ordinal, poolClubSeasons, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
-import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
+import type { MatchTeamInput, TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
 import { autoPickLineup, computeTeamStrength } from './ratings'
 import { getFormation } from './formations'
@@ -400,10 +400,6 @@ export function drawNextRound(ties: CupTie[], round: CupTie['round'], rng: Rng, 
   return next
 }
 
-export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng, matchweeks: number): CupTie[] {
-  return drawNextRound(cup, round, rng, cupRounds(matchweeks))
-}
-
 /**
  * The Continental Cup's field: the `n` strongest clubs of the other loaded leagues, four per league (its top four that
  * season, by league position then squad rating; a league without that season gives its nearest one), topped up with
@@ -635,11 +631,6 @@ export function userTeamInput(u: LoadedUniverse, t: UserTeamInput): MatchTeamInp
   return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk, captainId: t.captainId, talkSkill: t.talkSkill, markTarget: t.markTarget }
 }
 
-/** Play one match between two inputs, returning the full result. */
-export function playMatch(rng: Rng, home: MatchTeamInput, away: MatchTeamInput, importance: number, label: string | undefined, neutral: boolean, detail: 'full' | 'summary'): FullMatchResult {
-  return simulateMatch({ rng, home, away, importance, importanceLabel: label, neutral, detail })
-}
-
 /** Penalty shoot-out for drawn cup ties. */
 export function shootout(rng: Rng, homeMentality: number, awayMentality: number): { home: number; away: number } {
   let h = 0
@@ -666,8 +657,4 @@ export const EXTRA_TIME_RATE = 0.85 / 3
  */
 export function extraTime(rng: Rng, xg: { home: number; away: number }): { home: number; away: number } {
   return { home: rng.poisson(Math.max(0, xg.home) * EXTRA_TIME_RATE), away: rng.poisson(Math.max(0, xg.away) * EXTRA_TIME_RATE) }
-}
-
-export function clubSeasonFor(u: LoadedUniverse, clubId: string, season: number): ClubSeason | undefined {
-  return u.clubSeasonByKey[`${clubId}@${season}`]
 }

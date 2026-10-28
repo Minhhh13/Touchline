@@ -308,16 +308,6 @@ export interface PlayerMatchStats {
   injured: Injury | null
 }
 
-export interface MatchTeamSheet {
-  teamId: string
-  teamName: string
-  lineup: Lineup
-  bench: string[]
-  tactics: Tactics
-  /** Pre-computed per-unit strengths, see ratings.ts. */
-  strength: TeamStrength
-}
-
 export interface TeamStrength {
   goalkeeping: number
   defence: number
