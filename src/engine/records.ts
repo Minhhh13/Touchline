@@ -4,6 +4,7 @@
  * touches the RNG or the game state.
  */
 import type { LeagueSeasonRow } from './types'
+import { compareText } from './rng'
 import { ordinal, type LoadedUniverse } from './universe'
 
 /** The six numbers a league table row carries, as the user's season or a real one. */
@@ -122,7 +123,7 @@ export function benchmarkSeason(u: LoadedUniverse, leagueId: string, row: Season
     const value = m.pick(row)
     const scored = peers.map((h) => ({ clubId: h.row.clubId, season: h.season, value: m.pick(h.row) }))
     const beats = (a: number, b: number) => (m.higherIsBetter ? a > b : a < b)
-    const better = scored.filter((s) => beats(s.value, value)).sort((a, b) => (m.higherIsBetter ? b.value - a.value : a.value - b.value) || a.season - b.season || a.clubId.localeCompare(b.clubId))
+    const better = scored.filter((s) => beats(s.value, value)).sort((a, b) => (m.higherIsBetter ? b.value - a.value : a.value - b.value) || a.season - b.season || compareText(a.clubId, b.clubId))
     const equal = scored.filter((s) => s.value === value).length
     return { key: m.key, label: m.label, value, higherIsBetter: m.higherIsBetter, rank: better.length + 1, of: peers.length, equal, better: better.slice(0, 3) }
   }

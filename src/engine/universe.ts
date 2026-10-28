@@ -402,10 +402,6 @@ export function clubName(u: LoadedUniverse, clubId: string): string {
   return u.clubById[clubId]?.name ?? clubId
 }
 
-export function flagOf(u: LoadedUniverse, nation: string): string {
-  return u.nations[nation]?.flag ?? '🏳️'
-}
-
 /** Whether a player-season (or any `{ clubId, season }`) belongs to a classic club-season. */
 export function isClassic(u: LoadedUniverse, p: { clubId: string; season: number }): boolean {
   return !!u.clubSeasonByKey[`${p.clubId}@${p.season}`]?.classic
@@ -424,16 +420,6 @@ export function poolClubSeasons(u: LoadedUniverse, classic: boolean | undefined)
 /** Club-seasons of one league in one season (the 18 or 20 clubs of that campaign). */
 export function leagueSeasonClubs(u: LoadedUniverse, leagueId: string, season: number): ClubSeason[] {
   return u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season)
-}
-
-/** Short club-season label like "Leicester City 2015-16 · Champions". */
-export function describeClubSeason(u: LoadedUniverse, cs: ClubSeason): string {
-  const club = clubName(u, cs.clubId)
-  let suffix = ''
-  if (!cs.complete) suffix = ' · in progress'
-  else if (cs.champions) suffix = ' · Champions'
-  else if (cs.position > 0) suffix = ` · ${ordinal(cs.position)}`
-  return `${club} ${seasonLabel(cs.season)}${suffix}`
 }
 
 export function ordinal(n: number): string {

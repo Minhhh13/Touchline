@@ -499,7 +499,7 @@ export function advanceMatch(mp: MatchInProgress, lookups: { home: TeamLookups; 
     if (second.tactics) side.tactics = second.tactics
     let madeNow = 0
     for (const s of second.substitutions ?? []) {
-      if (subs.length >= 5) break
+      if (subs.length >= MAX_SUBS) break
       const off = live.find((p) => p.psId === s.off && p.offAt >= 90 && !p.red)
       const on = input.getPlayer(s.on)
       if (!off || !on || live.some((p) => p.psId === s.on)) continue
@@ -1367,9 +1367,8 @@ function shortHandedFactor(live: LivePlayer[], from: number, to: number): { ownA
 }
 
 function routineSubstitutions(rng: Rng, live: LivePlayer[], team: MatchTeamInput, side: 'home' | 'away', events: MatchEvent[], subs: Substitution[], fatigue: number, pending: Substitution[]) {
-  const maxSubs = 5
   let made = subs.length + pending.length
-  if (made >= maxSubs) return
+  if (made >= MAX_SUBS) return
   const candidates = live
     .filter((p) => p.offAt >= 90 && !p.red && p.position !== 'GK' && p.onAt === 0)
     .map((p) => {
@@ -1380,7 +1379,7 @@ function routineSubstitutions(rng: Rng, live: LivePlayer[], team: MatchTeamInput
     .sort((a, b) => a.tired - b.tired)
   let n = 0
   for (const c of candidates) {
-    if (made >= maxSubs || n >= 3) break
+    if (made >= MAX_SUBS || n >= 3) break
     const wantsOff = c.tired < 72 || (n === 0 && rng.chance(0.75)) || (n === 1 && rng.chance(0.55)) || (n === 2 && rng.chance(0.3))
     if (!wantsOff) continue
     const minute = clamp(Math.round(rng.gaussian(68, 9)), 50, 88)
@@ -1412,7 +1411,7 @@ function applyPendingSubstitutions(live: LivePlayer[], team: MatchTeamInput, sid
     return
   }
   for (const s of pending) {
-    if (subs.length >= 5) break
+    if (subs.length >= MAX_SUBS) break
     const off = live.find((p) => p.psId === s.off)
     const on = team.getPlayer(s.on)
     if (!off || off.offAt < 90 || off.red || !on || live.some((p) => p.psId === s.on)) continue
@@ -1460,7 +1459,7 @@ export function eligibleReplacement(on: Pick<PlayerSeason, 'positions'>, positio
 }
 
 function bringOn(live: LivePlayer[], team: MatchTeamInput, off: LivePlayer, minute: number, side: 'home' | 'away', events: MatchEvent[], subs: Substitution[], reason: string, reserved: Substitution[]): boolean {
-  if (subs.length + reserved.length >= 5) return false
+  if (subs.length + reserved.length >= MAX_SUBS) return false
   const best = replacementFor(live, team, off, reserved)
   if (!best) return false
   minute = Math.min(90, Math.max(minute, off.cardAt ?? 0))

@@ -203,10 +203,12 @@ export function autoPickLineup(
   const available = pool.filter(isAvailable)
   const lineup: Lineup = {}
   const used = new Set<string>()
-  // Fill the hardest-to-fill slots first: GK, then by scarcity of natural players.
+  // Fill the hardest-to-fill slots first: GK, then by scarcity of natural players (counted once per position, not per comparison).
+  const naturals = new Map<Position, number>()
+  for (const s of formation.slots) if (!naturals.has(s.position)) naturals.set(s.position, available.filter((p) => p.positions.includes(s.position)).length)
   const slots = [...formation.slots].sort((a, b) => {
-    const na = available.filter((p) => p.positions.includes(a.position)).length
-    const nb = available.filter((p) => p.positions.includes(b.position)).length
+    const na = naturals.get(a.position)!
+    const nb = naturals.get(b.position)!
     if (a.position === 'GK') return -1
     if (b.position === 'GK') return 1
     return na - nb

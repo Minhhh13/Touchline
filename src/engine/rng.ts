@@ -182,13 +182,26 @@ function rotl(x: number, k: number): number {
   return (x << k) | (x >>> (32 - k))
 }
 
-/** Seed string for the shared daily challenge, e.g. "daily-2026-10-24". */
-/** The calendar day a daily seed was set for, or null for any other seed. */
+const ENGLISH = new Intl.Collator('en')
+
+/**
+ * The engine's order for ties between ids and names: English collation, the same on every device. A bare
+ * `localeCompare` collates in the device's own language (a Lithuanian browser puts "y" between "i" and "j"), so a
+ * league table level on points, difference and goals, a squad's statuses or Underdog's bottom half could split a tie
+ * one way on one device and the other way on the next, and a replay of the seed (a challenge, the verifier) with it.
+ * English is what `localeCompare` gave on the English-language devices and servers every seed has been pinned on.
+ */
+export function compareText(a: string, b: string): number {
+  return ENGLISH.compare(a, b)
+}
+
+/** The calendar day a daily seed was set for, or null for any other seed or a day the calendar does not have. */
 export function dailyDateOf(seed: string): Date | null {
   const m = /^daily-(\d{4})-(\d{2})-(\d{2})$/.exec(seed)
   if (!m) return null
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
-  return Number.isNaN(d.getTime()) ? null : d
+  // A day that does not exist (2026-02-30) rolls over in Date.UTC: refuse it rather than file it under another day
+  return Number.isNaN(d.getTime()) || utcDay(d) !== `${m[1]}-${m[2]}-${m[3]}` ? null : d
 }
 
 /** The daily seed of the day before the given daily seed. */
@@ -197,6 +210,7 @@ export function previousDailySeed(seed: string): string | null {
   return d ? dailySeed(new Date(d.getTime() - 86400000)) : null
 }
 
+/** Seed string for the shared daily challenge, e.g. "daily-2026-10-24". */
 export function dailySeed(date = new Date()): string {
   const y = date.getUTCFullYear()
   const m = String(date.getUTCMonth() + 1).padStart(2, '0')

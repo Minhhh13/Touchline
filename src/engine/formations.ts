@@ -162,10 +162,3 @@ export function getFormation(id: string): Formation {
   if (!f) throw new Error(`Unknown formation ${id}`)
   return f
 }
-
-/** Count how many slots of each position a formation has. */
-export function slotCounts(formation: Formation): Partial<Record<Position, number>> {
-  const counts: Partial<Record<Position, number>> = {}
-  for (const s of formation.slots) counts[s.position] = (counts[s.position] ?? 0) + 1
-  return counts
-}

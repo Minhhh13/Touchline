@@ -359,7 +359,9 @@ describe('strictReplayDraft: guards the tamper suite does not reach on its own (
     const g = finished(settings, doAutoRest)
     const c = challengeFromGame(g, u, 'Tester')!
     const v = verifyDaily(u, pinFor(settings), body(g, { ...c, s: { ...c.s, seed: 'daily-2026-09-55' } }), NOW, never)
-    expect(v).toMatchObject({ ok: false, status: 409, code: 'puzzle_mismatch' })
+    // r8 engine audit: dailyDateOf refuses a day the calendar does not have, so the seed is not a Daily at all (before,
+    // it read as 25 October and was refused later as another puzzle, 409 puzzle_mismatch)
+    expect(v).toMatchObject({ ok: false, status: 422, code: 'invalid_payload' })
   })
 })
 
