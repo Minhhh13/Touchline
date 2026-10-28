@@ -13,7 +13,7 @@ vi.hoisted(() => {
 import { renderToString } from 'react-dom/server'
 import { createElement, type ComponentType } from 'react'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
-import { SEASON_RULES } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { continentalRounds, drawFirstRound, USER_TEAM } from '@engine/season'
 import type { Game } from '@game/types'
@@ -24,6 +24,7 @@ import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
 import { App } from '../App'
 import { CupTab } from '../screens/Dugout'
 import { Summary } from '../screens/Summary'
+import { CupRuns } from '../components/CupRuns'
 import { Chooser } from '../../game/__tests__/qaHarness'
 import { openFiltered, show } from './qaSsr'
 
@@ -172,4 +173,28 @@ describe('QA r8: the Continental Cup on screen, in English and the pseudo-locale
       expect(tab.filter((x) => !/^(Quarter-final|Semi-final|Final|After the groups, matchweek \d+|Drawn after matchweek \d+)$/.test(x))).toEqual([])
       expect([...new Set(fails)].slice(0, 12)).toEqual([])
     }, 300_000)
+  it('a Quick Draft\'s post-season Continental Cup: groups and two-legged ties on the summary', async () => {
+    const fails: string[] = []
+    const english: string[] = []
+    let groups = 0
+    for (let i = 0; i < 20 && groups < 3; i++) {
+      const seed = `r8-quick-cup-${i}`
+      show({ universe: u, loadedLeagues: ALL, game: null, parked: {}, toast: null, digest: null, playback: null, screen: 'game', offseason: null })
+      const clubs = u.clubSeasons.filter((cs) => cs.leagueId === 'england' && cs.season === 2024).map((cs) => cs.clubId)
+      st().startGame({ mode: 'quick', seed, formationId: '4-3-3', teamName: 'R8 United', shortName: 'R8U', leagueId: 'england', wheelLeagues: ['england'], hostClubId: clubs[0], leagueSeason: 2024, rules: { ...QUICK_RULES, leagues: ['england'], managers: false, managerSpin: false, endCase: false }, jobSecurity: false, difficulty: 'calibrated', continental: false, january: false })
+      st().autoDraftRest()
+      st().finishDraft()
+      st().kickOff()
+      st().endPlayback()
+      // Only a side that qualified plays it (the top four, as the league season decides)
+      if (!(await st().playCup('continental'))) continue
+      const run = st().game!.quickResult!.continentalCup!
+      if (run.groups) groups++
+      renderBoth(`${seed} Summary`, Summary as ComponentType<never>, {}, fails, english)
+      renderBoth(`${seed} CupRuns`, CupRuns as ComponentType<never>, { game: st().game, u, onReveal: () => {} }, fails, english)
+    }
+    expect(groups).toBe(3)
+    expect([...new Set(fails)].slice(0, 12)).toEqual([])
+    expect(english.filter((x) => /after MW|Group [A-D]$|^Club$/.test(x.replace(/^.*?: /, '')))).toEqual([])
+  }, 300_000)
 })

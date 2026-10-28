@@ -74,6 +74,7 @@ function run(seed: string, manager: Manager, leagueId: string, years: number): s
   let renewalsSeen = 0
   let actedOn = 0
   let openerChecked = -1
+  const covers = new Set<string>()
   stepHook.run = () => {
     const g = st().game
     if (!g || problems.length > 6) return
@@ -109,6 +110,7 @@ function run(seed: string, manager: Manager, leagueId: string, years: number): s
       if (Object.keys(g.squad).length < MIN_SEASON_SQUAD) problems.push(`y${g.year}: the season started with ${Object.keys(g.squad).length} men`)
       if (renewalList(g).length) problems.push(`y${g.year}: ${renewalList(g).length} still out of contract after the opener`)
     }
+    for (const n of g.season?.news ?? []) if (n.title.endsWith('signs as cover')) covers.add(`${g.year} ${n.title}`)
     if (st().toast && !crashToast()) useStore.setState({ toast: null })
   }
   const draft = (label: string) => driveDraft(u, ch, { autoAt: manager === 'auto' || ch.chance(0.6) ? 0 : undefined }).problems.map((p) => `${label}: ${p}`)
@@ -128,6 +130,8 @@ function run(seed: string, manager: Manager, leagueId: string, years: number): s
   // custom players, the rest is the season's own size, which goes with the league
   for (let k = 2; k < sizes.length; k++) if (europe[k] === europe[k - 1] && sizes[k] - sizes[k - 1] > 6000) problems.push(`the save grew by ${sizes[k] - sizes[k - 1]} characters in one summer (${sizes.map((x, i) => `${x}${europe[i] ? 'E' : ''}`).join(', ')})`)
   if (sizes.length && Math.max(...sizes) > 60_000) problems.push(`a ${years}-season Dynasty's save reached ${Math.max(...sizes)} characters`)
+  // Letting every man out of contract go thins the squad: the opener's cover must have signed someone
+  if (manager === 'leave' && years >= 5 && !covers.size) problems.push('the leave manager never needed cover')
   if ((manager === 'leave' || manager === 'renew') && renewalsSeen > 0 && actedOn === 0) problems.push(`the ${manager} manager never acted on a renewal list`)
   return problems
 }
