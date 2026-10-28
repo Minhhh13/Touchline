@@ -160,7 +160,7 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
       testId={atBreak ? 'half-time-panel' : 'late-panel'}
       actions={
         <>
-          <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus title="Play on with the talk and changes chosen above">
+          <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus title={tx('playOnTip')}>
             {tx(atBreak ? 'playOn70' : 'playToWhistle')}
           </button>
           <button

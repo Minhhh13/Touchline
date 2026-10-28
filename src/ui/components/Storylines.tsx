@@ -6,6 +6,10 @@ import { previewLines, previewTitle, storylineText, summerText } from '../storyT
 import { ordinal, outcomeClass } from '../format'
 import { PREVIEW_ICON, STORY_ICON, SUMMER_ICON } from './icons'
 import { ClubBadge, Info } from './bits'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const tr = translator(dugout)
 
 /** The key every storyline's wording hangs on: the game, its year and the week, so a week always reads the same. */
 export function storyKey(game: Game): string {
@@ -22,9 +26,9 @@ export function useStorylines(game: Game | null, u: LoadedUniverse | null) {
 }
 
 function FormChips({ form, label }: { form: FormLetter[]; label: string }) {
-  if (!form.length) return <span className="small muted">no league form</span>
+  if (!form.length) return <span className="small muted">{tr('storyNoForm')}</span>
   return (
-    <span className="story-form" role="img" aria-label={`${label}: ${form.join(' ')}, oldest first`}>
+    <span className="story-form" role="img" aria-label={tr('storyFormLabel', { label, form: form.join(' ') })}>
       {form.map((o, i) => (
         <span key={i} className={`chip ${outcomeClass(o)}`}>
           {o}
@@ -43,17 +47,17 @@ function PreviewBlock({ p, u, game }: { p: MatchPreview; u: LoadedUniverse; game
         <b>{previewTitle(p, u)}</b>
         {p.table && (
           <span className="small muted">
-            You {ordinal(p.table.ours)}, {p.table.oursPts} pts · them {ordinal(p.table.theirs)}, {p.table.theirsPts} pts
+            {tr('storyTableLine', { ours: ordinal(p.table.ours), oursPts: p.table.oursPts, theirs: ordinal(p.table.theirs), theirsPts: p.table.theirsPts })}
           </span>
         )}
       </div>
       <div className="story-form-row">
-        <span className="small muted">You</span>
-        <FormChips form={p.form.ours} label="Your form" />
+        <span className="small muted">{tr('storyYou')}</span>
+        <FormChips form={p.form.ours} label={tr('storyYourForm')} />
         {p.comp === 'league' || p.form.theirs.length ? (
           <>
-            <span className="small muted">Them</span>
-            <FormChips form={p.form.theirs} label="Their form" />
+            <span className="small muted">{tr('storyThem')}</span>
+            <FormChips form={p.form.theirs} label={tr('storyTheirForm')} />
           </>
         ) : null}
       </div>
@@ -90,8 +94,8 @@ export function MatchPreviewPanel({ game, u }: { game: Game; u: LoadedUniverse }
     <div className="panel" data-testid="match-preview">
       <div className="panel-head">
         <span className="head-title">
-          <h3>Match preview</h3>
-          <Info label="About the preview">Form is the last five league games, oldest first. The player to watch is their top scorer who is fit, or their best player; yours is the starter in the best recent form.</Info>
+          <h3>{tr('storyPreview')}</h3>
+          <Info label={tr('storyAboutPreview')}>{tr('storyPreviewInfo')}</Info>
         </span>
       </div>
       {previews.map((p) => (
@@ -135,7 +139,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
   if (!stories.length && !summer) return null
   return (
     <div className="story-box" data-testid="storylines">
-      <div className="story-box-head small muted">Storylines</div>
+      <div className="story-box-head small muted">{tr('storyBox')}</div>
       <div className="news">
         {summer && (
           <div className="item story summer-card" data-testid="summer-card">
@@ -143,7 +147,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
               <SUMMER_ICON size={15} aria-hidden="true" />
             </span>
             <span>
-              <div className="t">The story of last season</div>
+              <div className="t">{tr('storyLastSeason')}</div>
               <div className="b summer-head">{summer.headline}</div>
               <ul className="summer-lines">
                 {summer.lines.map((l) => (
@@ -151,7 +155,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
                 ))}
               </ul>
             </span>
-            <span className="news-mw">Summer</span>
+            <span className="news-mw">{tr('storySummer')}</span>
           </div>
         )}
         {stories.map((x) => {
@@ -165,7 +169,7 @@ export function InboxStorylines({ game, u }: { game: Game; u: LoadedUniverse }) 
                 <div className="t">{x.title}</div>
                 <div className="b">{x.text}</div>
               </span>
-              <span className="news-mw">Now</span>
+              <span className="news-mw">{tr('storyNow')}</span>
             </div>
           )
         })}

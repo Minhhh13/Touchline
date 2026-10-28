@@ -4683,6 +4683,10 @@ table.tbl.contracts .btn.sm {
   display: grid;
   gap: 4px;
 }
+.digest-conf-move {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 /* The Profile screen's trophy cabinet: drawn icons in gold, faded at 45 % while the count is 0 */
 .cabinet-icon {
   display: inline-flex;
@@ -4726,8 +4730,11 @@ dl.kv {
 }
 /* A ledger (the Club tab's finances): one row a figure, hairlines between, the figures right-aligned in tabular digits */
 .kv.ledger {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 0 var(--space-3);
+}
+.kv.ledger dt {
+  white-space: nowrap;
 }
 .kv.ledger dt,
 .kv.ledger dd {
@@ -16762,7 +16769,7 @@ table.tbl td.strong {
 /* The Continental Cup's groups (engine 7): four small tables, the top two marked through */
 .group-tables {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
   gap: 10px;
 }
 .group-card {

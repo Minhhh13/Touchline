@@ -322,4 +322,5 @@ export const match = catalog('match', {
   val_short: 'Short',
   val_mixed: 'Mixed',
   val_direct: 'Direct',
+  playOnTip: 'Play on with the talk and changes chosen above',
 })

@@ -518,7 +518,7 @@ export function Summary() {
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title="The same setup on a new wheel" data-testid="draft-again">
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title={t('draftAgainTip')} data-testid="draft-again">
               <Dices size={16} aria-hidden="true" /> {t('draftAgain')}
             </button>
           )}
@@ -629,8 +629,8 @@ export function Summary() {
       {season?.continental?.groups && !replay.playing && on('europe') && (
         <div className="panel" data-testid="season-europe">
           <div className="panel-head">
-            <h3>Continental Cup</h3>
-            <span className={`chip ${season.continental.won ? 'gold' : ''}`}>{season.continental.won ? 'Winners' : `Out in the ${{ G: 'group stage', R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'G']}`}</span>
+            <h3>{t('continentalCupTitle')}</h3>
+            <span className={`chip ${season.continental.won ? 'gold' : ''}`}>{season.continental.won ? t('winners') : t('outInThe', { round: euroRound(continentalRun(season) ?? 'G') })}</span>
           </div>
           <GroupTables groups={seasonGroupViews(season.continental.groups)} nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))} badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={16} /> : <ClubBadge clubId={id} size={16} />)} userId={USER_TEAM} testId="season-europe-groups" />
           <div style={{ marginTop: 10 }}>

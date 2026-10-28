@@ -61,6 +61,8 @@ export const app = catalog('app', {
   digestPoints: '{place}, {n, plural, one {# point} other {# points}}',
   digestFrom: ' from {n, plural, one {# league match} other {# league matches}}',
   boardConfidence: 'Board confidence',
+  confidenceMove: '{from} → {to}',
+  confidenceDelta: '({n})',
   decidedForYou: 'Decided for you',
   decidedTimes: ' ({n} times)',
   injuries: 'Injuries',

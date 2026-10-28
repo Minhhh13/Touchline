@@ -265,4 +265,6 @@ export const summary = catalog('summary', {
   groupAt: '{home, select, home {v} other {at}} {club}',
   groupAfter: 'after MW {n}',
   groupKey: 'The top two of each group go through to the quarter-finals',
+  continentalCupTitle: 'Continental Cup',
+  draftAgainTip: 'The same setup on a new wheel',
 })

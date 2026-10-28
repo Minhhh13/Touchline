@@ -223,4 +223,6 @@ export const arena = catalog('arena', {
   og: ' (og)',
   theXI: 'The XI · {name}',
   shareText: 'Share text',
+  playAgainTip: 'The same format on a new wheel',
+  newRunTip: 'Set up a new arena run',
 })

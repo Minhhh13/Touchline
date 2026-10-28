@@ -11,7 +11,7 @@ import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
-import { clubName, outcomeClass, seasonLabel } from './format'
+import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
@@ -449,19 +449,16 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         <span className="muted">{t('digestFrom', { n: league.length })}</span>
       </div>
       <div className="digest-conf" data-testid="digest-confidence">
-        <span className="small muted">{t('boardConfidence')}</span>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="small" style={{ minWidth: 22, textAlign: 'right' }}>
-            {Math.round(d.confidenceFrom)}
+        <div className="row between">
+          <span className="small muted">{t('boardConfidence')}</span>
+          <span className="small digest-conf-move">
+            {t('confidenceMove', { from: Math.round(d.confidenceFrom), to: Math.round(d.confidenceTo) })}
+            {Math.round(d.confidenceTo) !== Math.round(d.confidenceFrom) && (
+              <b className={d.confidenceTo > d.confidenceFrom ? 'res-w' : 'res-l'}> {t('confidenceDelta', { n: signedValue(Math.round(d.confidenceTo) - Math.round(d.confidenceFrom)) })}</b>
+            )}
           </span>
-          <Bar value={d.confidenceFrom} colour={CONFIDENCE_COLOUR(d.confidenceFrom)} />
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="small" style={{ minWidth: 22, textAlign: 'right' }}>
-            {Math.round(d.confidenceTo)}
-          </span>
-          <Bar value={d.confidenceTo} colour={CONFIDENCE_COLOUR(d.confidenceTo)} thick />
-        </div>
+        <Bar value={d.confidenceTo} colour={CONFIDENCE_COLOUR(d.confidenceTo)} thick />
       </div>
       {d.decisions.length > 0 && (
         <DigestGroup title={t('decidedForYou')} icon={<MessageSquare size={14} />} count={d.decisions.length}>

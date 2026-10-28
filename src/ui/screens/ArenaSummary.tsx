@@ -192,7 +192,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={card} data-testid="arena-card">
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
-          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title="The same format on a new wheel">
+          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title={t('playAgainTip')}>
             <Dices size={16} aria-hidden="true" /> {t('playAgain')}
           </button>
           <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
@@ -201,7 +201,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title={t('runItBackTip')}>
             <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
           </button>
-          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title="Set up a new arena run">
+          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title={t('newRunTip')}>
             <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>
