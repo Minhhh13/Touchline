@@ -5,7 +5,8 @@
  * block at the end). Loaded with the lazy screens that use it, so it never joins the first download.
  */
 
-/* ---- A result lands: its colour sweeps across the row, the W/D/L badge pops, the score counts up (GameByGame) */
+/* ---- A result lands: its colour sweeps across the row and the score counts up from nil (GameByGame). A pop on the
+   badge and the score cost a 4x-throttled desktop a fifth of its frames for little, so the row moves as one */
 .gbg-game.landing {
   position: relative;
   isolation: isolate;
@@ -18,6 +19,7 @@
   border-radius: inherit;
   pointer-events: none;
   transform-origin: left center;
+  will-change: transform, opacity;
   background: color-mix(in srgb, var(--sweep, var(--text-3)) 34%, transparent);
   animation: gbg-sweep calc(var(--dur-4) * 2) var(--ease-out) both;
 }
@@ -44,25 +46,7 @@
     opacity: 0;
   }
 }
-.gbg-game.landing .gbg-badge {
-  animation: gbg-badge-pop var(--dur-4) var(--ease-spring) var(--dur-1) backwards;
-}
-@keyframes gbg-badge-pop {
-  from {
-    transform: scale(0.3) rotate(-12deg);
-    opacity: 0;
-  }
-}
-.gbg-game.landing .gbg-score {
-  animation: gbg-score-thump var(--dur-3) var(--ease-spring) var(--dur-3) backwards;
-}
-@keyframes gbg-score-thump {
-  from {
-    transform: scale(1.35);
-  }
-}
-
-/* ---- The live table: a row that moves floats over the rest while it glides and flashes once, green up, red down */
+/* ---- The live table: a row that moves floats over the rest while it glides; yours flashes once, green up, red down */
 .lt-row.rising,
 .lt-row.falling {
   z-index: 1;
@@ -77,6 +61,7 @@
   border-radius: inherit;
   pointer-events: none;
   opacity: 0;
+  will-change: opacity;
   animation: lt-flash calc(var(--dur-4) * 2.5) var(--ease-out);
 }
 .lt-flash.up {
@@ -106,56 +91,23 @@
   }
 }
 
-/* ---- The position chart draws itself in on its first picture, then rings its dot at each change of place */
+/* ---- The position chart draws itself in on its first picture; its dot pops in after. Nothing else in the SVG animates
+   per game: an animation inside an SVG repaints the whole chart every frame (a 4x-throttled desktop lost half its frames) */
 .pc-user.whole {
   animation-duration: calc(var(--dur-4) * 3);
 }
-.pc-rival {
-  animation: pc-fade calc(var(--dur-4) * 2) var(--ease-out) backwards;
-}
-@keyframes pc-fade {
-  from {
-    opacity: 0;
-  }
-}
-.pc-dot,
-.pc-ping {
+.pc-dot {
   transform-box: fill-box;
   transform-origin: center;
 }
 .pc-dot.whole {
   animation: pc-dot-in var(--dur-3) var(--ease-spring) calc(var(--dur-4) * 3) backwards;
 }
-.pc-dot {
-  animation: pc-dot-in var(--dur-2) var(--ease-spring) backwards;
-}
 @keyframes pc-dot-in {
   from {
     transform: scale(0);
   }
 }
-.pc-ping {
-  fill: none;
-  stroke-width: 1.5;
-  stroke: var(--good);
-  opacity: 0;
-  pointer-events: none;
-  animation: pc-ping calc(var(--dur-4) * 2) var(--ease-out);
-}
-.pc-ping.down {
-  stroke: var(--danger);
-}
-@keyframes pc-ping {
-  0% {
-    transform: scale(1);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(3);
-    opacity: 0;
-  }
-}
-
 /* ---- The beat: a broadcast card over the playback for a big moment, January and the season's end (SeasonBeat.tsx).
    It waits for its sting (--beat-delay, the sound's offset), holds, and goes; --beat-k is its length in --dur-4s */
 .pb-beat {
@@ -186,6 +138,7 @@
   margin-top: -66px;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--beat-ink) 22%, transparent) 30%, color-mix(in srgb, var(--beat-ink) 22%, transparent) 70%, transparent);
   transform-origin: center;
+  will-change: transform, opacity;
   animation: pb-beat-band var(--beat-len) var(--ease-out) var(--beat-delay, 0ms) both;
 }
 @keyframes pb-beat-band {
@@ -219,6 +172,7 @@
   border: 1px solid color-mix(in srgb, var(--beat-ink) 60%, var(--line));
   background: color-mix(in srgb, var(--beat-ink) 14%, var(--panel));
   box-shadow: var(--shadow);
+  will-change: transform, opacity;
   animation: pb-beat-card var(--beat-len) var(--ease-out) var(--beat-delay, 0ms) both;
 }
 @keyframes pb-beat-card {
@@ -387,14 +341,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gbg-game.landing::after,
-  .gbg-game.landing .gbg-badge,
-  .gbg-game.landing .gbg-score,
   .lt-flash,
   .pc-user.whole,
-  .pc-rival,
-  .pc-dot,
   .pc-dot.whole,
-  .pc-ping,
   .pb-beat::before,
   .pb-beat-card,
   .pb-beat-confetti span,
@@ -410,7 +359,6 @@
     animation: none;
   }
   .lt-flash,
-  .pc-ping,
   .gbg-game.landing::after,
   .pb-beat {
     display: none;

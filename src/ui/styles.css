@@ -6375,19 +6375,18 @@ dl.kv {
     transform: none;
   }
 }
+/* Transform and opacity only: the brightness flash it had kept every frame of the drop on the CPU (a 4x-throttled desktop
+   playback lost a third of its frames); the landing's colour sweep (motionSeason.css) gives the weight instead */
 @keyframes gbg-drop {
   0% {
     opacity: 0;
     transform: translateY(-14px) scale(0.97);
-    filter: brightness(1.6);
   }
   60% {
     opacity: 1;
-    filter: brightness(1.25);
   }
   100% {
     transform: none;
-    filter: none;
   }
 }
 .tier-banner .tier.pop {
