@@ -8,7 +8,7 @@ vi.hoisted(() => {
   })
 })
 import { produce } from 'immer'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES, SEASON_RULES, targetSlot, type DraftRules } from '@engine/draft'
 import { createGame } from '../logic/setup'
@@ -36,7 +36,7 @@ function reference(g: Game): Game {
 }
 
 describe('Auto-complete on a plain copy of the draft', () => {
-  it('drafts exactly what the engine drafts on the Immer draft, over many seeds and rules', () => {
+  it('drafts exactly what the engine drafts on the Immer draft, over many seeds and rules', async () => {
     const variants: Array<[GameSettings['mode'], DraftRules]> = [
       ['quick', QUICK_RULES],
       ['quick', { ...QUICK_RULES, draftMode: 'position' }],
@@ -45,6 +45,7 @@ describe('Auto-complete on a plain copy of the draft', () => {
     ]
     let drafts = 0
     for (let i = 0; i < 12; i++) {
+      await breathe()
       for (const [mode, rules] of variants) {
         const g = game(`plain-auto-${i}`, mode, rules)
         useStore.setState({ universe: u, loadedLeagues: ['england'], game: g, toast: null })

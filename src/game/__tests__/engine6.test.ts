@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { autoDraft, MAX_KEEPERS, MIN_KEEPERS, newDraft, QUICK_RULES, SEASON_RULES, withDifficulty } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { Rng } from '@engine/rng'
@@ -130,11 +130,12 @@ describe('what a managed league scores (item 1, E6-3)', () => {
     expect(mean(userGoals)).toBeLessThan(140)
   })
 
-  it('quick seasons: 2.55 to 2.95 goals a game, the champions under 95 points on average', { timeout: T }, () => {
+  it('quick seasons: 2.55 to 2.95 goals a game, the champions under 95 points on average', { timeout: T }, async () => {
     let gpg = 0
     let champ = 0
     const n = 40
     for (let i = 0; i < n; i++) {
+      if (i % 5 === 0) await breathe()
       const g = createGame({ mode: 'quick', seed: `e6-quick-${i}`, formationId: '4-3-3', teamName: 'Six XI', shortName: 'SIX', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: withDifficulty({ ...QUICK_RULES, leagues: ['england'], managers: false }, 'normal'), jobSecurity: false, difficulty: 'calibrated', january: false })
       const rng = Rng.fromState(g.rngState)
       autoDraft(u, g.draft!, rng)
