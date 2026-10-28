@@ -209,4 +209,8 @@ export const engineText = catalog('engineText', {
   chipManagerSpin: 'Manager spin',
   chipManagerPick: 'Manager pick',
   chipEndCase: 'End case',
+  tagEasy: 'Easy',
+  tagNormal: 'Normal',
+  tagHard: 'Hard',
+  tagBlind: 'Blind',
 })

@@ -240,10 +240,10 @@ export function ProfileScreen() {
   // The cabinet's season shelf, then the arena's and the run-in's own (never counted as league titles or cups)
   // The four big ones stand drawn on the shelf; every other count is a plaque beneath it
   const shelf: ShelfTrophy[] = [
-    { kind: 'league', label: 'League titles', n: cabinet.league },
-    { kind: 'cup', label: 'Cups', n: cabinet.cup },
-    { kind: 'continental', label: 'Continental Cups', n: cabinet.continental },
-    { kind: 'treble', label: 'Trebles', n: cabinet.trebles },
+    { kind: 'league', label: t('shelfLeague'), n: cabinet.league },
+    { kind: 'cup', label: t('shelfCups'), n: cabinet.cup },
+    { kind: 'continental', label: t('shelfContinental'), n: cabinet.continental },
+    { kind: 'treble', label: t('shelfTrebles'), n: cabinet.trebles },
   ]
   const trophies: Array<[ReactNode, string, number]> = [
     [<><Trophy size={22} /><Trophy size={22} /></>, t('doubles'), cabinet.doubles],

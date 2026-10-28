@@ -76,7 +76,7 @@ import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
 import { tierBlurbText, tierText } from '../i18n/tierText'
-import { reelTierName } from '../i18n/engineText'
+import { reelTierName, ruleTagText } from '../i18n/engineText'
 
 const t = translator(summary)
 
@@ -492,9 +492,9 @@ export function Summary() {
               {c.key === 'cap' ? <PoundSterling size={12} aria-hidden="true" /> : <Link size={12} aria-hidden="true" />} {c.text}
             </span>
           ))}
-          {tags.map((t) => (
-            <span key={t} className="chip">
-              {t}
+          {tags.map((tag) => (
+            <span key={tag} className="chip">
+              {ruleTagText(tag)}
             </span>
           ))}
           {game.settings.rules.onlyNation && (

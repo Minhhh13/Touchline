@@ -55,7 +55,7 @@ import { playSound } from '../sound/synth'
 import { askConfirm } from '../confirm'
 import { pickBand } from '../sound/cues'
 import { prefersReducedMotion } from '../motion'
-import { modeCardLine, modeCardTitle } from '../i18n/engineText'
+import { modeCardLine, modeCardTitle, ruleTagText } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -299,7 +299,7 @@ export function Draft() {
             )}
             {tags.map((tag) => (
               <span key={tag} className="chip">
-                {tag}
+                {ruleTagText(tag)}
               </span>
             ))}
             {d.rules.classic && <span className="chip">{t('classicSeasons')}</span>}

@@ -104,3 +104,9 @@ export function ruleChipsText(u: LoadedUniverse, r: DraftRules): Array<{ chip: R
   // Should the two ever part, the engine's words stand rather than a chip in the wrong place
   return chips.map((chip, i) => ({ chip, text: words.length === chips.length ? words[i] : chip.text }))
 }
+
+/** A rules tag (`rulesTags` in the engine) in words: the difficulty, Blind, the draft and the ratings mode. */
+export function ruleTagText(tag: string): string {
+  const known: Record<string, string> = { Easy: t('tagEasy'), Normal: t('tagNormal'), Hard: t('tagHard'), Blind: t('tagBlind'), 'Position First': t('chipPositionFirst'), 'Squad First': t('chipSquadFirst'), 'Prime ratings': t('chipPrime'), 'Season ratings': t('chipSeason') }
+  return known[tag] ?? tag
+}

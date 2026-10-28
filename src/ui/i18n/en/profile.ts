@@ -148,4 +148,8 @@ export const profile = catalog('profile', {
   gfga: 'GF-GA',
   ladderSeed: 'Seed {seed}',
   ladderLine: '{format} · {n, plural, one {# run} other {# runs}} · best {tier}',
+  shelfLeague: 'League titles',
+  shelfCups: 'Cups',
+  shelfContinental: 'Continental Cups',
+  shelfTrebles: 'Trebles',
 })
