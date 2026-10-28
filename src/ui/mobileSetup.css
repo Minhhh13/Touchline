@@ -50,7 +50,7 @@
     height: 24px;
   }
   .home .first-steps b {
-    font-size: 11px;
+    font-size: 12px;
   }
   .home .first-go {
     gap: 6px;
@@ -61,7 +61,7 @@
     font-size: 14px;
   }
   .home .first-note {
-    font-size: 11px;
+    font-size: 12px;
   }
   .home > .phone-tabs {
     flex: none;
@@ -70,6 +70,7 @@
     display: flex;
     flex: 1 1 0;
     min-height: 0;
+    position: relative;
   }
   .home .home-phone-panel {
     display: flex;
@@ -84,7 +85,11 @@
   .home[data-phone-tab='play'] [data-phone-panel]:not([data-phone-panel='play']),
   .home[data-phone-tab='challenges'] [data-phone-panel]:not([data-phone-panel='challenges']),
   .home[data-phone-tab='more'] [data-phone-panel]:not([data-phone-panel='more']) {
-    display: none;
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
   }
   .home .resume-list {
     display: flex;
@@ -105,11 +110,17 @@
     flex: 1 1 auto;
     min-width: 0;
   }
-  .home .resume-name,
   .home .resume-status {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .home .resume-name {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.3;
   }
   .home .resume-actions {
     flex: none;
@@ -160,13 +171,13 @@
     font-size: 17px;
   }
   .home .mode-card p {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .home .mode-card .foot {
     flex-wrap: wrap;
     gap: 4px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .home .mode-card.daily > .btn {
     min-height: 44px;
@@ -313,7 +324,7 @@
     font-size: 13px;
   }
   .setup-page .formations .fname-sub {
-    font-size: 9px;
+    font-size: 10px;
   }
   .setup-page .setup-league > .segmented {
     flex-wrap: nowrap;
@@ -325,18 +336,32 @@
     min-height: 44px;
   }
   .setup-page .setup-rules {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px 8px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
   .setup-page .setup-rules .setup-wide-opt {
-    grid-column: 1 / -1;
+    grid-column: 1;
+  }
+  .setup-page .setup-opt {
+    padding: 10px;
+    border: var(--border);
+    border-radius: var(--radius-m);
+    background: var(--bg-2);
+  }
+  .setup-page .setup-opt + .setup-opt {
+    border-top: var(--border);
+  }
+  .setup-page .choice-card.active {
+    box-shadow: inset 0 0 0 1px var(--primary), 0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent);
+  }
+  .setup-page .choice-card .cline {
+    display: block;
+    font-size: var(--fs-meta);
+    color: var(--text-2);
   }
   .setup-page .choice-card {
     min-height: 56px;
     padding: 6px 4px;
-  }
-  .setup-page .choice-card .cline {
-    display: none;
   }
   .setup-page .setup-start.bottom-bar {
     position: static;

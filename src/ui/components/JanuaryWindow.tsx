@@ -21,7 +21,7 @@ import { SpinOdds } from './SpinOdds'
 import { UpgraderStage } from './Upgrader'
 import { armAudio, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { money, ordinal } from '../format'
 import { useFocusOnLanding } from '../a11y'
 
@@ -194,6 +194,7 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
 function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
   const { januarySpin, closeJanuarySpin } = useStore()
   const [quick] = usePref(quickSpinPref)
+  const [skipReels] = usePref(skipReelsPref)
   const get = playerLookup(game, u)
   // The player the case lands on is still being chosen until he is brought in: hidden in blind mode, as any offer;
   // the XI man he would replace is the user's own, so his rating shows
@@ -216,6 +217,9 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spin?.playerSeasonId])
   const spinning = opened && !!spin && !landed
+  useEffect(() => {
+    if (spinning && skipReels) setSkip((n) => n + 1)
+  }, [spinning, skipReels])
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
@@ -295,7 +299,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
       </span>
       {spinning && (
         <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="january-spin-skip">
-          Tap to skip
+          Skip animation
         </button>
       )}
       {spin && p && landed && (

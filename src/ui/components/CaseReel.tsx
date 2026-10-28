@@ -12,7 +12,7 @@ import { startReelSound, type ReelSound } from '../sound/reel'
 import { armAudio, unlockAudio } from '../sound/synth'
 import { useSoundOn } from '../sound/prefs'
 import { FULL_TIMING, OVERSHOOT, QUICK_TIMING, reelKeyframes, reelPosition, type ReelTiming } from '../reelCurve'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 
 /**
  * The timing lives in src/ui/reelCurve.ts: the season drum (DRUM_MS), the strip's start (SEASON_MS), its
@@ -112,6 +112,7 @@ export function CaseReel(props: CaseReelProps) {
   useEffect(armAudio, [])
   // A re-spin replaces one drawn club-season with another, with no idle reel between: it runs quick, as does every run with Quick spin on
   const [quickSpin] = usePref(quickSpinPref)
+  const [autoSkip] = usePref(skipReelsPref)
   const lastRun = useRef('')
   const respin = useRef({ run: '', quick: false })
   if (runKey && respin.current.run !== runKey) respin.current = { run: runKey, quick: lastRun.current !== '' }
@@ -122,7 +123,7 @@ export function CaseReel(props: CaseReelProps) {
   return (
     <div className="wheel-wrap reel-wrap" data-testid="case-reel">
       <SoundToggle />
-      {target ? <ReelRun key={runKey} {...props} target={target} announce={announce} timing={timing} /> : <IdleReel u={props.u} leagues={props.leagues} pool={props.pool} />}
+      {target ? <ReelRun key={runKey} {...props} target={target} announce={announce} timing={timing} autoSkip={autoSkip} /> : <IdleReel u={props.u} leagues={props.leagues} pool={props.pool} />}
       {/* One live region for every run: the season once, then the club and its tier once, never the passing cards */}
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="reel-live">
         {target && said.run === runKey ? said.text : ''}
@@ -158,7 +159,7 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   )
 }
 
-function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, timing: runTiming }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming }) {
+function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, timing: runTiming, autoSkip }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming; autoSkip: boolean }) {
   // Dealt once per run; Math.random only shuffles cosmetic filler cards and the stop jitter, never the game
   const [deal] = useState<ReelDeal>(() => dealReel(u, { leagues, pool, target }, Math.random))
   const [reduced] = useState(prefersReducedMotion)
@@ -284,6 +285,10 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
     // One run per mount: a new spin mounts a new run, so nothing here needs to re-run
   }, [])
 
+  useLayoutEffect(() => {
+    if (autoSkip) skipRef.current()
+  }, [autoSkip])
+
   const seasonOut = reduced || stage !== 'season'
   const tier = deal.target.tier
   const iconsSpin = tier === 'icons'
@@ -350,7 +355,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
           </>
         ) : (
           <button type="button" className="reel-skip" data-testid="reel-skip" onClick={(e) => { e.stopPropagation(); skipRef.current() }}>
-            Tap to skip
+            Skip animation
           </button>
         )}
       </div>

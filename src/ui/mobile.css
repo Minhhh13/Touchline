@@ -28,6 +28,14 @@ html {
 
 /* Landscape iPhones have a wider viewport, but still need touch-sized controls. */
 @media (max-width: 720px), (max-width: 1100px) and (pointer: coarse) {
+  :root {
+    --fs-xs: 0.75rem;
+    --fs-meta: 0.8125rem;
+    --fs-sm: 0.875rem;
+  }
+  :root:not([data-theme='light']) {
+    --text-3: #aebae4;
+  }
   /* This follows .input.sm and the match selectors, which otherwise undo the 16px phone rule. */
   :is(.app, .modal, .decision-sheet) :is(input, select, textarea):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']) {
     font-size: 16px;
@@ -42,6 +50,10 @@ html {
     min-width: 44px;
     min-height: 44px;
     padding-inline: 10px;
+  }
+  .reel-skip {
+    min-height: 44px;
+    padding: 8px 16px;
   }
   .topbar .theme-switch {
     width: 44px;

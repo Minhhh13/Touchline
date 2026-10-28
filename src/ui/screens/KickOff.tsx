@@ -92,6 +92,7 @@ export function KickOff() {
         </div>
         <div className="panel col fit-cell" data-phone-panel="xi" id="kickoff-phone-panel-xi" role="tabpanel" aria-labelledby="kickoff-phone-xi">
           <h3>Your XI · {formation.name}</h3>
+          <span className="phone-scroll-cue small">Scroll to see the goalkeeper{quickBenchRule(game) && game.bench.length > 0 ? ' and bench' : ''} ↓</span>
           <div inert className="pitch-fit" data-testid="kickoff-pitch">
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={hide} />
           </div>

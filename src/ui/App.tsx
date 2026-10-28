@@ -281,7 +281,7 @@ export function App() {
           )}
           <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
             <Swords size={16} />
-            <span className="nav-label">Head-to-head</span>
+            <span className="nav-label"><span className="nav-long">Head-to-head</span><span className="nav-short">H2H</span></span>
           </button>
           <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
             <Search size={16} />
@@ -297,9 +297,9 @@ export function App() {
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
           </button>
-          <button className={screen === 'howto' ? 'active' : ''} onClick={() => nav('howto')}>
+          <button className={`nav-guide${screen === 'howto' ? ' active' : ''}`} onClick={() => nav('howto')}>
             <BookOpen size={16} />
-            <span className="nav-label">How it works</span>
+            <span className="nav-label"><span className="nav-long">How it works</span><span className="nav-short">Guide</span></span>
           </button>
         </nav>
         {onlineAvailable() && (

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Activity, ArrowLeftRight, Armchair, Banknote, BookOpen, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Gauge, Globe, GraduationCap, Landmark, Lock, MessageSquare, RectangleVertical, Repeat, Shuffle, Sprout, Target, TrendingUp, Users, type LucideIcon } from 'lucide-react'
+import { Activity, ArrowLeftRight, Armchair, Banknote, BookOpen, CalendarDays, ChartColumn, ChevronDown, Crown, Dices, Dumbbell, Gauge, Globe, GraduationCap, Landmark, Lock, MessageSquare, RectangleVertical, Repeat, Shuffle, Sprout, Target, TrendingUp, Users, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
@@ -169,28 +169,32 @@ export function HowTo() {
         </Section>
       </div>
 
-      <section className="panel howto-credits" data-testid="credits">
-        <div className="howto-head">
+      <details className="panel howto-credits" data-testid="credits">
+        <summary className="howto-head">
           <span className="howto-icon" aria-hidden="true">
             <BookOpen size={22} />
           </span>
           <div>
             <h3>Data and credits</h3>
-            <p className="small muted">TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club names and player names are used descriptively. No official crests, logos or likenesses are used. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
+            <p className="small muted">Licences, sources and the independent fan-project notice.</p>
           </div>
+          <ChevronDown className="fold-chevron" size={18} aria-hidden="true" />
+        </summary>
+        <div className="howto-credit-body">
+          <p className="small muted">TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club names and player names are used descriptively. No official crests, logos or likenesses are used. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
+          <ul className="small muted howto-sources">
+            {u?.sources.map((s, i) => (
+              <li key={i}>
+                {s.credit} · {s.licence}
+              </li>
+            ))}
+            <li>Flag icons: flag-icons 7.6.0 by Panayiotis Lipiridis (github.com/lipis/flag-icons) · MIT</li>
+          </ul>
+          <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="howto-privacy">
+            Privacy and fair play
+          </button>
         </div>
-        <ul className="small muted howto-sources">
-          {u?.sources.map((s, i) => (
-            <li key={i}>
-              {s.credit} · {s.licence}
-            </li>
-          ))}
-          <li>Flag icons: flag-icons 7.6.0 by Panayiotis Lipiridis (github.com/lipis/flag-icons) · MIT</li>
-        </ul>
-        <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="howto-privacy">
-          Privacy and fair play
-        </button>
-      </section>
+      </details>
       </div>
     </div>
   )

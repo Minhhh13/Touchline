@@ -361,7 +361,7 @@ export function Summary() {
 
   const hasPhoneCups = !!q && game.settings.mode === 'quick'
   const activePhoneTab = phoneTab === 'cups' && !hasPhoneCups ? 'results' : phoneTab
-  const phoneTabs: Array<{ id: SummaryPhoneTab; label: string }> = [{ id: 'results', label: 'Results' }, ...(hasPhoneCups ? [{ id: 'cups' as const, label: 'Cups' }] : []), { id: 'stats', label: 'Stats' }]
+  const phoneTabs: Array<{ id: SummaryPhoneTab; label: string }> = [{ id: 'results', label: 'Results' }, ...(hasPhoneCups ? [{ id: 'cups' as const, label: 'Cups' }] : []), { id: 'stats', label: 'Squad & table' }]
   const bannerDetails = (
     <>
         {!replay.playing && (

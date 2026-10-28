@@ -2564,14 +2564,18 @@ kbd {
   color: var(--text-2);
 }
 .reel-skip {
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: 999px;
-  border: 1px dashed var(--line-2);
-  background: none;
+  border: 1px solid var(--primary);
+  background: var(--primary-soft);
   font: inherit;
-  font-size: var(--fs-meta);
-  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
   cursor: pointer;
+}
+.reel-skip:hover {
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 /* The tier as a chip (header, landing) and as a dot (draft log) */
@@ -8245,6 +8249,24 @@ dl.kv {
 .howto-credits {
   margin-top: var(--space-4);
 }
+.howto-credits > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.howto-credits > summary::-webkit-details-marker {
+  display: none;
+}
+.howto-credits > summary .fold-chevron {
+  margin-left: auto;
+  flex: none;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.howto-credits[open] > summary .fold-chevron {
+  transform: rotate(180deg);
+}
+.howto-credit-body {
+  margin-top: var(--space-3);
+}
 .howto-credits p {
   margin: 0;
 }
@@ -9581,6 +9603,40 @@ table.tbl.match-stats th {
   align-items: center;
   margin-top: 12px;
   min-height: 48px;
+}
+.mspin-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+}
+.mspin-speed .segmented button {
+  padding: 5px 9px;
+}
+.mspin-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mspin-pager button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: var(--border-strong);
+  background: var(--panel-2);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  cursor: pointer;
+}
+.mspin-pager button.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--text);
 }
 .case-grid {
   display: grid;

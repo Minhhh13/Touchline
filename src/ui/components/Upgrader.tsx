@@ -7,7 +7,7 @@ import { POWER_UP_INFO } from '@engine/powerups'
 import { PowerUpIcon } from './icons'
 import { PowerUpButton } from './PowerUpButton'
 import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound/synth'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { DIAL_FULL_MS, DIAL_HOLD_MS, DIAL_QUICK_MS, DIAL_REDUCED_MS, dialTravel, landingAngle, needleAngle, ticksPassed } from '../upgradeDial'
 import { SoundToggle } from './CaseReel'
 
@@ -50,6 +50,7 @@ const MARKS = Array.from({ length: 100 }, (_, i) => i)
 export function UpgradeDial({ chance, tier, roll, won, animate, skip = 0, onLanded, verdict }: { chance: number; tier: Tier; roll: number | null; won: boolean; animate: boolean; skip?: number; onLanded?: () => void; /** The centre's text once landed: "+5", "-3". */ verdict?: string }) {
   const [reduced] = useState(prefersReducedMotion)
   const [quick] = usePref(quickSpinPref)
+  const [autoSkip] = usePref(skipReelsPref)
   const needle = useRef<SVGGElement>(null)
   const [phase, setPhase] = useState<'idle' | 'spinning' | 'landed'>(roll === null ? 'idle' : animate ? 'spinning' : 'landed')
   const landedCb = useRef(onLanded)
@@ -75,7 +76,7 @@ export function UpgradeDial({ chance, tier, roll, won, animate, skip = 0, onLand
     let raf = 0
     let hold = 0
     const travel = dialTravel(roll)
-    const total = reduced ? 0 : quick ? DIAL_QUICK_MS : DIAL_FULL_MS
+    const total = reduced || autoSkip ? 0 : quick ? DIAL_QUICK_MS : DIAL_FULL_MS
     setPhase('spinning')
     const land = () => {
       if (!alive || done) return
@@ -87,12 +88,12 @@ export function UpgradeDial({ chance, tier, roll, won, animate, skip = 0, onLand
         setPhase('landed')
         playUpgradeResult(won, reduced)
         landedCb.current?.()
-      }, reduced ? 0 : DIAL_HOLD_MS)
+      }, reduced || autoSkip ? 0 : DIAL_HOLD_MS)
     }
     skipRef.current = land
     if (total === 0 || typeof requestAnimationFrame !== 'function') {
       setAngle(0)
-      hold = window.setTimeout(land, DIAL_REDUCED_MS)
+      hold = window.setTimeout(land, reduced || autoSkip ? 0 : DIAL_REDUCED_MS)
     } else {
       const start = performance.now()
       let lastTick = 0

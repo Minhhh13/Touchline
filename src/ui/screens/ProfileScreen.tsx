@@ -28,7 +28,7 @@ import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
 import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
 import { exportTextFile } from '../exportFile'
@@ -102,6 +102,7 @@ export function ProfileScreen() {
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
+  const [skipReels, setSkipReels] = usePref(skipReelsPref)
   // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
   const boxes = useBoxes(PROFILE)
   const on = boxes.on
@@ -269,9 +270,16 @@ export function ProfileScreen() {
             )}
             <div className="field">
               <span>
-                Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, about seven seconds; Quick takes under three. Re-spins always run quick, and a tap on the reel skips to the landing. Kept on this device only.</Info>
+                Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, Quick takes under three seconds, and Skip reels lands cosmetic reels immediately. Re-spins always run quick unless reels are skipped. Kept on this device only.</Info>
               </span>
-              <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }]} />
+              <Segmented
+                value={skipReels ? 'skip' : quickSpin ? 'quick' : 'full'}
+                onChange={(v) => {
+                  setSkipReels(v === 'skip')
+                  if (v !== 'skip') setQuickSpin(v === 'quick')
+                }}
+                options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }, { value: 'skip', label: 'Skip reels', testId: 'reel-skip-all' }]}
+              />
             </div>
             <div className="stat-strip profile-stats">
               <Stat label="Games" value={profile.gamesPlayed} />

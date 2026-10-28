@@ -10,12 +10,12 @@ import { dealItems, managerCard, type ItemDeal } from '@game/logic/itemReel'
 import { reelLeagues } from '@game/logic/reel'
 import { armAudio, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { clubName, seasonLabel } from '../format'
 import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
 import { SpinOdds } from './SpinOdds'
-import { ClubBadge } from './bits'
+import { ClubBadge, Segmented } from './bits'
 import { useFocusOnLanding } from '../a11y'
 
 /** How much later each reel to the right lands, ms (full timing; half with Quick spin), so the three stop one by one. */
@@ -45,11 +45,14 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
     const get = playerLookup(game, u)
     return Object.fromEntries(MANAGER_STYLES.map((st) => [st, managerEdge(game, st, get)])) as Record<Manager['style'], ReturnType<typeof managerEdge>>
   }, [u, game])
-  const [quick] = usePref(quickSpinPref)
+  const [quick, setQuick] = usePref(quickSpinPref)
+  const [skipReels, setSkipReels] = usePref(skipReelsPref)
   const [run, setRun] = useState(0)
   const [landedAt, setLandedAt] = useState<boolean[]>([])
   const landed = landedAt.filter(Boolean).length
   const [skip, setSkip] = useState(0)
+  const [shownManager, setShownManager] = useState(0)
+  const managerRow = useRef<HTMLDivElement>(null)
   useEffect(armAudio, [])
   // Dealt once per run: the fillers are cosmetic draws from the wheel, the landing cards are the rolled three
   const deals = useMemo<ItemDeal[]>(() => {
@@ -67,6 +70,9 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
   const firstPick = useRef<HTMLButtonElement>(null)
   useFocusOnLanding(done, firstPick)
   useEffect(() => {
+    if (spinning && skipReels) setSkip((n) => n + 1)
+  }, [spinning, skipReels])
+  useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
       if ((e.key !== ' ' && e.key !== 'Enter') || e.repeat) return
@@ -76,6 +82,20 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [spinning])
+  const showManager = (i: number) => {
+    const row = managerRow.current
+    const card = row?.children[i] as HTMLElement | undefined
+    if (!row || !card) return
+    row.scrollTo({ left: card.offsetLeft, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+    setShownManager(i)
+  }
+  const trackManager = () => {
+    const row = managerRow.current
+    if (!row) return
+    const cards = Array.from(row.children) as HTMLElement[]
+    const nearest = cards.reduce((best, card, i) => (Math.abs(card.offsetLeft - row.scrollLeft) < Math.abs(cards[best].offsetLeft - row.scrollLeft) ? i : best), 0)
+    setShownManager((current) => (current === nearest ? current : nearest))
+  }
 
   return (
     <div className="page fit" data-testid="manager-spin">
@@ -86,12 +106,23 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
         </div>
         <div className="row wrap" style={{ gap: 10 }}>
           <SpinOdds odds={odds} label="Each reel" />
+          <label className="mspin-speed small">
+            Reel speed
+            <Segmented
+              value={skipReels ? 'skip' : quick ? 'quick' : 'full'}
+              onChange={(v) => {
+                setSkipReels(v === 'skip')
+                if (v !== 'skip') setQuick(v === 'quick')
+              }}
+              options={[{ value: 'full', label: 'Full' }, { value: 'quick', label: 'Quick' }, { value: 'skip', label: 'Skip reels' }]}
+            />
+          </label>
           <span className="mspin-sound">
             <SoundToggle />
           </span>
         </div>
       </div>
-      <div className={`mspin${spinning ? ' running' : ''}`} onClick={() => spinning && setSkip((n) => n + 1)}>
+      <div className={`mspin${spinning ? ' running' : ''}`} ref={managerRow} onScroll={trackManager} onClick={() => spinning && setSkip((n) => n + 1)}>
         {options.map((m, i) => {
           const tier = managerTier(u, leagues, m)
           const show = done || !!landedAt[i]
@@ -146,10 +177,19 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
           </button>
         ) : spinning ? (
           <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="mspin-skip">
-            Tap to skip
+            Skip animation
           </button>
         ) : (
-          <span className="small muted" data-testid="mspin-landed">All three landed: pick your manager.</span>
+          <>
+            <span className="small muted" data-testid="mspin-landed">Swipe or use the dots to compare all three.</span>
+            <span className="mspin-pager" role="group" aria-label="Compare managers">
+              {options.map((manager, i) => (
+                <button key={manager.id} type="button" className={shownManager === i ? 'active' : ''} aria-label={`Show ${manager.name}`} aria-pressed={shownManager === i} onClick={() => showManager(i)}>
+                  <span aria-hidden="true">{i + 1}</span>
+                </button>
+              ))}
+            </span>
+          </>
         )}
         {/* The reels are hidden from screen readers: the landing is said once, here */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="mspin-live">
