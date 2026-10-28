@@ -513,6 +513,9 @@ export interface TransferRequest {
   talkedAt?: number
   /** Matchweek the stage last changed. */
   settledAt?: number
+  /** Matchweeks it has waited with the manager at the desk (weeks inside a multi-week sim do not count), and the last one counted. */
+  waits?: number
+  seen?: number
 }
 
 /** Fee talks with a selling club for one listing in the open window (`src/game/logic/transferTalks.ts`). */

@@ -10,6 +10,7 @@ import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, ownedHumans, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame, normaliseProfile } from '../logic/save'
+import { officeItems, officeTick } from '../logic/office'
 import { matchPlayOf } from '../logic/assistant'
 import { capOfGame } from '../logic/cap'
 import { chainOfGame } from '../logic/chain'
@@ -180,6 +181,13 @@ describe('audit fixes: season and squad', () => {
     expect(ghost.settings.challenge?.arena).toBeUndefined()
     expect(challengeHeadline(ghost.settings.challenge!)).toBe('70 pts')
     expect(arenaVerdictOf(ghost)).toBeNull()
+    // No office from before the Office tab (round 8): absent, no player power, nothing waiting, and its tick writes nothing
+    expect(n.office).toBeUndefined()
+    expect(n.settings.playerPower).toBeUndefined()
+    expect(officeItems(n, u)).toEqual([])
+    const ticked = structuredClone(n)
+    officeTick(ticked, u)
+    expect(ticked).toEqual(n)
     // The match-play preference stays unset and reads as Watch (today's stops at 45 and 70)
     expect(n.settings.matchPlay).toBeUndefined()
     expect(matchPlayOf(n)).toBe('watch')

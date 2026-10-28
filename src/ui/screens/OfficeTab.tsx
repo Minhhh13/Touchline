@@ -374,7 +374,7 @@ function StatusBox({ game, u, onPlayer, say }: BoxProps & { onPlayer: (id: strin
             <div key={id} className="room-row" data-testid="status-row">
               <button type="button" className="who link-btn" onClick={() => onPlayer(id)}>
                 <b>{p!.name}</b>
-                <span className="small muted one-line">
+                <span className="small muted one-line" style={{ fontWeight: 'normal' }}>
                   {STATUS_LABEL[status]} · {t('expects', { pct: Math.round(EXPECTED_SHARE[status] * 100) })}
                   {share !== null ? ` · ${t('played', { pct: Math.round(share * 100) })}` : ''}
                 </span>

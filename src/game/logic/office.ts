@@ -21,8 +21,8 @@ import { closeStaleTalks, feeTalkOf, payInstalments } from './transferTalks'
 /** Morale a man who asked to go loses when he is taken off the list again. */
 export const UNLISTED_COST = -6
 
-/** Catch the office up: due promises, requests, instalments, the window's talks. A no-op for a game that never used it. */
-export function officeTick(game: Game, u: LoadedUniverse): void {
+/** Catch the office up: due promises, requests, instalments, the window's talks; `sim` for a week inside a multi-week sim. A no-op for a game that never used it. */
+export function officeTick(game: Game, u: LoadedUniverse, sim = false): void {
   if (!game.office && !game.settings.playerPower) return
   closeStaleTalks(game)
   payInstalments(game)
@@ -30,10 +30,10 @@ export function officeTick(game: Game, u: LoadedUniverse): void {
   if (!season) return
   pruneRequests(game, u)
   settlePromises(game, u)
+  expireRequests(game, u, sim)
   const key = `${game.year}:${season.matchweek}`
   if (game.office?.tick === key) return
   officeOf(game).tick = key
-  expireRequests(game, u)
   rollRequests(game, u)
 }
 

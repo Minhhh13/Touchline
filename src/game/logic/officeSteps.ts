@@ -11,7 +11,7 @@ export function* withOffice<T>(box: GameBox, u: LoadedUniverse, steps: Generator
   for (;;) {
     const r = steps.next()
     if (r.done) return r.value
-    if (r.value === WEEK_END) officeTick(box.g, u)
+    if (r.value === WEEK_END) officeTick(box.g, u, true)
     yield r.value
   }
 }

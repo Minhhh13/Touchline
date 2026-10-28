@@ -505,7 +505,7 @@ export const useStore = create<Store>()(
             }
             // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
             if (r.value === WEEK_END) {
-              officeTick(box.g, u0)
+              officeTick(box.g, u0, true)
               box.g = createDraft(finishDraft(box.g))
             }
             if (performance.now() - slice < sliceMs) continue

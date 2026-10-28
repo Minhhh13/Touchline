@@ -122,11 +122,18 @@ export function rollRequests(game: Game, u: LoadedUniverse): TransferRequest | n
   return best ? lodgeRequest(game, u, best.id, best.reason) : null
 }
 
-/** A request left unanswered too long counts as refused (half the cost: he was ignored, not told no). */
-export function expireRequests(game: Game, u: LoadedUniverse): void {
+/**
+ * A request left unanswered too long counts as refused (half the cost: he was ignored, not told no). Only weeks the
+ * manager was at the desk count: `sim` is set for the weeks inside a multi-week sim, which a request may arrive in.
+ */
+export function expireRequests(game: Game, u: LoadedUniverse, sim = false): void {
+  if (sim) return
   const week = weekOf(game)
   for (const r of openRequests(game)) {
-    if (week - r.at < REQUEST_PATIENCE) continue
+    if ((r.seen ?? r.at) >= week) continue
+    r.seen = week
+    r.waits = (r.waits ?? 0) + 1
+    if (r.waits < REQUEST_PATIENCE) continue
     const id = squadIdOf(game, u, r.playerId)
     r.stage = 'refused'
     r.settledAt = week

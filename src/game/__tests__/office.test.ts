@@ -18,6 +18,7 @@ import { clubCeiling, clubValuation, counterBid, offerTerms, openingStatus, paym
 import { proposeContract, openingOffer } from '../logic/contracts'
 import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
+import { advanceToNextSeason } from '../logic/dynasty'
 import { personalityOf } from '../logic/personality'
 import { seasonGame, seasonSettings, clone } from './seasonGame'
 import type { Game } from '../types'
@@ -182,6 +183,23 @@ describe('transfer requests', () => {
     expect(g.office!.requests![playerLookup(g, u)(a)!.playerId].stage).toBe('refused')
   }, 60_000)
 
+  it('a request waits three matchweeks at the desk; weeks inside a sim do not count', () => {
+    const g = seasonGame(u, 'office-patience', 4)
+    const id = Object.values(g.lineup)[2]
+    const pid = playerLookup(g, u)(id)!.playerId
+    lodgeRequest(g, u, id, 'minutes')
+    const box = { g }
+    runSteps(withOffice(box, u, simWeeksSteps(box, u, 5)))
+    officeTick(g, u)
+    expect(g.office!.requests![pid].stage).toBe('open')
+    storeWeek(g)
+    expect(g.office!.requests![pid].stage).toBe('open')
+    const m = g.squad[id].morale
+    storeWeek(g)
+    expect(g.office!.requests![pid].stage).toBe('refused')
+    expect(g.squad[id].morale).toBeLessThan(m)
+  }, 60_000)
+
   it('talking him round works more often with a professional, never on a fifth try, and draws nothing from the game', () => {
     let won = 0
     let tried = 0
@@ -319,6 +337,33 @@ describe('transfer talks', () => {
     while (g.phase !== 'summary') storeWeek(g)
     expect(g.office!.instalments ?? []).toHaveLength(0)
   }, 120_000)
+
+  it('in a Dynasty the rest of an instalment fee is paid when the summer window opens', () => {
+    const g = createGame(seasonSettings('office-dynasty-inst', { mode: 'dynasty' }))
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    startSeasonProper(g, u)
+    for (let w = 0; w < 19; w++) storeWeek(g)
+    g.finances.budget = 500
+    g.finances.wageCap = 100000
+    const l = g.window!.listings.find((x) => x.status === 'available')!
+    const fee = Math.round((clubValuation(g, l) / 0.94) * 10) / 10 + 0.1
+    expect(proposeFee(g, u, l.playerSeasonId, { fee, sellOn: 0, instalments: 2 }).outcome).toBe('agreed')
+    const status = openingStatus(g, u, l.playerSeasonId)
+    const d = termsDemand(g, u, l.playerSeasonId, status)!
+    expect(d.statusOk).toBe(true)
+    expect(offerTerms(g, u, l.playerSeasonId, { wage: d.wage, years: 2, status, signingFee: d.agentFee }).signed).toBe(true)
+    expect(g.office!.instalments![0].left).toBe(1)
+    while (g.phase !== 'summary') storeWeek(g)
+    expect(g.office!.instalments).toHaveLength(1)
+    advanceToNextSeason(g, u)
+    const before = g.finances.budget
+    officeTick(g, u)
+    expect(g.office!.instalments).toHaveLength(0)
+    expect(g.finances.budget).toBeCloseTo(before - paymentPlan({ fee, instalments: 2 }).later, 1)
+  }, 180_000)
 
   it('a counter within their ceiling sells him; a little over brings a final offer; far over and they walk', () => {
     const outcomes = new Set<string>()
