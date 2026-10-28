@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Award, Sparkles, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailySettings } from '@game/logic/setup'
 import { resumeStatus } from '@game/logic/resume'
@@ -7,7 +7,7 @@ import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@gam
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
 import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
-import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
+import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer, nextUpFor } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
 import { startingTeamName, teamShortName } from '../teamName'
 import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
@@ -63,9 +63,9 @@ function GoLabel() {
   )
 }
 
-function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string; disabled?: boolean }) {
+function Tile({ icon: Icon, title, meta, onClick, testId, disabled, next }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string; disabled?: boolean; next?: boolean }) {
   return (
-    <button type="button" className="home-tile" onClick={onClick} data-testid={testId} disabled={disabled}>
+    <button type="button" className={`home-tile${next ? ' next-up' : ''}`} onClick={onClick} data-testid={testId} disabled={disabled}>
       <span className="tile-icon">
         <Icon size={20} />
       </span>
@@ -75,6 +75,16 @@ function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: Lu
         <span title={meta}>{meta}</span>
       </span>
     </button>
+  )
+}
+
+/** The marker on the one card Home points an early player to next (`nextUpFor`). */
+function NextUpChip() {
+  return (
+    <span className="chip next-up-chip" data-testid="next-up">
+      <Sparkles size={12} aria-hidden="true" />
+      {t('tryNext')}
+    </span>
   )
 }
 
@@ -174,6 +184,8 @@ export function Home() {
   }
   // A manager with nothing finished and nothing waiting gets the game in three steps and one button into a Quick Draft
   const newcomer = isNewcomer(profile, !!game || Object.keys(parked).length > 0)
+  // An early player (a first result in, a handful at most): the one card worth trying next is marked
+  const nextUp = newcomer ? null : nextUpFor(profile, { dailyPlayedToday: dailyDone, online: onlineAvailable() })
   // A finished game on the resume strip (a Dynasty's summary goes on to next year, so it is never finished here)
   const finishedHere = !!game && game.phase === 'summary' && game.settings.mode !== 'dynasty'
   const playFirstDraft = () => {
@@ -303,11 +315,12 @@ export function Home() {
             <GoLabel />
           </span>
         </button>
-        <div className="mode-card daily" data-testid="daily-card">
+        <div className={`mode-card daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
           <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
             <ModeArt kind="daily" icon={CalendarDays} />
             <span className="mode-text">
               <h3>{t('dailyTitle')}</h3>
+              {nextUp === 'daily' && <NextUpChip />}
               <p>{t('dailyLine')}</p>
               <span className="foot">
                 <TimeTag>{t('minutes', { n: 5 })}</TimeTag>
@@ -341,10 +354,11 @@ export function Home() {
             {t(!dailyReady ? 'loading' : dailyUnderWay ? 'continueDaily' : dailyDone ? 'playAgainFun' : 'playDaily')}
           </button>
         </div>
-        <button className="mode-card" onClick={() => go('setup', 'season')}>
+        <button className={`mode-card${nextUp === 'season' ? ' next-up' : ''}`} onClick={() => go('setup', 'season')} data-testid="season-card">
           <ModeArt kind="season" icon={ClipboardList} />
           <span className="mode-text">
             <h3>{t('seasonTitle')}</h3>
+            {nextUp === 'season' && <NextUpChip />}
             <p>{t('seasonLine')}</p>
             <span className="foot">
               <TimeTag>{t('minutes', { n: 45 })}</TimeTag>
@@ -376,7 +390,7 @@ export function Home() {
 
       <div className="home-tiles">
         <Tile icon={Swords} title={t('h2hTitle')} meta={t('h2hMeta')} onClick={() => go('h2h')} />
-        {onlineAvailable() && <Tile icon={Globe} title={t('worldTitle')} meta={t('worldMeta')} onClick={() => go('world')} testId="world-card" />}
+        {onlineAvailable() && <Tile icon={Globe} title={t('worldTitle')} meta={nextUp === 'boards' ? t('worldNext') : t('worldMeta')} onClick={() => go('world')} testId="world-card" next={nextUp === 'boards'} />}
         <Tile icon={Search} title={t('exploreTitle')} meta={u ? t('exploreMeta', { n: u.available.length }) : t('exploreFallback')} onClick={() => go('explore')} />
         <Tile icon={Trophy} title={t('profileTitle')} meta={t('profileMeta', { seasons: profile.seasonsSimulated, achievements })} onClick={() => go('profile')} />
         <Tile icon={BookOpen} title={t('howToTitle')} meta={t('howToMeta')} onClick={() => go('howto')} />

@@ -3,6 +3,7 @@ import { catalog } from '../index'
 /** The season summary (Summary.tsx) and its panels: the cup runs and cup nights, the bracket, the season story, the highlights, the first result's next steps. */
 export const summary = catalog('summary', {
   firstSeasonIn: 'Your first season is in',
+  firstSeasonDone: 'Your first season',
   firstDailyLine: "<b>Today's Daily</b> Everyone gets the same spins today, so your score compares.",
   playTodaysDaily: "Play today's Daily",
   firstSetupLine: '<b>Your next draft</b> Pick the formation, the league and modes such as Hard, Legends or Moneyball.',

@@ -64,7 +64,7 @@ export const dugout = catalog('dugout', {
   sim5: 'Sim 5',
   simEndConfirm: 'Simulate the rest of the season with the assistant managing?',
   simEnd: 'Sim to end',
-  firstTip: 'Kick off plays the next match your way: Watch it live, Auto-play lets the assistant make the calls, Sim result goes straight to the score. Below, the bars are condition and sharpness, the face his morale, the arrow his form; the disc is his rating in that slot (acc. a small out-of-position cost, awk. a big one).',
+  firstTip: 'Kick off plays your next match: Watch it live, let the assistant Auto-play it, or Sim straight to the score. A disc is his rating in that slot.',
   youthIntake: 'Youth intake',
   homegrown: 'Homegrown',
   youthChipTip: '{name}, {age}, {club}{homegrown}: sign him free on a three-year deal',

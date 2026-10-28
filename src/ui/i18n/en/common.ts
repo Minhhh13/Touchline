@@ -42,4 +42,5 @@ export const common = catalog('common', {
   moreInfo: 'More information',
   close: 'Close',
   gotIt: 'Got it',
+  noMoreTips: 'No more tips',
 })

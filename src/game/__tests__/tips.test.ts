@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { TIP_IDS, tipSeen, tipsSeenCount, withTipSeen } from '../logic/tips'
+import { TIP_IDS, tipInTurn, tipSeen, tipsSeenCount, withAllTipsSeen, withTipSeen } from '../logic/tips'
 import type { Profile } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
 const mem = vi.hoisted(() => {
@@ -87,5 +87,29 @@ describe('coach marks', () => {
     expect(tipsSeenCount(p)).toBe(0)
     useStore.getState().dismissTip('tactics-first')
     expect(tipSeen(useStore.getState().profile, 'tactics-first')).toBe(true)
+  })
+
+  it('shows one tip at a time: the first on screen in TIP_IDS order that is not dismissed', () => {
+    expect(tipInTurn(oldProfile, [])).toBeNull()
+    expect(tipInTurn(oldProfile, ['draft-recap', 'draft-bench'])).toBe('draft-bench')
+    const benchSeen = withTipSeen(oldProfile, 'draft-bench', '2026-10-28')
+    expect(tipInTurn(benchSeen, ['draft-recap', 'draft-bench'])).toBe('draft-recap')
+    expect(tipInTurn(withTipSeen(benchSeen, 'draft-recap', '2026-10-28'), ['draft-recap', 'draft-bench'])).toBeNull()
+  })
+
+  it("'No more tips' dismisses all eight, keeps a first date, and the store's reset brings them back", () => {
+    const one = withTipSeen(oldProfile, 'dugout-first', '2026-10-01')
+    const all = withAllTipsSeen(one, '2026-10-28')
+    expect(tipsSeenCount(all)).toBe(TIP_IDS.length)
+    expect(all.seenTips?.['dugout-first']).toBe('2026-10-01')
+    expect(tipInTurn(all, [...TIP_IDS])).toBeNull()
+    useStore.setState({ profile: { ...oldProfile } })
+    useStore.getState().dismissAllTips()
+    expect(tipsSeenCount(useStore.getState().profile)).toBe(TIP_IDS.length)
+    const before = useStore.getState().profile
+    useStore.getState().dismissAllTips()
+    expect(useStore.getState().profile).toBe(before)
+    useStore.getState().resetTips()
+    expect(tipsSeenCount(useStore.getState().profile)).toBe(0)
   })
 })

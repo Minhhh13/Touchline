@@ -78,10 +78,13 @@ export function useCountUp(target: number, duration: number = DURATION.slow): { 
   return { value, counting: value !== target }
 }
 
-/** What a revealed tier earns: confetti for the perfect season, a gold flare for the other titles, nothing otherwise. */
-export function celebrationFor(tier: SeasonTier): 'confetti' | 'flare' | null {
+/**
+ * What a revealed tier earns: confetti for the perfect season, a gold flare for the other titles, nothing otherwise;
+ * a manager's first result ever (`first`) earns the flare whatever the tier.
+ */
+export function celebrationFor(tier: SeasonTier, first = false): 'confetti' | 'flare' | null {
   if (tier === 'PERFECT') return 'confetti'
-  if (tier === 'INVINCIBLE' || tier === 'CHAMPIONS') return 'flare'
+  if (tier === 'INVINCIBLE' || tier === 'CHAMPIONS' || first) return 'flare'
   return null
 }
 

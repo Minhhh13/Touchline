@@ -34,10 +34,10 @@ function Rays() {
  * behind both; the perfect season adds two neon rings (cyan, then magenta). It plays the
  * first time a result is revealed in this visit and on every replay, never on
  * a plain revisit. Decoration only (aria-hidden, no pointer events), hidden
- * under reduced motion.
+ * under reduced motion. A first result ever (`first`) gets the flare too.
  */
-export function Celebrate({ tier, resultKey, replayed }: { tier: SeasonTier; resultKey: string; replayed: boolean }) {
-  const kind = celebrationFor(tier)
+export function Celebrate({ tier, resultKey, replayed, first = false }: { tier: SeasonTier; resultKey: string; replayed: boolean; first?: boolean }) {
+  const kind = celebrationFor(tier, first)
   const play = useFirstReveal(resultKey, replayed)
   // A title gets the Cup's fanfare, the perfect season the Treble's, when the flourish plays (sound follows its own switch),
   // once the screen has painted: its score is worked out on first use (about 70 ms on a 4x-throttled phone)

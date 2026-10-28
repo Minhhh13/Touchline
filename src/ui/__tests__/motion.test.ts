@@ -47,6 +47,8 @@ describe('site motion helpers', () => {
       RELEGATED: null,
     }
     for (const [tier, kind] of Object.entries(expected) as Array<[SeasonTier, ReturnType<typeof celebrationFor>]>) expect(celebrationFor(tier)).toBe(kind)
+    // A first result ever: the flare whatever the tier, the confetti still the perfect season's
+    for (const tier of Object.keys(expected) as SeasonTier[]) expect(celebrationFor(tier, true)).toBe(tier === 'PERFECT' ? 'confetti' : 'flare')
   })
 
   it('the confetti burst is the same every time, spread all round and kept inside the banner', () => {

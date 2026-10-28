@@ -64,7 +64,7 @@ import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
-import { withTipSeen, type TipId } from './logic/tips'
+import { withAllTipsSeen, withTipSeen, type TipId } from './logic/tips'
 import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { passQuickCup } from './logic/summaryCall'
 import { leaguesBeforeSkip } from './logic/cupSkip'
@@ -372,6 +372,8 @@ interface Store {
   setTheme: (t: Profile['theme']) => void
   /** A coach mark's 'Got it': it never shows again on this profile. */
   dismissTip: (id: TipId) => void
+  /** A tip's 'No more tips': every coach mark dismissed at once. */
+  dismissAllTips: () => void
   /** 'Show tips again' on the Profile screen: every coach mark shows once more. */
   resetTips: () => void
 
@@ -1655,6 +1657,11 @@ export const useStore = create<Store>()(
         dismissTip: (id) => {
           const { profile } = get()
           const next = withTipSeen(profile, id, new Date().toISOString().slice(0, 10))
+          if (next !== profile) set({ profile: next })
+        },
+        dismissAllTips: () => {
+          const { profile } = get()
+          const next = withAllTipsSeen(profile, new Date().toISOString().slice(0, 10))
           if (next !== profile) set({ profile: next })
         },
         resetTips: () => set({ profile: { ...get().profile, seenTips: {} } }),
