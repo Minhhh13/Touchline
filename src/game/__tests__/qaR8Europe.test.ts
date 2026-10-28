@@ -20,7 +20,9 @@ import { encodeSave, parseSave } from '../saveStorage'
 import { canonicalJson } from '../../online/core/canonical'
 import { persistedState, useStore } from '../store'
 import type { Game, GameSettings, Mode } from '../types'
-import { breathe, Chooser, crashToast, driveDraft, loadStore, seeds, stepHook } from './qaHarness'
+import { matchPreview, nextLeagueFixture, nextTieFixture, storylines, summerReview } from '../logic/storylines'
+import { previewLines, previewTitle, storylineText, summerText } from '../../ui/storyText'
+import { badValues, breathe, Chooser, crashToast, driveDraft, loadStore, seeds, stepHook } from './qaHarness'
 import { driveSeason } from './qaSeasonHarness'
 
 /**
@@ -120,6 +122,39 @@ export function continentalProblems(g: Game): string[] {
   return out
 }
 
+/** The storylines' words at this step (display only, `src/ui/storyText.ts`): every preview, story and summer review sound. */
+function storyProblems(g: Game): string[] {
+  const out: string[] = []
+  const words: string[] = []
+  try {
+    const key = `${g.id}|${g.year}|${g.season?.matchweek}`
+    if (g.season && (g.phase === 'week' || g.phase === 'preseason')) {
+      for (const f of [nextLeagueFixture(g), nextTieFixture(g)]) {
+        if (!f) continue
+        const p = matchPreview(g, u, f)
+        if (!p) continue
+        words.push(previewTitle(p, u), ...previewLines(p, u, g.settings.teamName, key).map((l) => l.text))
+      }
+      for (const s of storylines(g, u)) {
+        const t = storylineText(s, u, g.settings.teamName, key)
+        words.push(t.text, t.title, t.chip ?? '')
+      }
+    }
+    if (g.phase === 'summary' || (g.phase === 'draft' && g.year > 1)) {
+      const r = summerReview(g)
+      if (r) {
+        const t = summerText(r, u, key)
+        words.push(t.headline, ...t.lines.map((l) => l.text))
+      }
+    }
+  } catch (e) {
+    out.push(`storylines threw: ${e instanceof Error ? e.stack?.split('\n').slice(0, 3).join(' | ') : String(e)}`)
+  }
+  out.push(...badValues(words, 'story words'))
+  for (const w of words) if (/\b(undefined|NaN|null)\b|\{[a-z]+\}/.test(w)) out.push(`story words: ${w}`)
+  return out
+}
+
 function settings(mode: Mode, seed: string, ch: Chooser, leagueId: string): GameSettings {
   const stops = wheelSeasons(u, [leagueId], false)
   const rules = setupRules({ ...SEASON_RULES, squadSize: 18 }, { difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season', eraFrom: stops[0], eraTo: stops[stops.length - 1], first: stops[0], last: stops[stops.length - 1], twists: false, leagues: [leagueId], benchPicks: 0, modes: [], powerUps: false, classic: false })
@@ -140,7 +175,7 @@ function play(mode: Mode, seed: string, leagueId: string, p: number, bias: numbe
     const g = st().game
     if (g?.season?.continental?.groups) groups = true
     if (g?.live?.comp === 'continental') liveCup++
-    if (g && problems.length < 6) problems.push(...continentalProblems(g).map((x) => `y${g.year} mw ${g.season?.matchweek} ${g.phase}: ${x}`))
+    if (g && problems.length < 6) problems.push(...[...continentalProblems(g), ...storyProblems(g)].map((x) => `y${g.year} mw ${g.season?.matchweek} ${g.phase}: ${x}`))
     if (p > 0 && reloads.chance(p) && !st().digest) {
       reloadNow()
       n++
