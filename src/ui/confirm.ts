@@ -1,4 +1,9 @@
 import { useSyncExternalStore } from 'react'
+import { translator } from './i18n'
+import { common } from './i18n/en/common'
+
+// The default buttons' words, in the viewer's language (English: OK and Cancel)
+const t = translator(common)
 
 /**
  * The game's own yes-or-no question, in place of the browser's `window.confirm` (a grey box headed with the site's
@@ -31,7 +36,7 @@ const emit = () => listeners.forEach((l) => l())
 
 export function askConfirm(message: string, options: ConfirmOptions = {}): Promise<boolean> {
   return new Promise((resolve) => {
-    queue = [...queue, { id: nextId++, message, ok: options.ok ?? 'OK', cancel: options.cancel ?? 'Cancel', danger: !!options.danger, resolve }]
+    queue = [...queue, { id: nextId++, message, ok: options.ok ?? t('confirmOk'), cancel: options.cancel ?? t('confirmCancel'), danger: !!options.danger, resolve }]
     emit()
   })
 }

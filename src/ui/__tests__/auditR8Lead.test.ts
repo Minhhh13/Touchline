@@ -25,3 +25,14 @@ describe('r8 audit: Space or Enter on a running reel', () => {
     }
   })
 })
+
+describe('r8 audit: the confirm dialog’s default buttons', () => {
+  it('come from the common catalogue, so a translation reaches Cancel', async () => {
+    const src = readFileSync(new URL('../confirm.ts', import.meta.url), 'utf8')
+    expect(src).toContain("options.ok ?? t('confirmOk')")
+    expect(src).toContain("options.cancel ?? t('confirmCancel')")
+    const { common } = await import('../i18n/en/common')
+    expect(common.messages.confirmOk).toBe('OK')
+    expect(common.messages.confirmCancel).toBe('Cancel')
+  })
+})
