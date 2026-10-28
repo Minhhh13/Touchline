@@ -87,4 +87,7 @@ export const runin = catalog('runin', {
   gapFourClear: '{pts} clear in the top four',
   gapSafeGd: 'out of the drop on goal difference',
   gapSafeClear: '{pts} clear of the drop',
+  mwShort: 'MW {n}',
+  versus: '{home, select, home {v} other {at}} {club}',
+  placeAfter: '{pos} in the table after it',
 })

@@ -12,7 +12,7 @@ import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
-import { clubName, outcomeClass, seasonLabel } from './format'
+import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
@@ -371,10 +371,24 @@ export function App() {
               <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
             )}
             {offseason.improved.length > 0 && (
-              <p>{rich(t('summerImproved', { names: offseason.improved.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ') }), B)}</p>
+              <div className="summer-moves" data-testid="summer-improved">
+                <b>{t('summerImproved')}</b>
+                {offseason.improved.map((x) => (
+                  <span key={x.name} className="chip good">
+                    {t('summerMove', { name: x.name, from: x.from, to: x.to })}
+                  </span>
+                ))}
+              </div>
             )}
             {offseason.declined.length > 0 && (
-              <p>{rich(t('summerDeclined', { names: offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ') }), B)}</p>
+              <div className="summer-moves" data-testid="summer-declined">
+                <b>{t('summerDeclined')}</b>
+                {offseason.declined.map((x) => (
+                  <span key={x.name} className="chip bad">
+                    {t('summerMove', { name: x.name, from: x.from, to: x.to })}
+                  </span>
+                ))}
+              </div>
             )}
             {game && (game.history.at(-1)?.leagueSeason ?? 0) > game.settings.leagueSeason && (
               <p className="small" data-testid="season-wrap">
@@ -436,19 +450,16 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         <span className="muted">{t('digestFrom', { n: league.length })}</span>
       </div>
       <div className="digest-conf" data-testid="digest-confidence">
-        <span className="small muted">{t('boardConfidence')}</span>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="small" style={{ minWidth: 22, textAlign: 'right' }}>
-            {Math.round(d.confidenceFrom)}
+        <div className="row between">
+          <span className="small muted">{t('boardConfidence')}</span>
+          <span className="small digest-conf-move">
+            {t('confidenceMove', { from: Math.round(d.confidenceFrom), to: Math.round(d.confidenceTo) })}
+            {Math.round(d.confidenceTo) !== Math.round(d.confidenceFrom) && (
+              <b className={d.confidenceTo > d.confidenceFrom ? 'res-w' : 'res-l'}> {t('confidenceDelta', { n: signedValue(Math.round(d.confidenceTo) - Math.round(d.confidenceFrom)) })}</b>
+            )}
           </span>
-          <Bar value={d.confidenceFrom} colour={CONFIDENCE_COLOUR(d.confidenceFrom)} />
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="small" style={{ minWidth: 22, textAlign: 'right' }}>
-            {Math.round(d.confidenceTo)}
-          </span>
-          <Bar value={d.confidenceTo} colour={CONFIDENCE_COLOUR(d.confidenceTo)} thick />
-        </div>
+        <Bar value={d.confidenceTo} colour={CONFIDENCE_COLOUR(d.confidenceTo)} thick />
       </div>
       {d.decisions.length > 0 && (
         <DigestGroup title={t('decidedForYou')} icon={<MessageSquare size={14} />} count={d.decisions.length}>

@@ -59,7 +59,8 @@ export function SeasonChart({ points, u }: { points: SeasonPoint[]; u: LoadedUni
             <circle cx={x(i)} cy={y(p.overall)} r={p.peak ? 3.6 : 2.6} className={`pc-dot ${p.peak ? 'peak' : ''} ${p.estimated ? 'est' : ''}`}>
               <title>{`${p.label} · ${clubName(u, p.clubId)} · ${p.overall}${p.estimated ? t('estimatedPoint') : ''}${p.peak ? t('peakPoint') : ''}`}</title>
             </circle>
-            <text x={x(i)} y={below ? y(p.overall) + 12 : y(p.overall) - 6} className={`pc-chart-val ${p.peak ? 'peak' : ''}`} textAnchor="middle">
+            {/* The end values lean inwards, so the first never sits on the axis's own numbers */}
+            <text x={n > 1 && i === 0 ? x(i) - 3 : n > 1 && i === n - 1 ? x(i) + 3 : x(i)} y={below ? y(p.overall) + 12 : y(p.overall) - 6} className={`pc-chart-val ${p.peak ? 'peak' : ''}`} textAnchor={n > 1 && i === 0 ? 'start' : n > 1 && i === n - 1 ? 'end' : 'middle'}>
               {p.overall}
             </text>
             {(i === n - 1 || (i % step === 0 && n - 1 - i >= step)) && (

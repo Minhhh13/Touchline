@@ -283,6 +283,8 @@ export interface StripCell {
   home: boolean
   outcome?: Outcome
   score?: string
+  /** The same result with our goals first ("2-1" a win, "1-2" a loss), for the calendar cell. */
+  ours?: string
   /** The opponent's band in the table today: top four, bottom four or between (upcoming cells are tinted by it). */
   band: TableBand | null
   /** The user's cup or Continental Cup tie played after this matchweek. */
@@ -320,6 +322,7 @@ export function seasonStrip(game: Pick<Game, 'season'>, table: TableRow[]): Stri
       home,
       outcome,
       score: r ? `${r.homeGoals}-${r.awayGoals}` : undefined,
+      ours: r ? `${gf}-${ga}` : undefined,
       band: opp && pos > 0 ? tableBand(pos, teams) : null,
       ties: ties.filter((m) => m.matchweek === mw).map((m) => ({ comp: m.comp, round: m.round, opp: m.opponentId, home: m.home, outcome: m.outcome, score: cupMatchScore(m), label: m.label })),
     })

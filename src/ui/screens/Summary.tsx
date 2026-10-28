@@ -972,7 +972,7 @@ export function Summary() {
               <QuickLeagueFlag settings={game.settings} label={leagueName} /> {game.settings.mode === 'quick' ? t('finalTable') : t('finalTableSeason', { season: seasonLabel(game.settings.leagueSeason) })}
             </h3>
             <div className="tbl-wrap">
-              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} />
+              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} zones />
             </div>
           </div>
           )}

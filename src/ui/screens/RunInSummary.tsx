@@ -144,18 +144,27 @@ export function RunInSummary() {
         <div className="grid two">
           <div className="panel" data-testid="runin-games">
             <h3>{t('theRunIn')}</h3>
-            <div className="plist lined">
-              {(story?.results ?? []).map((r) => (
-                <div key={r.matchweek} className="row between small" style={{ padding: '4px 0' }}>
-                  <span className="row" style={{ gap: 6 }}>
-                    <span className={`chip ${outcomeClass(outcomeOf(r.gf, r.ga))}`}>{outcomeOf(r.gf, r.ga)}</span>
-                    <ClubBadge clubId={r.opponentId} size={18} />
-                    {gameLabel(r, (id) => clubName(u, id))}
-                  </span>
-                  <span className="muted">{ordinal(r.position)}</span>
-                </div>
-              ))}
-            </div>
+            <ol className="runin-games">
+              {(story?.results ?? []).map((r) => {
+                const o = outcomeOf(r.gf, r.ga)
+                return (
+                  <li key={r.matchweek} title={gameLabel(r, (id) => clubName(u, id))}>
+                    <span className={`chip ${outcomeClass(o)}`}>{o}</span>
+                    <span className="muted rg-mw">{t('mwShort', { n: r.matchweek })}</span>
+                    <span className="rg-opp">
+                      <ClubBadge clubId={r.opponentId} size={18} />
+                      <span className="rg-name">{t('versus', { home: r.home ? 'home' : 'away', club: clubName(u, r.opponentId) })}</span>
+                    </span>
+                    <b className={`rg-score ${outcomeClass(o)}`}>
+                      {r.gf}-{r.ga}
+                    </b>
+                    <span className="muted rg-pos" title={t('placeAfter', { pos: ordinal(r.position) })}>
+                      {ordinal(r.position)}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
           </div>
           <div className="panel">
             <div className="panel-head">
@@ -166,7 +175,7 @@ export function RunInSummary() {
                 </Info>
               </span>
             </div>
-            <TableView rows={table} teamName={game.settings.teamName} compact highlightTop />
+            <TableView rows={table} teamName={game.settings.teamName} compact highlightTop zones />
           </div>
         </div>
         <details className="panel fold">

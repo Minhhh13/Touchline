@@ -450,6 +450,7 @@
   padding: 0 3px;
   border-radius: 4px;
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 10px; /* px: on the substitution pitch */
   font-weight: 700;
   line-height: 14px;
@@ -626,6 +627,7 @@
 }
 .matchday .md-strip-squad .mono b {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-meta);
   color: var(--text);
 }

@@ -42,7 +42,6 @@ export const summary = catalog('summary', {
   groupMd: 'MD {n}',
   groupMdTip: 'Group matchday {n}',
   groupFixture: '{home, select, yes {v} other {at}} {club}',
-  groupScore: '{outcome, select, W {W} L {L} other {D}} {gf}-{ga}',
   groupAfterMw: 'after MW {n}',
   groupAfterMwTip: 'Played midweek after league matchweek {n}',
   legsTip: 'Each leg, home side of the tie first',
@@ -274,4 +273,9 @@ export const summary = catalog('summary', {
   shareText: 'Share text',
   draftAgainTip: 'The same setup on a new wheel',
   challengeFriendTip: 'A link to this wheel: your friend drafts the same spins and plays against your result',
+  groupRecord: 'W-D-L',
+  groupZone: 'In the top two: through if it stays this way',
+  groupThrough: 'Through to the quarter-finals',
+  groupOut: 'Out',
+  groupKey: 'The top two of each group go through to the quarter-finals',
 })

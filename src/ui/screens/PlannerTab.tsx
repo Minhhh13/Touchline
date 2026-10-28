@@ -28,6 +28,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
   if (!u || !game) return null
   const rows = squadPlanner(game, u)
   const contracts = contractsOverview(game, u)
+  const renewals = contracts.rows.filter((c) => c.outOfContract)
   const med = medicalReport(game, u)
   const used = rows.filter((r) => r.used)
   const spare = rows.filter((r) => !r.used)
@@ -89,17 +90,19 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
             {t('expiringOff', { n: contracts.expiring, w: wage(contracts.wagesLeaving) })}
           </span>
         </div>
-        {contracts.rows.some((c) => c.outOfContract) && (
-          <div className="med-out" data-testid="renewal-list">
-            <div className="eyebrow">{t('renewalHead')}</div>
-            {contracts.rows
-              .filter((c) => c.outOfContract)
-              .map((c) => (
-                <div key={c.id} className="room-row" data-testid="renewal-row">
-                  <span className="who">
-                    <b>{c.name}</b>
-                    <span className="small muted">
-                      {c.age} · {c.position} · {wage(c.wage)}
+        {renewals.length > 0 && (
+          <div className="renewal-list" data-testid="renewal-list" role="group" aria-label={t('renewalHead')}>
+            <div className="renewal-head">
+              <span className="eyebrow">{t('renewalHead')}</span>
+              <span className="chip warn">{renewals.length}</span>
+            </div>
+            {renewals.map((c) => (
+                <div key={c.id} className="room-row renewal-row" data-testid="renewal-row">
+                  <span className="row renewal-who">
+                    <Pos p={c.position} />
+                    <span className="who">
+                      <b>{c.name}</b>
+                      <span className="small muted">{t('renewalLine', { age: c.age, wage: wage(c.wage), role: c.statusLabel })}</span>
                     </span>
                   </span>
                   <span className="row" style={{ gap: 'var(--space-2)' }}>
