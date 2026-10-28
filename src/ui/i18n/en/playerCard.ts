@@ -2,7 +2,6 @@ import { catalog } from '../index'
 
 /** The player card's deeper tabs (PlayerProfile.tsx) and Explore's Records view (ExploreRecords.tsx). */
 export const playerCard = catalog('playerCard', {
-  tabCareer: 'Career',
   tabBest: 'Best seasons',
   tabRoles: 'Roles',
   tabSimilar: 'Similar',
