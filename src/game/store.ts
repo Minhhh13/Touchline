@@ -68,6 +68,7 @@ import { withTipSeen, type TipId } from './logic/tips'
 import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { passQuickCup } from './logic/summaryCall'
 import { leaguesBeforeSkip } from './logic/cupSkip'
+import { lifelineChanges, LIFELINE_SAME_NOTE } from './logic/lifeline'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, playMatchweekAsSteps, type MatchPlayMode } from './logic/assistant'
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
@@ -1297,6 +1298,12 @@ export const useStore = create<Store>()(
         },
         changeTheDraw: () => {
           let out = { ok: false, message: 'No game' }
+          // A lifeline that would bring the same side back is refused before it is spent (`lifeline.ts`)
+          const a = get().game?.arena
+          if (a?.format === 'gauntlet' && a.lifelineUsed === undefined && !lifelineChanges(a)) {
+            set({ toast: LIFELINE_SAME_NOTE })
+            return
+          }
           mutate((g, u) => {
             out = changeTheDraw(g, u)
           })

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
+import { lifelineChanges } from '@game/logic/lifeline'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE, getRole } from '@engine/roles'
 import { clubIdOfKey } from '@engine/knockout'
@@ -150,7 +151,7 @@ export function Arena() {
                   </div>
                 </div>
                 {gauntlet && (
-                  <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined} data-testid="arena-lifeline" title={t('lifelineTip')}>
+                  <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined || !lifelineChanges(a)} data-testid="arena-lifeline" title={t(a.lifelineUsed === undefined && !lifelineChanges(a) ? 'lifelineSame' : 'lifelineTip')}>
                     {t(a.lifelineUsed !== undefined ? 'lifelineUsed' : 'changeDraw')}
                   </button>
                 )}

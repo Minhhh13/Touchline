@@ -20,6 +20,7 @@ export const arena = catalog('arena', {
   home: ' · home',
   away: ' · away',
   lifelineTip: "Once a run: swap this rung's club for another from the same band",
+  lifelineSame: 'The other draw for this rung is the same side: keep the lifeline for a later rung.',
   lifelineUsed: 'Lifeline used',
   changeDraw: 'Change the draw',
   playsAt: 'Their rating {at} here (real {real}, calibrated)',
