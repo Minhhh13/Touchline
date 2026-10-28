@@ -2,12 +2,16 @@ import { useMemo } from 'react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { postKey, useOnline } from '../../online/state'
-import { CASUAL_BOARD_NAME, casualBoardOf, casualUnrankedReason } from '../../online/casual'
-import { countryFlag } from '../../online/core/country'
-import { ordinal } from '../format'
+import { casualBoardOf, casualUnrankedReason } from '../../online/casual'
 import { APP_NAME } from '../brand'
+import { CountryFlag } from './AccountPanel'
+import { countryName } from './countries'
 import { rememberWorldTab } from './WorldBoard'
 import { sentence } from '../../online/postText'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+
+const t = translator(online)
 
 /**
  * One line on the summary of a casual board's run (online builds only): the Daily Arena, the Weekly Challenge (mode
@@ -26,36 +30,40 @@ export function CasualStatus({ game }: { game: Game }) {
   const boardKey = board ? `${board.board}:${board.key}` : null
   const reason = useMemo(() => (configured && boardKey && !post && u ? casualUnrankedReason(game, u) : null), [configured, boardKey, post, u, game])
   if (!configured || !board) return null
-  const where = CASUAL_BOARD_NAME[board.board]
+  const where = t('casualWhere', { board: board.board })
   let line: React.ReactNode
   let share: string | null = null
-  if (reason) line = <>Not on {where}: {sentence(reason)}</>
-  else if (!post) line = <>Filing this run for {where}…</>
+  if (reason) line = <>{t('casualNotOn', { where, reason: sentence(reason) })}</>
+  else if (!post) line = <>{t('casualFiling', { where })}</>
   else if (post.state === 'waiting' && post.reason === 'sign_in' && !session)
     line = (
       <>
-        Sign in to post this run to {where}.{' '}
+        {t('casualSignIn', { where })}{' '}
         <button className="btn sm primary" onClick={() => go('account')} data-testid="casual-signin">
-          Sign in
+          {t('signIn')}
         </button>
       </>
     )
-  else if (post.state === 'waiting' && post.reason === 'retry') line = <>Waiting to post: the server did not answer, so this device tries again shortly.</>
-  else if (post.state === 'waiting') line = <>Posting to {where}…</>
+  else if (post.state === 'waiting' && post.reason === 'retry') line = <>{t('casualRetry')}</>
+  else if (post.state === 'waiting') line = <>{t('casualPosting', { where })}</>
   else if (post.state === 'posted') {
-    const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} of ${post.countryTotal ?? 0} in ${countryFlag(post.country)}` : ''
-    const result = post.detail && !/^[A-Z_ ]+$/.test(post.detail) ? post.detail : `${post.points} pts`
-    share = `${ordinal(post.position)} of ${post.total.toLocaleString()} on ${where} in ${APP_NAME} (${result})`
+    const result = post.detail && !/^[A-Z_ ]+$/.test(post.detail) ? post.detail : t('pts', { n: post.points })
+    share = t('shareRank', { pos: post.position, total: post.total.toLocaleString(), where, app: APP_NAME }) + ` (${result})`
     line = (
       <>
-        {post.already ? 'Your first posted run counts: ' : `On ${where}: `}
-        {ordinal(post.position)} of {post.total.toLocaleString()} ({result}){country}
-        {post.claimMatched ? '.' : ' (official result from the server’s replay).'}
+        {t(post.already ? 'casualFirstCounts' : 'casualOn', { where, pos: post.position, total: post.total.toLocaleString(), result })}
+        {post.country && post.countryPosition ? (
+          <>
+            {' · '}
+            {t('casualCountryRank', { pos: post.countryPosition, total: post.countryTotal ?? 0 })} <CountryFlag code={post.country} size={16} /> {countryName(post.country)}
+          </>
+        ) : null}
+        {post.claimMatched ? '.' : t('casualOfficial')}
       </>
     )
-  } else if (post.state === 'unranked') line = <>Not on {where}: {sentence(post.reason)}</>
-  else if (post.state === 'rejected') line = <>Not ranked: {sentence(post.reason)}</>
-  else line = <>That board has closed.</>
+  } else if (post.state === 'unranked') line = <>{t('casualNotOn', { where, reason: sentence(post.reason) })}</>
+  else if (post.state === 'rejected') line = <>{t('notRanked', { reason: sentence(post.reason) })}</>
+  else line = <>{t('boardClosed')}</>
   return (
     <div className={`notice row between wrap ${post?.state === 'rejected' ? 'warn' : ''}`} style={{ marginTop: 12 }} data-testid="casual-status">
       <span>{line}</span>
@@ -65,12 +73,12 @@ export function CasualStatus({ game }: { game: Game }) {
             className="btn sm ghost"
             onClick={() => {
               void navigator.clipboard?.writeText(share!).then(
-                () => showToast('Copied.'),
+                () => showToast(t('copied')),
                 () => showToast(share!),
               )
             }}
           >
-            Copy
+            {t('copy')}
           </button>
         )}
         <button
@@ -81,7 +89,7 @@ export function CasualStatus({ game }: { game: Game }) {
           }}
           data-testid="open-casual-board"
         >
-          World leaderboard
+          {t('worldLeaderboard')}
         </button>
       </span>
     </div>
