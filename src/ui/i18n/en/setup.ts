@@ -251,4 +251,8 @@ export const setup = catalog('setup', {
   takeOn: 'Take on {name}',
   startDraft: 'Start draft',
   stepN: 'Step {n}: ',
+  modeInfoItem: '{title}: {line}.',
+  leagueMissing: 'Not downloaded: connect to load it',
+  emptyWheel: 'No side on the wheel fits: widen the era, the leagues or the modes',
+  leagueMissingLine: 'This league is not on this device yet. Connect to the internet, then retry.',
 })

@@ -138,7 +138,7 @@ export const profile = catalog('profile', {
   result: 'Result',
   caseIconTip: 'An Icon from the end-of-draft case played: non-standard',
   caseIcon: '★ Case Icon',
-  bestOnWheel: 'Best on this wheel · {n} runs',
+  bestOnWheel: 'Best on this wheel · {n, plural, one {# run} other {# runs}}',
   rankOnWheel: '{rank, ordinal} of {n} on this wheel',
   capTip: 'Drafted under a {cap} salary cap',
   capSpent: '£ {spent} of {cap}',

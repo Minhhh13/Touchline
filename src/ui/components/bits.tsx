@@ -16,6 +16,8 @@ import { translator } from '../i18n'
 import { common } from '../i18n/en/common'
 
 const t = translator(common)
+// The tab strip's own `t` (a tab) shadows the translator inside it
+const tc = translator(common)
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -295,7 +297,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, className = '', 
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} className={t.id === value ? 'active' : ''} onClick={() => { if (t.id !== value) playSound({ id: 'tab' }); onChange(t.id) }} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
-            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={`${t.badge} new`}>
+            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={tc('newBadge', { n: t.badge })}>
               {t.badge > 99 ? '99+' : t.badge}
             </span>
           ) : (

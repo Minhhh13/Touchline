@@ -10,17 +10,18 @@ import { useState, type ReactNode } from 'react'
 import { getFormation } from '@engine/formations'
 import { MAX_SUBS, MAX_WINDOWS, SHOUTS, type Shout } from '@engine/match'
 import { ROLE_BY_ID, DEFAULT_ROLE } from '@engine/roles'
-import { LINE_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP } from '@engine/tactics'
 import type { PlayerSeason, SquadPlayer, Tactics } from '@engine/types'
 import { Segmented } from '../../components/bits'
 import { positionCode, roleCode, surname } from '../../match/shirts'
-import { SHOUTS_CLOSED, setPiecesDiffer, instructionDiff, type DrawerId, type Sub } from '../controls'
+import { shoutsClosed, setPiecesDiffer, instructionDiff, type DrawerId, type Sub } from '../controls'
+import { lineHelp, passingHelp, pressingHelp, shoutHint, shoutLabel, tempoHelp, widthHelp } from '../tacticText'
 import { boardRoom, countersAfter } from '../subBoard'
 import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { Drawer } from './Drawer'
 import { SubBoard } from './SubBoard'
 import { translator } from '../../i18n'
+import { roleName } from '../../i18n/engineText'
 import { match } from '../../i18n/en/match'
 
 const tx = translator(match)
@@ -90,7 +91,7 @@ export function TacticsDrawer({ hand, view, get }: DrawerProps) {
               <tr key={slot.id}>
                 <td className="mono">{positionCode(formation, slot.id)}</td>
                 <td>
-                  <span className="md-role">{roleCode(t, slot.id, slot.position)}</span> {role?.name ?? ''}
+                  <span className="md-role">{roleCode(t, slot.id, slot.position)}</span> {role ? roleName(role) : ''}
                 </td>
                 <td>{man ? surname(get(man)?.name) : <span className="muted">{tx('empty')}</span>}</td>
               </tr>
@@ -110,20 +111,20 @@ export function InstructionsDrawer({ hand }: DrawerProps) {
   return (
     <Drawer title={tx('instructions')} sub={tx('instructionsSub')} onClose={hand.close} foot={<Foot hand={hand} canApply={changed} onApply={() => hand.submit({ tactics: t }) && hand.close()} />}>
       <div className="md-group">{tx('inPossession')}</div>
-      <Field label={tx('tempo')} help={TEMPO_HELP[t.tempo]}>
+      <Field label={tx('tempo')} help={tempoHelp(t.tempo)}>
         <Segmented value={t.tempo} onChange={(v) => set({ tempo: v })} options={[{ value: 'slow', label: tx('slow') }, { value: 'standard', label: tx('standard') }, { value: 'fast', label: tx('fast') }]} />
       </Field>
-      <Field label={tx('width')} help={WIDTH_HELP[t.width]}>
+      <Field label={tx('width')} help={widthHelp(t.width)}>
         <Segmented value={t.width} onChange={(v) => set({ width: v })} options={[{ value: 'narrow', label: tx('narrow') }, { value: 'standard', label: tx('standard') }, { value: 'wide', label: tx('wide') }]} />
       </Field>
-      <Field label={tx('passing')} help={PASSING_HELP[t.passing]}>
+      <Field label={tx('passing')} help={passingHelp(t.passing)}>
         <Segmented value={t.passing} onChange={(v) => set({ passing: v })} options={[{ value: 'short', label: tx('short') }, { value: 'mixed', label: tx('mixed') }, { value: 'direct', label: tx('direct') }]} />
       </Field>
       <div className="md-group">{tx('outOfPossession')}</div>
-      <Field label={tx('pressing')} help={PRESSING_HELP[t.pressing]}>
+      <Field label={tx('pressing')} help={pressingHelp(t.pressing)}>
         <Segmented value={t.pressing} onChange={(v) => set({ pressing: v })} options={[{ value: 'low', label: tx('low') }, { value: 'mid', label: tx('mid') }, { value: 'high', label: tx('high') }]} />
       </Field>
-      <Field label={tx('defensiveLine')} help={LINE_HELP[t.defensiveLine]}>
+      <Field label={tx('defensiveLine')} help={lineHelp(t.defensiveLine)}>
         <Segmented value={t.defensiveLine} onChange={(v) => set({ defensiveLine: v })} options={[{ value: 'deep', label: tx('deep') }, { value: 'standard', label: tx('standard') }, { value: 'high', label: tx('high') }]} />
       </Field>
     </Drawer>
@@ -134,12 +135,12 @@ export function ShoutsDrawer({ hand }: DrawerProps) {
   const current = hand.pendingShout ?? hand.shout
   const [s, setS] = useState<Shout>(current ?? 'keep-shape')
   return (
-    <Drawer title={tx('shouts')} sub={hand.shoutsOpen ? tx('shoutsSub') : SHOUTS_CLOSED} onClose={hand.close} foot={<Foot hand={hand} canApply={hand.shoutsOpen && s !== current} onApply={() => hand.submit({ shout: s }) && hand.close()} />}>
+    <Drawer title={tx('shouts')} sub={hand.shoutsOpen ? tx('shoutsSub') : shoutsClosed()} onClose={hand.close} foot={<Foot hand={hand} canApply={hand.shoutsOpen && s !== current} onApply={() => hand.submit({ shout: s }) && hand.close()} />}>
       <div className="md-options" role="radiogroup" aria-label={tx('touchlineShout')}>
         {(Object.keys(SHOUTS) as Shout[]).map((k) => (
           <button key={k} type="button" role="radio" aria-checked={s === k} className={`md-option ${s === k ? 'active' : ''}`} onClick={() => setS(k)} disabled={!hand.shoutsOpen}>
-            <b>{SHOUTS[k].label}</b>
-            <span className="help">{SHOUTS[k].hint}</span>
+            <b>{shoutLabel(k)}</b>
+            <span className="help">{shoutHint(k)}</span>
             {current === k && <span className="md-tag">{tx(hand.pendingShout ? 'pending' : 'inForce')}</span>}
           </button>
         ))}

@@ -12,6 +12,10 @@ import { minuteLabel } from '../format'
 import { positionCode, surname } from '../match/shirts'
 import { slotViews } from './model'
 import type { ChoiceStorage, WidgetId } from './widgetIds'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 // ------------------------------------------------------------------ tactics diff
 
@@ -49,8 +53,8 @@ export function clockLabel(fractional: number, addedTime = 0): string {
 
 /** The top bar's clock: HALF TIME or 70 MINUTES at a stop, FULL TIME at the whistle, otherwise the running clock. */
 export function barClock(fractional: number, s: { atStop: boolean; stopAt: number; finished: boolean; final: boolean; addedTime: number }): string {
-  if (s.atStop) return s.stopAt === 45 ? 'HALF TIME' : `${s.stopAt} MINUTES`
-  if (s.finished && s.final) return 'FULL TIME'
+  if (s.atStop) return s.stopAt === 45 ? t('clockHalfTime') : t('clockStop', { n: s.stopAt })
+  if (s.finished && s.final) return t('clockFullTime')
   return clockLabel(fractional, s.addedTime)
 }
 
@@ -73,14 +77,14 @@ export interface Landing {
  * before changes in play), and is too late in stoppage time.
  */
 export function landing(s: { replay: boolean; atStop: boolean; stopAt: number; check: InPlayCheck | null }): Landing {
-  if (s.replay || !s.check) return { kind: 'replay', text: 'Replay' }
-  if (s.atStop) return s.stopAt === 45 ? { kind: 'stop', stop: 45, text: 'At the break: changes apply when you play on' } : { kind: 'stop', stop: 70, text: 'At 70 minutes: changes apply when you play on' }
-  if (s.check.ok) return { kind: 'now', text: 'Changes apply now' }
-  if (s.check.refusal === 'too-late') return { kind: 'closed', text: 'Too late for changes' }
-  if (s.check.nextStop === 45) return { kind: 'queue', stop: 45, text: 'Changes wait for half time' }
-  if (s.check.nextStop === 70) return { kind: 'queue', stop: 70, text: 'Changes wait for the 70th minute' }
-  if (s.check.refusal === 'in-the-past') return { kind: 'closed', text: 'Catching up with your last change' }
-  return { kind: 'closed', text: 'Too late for changes' }
+  if (s.replay || !s.check) return { kind: 'replay', text: t('replay') }
+  if (s.atStop) return s.stopAt === 45 ? { kind: 'stop', stop: 45, text: t('landBreak') } : { kind: 'stop', stop: 70, text: t('land70') }
+  if (s.check.ok) return { kind: 'now', text: t('landNow') }
+  if (s.check.refusal === 'too-late') return { kind: 'closed', text: t('tooLate') }
+  if (s.check.nextStop === 45) return { kind: 'queue', stop: 45, text: t('waitHalfTime') }
+  if (s.check.nextStop === 70) return { kind: 'queue', stop: 70, text: t('wait70') }
+  if (s.check.refusal === 'in-the-past') return { kind: 'closed', text: t('catchingUp') }
+  return { kind: 'closed', text: t('tooLate') }
 }
 
 /** A change can be made (now, at the stop or queued for it). */
@@ -94,7 +98,8 @@ export function shoutsOpen(minute: number, l: Landing): boolean {
   return l.kind === 'now' && minute >= 70
 }
 
-export const SHOUTS_CLOSED = 'Touchline shouts open at 70 minutes'
+/** The note while shouts are closed, read when shown. */
+export const shoutsClosed = () => t('shoutsClosed')
 
 // ------------------------------------------------------------------ a stop's pending changes
 
@@ -168,40 +173,29 @@ export function closeDrawer(s: DrawerState): { state: DrawerState; resume: boole
 
 // ------------------------------------------------------------------ outcomes
 
-const WHY: Record<InPlayOutcome['refused'][number]['why'], string> = {
-  'no-window': 'No stoppages left: you have used all three',
-  'no-subs-left': 'All five substitutions are made',
-  'not-on-pitch': 'is not on the pitch',
-  unavailable: 'is not available',
-  'already-played': 'has already played: nobody comes back on',
-  'before-kick-off': 'Substitutions wait until the ball is rolling',
-}
-
-const PERSONAL = new Set(['not-on-pitch', 'unavailable', 'already-played'])
-
 /** The toast for what the engine turned down, or null when it took everything. */
 export function refusalText(out: InPlayOutcome, name: (id: string) => string | undefined = () => undefined): string | null {
   const parts: string[] = []
   if (!out.applied) {
-    if (out.refusal === 'too-late') parts.push('Too late for changes')
-    else if (out.refusal === 'no-segment' || out.refusal === 'summary-match') parts.push('This match takes changes only at its stops')
-    else if (out.refusal === 'in-the-past') parts.push('That minute is before your last change')
-    else if (out.refusal === 'outside-segment') parts.push('Make this change at the stop')
+    if (out.refusal === 'too-late') parts.push(t('tooLate'))
+    else if (out.refusal === 'no-segment' || out.refusal === 'summary-match') parts.push(t('onlyAtStops'))
+    else if (out.refusal === 'in-the-past') parts.push(t('beforeLastChange'))
+    else if (out.refusal === 'outside-segment') parts.push(t('changeAtStop'))
   }
   for (const r of out.refused) {
     const who = r.why === 'not-on-pitch' ? name(r.off) : name(r.on)
-    const text = PERSONAL.has(r.why) ? `${surname(who) || 'That player'} ${WHY[r.why]}` : WHY[r.why]
+    const text = t(`why_${r.why}`, { who: surname(who) || t('thatPlayer') })
     if (!parts.includes(text)) parts.push(text)
   }
-  if (out.shoutRefused) parts.push(SHOUTS_CLOSED)
+  if (out.shoutRefused) parts.push(shoutsClosed())
   return parts.length ? `${parts.join('. ')}.` : null
 }
 
 /** The toast for a change the engine made. */
 export function appliedText(out: InPlayOutcome, minute: number, name: (id: string) => string | undefined = () => undefined): string {
   const from = minuteLabel(minute + 1)
-  if (out.made.length) return `${out.made.map((s) => `${surname(name(s.on)) || 'Sub'} on for ${surname(name(s.off)) || 'a team-mate'}`).join(', ')} (${minuteLabel(minute)}).`
-  return `Change made: it applies from ${from}.`
+  if (out.made.length) return t('appliedSubs', { list: out.made.map((s) => t('appliedSub', { on: surname(name(s.on)) || t('aSub'), off: surname(name(s.off)) || t('aTeamMate') })).join(', '), minute: minuteLabel(minute) })
+  return t('changeMade', { from })
 }
 
 // ------------------------------------------------------------------ squad strip cards
@@ -282,21 +276,31 @@ export interface PhoneTab {
 }
 
 /** Every panel on a phone, in the order of the tab strip. The xG graph story is not a tab: it is always on, in the pulse row. */
+const tab = (id: TabId, widget: WidgetId): PhoneTab => ({
+  id,
+  get label() {
+    return t(`tab_${id}`)
+  },
+  widget,
+})
+
+type TabId = 'events' | 'stats' | 'lineups' | 'table' | 'scores' | 'heat' | 'positions' | 'passes' | 'shots' | 'zones' | 'momentum' | 'dugout' | 'info' | 'commentary'
+
 export const PHONE_TABS: PhoneTab[] = [
-  { id: 'events', label: 'Events', widget: 'match-events' },
-  { id: 'stats', label: 'Stats', widget: 'match-stats' },
-  { id: 'lineups', label: 'Line-ups', widget: 'formations' },
-  { id: 'table', label: 'Table', widget: 'live-table' },
-  { id: 'scores', label: 'Scores', widget: 'latest-scores' },
-  { id: 'heat', label: 'Heat map', widget: 'heat-map' },
-  { id: 'positions', label: 'Avg positions', widget: 'average-positions' },
-  { id: 'passes', label: 'Pass map', widget: 'pass-maps' },
-  { id: 'shots', label: 'Shot map', widget: 'shot-map' },
-  { id: 'zones', label: 'Zones', widget: 'action-zones' },
-  { id: 'momentum', label: 'Momentum', widget: 'match-momentum' },
-  { id: 'dugout', label: 'Dugout', widget: 'dugout' },
-  { id: 'info', label: 'Info', widget: 'matchday-info' },
-  { id: 'commentary', label: 'Commentary', widget: 'commentary' },
+  tab('events', 'match-events'),
+  tab('stats', 'match-stats'),
+  tab('lineups', 'formations'),
+  tab('table', 'live-table'),
+  tab('scores', 'latest-scores'),
+  tab('heat', 'heat-map'),
+  tab('positions', 'average-positions'),
+  tab('passes', 'pass-maps'),
+  tab('shots', 'shot-map'),
+  tab('zones', 'action-zones'),
+  tab('momentum', 'match-momentum'),
+  tab('dugout', 'dugout'),
+  tab('info', 'matchday-info'),
+  tab('commentary', 'commentary'),
 ]
 
 /** The tabs for a match: a friendly has no table and no other scores. */

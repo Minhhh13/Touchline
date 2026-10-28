@@ -36,6 +36,8 @@ import { askConfirm } from '../confirm'
 import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
+import { formationBlurb } from '../i18n/engineText'
+import { tierText } from '../i18n/tierText'
 
 const t = translator(h2hText)
 
@@ -153,7 +155,7 @@ export function H2HSetup() {
               <div className="field formation-field">
                 {t('formation')}
                 <FormationPicker value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} label={t('managerFormation', { n: i + 1 })} testId={`h2h-formation-${i}`} />
-                <span className="help">{getFormation(formations[i]).blurb}</span>
+                <span className="help">{formationBlurb(getFormation(formations[i]))}</span>
               </div>
               <label className="field">
                 {t('hostClub')}
@@ -606,7 +608,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label={t('winner')} />}
               </div>
-              <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierName(r.tiers[i], r.positions[i])}</span>
+              <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierText(r.tiers[i], r.positions[i])}</span>
               <div className="record">
                 <span className="w">{t('wonN', { n: r.rows[i].won })}</span>
                 <span className="d">{t('drawnN', { n: r.rows[i].drawn })}</span>

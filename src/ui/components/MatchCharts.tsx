@@ -71,7 +71,7 @@ export function MomentumBar({ momentum, clock, events, home, away, strip = false
         <line x1={htX} y1={2} x2={htX} y2={mid + amp + 2} stroke="var(--text-3)" strokeDasharray="2 2" />
         {[0, 45, 90].map((m) => (
           <text key={m} x={m === 45 ? htX : x0 + (m / 5) * step} y={H - 2} fontSize={fs} fill="var(--text-3)" textAnchor={m === 0 ? 'start' : m === 90 ? 'end' : 'middle'}>
-            {m === 0 ? "0'" : m === 45 ? 'HT' : "90'"}
+            {m === 0 ? "0'" : m === 45 ? tx('ht') : "90'"}
           </text>
         ))}
         {momentum.slice(0, MOMENTUM_BINS).map((m, i) => {

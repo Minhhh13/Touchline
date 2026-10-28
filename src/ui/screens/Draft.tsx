@@ -19,7 +19,7 @@ import { powerUpLog } from '@game/logic/powerups'
 import { fitGroups } from '../draftFit'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
-import { MODE_INFO, SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
+import { SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
@@ -39,7 +39,8 @@ import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
-import { costLabel, slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { slotRating } from '@game/logic/slotRating'
+import { costText, fitText, slotRatingText } from '../slotRatingText'
 import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
@@ -55,6 +56,7 @@ import { playSound } from '../sound/synth'
 import { askConfirm } from '../confirm'
 import { pickBand } from '../sound/cues'
 import { prefersReducedMotion } from '../motion'
+import { modeCardLine, modeCardTitle, ruleTagText } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -293,7 +295,7 @@ export function Draft() {
             )}
             {tags.map((tag) => (
               <span key={tag} className="chip">
-                {tag}
+                {ruleTagText(tag)}
               </span>
             ))}
             {d.rules.classic && <span className="chip">{t('classicSeasons')}</span>}
@@ -306,8 +308,8 @@ export function Draft() {
               {modeCards.map((c) => {
                 const Icon = MODE_ICON[c]
                 return (
-                  <span key={c} className="chip" title={MODE_INFO[c].line}>
-                    <Icon size={12} aria-hidden="true" /> {MODE_INFO[c].title}
+                  <span key={c} className="chip" title={modeCardLine(c)}>
+                    <Icon size={12} aria-hidden="true" /> {modeCardTitle(c)}
                   </span>
                 )
               })}
@@ -432,7 +434,7 @@ export function Draft() {
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
                     {t('respin', { n: d.respinsLeft })}
                   </button>
-                  <button className="btn sm ghost" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
+                  <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
                     {t('autoComplete')}
                   </button>
                 </div>
@@ -618,11 +620,11 @@ export function Draft() {
                       // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
                       const r = slotRating(selected, c.position)
                       return (
-                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingLine(r, c.label, { attributes: true })} aria-label={`${hide ? c.label : slotRatingLine(r, c.label)}, ${t('slotFit', { fit: c.fit === 'fits' ? 'fits' : 'cover' })}`}>
-                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {t('slotFit', { fit: c.fit === 'fits' ? 'fits' : 'cover' })}
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingText(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${fitText(c.fit)}` : `${slotRatingText(r, c.label)}, ${fitText(c.fit)}`}>
+                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {fitText(c.fit)}
                           {!hide && r.cost > 0 && (
                             <span className="slot-cost" data-testid="slot-cost">
-                              {' '}{t('slotCost', { n: r.overall, cost: costLabel(r) })}
+                              {' '}{t('slotCost', { n: r.overall, cost: costText(r) })}
                             </span>
                           )}
                         </button>

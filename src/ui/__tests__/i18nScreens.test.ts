@@ -23,6 +23,8 @@ import { setLocaleMessages } from '../i18n'
 import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
 import { openFiltered, show } from './qaSsr'
 import { App } from '../App'
+import { surname } from '../match/shirts'
+import { surname as shortSurname } from '@game/logic/slotSheet'
 import { Home } from '../screens/Home'
 import { HowTo } from '../screens/HowTo'
 import { ProfileScreen } from '../screens/ProfileScreen'
@@ -48,7 +50,7 @@ const u = loadTestUniverse(['england'])
 
 // Data on screen is never English to translate: names of players, clubs, nations and leagues, and the test's teams
 const DATA = new Set<string>(['QA XI', 'QA United', 'QAX', 'QAU', 'Ann', 'Bob', 'Touchline XI', 'TouchLine'])
-for (const p of Object.values(u.index)) DATA.add(p.name)
+for (const p of Object.values(u.index)) [p.name, surname(p.name), shortSurname(p.name)].forEach((n) => DATA.add(n))
 for (const c of Object.values(u.clubById)) [c.name, c.shortName].forEach((n) => n && DATA.add(n))
 for (const n of Object.values(u.nations)) DATA.add(n.name)
 for (const l of u.available) DATA.add(l.name)
@@ -120,13 +122,13 @@ function quickSettings(seed: string, mode: Mode = 'quick'): GameSettings {
  * the Weekly's date-seeded puzzles. Lower a ceiling when a screen gets cleaner; raising one means a string skipped `t()`.
  */
 const CEILING: Record<string, number> = {
-  'App home': 3,
+  'App home': 2,
   'App howto': 2,
   'App profile': 2,
   'App explore': 2,
   'App privacy': 2,
   'App h2h': 2,
-  'Home': 3,
+  'Home': 2,
   'HowTo': 11,
   'Profile': 2,
   'Explore': 2,
@@ -138,23 +140,23 @@ const CEILING: Record<string, number> = {
   'Stats team': 2,
   'Privacy': 2,
   'H2H setup': 4,
-  'Setup quick': 15,
-  'Setup daily': 7,
-  'Setup season': 6,
-  'Setup dynasty': 6,
-  'Setup weekly': 5,
-  'Arena setup': 11,
-  'Run-in setup': 28,
-  'Draft': 24,
-  'Kick-off': 45,
-  'Season playback': 27,
-  'Summary': 29,
-  'Dugout': 42,
-  'Match': 39,
-  'Arena': 27,
-  'Arena summary': 26,
-  'H2H draft': 3,
-  'H2H result': 46,
+  'Setup quick': 7,
+  'Setup daily': 3,
+  'Setup season': 5,
+  'Setup dynasty': 5,
+  'Setup weekly': 2,
+  'Arena setup': 3,
+  'Run-in setup': 3,
+  'Draft': 3,
+  'Kick-off': 2,
+  'Season playback': 7,
+  'Summary': 8,
+  'Dugout': 3,
+  'Match': 3,
+  'Arena': 4,
+  'Arena summary': 3,
+  'H2H draft': 2,
+  'H2H result': 3,
 }
 
 describe('the pseudo-locale renders every migrated screen', () => {

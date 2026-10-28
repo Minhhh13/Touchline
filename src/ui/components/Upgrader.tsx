@@ -3,7 +3,6 @@ import type { PlayerSeason } from '@engine/types'
 import { UPGRADE_BOOSTS, upgradeChance, upgradeGain, upgradeLoss, type UpgradeBoost } from '@engine/upgrader'
 import type { Tier } from '@game/logic/rarity'
 import { Modal, Pos } from './bits'
-import { POWER_UP_INFO } from '@engine/powerups'
 import { PowerUpIcon } from './icons'
 import { PowerUpButton } from './PowerUpButton'
 import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound/synth'
@@ -15,6 +14,7 @@ import { SoundToggle } from './CaseReel'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
 import { rich, B } from '../i18n/rich'
+import { powerUpLine, powerUpTitle } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -343,7 +343,7 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
   return (
     <div className={tray ? 'pu-upgrader' : 'panel tight upg-panel'} data-testid="upgrader">
       {tray ? (
-        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? t(result.won ? 'statusWon' : result.locked ? 'statusLockHeld' : 'statusLost', { delta: result.delta }) : t('spinning')) : t(available ? 'ready' : 'draftAPlayer')} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
+        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={powerUpTitle('upgrader')} line={powerUpLine('upgrader')} status={result ? (done ? t(result.won ? 'statusWon' : result.locked ? 'statusLockHeld' : 'statusLost', { delta: result.delta }) : t('spinning')) : t(available ? 'ready' : 'draftAPlayer')} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
       ) : (
         <div className="row between">
           <div>

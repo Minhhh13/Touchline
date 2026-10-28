@@ -4,7 +4,7 @@ import { isComplete, positionFirst, targetSlot, type DraftState } from '@engine/
 import { ICONS_SEASON } from '@engine/icons'
 import type { PlayerSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { ARMBAND_BOOST, POWER_UP_INFO, armbandId, canArmband, canLock, canPeek, canReroll, canSwap, lockedId, peekedSeason, powerUpUsed, rerollOptions, swapTargets, trayKinds } from '@engine/powerups'
+import { ARMBAND_BOOST, armbandId, canArmband, canLock, canPeek, canReroll, canSwap, lockedId, peekedSeason, powerUpUsed, rerollOptions, swapTargets, trayKinds } from '@engine/powerups'
 import { Package } from 'lucide-react'
 import { LOCKER_ICON, PowerUpIcon } from './icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
@@ -16,6 +16,7 @@ import { seasonLabel } from '../format'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
 import { rich, B } from '../i18n/rich'
+import { powerUpLine, powerUpTitle } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -105,19 +106,19 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled, onRollin
           <Upgrader tray turn={turn} onRolling={onRolling} players={players} ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0} available={canUpgrade(d) && drafting} result={d.upgrade} hideRatings={hideRatings} lockedId={lock} onConfirm={(id, boost) => upgradePlayer(id, boost)} />
         )}
         {kinds.includes('reroll') && (
-          <PowerUpButton icon={<PowerUpIcon kind="reroll" />} title={POWER_UP_INFO.reroll.title} short={t('rerollShort')} line={POWER_UP_INFO.reroll.line} status={status.reroll} used={powerUpUsed(d, 'reroll')} disabled={!drafting || busy || !canReroll(u, d)} onClick={() => setSheet('reroll')} testId="pu-reroll" />
+          <PowerUpButton icon={<PowerUpIcon kind="reroll" />} title={powerUpTitle('reroll')} short={t('rerollShort')} line={powerUpLine('reroll')} status={status.reroll} used={powerUpUsed(d, 'reroll')} disabled={!drafting || busy || !canReroll(u, d)} onClick={() => setSheet('reroll')} testId="pu-reroll" />
         )}
         {kinds.includes('peek') && (
-          <PowerUpButton icon={<PowerUpIcon kind="peek" />} title={POWER_UP_INFO.peek.title} line={POWER_UP_INFO.peek.line} status={status.peek} used={powerUpUsed(d, 'peek')} disabled={!drafting || busy || !canPeek(u, d)} onClick={() => peekSpin()} testId="pu-peek" />
+          <PowerUpButton icon={<PowerUpIcon kind="peek" />} title={powerUpTitle('peek')} line={powerUpLine('peek')} status={status.peek} used={powerUpUsed(d, 'peek')} disabled={!drafting || busy || !canPeek(u, d)} onClick={() => peekSpin()} testId="pu-peek" />
         )}
         {kinds.includes('swap') && (
-          <PowerUpButton icon={<PowerUpIcon kind="swap" />} title={POWER_UP_INFO.swap.title} line={POWER_UP_INFO.swap.line} status={status.swap} used={powerUpUsed(d, 'swap')} disabled={!drafting || busy || !canSwap(u, d)} onClick={() => setSheet('swap')} testId="pu-swap" />
+          <PowerUpButton icon={<PowerUpIcon kind="swap" />} title={powerUpTitle('swap')} line={powerUpLine('swap')} status={status.swap} used={powerUpUsed(d, 'swap')} disabled={!drafting || busy || !canSwap(u, d)} onClick={() => setSheet('swap')} testId="pu-swap" />
         )}
         {kinds.includes('armband') && (
-          <PowerUpButton icon={<PowerUpIcon kind="armband" />} title={POWER_UP_INFO.armband.title} short={t('armbandShort')} line={POWER_UP_INFO.armband.line} status={status.armband} used={powerUpUsed(d, 'armband')} disabled={!drafting || !canArmband(d)} onClick={() => setSheet('armband')} testId="pu-armband" />
+          <PowerUpButton icon={<PowerUpIcon kind="armband" />} title={powerUpTitle('armband')} short={t('armbandShort')} line={powerUpLine('armband')} status={status.armband} used={powerUpUsed(d, 'armband')} disabled={!drafting || !canArmband(d)} onClick={() => setSheet('armband')} testId="pu-armband" />
         )}
         {kinds.includes('lock') && (
-          <PowerUpButton icon={<PowerUpIcon kind="lock" />} title={POWER_UP_INFO.lock.title} line={POWER_UP_INFO.lock.line} status={status.lock} used={powerUpUsed(d, 'lock')} disabled={!drafting || !canLock(d)} onClick={() => setSheet('lock')} testId="pu-lock" />
+          <PowerUpButton icon={<PowerUpIcon kind="lock" />} title={powerUpTitle('lock')} line={powerUpLine('lock')} status={status.lock} used={powerUpUsed(d, 'lock')} disabled={!drafting || !canLock(d)} onClick={() => setSheet('lock')} testId="pu-lock" />
         )}
       </div>
 

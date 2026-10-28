@@ -107,9 +107,9 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
       <div className="panel">
         <div className="panel-head">
           <h3 className="icon-title">
-            <Shield size={16} aria-hidden="true" /> {tx('xClubs')}
+            <Shield size={16} aria-hidden="true" /> {tx('clubsHead')}
           </h3>
-          <span className="small muted">{tx('xClubCount', { n: clubs.length })}</span>
+          <span className="small muted">{tx('clubCount', { n: clubs.length })}</span>
         </div>
         <div className="plist lined">
           {clubs.map((c) => (
@@ -118,12 +118,12 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
               <span className="col" style={{ gap: 2 }}>
                 <span className="name">{c.name}</span>
                 <span className="meta">
-                  <span>{tx('xSeasonCount', { n: c.seasons })}</span>
-                  {c.bestFinish > 0 && <span>{tx('xBest', { pos: c.bestFinish })}</span>}
+                  <span>{tx('seasonCount', { n: c.seasons })}</span>
+                  {c.bestFinish > 0 && <span>{tx('bestFinish', { pos: c.bestFinish })}</span>}
                 </span>
               </span>
               {c.titles > 0 && (
-                <span className="chip gold icon-chip" title={tx('xTitlesInData', { n: c.titles })}>
+                <span className="chip gold icon-chip" title={tx('titlesInData', { n: c.titles })}>
                   <Trophy size={12} aria-hidden="true" /> {c.titles}
                 </span>
               )}
@@ -139,29 +139,29 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
             <div>
               <h2>{clubName(u, shown)}</h2>
               <div className="club-sub">
-                <span>{tx('xSeasonCount', { n: summary.seasons })}</span>
+                <span>{tx('seasonCount', { n: summary.seasons })}</span>
                 {summary.titles > 0 && (
                   <span className="chip gold icon-chip">
                     <Trophy size={12} aria-hidden="true" /> {summary.titles}
                   </span>
                 )}
-                {summary.withTable > 0 && <span>{tx('xTopFour', { n: summary.topFour })}</span>}
-                {summary.avgFinish !== null && <span>{tx('xAvgFinish', { n: fixed(summary.avgFinish, 1) })}</span>}
+                {summary.withTable > 0 && <span>{tx('topFour', { n: summary.topFour })}</span>}
+                {summary.avgFinish !== null && <span>{tx('avgFinish', { avg: fixed(summary.avgFinish, 1) })}</span>}
               </div>
             </div>
           </div>
         )}
-        {lines.some((l) => !l.table) && <p className="help" style={{ marginTop: 0 }}>{tx('xDashNote')}</p>}
+        {lines.some((l) => !l.table) && <p className="help" style={{ marginTop: 0 }}>{tx('dashNote')}</p>}
         <div className="tbl-wrap">
           <table className="tbl sticky-head club-hist">
             <thead>
               <tr>
-                <th>{tx('colSeason')}</th>
+                <th>{tx('season')}</th>
                 <th className="num">{tx('colPos')}</th>
                 <th className="num">{tx('colPts')}</th>
-                <th className="num hide-phone">{tx('xColWdl')}</th>
-                <th className="num">{tx('xColXiAvg')}</th>
-                <th className="num" title={tx('xColWheelTip')}>{tx('xColWheel')}</th>
+                <th className="num hide-phone">{tx('colWdl')}</th>
+                <th className="num">{tx('colAvg')}</th>
+                <th className="num" title={tx('wheelColTip')}>{tx('colWheel')}</th>
               </tr>
             </thead>
             <tbody>
@@ -187,12 +187,12 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
             </tbody>
           </table>
         </div>
-        {lines.some((l) => !l.cs.complete) && <p className="help">{tx('xStillPlayed')}</p>}
+        {lines.some((l) => !l.cs.complete) && <p className="help">{tx('stillPlaying')}</p>}
       </div>
 
       <div className="panel" data-testid="club-side">
         <div className="panel-head">
-          <Segmented value={side} onChange={setSide} options={[{ value: 'squad', label: line ? tx('xSquadOf', { season: seasonLabel(line.cs.season) }) : tx('xSquad'), testId: 'club-side-squad' }, { value: 'xi', label: tx('xBestXi'), testId: 'club-side-xi', hint: tx('xBestXiHint') }]} />
+          <Segmented value={side} onChange={setSide} options={[{ value: 'squad', label: line ? tx('squadSeason', { season: seasonLabel(line.cs.season) }) : tx('squad'), testId: 'club-side-squad' }, { value: 'xi', label: tx('bestXiEver'), testId: 'club-side-xi', hint: tx('bestXiHint') }]} />
         </div>
         {side === 'squad' && line && (
           <>
@@ -212,7 +212,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
             {xi.map((x) => (
               <button key={x.slotId} type="button" className="prow ever-row" onClick={() => onPlayer(x.p.playerId)}>
                 <Pos p={x.position} />
-                <Rating value={x.rating} label={tx('xRatingAt', { pos: x.position })} />
+                <Rating value={x.rating} label={tx('ratingAt', { pos: x.position })} />
                 <span className="col" style={{ gap: 2 }}>
                   <span className="name">
                     <NationFlag nation={x.p.nationality} /> {x.p.name}
@@ -225,7 +225,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
                 </span>
               </button>
             ))}
-            {!xi.length && <p className="small muted">{tx('xNoPlayers')}</p>}
+            {!xi.length && <p className="small muted">{tx('noPlayersData')}</p>}
           </div>
         )}
       </div>
@@ -257,15 +257,15 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
             <Trophy size={16} aria-hidden="true" /> {tx('champions')}
           </h3>
         </div>
-        {!anyTable && <p className="help" style={{ marginTop: 0 }}>{tx('xNoChampions')}</p>}
+        {!anyTable && <p className="help" style={{ marginTop: 0 }}>{tx('noChampions')}</p>}
         <div className="tbl-wrap">
           <table className="tbl sticky-head">
             <thead>
               <tr>
-                <th>{tx('colSeason')}</th>
-                <th>{anyTable ? tx('champions') : tx('xClubs')}</th>
+                <th>{tx('season')}</th>
+                <th>{tx(anyTable ? 'champions' : 'clubsHead')}</th>
                 <th className="num">{tx('colPts')}</th>
-                <th className="num hide-phone" title={tx('xGapTip')}>{tx('xGap')}</th>
+                <th className="num hide-phone" title={tx('gapTip')}>{tx('colGap')}</th>
               </tr>
             </thead>
             <tbody>
@@ -277,12 +277,12 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
                   </td>
                   <td className="club-cell">
                     {c.first ? (
-                      <button type="button" className="link-btn row" style={{ gap: 6 }} onClick={() => onClub(c.first!.clubId)} title={c.second ? tx('xRunnerUp', { club: clubName(u, c.second.clubId) }) : undefined}>
+                      <button type="button" className="link-btn row" style={{ gap: 6 }} onClick={() => onClub(c.first!.clubId)} title={c.second ? tx('runnerUp', { club: clubName(u, c.second.clubId) }) : undefined}>
                         <ClubBadge clubId={c.first.clubId} size={18} /> <span className="ellipsis">{clubName(u, c.first.clubId)}</span>
-                        {!c.complete && <span className="chip">{tx('xLeading')}</span>}
+                        {!c.complete && <span className="chip">{tx('leading')}</span>}
                       </button>
                     ) : (
-                      <span className="muted small">{tx('xNoTable')}</span>
+                      <span className="muted small">{tx('noTableShort')}</span>
                     )}
                   </td>
                   <td className="num">{c.first?.points ?? '–'}</td>
@@ -297,7 +297,7 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
       <div className="panel" data-testid="league-top-rated">
         <div className="panel-head">
           <h3 className="icon-title">
-            <StarIcon size={16} aria-hidden="true" /> {tx('xTopRated')}
+            <StarIcon size={16} aria-hidden="true" /> {tx('topRatedBySeason')}
           </h3>
         </div>
         <div className="season-tops">
@@ -323,16 +323,16 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
       <div className="panel" data-testid="league-records">
         <div className="panel-head">
           <h3 className="icon-title">
-            <BookOpen size={16} aria-hidden="true" /> {tx('xRecordHolders')}
+            <BookOpen size={16} aria-hidden="true" /> {tx('recordHolders')}
           </h3>
           {book && (
-            <Info label={tx('xAboutBook')}>
-              {tx(book.otherSeasons ? 'xBookInfoOther' : 'xBookInfo', { games: book.played, n: book.seasons, other: book.otherSeasons })}
+            <Info label={tx('aboutRecords')}>
+              {tx('recordsInfo', { played: book.played, seasons: book.seasons, other: book.otherSeasons })}
             </Info>
           )}
         </div>
         {!book ? (
-          <p className="small muted">{tx('xNoBook')}</p>
+          <p className="small muted">{tx('noRecordBook')}</p>
         ) : (
           <dl className="kv records-kv">
             {book.records.map((r) => (
@@ -348,7 +348,7 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
         {titles.length > 0 && (
           <>
             <h4 className="icon-title sub-head">
-              <Crown size={14} aria-hidden="true" /> {tx('xMostTitles')}
+              <Crown size={14} aria-hidden="true" /> {tx('mostTitles')}
             </h4>
             <ol className="rank-list">
               {titles.map((c) => (
@@ -363,7 +363,7 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
           </>
         )}
         <h4 className="icon-title sub-head">
-          <Medal size={14} aria-hidden="true" /> {tx('xHighestEver')}
+          <Medal size={14} aria-hidden="true" /> {tx('highestEver')}
         </h4>
         <ol className="rank-list">
           {greats.map((p) => (
@@ -385,15 +385,7 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
 
 // ---------------------------------------------------------------- Filtered search
 
-/** The search's orders, worded when the view renders. */
-const sorts = (): Array<{ value: FilterSort; label: string }> => [
-  { value: 'relevance', label: tx('xSortRelevance') },
-  { value: 'rating', label: tx('xSortRating') },
-  { value: 'age', label: tx('xSortAge') },
-  { value: 'value', label: tx('xSortValue') },
-  { value: 'season', label: tx('colSeason') },
-  { value: 'name', label: tx('xSortName') },
-]
+const SORTS: FilterSort[] = ['relevance', 'rating', 'age', 'value', 'season', 'name']
 
 export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: { form: SearchForm; setForm: (f: SearchForm) => void; onPlayer: (playerId: string) => void; compare: string[]; toggleCompare: (playerId: string) => void }) {
   const { universe: u, loadingLeagues, shortlist, toggleShortlist, ensureLeagues } = useStorePick('universe', 'loadingLeagues', 'shortlist', 'toggleShortlist', 'ensureLeagues')
@@ -413,15 +405,15 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
       <div className="panel search-filters">
         <label className="search-field">
           <Search size={16} aria-hidden="true" />
-          <input className="input" type="search" placeholder={tx('xSearchPlaceholder')} aria-label={tx('xSearchLabel')} value={form.query} onChange={(e) => set('query', e.target.value)} autoFocus />
+          <input className="input" type="search" placeholder={tx('searchPlaceholder')} aria-label={tx('searchLabel')} value={form.query} onChange={(e) => set('query', e.target.value)} autoFocus />
         </label>
         <div className="filter-grid">
           <label className="filter-field">
-            <span className="eyebrow">{tx('xNation')}</span>
+            <span className="eyebrow">{tx('nation')}</span>
             <span className="row" style={{ gap: 6 }}>
               {form.nation && <NationFlag nation={form.nation} named />}
-              <select className="input" aria-label={tx('xNation')} value={form.nation} onChange={(e) => set('nation', e.target.value)} data-testid="filter-nation">
-                <option value="">{tx('xEveryNation')}</option>
+              <select className="input" aria-label={tx('nation')} value={form.nation} onChange={(e) => set('nation', e.target.value)} data-testid="filter-nation">
+                <option value="">{tx('everyNation')}</option>
                 {nations.map((n) => (
                   <option key={n.nation} value={n.nation}>
                     {nationName(u, n.nation)} ({n.players})
@@ -433,7 +425,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
           <label className="filter-field">
             <span className="eyebrow">{tx('league')}</span>
             <select className="input" aria-label={tx('league')} value={form.leagueId} onChange={(e) => set('leagueId', e.target.value)} data-testid="filter-league">
-              <option value="">{tx('xEveryLeague')}</option>
+              <option value="">{tx('everyLeague')}</option>
               {u.available.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
@@ -444,7 +436,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
           <label className="filter-field">
             <span className="eyebrow">{tx('position')}</span>
             <select className="input" aria-label={tx('position')} value={form.position} onChange={(e) => set('position', e.target.value as SearchForm['position'])} data-testid="filter-position">
-              <option value="">{tx('xAny')}</option>
+              <option value="">{tx('anyPosition')}</option>
               {POSITIONS.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -453,27 +445,27 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
             </select>
           </label>
           <label className="check-line filter-check">
-            <input type="checkbox" checked={form.anyPosition} onChange={(e) => set('anyPosition', e.target.checked)} disabled={!form.position} /> {tx('xAnyPosition')}
+            <input type="checkbox" checked={form.anyPosition} onChange={(e) => set('anyPosition', e.target.checked)} disabled={!form.position} /> {tx('anyOfHis')}
           </label>
-          <div className="filter-field" role="group" aria-label={tx('xAge')}>
-            <span className="eyebrow">{tx('xAge')}</span>
+          <div className="filter-field" role="group" aria-label={tx('colAge')}>
+            <span className="eyebrow">{tx('colAge')}</span>
             <span className="row range-pair">
-              <input className="input" type="number" inputMode="numeric" min={15} max={45} placeholder={tx('xFrom')} aria-label={tx('xYoungest')} value={form.minAge} onChange={(e) => set('minAge', e.target.value)} data-testid="filter-min-age" />
+              <input className="input" type="number" inputMode="numeric" min={15} max={45} placeholder={tx('rangeFrom')} aria-label={tx('youngestAge')} value={form.minAge} onChange={(e) => set('minAge', e.target.value)} data-testid="filter-min-age" />
               <span className="muted">to</span>
-              <input className="input" type="number" inputMode="numeric" min={15} max={45} placeholder={tx('xTo')} aria-label={tx('xOldest')} value={form.maxAge} onChange={(e) => set('maxAge', e.target.value)} />
+              <input className="input" type="number" inputMode="numeric" min={15} max={45} placeholder={tx('rangeTo')} aria-label={tx('oldestAge')} value={form.maxAge} onChange={(e) => set('maxAge', e.target.value)} />
             </span>
           </div>
-          <div className="filter-field" role="group" aria-label={tx('xSortRating')}>
-            <span className="eyebrow">{tx('xSortRating')}</span>
+          <div className="filter-field" role="group" aria-label={tx('rating')}>
+            <span className="eyebrow">{tx('rating')}</span>
             <span className="row range-pair">
-              <input className="input" type="number" inputMode="numeric" min={1} max={99} placeholder={tx('xFrom')} aria-label={tx('xLowest')} value={form.minRating} onChange={(e) => set('minRating', e.target.value)} data-testid="filter-min-rating" />
+              <input className="input" type="number" inputMode="numeric" min={1} max={99} placeholder={tx('rangeFrom')} aria-label={tx('lowestRating')} value={form.minRating} onChange={(e) => set('minRating', e.target.value)} data-testid="filter-min-rating" />
               <span className="muted">to</span>
-              <input className="input" type="number" inputMode="numeric" min={1} max={99} placeholder={tx('xTo')} aria-label={tx('xHighest')} value={form.maxRating} onChange={(e) => set('maxRating', e.target.value)} />
+              <input className="input" type="number" inputMode="numeric" min={1} max={99} placeholder={tx('rangeTo')} aria-label={tx('highestRating')} value={form.maxRating} onChange={(e) => set('maxRating', e.target.value)} />
             </span>
           </div>
         </div>
         <div className="eyebrow" style={{ marginTop: 'var(--space-3)' }}>
-          {tx('xQuickNations')}
+          {tx('quickNations')}
         </div>
         <div className="row wrap nation-chips" style={{ gap: 6 }}>
           {nations.filter((n) => nationName(u, n.nation) !== 'Unknown').slice(0, 10).map((n) => (
@@ -483,30 +475,30 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
           ))}
         </div>
         <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
-          <Segmented value={form.every ? 'season' : 'player'} onChange={(v) => set('every', v === 'season')} options={[{ value: 'player', label: tx('xBestSeasonEach'), testId: 'filter-one' }, { value: 'season', label: tx('everySeason'), testId: 'filter-every' }]} />
+          <Segmented value={form.every ? 'season' : 'player'} onChange={(v) => set('every', v === 'season')} options={[{ value: 'player', label: tx('bestEach'), testId: 'filter-one' }, { value: 'season', label: tx('everySeason'), testId: 'filter-every' }]} />
           {changed && (
             <button type="button" className="btn sm ghost" onClick={() => setForm(BLANK_SEARCH)} data-testid="filter-clear">
-              <X size={14} aria-hidden="true" /> {tx('xClear')}
+              <X size={14} aria-hidden="true" /> {tx('clear')}
             </button>
           )}
         </div>
-        {!active && <p className="help">{tx('xSearchHelp')}</p>}
+        {!active && <p className="help">{tx('searchHelp')}</p>}
       </div>
 
       <div className="panel search-out">
         <div className="panel-head">
           <span className="small muted" data-testid="search-count" aria-live="polite">
-            {!active ? tx('xNoSearch') : loadingLeagues ? tx('xLoadingEvery') : result.total > result.rows.length ? tx('xFirstOf', { n: result.rows.length, total: result.total.toLocaleString(formatLocale()) }) : form.every ? tx('xSeasonCount', { n: result.total }) : tx('players', { n: result.total })}
+            {!active ? tx('noSearch') : loadingLeagues ? tx('loadingEvery') : result.total > result.rows.length ? tx('firstOf', { shown: result.rows.length, total: result.total.toLocaleString(formatLocale()) }) : tx(form.every ? 'seasonCount' : 'players', { n: result.total })}
           </span>
           <span className="row" style={{ gap: 6 }}>
-            <select className="input" style={{ width: 'auto' }} aria-label={tx('xSortBy')} value={form.sort} onChange={(e) => set('sort', e.target.value as FilterSort)} data-testid="filter-sort">
-              {sorts().map((s) => (
-                <option key={s.value} value={s.value} disabled={s.value === 'relevance' && form.query.trim().length < 2}>
-                  {s.label}
+            <select className="input" style={{ width: 'auto' }} aria-label={tx('sortBy')} value={form.sort} onChange={(e) => set('sort', e.target.value as FilterSort)} data-testid="filter-sort">
+              {SORTS.map((s) => (
+                <option key={s} value={s} disabled={s === 'relevance' && form.query.trim().length < 2}>
+                  {tx(`sort_${s}`)}
                 </option>
               ))}
             </select>
-            <button type="button" className="btn sm ghost" onClick={() => set('reverse', !form.reverse)} aria-pressed={form.reverse} title={tx('xReverse')} data-testid="filter-reverse">
+            <button type="button" className="btn sm ghost" onClick={() => set('reverse', !form.reverse)} aria-pressed={form.reverse} title={tx('reverseOrder')} data-testid="filter-reverse">
               {form.reverse ? '↑' : '↓'}
             </button>
           </span>
@@ -520,7 +512,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
               onClick={() => onPlayer(h.p.playerId)}
               extra={
                 <span className="search-career">
-                  {h.from === h.to ? seasonLabel(h.from) : tx('xSeasonRange', { from: seasonLabel(h.from), to: seasonLabel(h.to) })} · {tx('xSeasonCount', { n: h.seasons })} · {money(h.p.value)}
+                  {h.from === h.to ? seasonLabel(h.from) : tx('seasonRange', { from: seasonLabel(h.from), to: seasonLabel(h.to) })} · {tx('seasonCount', { n: h.seasons })} · {money(h.p.value)}
                 </span>
               }
               right={
@@ -531,9 +523,9 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
               }
             />
           ))}
-          {active && !loadingLeagues && result.total === 0 && <div className="muted small">{tx('xNoPlayersMatch')}</div>}
+          {active && !loadingLeagues && result.total === 0 && <div className="muted small">{tx('noPlayersMatch')}</div>}
         </div>
-        {result.total > FILTER_LIMIT && <p className="help">{tx('xShowingFirst', { n: FILTER_LIMIT })}</p>}
+        {result.total > FILTER_LIMIT && <p className="help">{tx('showingFirst', { n: FILTER_LIMIT })}</p>}
       </div>
     </div>
   )
@@ -565,13 +557,13 @@ export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: 
           <h3 className="icon-title">
             <Columns3 size={16} aria-hidden="true" /> {tx('viewCompare')}
           </h3>
-          <span className="small muted">{ids.length ? tx('xNOfMax', { n: ids.length, max: COMPARE_MAX }) : tx('xUpTo', { max: COMPARE_MAX })}</span>
+          <span className="small muted">{ids.length ? tx('compareCount', { n: ids.length, max: COMPARE_MAX }) : tx('compareUpTo', { n: COMPARE_MAX })}</span>
         </div>
         {ids.length < COMPARE_MAX && (
           <div className="compare-add">
             <label className="search-field">
               <Plus size={16} aria-hidden="true" />
-              <input className="input" type="search" placeholder={tx('xAddPlaceholder')} aria-label={tx('xAddLabel')} value={query} onChange={(e) => setQuery(e.target.value)} data-testid="compare-search" />
+              <input className="input" type="search" placeholder={tx('addPlayer')} aria-label={tx('addPlayerLabel')} value={query} onChange={(e) => setQuery(e.target.value)} data-testid="compare-search" />
             </label>
             {hits.length > 0 && (
               <div className="plist lined compare-hits">
@@ -587,8 +579,8 @@ export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: 
             <span className="empty-icon" aria-hidden="true">
               <Columns3 size={26} />
             </span>
-            <h3>{tx('xPickTwo')}</h3>
-            <p className="muted small">{tx('xPickTwoHelp')}</p>
+            <h3>{tx('pickPlayers')}</h3>
+            <p className="muted small">{tx('pickPlayersHelp')}</p>
           </div>
         ) : (
           <div className="compare-cols" style={{ gridTemplateColumns: `repeat(${careers.length}, minmax(0, 1fr))` }}>
@@ -608,21 +600,21 @@ export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: 
                         <NationFlag nation={p.nationality} /> {p.positions.join(' ')} · {tx('ageShort', { n: p.age })}
                       </span>
                     </span>
-                    <button type="button" className="btn sm ghost icon-only" onClick={() => setIds(ids.filter((x) => x !== p.playerId))} aria-label={tx('xRemoveName', { name: p.name })} title={tx('xRemove')}>
+                    <button type="button" className="btn sm ghost icon-only" onClick={() => setIds(ids.filter((x) => x !== p.playerId))} aria-label={tx('removeName', { name: p.name })} title={tx('remove')}>
                       <X size={14} aria-hidden="true" />
                     </button>
                   </div>
-                  <select className="input" aria-label={tx('xSeasonOf', { name: p.name })} value={p.id} onChange={(e) => setPicked({ ...picked, [p.playerId]: e.target.value })} data-testid="compare-season">
+                  <select className="input" aria-label={tx('seasonOf', { name: p.name })} value={p.id} onChange={(e) => setPicked({ ...picked, [p.playerId]: e.target.value })} data-testid="compare-season">
                     {[...seasons].reverse().map((s) => (
                       <option key={s.id} value={s.id}>
-                        {tx('xSeasonOption', { season: seasonLabel(s.season), club: clubShort(u, s.clubId), overall: s.overall, est: isEstimated(u, s) ? 'yes' : 'no' })}
+                        {tx('compareOption', { season: seasonLabel(s.season), club: clubShort(u, s.clubId), overall: s.overall, estimated: isEstimated(u, s) ? 'yes' : 'no' })}
                       </option>
                     ))}
                   </select>
                   {isEstimated(u, p) && <EstimatedChip />}
                   {line && (
                     <div className="small muted">
-                      {tx('xCareerLine', { peak: line.peak, seasons: line.seasons, clubs: line.clubs, titles: line.titles })}
+                      {tx('careerSummary', { peak: line.peak, seasons: line.seasons, clubs: line.clubs, titles: line.titles })}
                     </div>
                   )}
                   <h4 className="pc-title">{tx('ratingBySeason')}</h4>
@@ -638,11 +630,11 @@ export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: 
 
       <div className="panel compare-table" data-testid="compare-table">
         <div className="panel-head">
-          <h3>{tx('xSideBySide')}</h3>
-          {shown.length > 1 && <span className="small muted">{tx('xLeaderBold')}</span>}
+          <h3>{tx('sideBySide')}</h3>
+          {shown.length > 1 && <span className="small muted">{tx('leaderBold')}</span>}
         </div>
         {!shown.length ? (
-          <p className="small muted">{tx('xAttributesHere')}</p>
+          <p className="small muted">{tx('attributesHere')}</p>
         ) : (
           <div className="tbl-wrap">
             <table className="tbl sticky-head compare-tbl">

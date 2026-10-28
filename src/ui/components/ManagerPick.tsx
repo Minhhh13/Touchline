@@ -1,11 +1,11 @@
 import { UserRound } from 'lucide-react'
 import type { Manager } from '@engine/managers'
-import { MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL } from '@engine/managers'
 import { ClubBadge } from './bits'
 import { clubName, seasonLabel } from '../format'
 import { useStore } from '@game/store'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import { styleHelp, styleLabel } from '../i18n/engineText'
 
 const t = translator(season)
 
@@ -36,8 +36,8 @@ export function ManagerPick({ options, picked, onPick }: { options: Manager[]; p
               <span className="ctitle manager-name">{m.name}</span>
             </span>
             <span className="cline">{origin(m, (id) => clubName(u, id))}</span>
-            <span className="chip manager-style">{MANAGER_STYLE_LABEL[m.style]}</span>
-            <span className="cline manager-help">{MANAGER_STYLE_HELP[m.style]}</span>
+            <span className="chip manager-style">{styleLabel(m.style)}</span>
+            <span className="cline manager-help">{styleHelp(m.style)}</span>
           </button>
         ))}
       </div>
@@ -49,8 +49,8 @@ export function ManagerPick({ options, picked, onPick }: { options: Manager[]; p
 export function ManagerChip({ manager }: { manager: Manager | undefined }) {
   if (!manager) return null
   return (
-    <span className="chip manager-chip" data-testid="manager-chip" title={MANAGER_STYLE_HELP[manager.style]}>
-      <UserRound size={12} aria-hidden="true" /> {manager.name} · {MANAGER_STYLE_LABEL[manager.style]}
+    <span className="chip manager-chip" data-testid="manager-chip" title={styleHelp(manager.style)}>
+      <UserRound size={12} aria-hidden="true" /> {manager.name} · {styleLabel(manager.style)}
     </span>
   )
 }

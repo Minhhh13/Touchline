@@ -1,7 +1,7 @@
 import { CalendarCheck, Flame, History, Sparkles } from 'lucide-react'
 import type { WeeklyThemeId } from '@game/logic/weeklyThemes'
 import type { WeeklyRecord } from '@game/logic/weeklyRecord'
-import { tierName } from '../format'
+import { tierText } from '../i18n/tierText'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
 
@@ -21,7 +21,7 @@ export function WeeklyRecordBox({ theme, record: r }: { theme: WeeklyThemeId; re
         </span>
         <div className="col" style={{ gap: 2, minWidth: 0 }}>
           <span className="eyebrow">{t('thisWeek')}</span>
-          <b>{r.counted ? t('ptsTier', { points: r.counted.points, tier: tierName(r.counted.tier) }) : t('notPlayedYet')}</b>
+          <b>{r.counted ? t('ptsTier', { points: r.counted.points, tier: tierText(r.counted.tier) }) : t('notPlayedYet')}</b>
           <span className="small muted">
             {r.counted ? t('countedRun', { record: r.counted.record ? t('recordComma', { record: r.counted.record }) : '' }) : t('firstRunCounts')}
             {r.best ? t('bestReplay', { points: r.best.points, record: r.best.record }) : ''}
@@ -44,7 +44,7 @@ export function WeeklyRecordBox({ theme, record: r }: { theme: WeeklyThemeId; re
         </span>
         <div className="col" style={{ gap: 4, minWidth: 0 }}>
           <span className="eyebrow">{t('lastWeek')}</span>
-          <b>{r.lastWeek ? t('ptsTier', { points: r.lastWeek.points, tier: tierName(r.lastWeek.tier) }) : t('notPlayed')}</b>
+          <b>{r.lastWeek ? t('ptsTier', { points: r.lastWeek.points, tier: tierText(r.lastWeek.tier) }) : t('notPlayed')}</b>
           <div className="row wrap" style={{ gap: 4 }} role="group" aria-label={t('fourWeeks')}>
             {r.recent.map((w) => (
               <span key={w.week} className={`chip${w.points === null ? '' : ' info'}`} title={w.week}>

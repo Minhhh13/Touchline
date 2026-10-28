@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Formation, PlayerSeason, SquadPlayer } from '@engine/types'
 import { describeFit } from '@engine/positions'
-import { slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { slotRating } from '@game/logic/slotRating'
+import { slotRatingText } from '../slotRatingText'
 import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
 import { surname } from '../match/shirts'
 import { MAT, labelFont, labelRooms } from '../match/pitchLabels'
@@ -104,11 +105,11 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const name = p ? (textWidth(p.name, font) <= room - 1 ? p.name : surname(p.name)) : ''
         // The role line: the full role when it fits, else its short name ("Inside" for "Inside Forward"), else the code
         const sub = roleLine(role, (text) => textWidth(text, font) <= room, fitNote, roleCodes?.[slot.id] ?? roleCodeByName(role))
-        const label = `${slot.position} ${p ? `${p.name}${rated && !hideRatings ? `, ${slotRatingLine(rated, slot.position)}` : ''}` : t('empty')}`
+        const label = `${slot.position} ${p ? `${p.name}${rated && !hideRatings ? `, ${slotRatingText(rated, slot.position)}` : ''}` : t('empty')}`
         return (
           // A pressable pitch makes the disc the button (its target never overlaps a team-mate's label room, WCAG 2.5.8);
           // a tap on the name still lands on the slot. A read-only pitch is one labelled picture per slot
-          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingLine(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role={onSlotClick ? undefined : 'img'} aria-label={onSlotClick ? undefined : label}>
+          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingText(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role={onSlotClick ? undefined : 'img'} aria-label={onSlotClick ? undefined : label}>
             <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined} role={onSlotClick ? 'button' : undefined} tabIndex={onSlotClick ? 0 : undefined} aria-label={onSlotClick ? label : undefined} onKeyDown={onSlotClick ? (e) => { if (isActivationKey(e.key)) { e.preventDefault(); onSlotClick(slot.id) } } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
               {/* Out of position: the cost against his overall, so 84 here and 89 on his card read as one number */}

@@ -199,10 +199,10 @@ export function ArenaSetup() {
                     <h3>
                       {t(final ? 'opponent' : 'field')}{' '}
                       <Info label={t('aboutField')}>
-                        {t('fieldInfo', { hint: ARENA_FIELDS.find((f) => f.value === field)?.hint, final: final ? 'yes' : 'no' })}
+                        {t('fieldInfo', { hint: t(`fieldHint_${field}`), final: final ? 'yes' : 'no' })}
                       </Info>
                     </h3>
-                    <Segmented value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: f.label, hint: f.hint }))} />
+                    <Segmented value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: t(`field_${f.value}`), hint: t(`fieldHint_${f.value}`) }))} />
                     {field === 'decade' && (
                       <select className="input" value={decade} onChange={(e) => setDecade(Number(e.target.value))} data-testid="arena-decade">
                         {cupDecades(u.firstSeason, u.lastSeason).map((d) => (

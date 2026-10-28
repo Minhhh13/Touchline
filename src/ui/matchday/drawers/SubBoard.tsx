@@ -26,6 +26,7 @@ import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { VerticalPitch } from '../VerticalPitch'
 import { translator } from '../../i18n'
+import { roleName } from '../../i18n/engineText'
 import { match } from '../../i18n/en/match'
 
 const tx = translator(match)
@@ -292,7 +293,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     const pOn = get(on)
     if (!slot || !offId || !pOn) return null
     const trial = stageSub(queue, { off: offId, on }, { onPitch: hand.onPitch, bench: hand.bench, cap: room })
-    return { slot, role: slotRole(tactics, slot).name, off: get(offId), on: pOn, fit: fitGlow(pOn, slot.position), team: trial.refused ? null : teamRating(tactics, lineupAfter(men, trial.subs), get, state), refused: trial.refused }
+    return { slot, role: roleName(slotRole(tactics, slot)), off: get(offId), on: pOn, fit: fitGlow(pOn, slot.position), team: trial.refused ? null : teamRating(tactics, lineupAfter(men, trial.subs), get, state), refused: trial.refused }
   })()
   const num = (n: number | null | undefined, digits = 0) => (hideRatings || n === null || n === undefined ? '?' : n.toFixed(digits))
   const delta = (a: number, b: number) => (b > a + 0.05 ? 'up' : b < a - 0.05 ? 'down' : 'same')
@@ -325,7 +326,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 data-fit={glow ?? undefined}
                 disabled={!takeable}
                 aria-pressed={isHeld}
-                aria-label={`${slotName(slot)}, ${slotRole(tactics, slot).name}: ${p?.name ?? tx('empty')}${isStaged ? tx('comingOn') : ''}${pending ? tx('comingOnStop') : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : tx('roleRating', { r: rr })}` : ''}`}
+                aria-label={`${slotName(slot)}, ${roleName(slotRole(tactics, slot))}: ${p?.name ?? tx('empty')}${isStaged ? tx('comingOn') : ''}${pending ? tx('comingOnStop') : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : tx('roleRating', { r: rr })}` : ''}`}
                 {...handlers('slot', slot.id)}
               >
                 <span className="sub-slot-shirt">

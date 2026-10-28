@@ -10,7 +10,7 @@ import type { Position } from '@engine/types'
 import { arenaClubShortName, arenaStepInfo, isBigCup, nextArenaOpponent } from '@game/logic/arena'
 import { cupRoundCount, cupRoundName } from '@engine/cup'
 import { USER_TEAM } from '@engine/season'
-import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
+import { TRAINING, type TrainingFocus } from '@engine/training'
 import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
 import { GAUNTLET_RUNGS, rungLabels } from '@engine/gauntlet'
@@ -33,6 +33,7 @@ import { slotTapMove } from '../slotTap'
 import { fixed } from '../format'
 import { translator } from '../i18n'
 import { arena } from '../i18n/en/arena'
+import { trainingBlurb, trainingLabel } from '../i18n/engineText'
 
 const t = translator(arena)
 
@@ -280,12 +281,12 @@ export function Arena() {
             {(gauntlet || cup) && (
               <label className="field" data-testid="arena-training">
                 <span>
-                  {t('trainingFocus')} <Info label={t('aboutTraining')}>{t('trainingInfo', { blurb: TRAINING[game.training].blurb })}</Info>
+                  {t('trainingFocus')} <Info label={t('aboutTraining')}>{t('trainingInfo', { blurb: trainingBlurb(game.training) })}</Info>
                 </span>
                 <select className="input" value={game.training} onChange={(e) => store.setTraining(e.target.value as TrainingFocus)} data-testid="arena-training-select">
                   {(Object.keys(TRAINING) as TrainingFocus[]).map((k) => (
                     <option key={k} value={k}>
-                      {TRAINING_LABEL[k]}
+                      {trainingLabel(k)}
                     </option>
                   ))}
                 </select>

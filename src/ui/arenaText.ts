@@ -47,11 +47,10 @@ export function gauntletBandText(rung: number): string {
  * (ticks, crosses and a colour), so the words carry it.
  */
 export function kickLine(k: { us: boolean; scored: boolean }, n: number, taker: string, us: number, them: number, verdict: string | null): string {
-  const line = `Kick ${n}, ${k.us ? 'ours' : 'theirs'}: ${taker} ${k.scored ? 'scores' : 'misses'}. ${us}-${them}.`
-  return verdict ? `${line} ${verdict}.` : line
+  return t('kickLine', { n, side: k.us ? 'us' : 'them', taker, scored: k.scored ? 'yes' : 'no', us, them, end: verdict ? 'yes' : 'no', verdict: verdict ?? '' })
 }
 
 /** A taker's place after a move in the penalty order, for the live region: "Kane takes kick 2". */
 export function takerMoved(name: string, at: number): string {
-  return `${name} takes kick ${at + 1}.`
+  return t('takerMoved', { name, n: at + 1 })
 }

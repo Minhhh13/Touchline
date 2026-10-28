@@ -19,7 +19,7 @@ import { pickKeys } from '../useStorePick'
 import { unlockedNames } from '../i18n/trophyText'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
-import { draft as draftText } from '../i18n/en/draft'
+import { fitText } from '../slotRatingText'
 import { H2HScreen, setRematch } from '../screens/H2H'
 import { show } from './qaSsr'
 
@@ -121,9 +121,8 @@ describe('words that used to skip t()', () => {
     expect(t('seasonChoice', { season: '2019-20', current: 'no', est: 'no' })).toBe('2019-20')
   })
   it('a draft slot chip\'s fit', () => {
-    const t = translator(draftText)
-    expect(t('slotFit', { fit: 'fits' })).toBe('fits')
-    expect(t('slotFit', { fit: 'cover' })).toBe('can cover')
+    expect(fitText('fits')).toBe('fits')
+    expect(fitText('can cover')).toBe('can cover')
   })
 })
 

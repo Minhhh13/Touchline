@@ -43,6 +43,10 @@ import { cornerDelivery, dotName, passFlash, shotMarks, shotTrailAt, xgBand, typ
 import { BUILD_UP, CAMERA, REPLAY, buildUpAt, cameraTransform, celebrationMs, focusAt, focusMoments, replayFrame, shooterRing, type FocusMoment, type ReplayFrame, type ViewBox } from '../match/keyMoments'
 import { shotXg } from '@engine/matchStats'
 import { minuteLabel, textColourFor } from '../format'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 export interface PitchSide {
   name: string
@@ -802,7 +806,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       <div className="pitch-svg-box">
       <PitchSvg
         portrait={portrait}
-        label={`${home.name} against ${away.name}, minute ${minute}`}
+        label={tx('pitchAria', { home: home.name, away: away.name, minute })}
         camera={cameraRef}
         overlay={!reduced && <rect ref={cutRef} className="pitch-cut" x="-3" y="-3" width={portrait ? 74 : 111} height={portrait ? 111 : 74} opacity="0" pointerEvents="none" />}
       >
@@ -912,7 +916,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           <span className="swatch" style={{ background: home.colour }} />
           {home.shortName} <span className="muted">{portrait ? '↑' : '→'}</span>
         </span>
-        <span className="muted">{portrait ? 'attacking up' : 'attacking right'}</span>
+        <span className="muted">{tx(portrait ? 'attackingUp' : 'attackingRightWord')}</span>
         <span className="row" style={{ gap: 6 }}>
           <span className="muted">{portrait ? '↓' : '←'}</span> {away.shortName}
           <span className="swatch" style={{ background: away.colour }} />
@@ -926,9 +930,9 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
 function ReplayBadge({ innerRef, onSkip }: { innerRef: Ref<HTMLDivElement>; onSkip: () => void }) {
   return (
     <div ref={innerRef} className="pitch-replay" data-testid="pitch-replay">
-      <span className="pitch-replay-label">Replay</span>
+      <span className="pitch-replay-label">{tx('replay')}</span>
       <button type="button" className="pitch-replay-skip" onClick={onSkip} data-testid="replay-skip">
-        Skip
+        {tx('skip')}
       </button>
     </div>
   )
@@ -1048,8 +1052,8 @@ function GoalBurst({ hold, events, home, away, reduced }: { hold: { key: string;
   const colour = hold.side === 'home' ? home.colour : away.colour
   const ink = textColourFor(colour)
   const pieces = hold.tone !== 'theirs' && !reduced ? confetti([colour, '#ffffff', ink === '#fff' ? '#ffd54a' : '#111111']) : []
-  const title = ev.type === 'own_goal' ? 'OWN GOAL!' : ev.type === 'penalty' ? 'GOAL! (PEN)' : 'GOAL!'
-  const who = ev.type === 'own_goal' ? `${ev.playerName ?? 'A defender'} (og)` : ev.playerName ?? (hold.side === 'home' ? home.shortName : away.shortName)
+  const title = tx(ev.type === 'own_goal' ? 'ownGoalTitle' : ev.type === 'penalty' ? 'penGoalTitle' : 'goalTitle')
+  const who = ev.type === 'own_goal' ? tx('ownGoalBy', { name: ev.playerName ?? tx('aDefender') }) : ev.playerName ?? (hold.side === 'home' ? home.shortName : away.shortName)
   const style = { '--burst': colour, '--burst-ink': ink, '--burst-ms': `${celebrationMs(hold)}ms`, '--flight': `${reduced ? 0 : GOAL_FLIGHT_MS}ms` } as CSSProperties
   return (
     <div className={`goal-burst ${hold.tone} ${reduced ? 'still' : ''}`} style={style} data-testid="goal-burst" data-tone={hold.tone} role="status" aria-live="polite">

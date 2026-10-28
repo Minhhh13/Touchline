@@ -3,17 +3,17 @@ import { runAfterPaint } from '../afterPaint'
 import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
-import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
-import { LeagueRetry } from '../components/LeagueRetry'
+import { leagueGate } from '@game/logic/leagueLoad'
+import { gateText, LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
-import { DAILY_RULES, dailyLoaded, dailyPlan, defaultHostClub, describeRuleChips, setupRules, startFormation, summariseSetup } from '@game/logic/setup'
+import { DAILY_RULES, dailyLoaded, dailyPlan, defaultHostClub, setupRules, startFormation, summariseSetup } from '@game/logic/setup'
 import { rememberTeamName, useTeamName } from '../teamName'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
-import { EMPTY_WHEEL_LABEL, wheelHasRoom } from '@game/logic/wheelCheck'
+import { wheelHasRoom } from '@game/logic/wheelCheck'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
-import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
-import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
+import { MODE_CARDS, toggleModeCard, type ModeCard } from '@engine/modes'
+import { POWER_UPS } from '@engine/powerups'
 import { HoverTips, InfoTip } from '../components/PowerUpButton'
 import { ruleChipNote } from '../ruleNotes'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
@@ -37,7 +37,7 @@ import { useOnline } from '../../online/state'
 import { SignInPrompt } from '../online/SignInPrompt'
 import { modeTitle } from '../i18n/modeText'
 import { quickSetupLineFull } from '@game/logic/setupLine'
-import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
+import { weeklyGameSettings, weeklyPlan, weeklySettings } from '@game/logic/weekly'
 import { previousWeeklySeed, weeklySeed } from '@engine/rng'
 import { weeklyRecord } from '@game/logic/weeklyRecord'
 import { WeeklyRecordBox } from '../components/WeeklyRecordBox'
@@ -48,6 +48,8 @@ import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
 import { B, rich } from '../i18n/rich'
+import { formationBlurb, modeCardInfo, modeCardLine, modeCardTitle, powerUpTitle, ruleChipsText } from '../i18n/engineText'
+import { weeklyThemeLineText, weeklyThemeText } from '../i18n/weeklyThemeText'
 
 const t = translator(setup)
 
@@ -408,7 +410,7 @@ export function Setup() {
                     <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
                   </div>
                   <p className="help setup-line">
-                    <b>{shownFormation.name}</b>: {shownFormation.blurb}
+                    <b>{shownFormation.name}</b>: {formationBlurb(shownFormation)}
                   </p>
                 </div>
               </div>
@@ -462,8 +464,8 @@ export function Setup() {
                 {fixed?.kind === 'weekly' && weekPlan && (
                   <div className="notice" data-testid="weekly-notice">
                     {week
-                      ? rich(t('weeklyNotice', { week: weekPlan.week, theme: weeklyThemeLine(u, week), formation: formationName(weekPlan.formationId), article: leagueArticle(leagueNameOf(week.leagueId)), league: leagueNameOf(week.leagueId), season: seasonLabel(week.season), difficulty: t(`diff_${week.difficulty}`) }), B)
-                      : rich(t('weeklyNoticeLoading', { week: weekPlan.week, theme: weekPlan.theme, formation: formationName(weekPlan.formationId) }), B)}
+                      ? rich(t('weeklyNotice', { week: weekPlan.week, theme: weeklyThemeLineText(u, week), formation: formationName(weekPlan.formationId), article: leagueArticle(leagueNameOf(week.leagueId)), league: leagueNameOf(week.leagueId), season: seasonLabel(week.season), difficulty: t(`diff_${week.difficulty}`) }), B)
+                      : rich(t('weeklyNoticeLoading', { week: weekPlan.week, theme: weeklyThemeText(weekPlan.theme), formation: formationName(weekPlan.formationId) }), B)}
                   </div>
                 )}
                 {fixed?.kind === 'weekly' && weekPlan && <WeeklyRecordBox theme={weekPlan.theme} record={weeklyRecord(profile, weekPlan.seed, previousWeeklySeed)} />}
@@ -500,14 +502,14 @@ export function Setup() {
                 )}
                 {fixed?.rules && (
                   <HoverTips className="pill-list" data-testid="fixed-rules" testId="rule-tip">
-                    {describeRuleChips(u, fixed.rules).map((c) => {
+                    {ruleChipsText(u, fixed.rules).map(({ chip: c, text }) => {
                       const Icon = c.icon ? RULE_ICON[c.icon] : null
                       // Each chip's plain-words note, on hover, a tap or the keyboard (ruleNotes.ts)
                       const note = ruleChipNote(c)
                       return (
                         <span key={c.text} className={`chip${note ? ' has-tip' : ''}`} data-tip={note} tabIndex={note ? 0 : undefined}>
                           {Icon && <Icon size={12} aria-hidden="true" />}
-                          {Icon ? ` ${c.text}` : c.text}
+                          {Icon ? ` ${text}` : text}
                           {note && <span className="sr-only">: {note}</span>}
                         </span>
                       )
@@ -521,11 +523,11 @@ export function Setup() {
                 <StepHead n={4} title={t('setRules')} />
                 {!isManage && (
                   <div className="setup-modes" data-testid="modes-panel">
-                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => `${MODE_INFO[c].title}: ${MODE_INFO[c].line}.`).join(' ') })} testId="modes" right={<span className="small muted">{t('modesOn', { n: cardsOn.length })}</span>} />
+                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => t('modeInfoItem', { title: modeCardTitle(c), line: modeCardLine(c) })).join(' ') })} testId="modes" right={<span className="small muted">{t('modesOn', { n: cardsOn.length })}</span>} />
                     <HoverTips className="setup-modes-row" testId="mode-tip">
-                      <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} icons={MODE_ICON} onToggle={toggleMode} />
+                      <ModeCards cards={MODE_CARDS} on={cardsOn} info={modeCardInfo()} icons={MODE_ICON} onToggle={toggleMode} />
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => POWER_UP_INFO[k].title).join(', ') })}>
+                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => powerUpTitle(k)).join(', ') })}>
                           <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
                             <Package size="1em" />
@@ -817,7 +819,7 @@ export function Setup() {
               </div>
               <LeagueRetry needs={needs} classic={!fixed && classic} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || emptyWheel} data-testid="setup-start">
-                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : emptyWheel ? EMPTY_WHEEL_LABEL : isManage ? t('startSquad') : challenge ? t('takeOn', { name: challenge.name }) : t('startDraft')}
+                {!ready ? gateText(gate) : emptyWheel ? t('emptyWheel') : isManage ? t('startSquad') : challenge ? t('takeOn', { name: challenge.name }) : t('startDraft')}
               </button>
             </section>
           </div>

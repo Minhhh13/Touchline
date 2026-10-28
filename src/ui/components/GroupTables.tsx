@@ -10,7 +10,7 @@ function ourScore(m: GroupView['matches'][number], userId: string): string {
   const home = m.home === userId
   const gf = home ? m.hg! : m.ag!
   const ga = home ? m.ag! : m.hg!
-  return t('groupScore', { res: gf > ga ? 'w' : gf < ga ? 'l' : 'd', gf, ga })
+  return t('groupScore', { outcome: gf > ga ? 'W' : gf < ga ? 'L' : 'D', gf, ga })
 }
 
 /**
@@ -33,9 +33,9 @@ export function GroupTables({ groups, nameOf, badge, userId, fixtures = true, we
                 <tr>
                   <th>#</th>
                   <th>{t('groupClub')}</th>
-                  <th className="num">{t('groupPlayed')}</th>
-                  <th className="num">{t('groupGd')}</th>
-                  <th className="num">{t('groupPts')}</th>
+                  <th className="num" title={t('groupPlayedTip')}>{t('groupPlayed')}</th>
+                  <th className="num" title={t('groupGdTip')}>{t('groupGd')}</th>
+                  <th className="num" title={t('groupPtsTip')}>{t('groupPts')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -66,9 +66,11 @@ export function GroupTables({ groups, nameOf, badge, userId, fixtures = true, we
               <ol className="group-fixtures" data-testid="group-fixtures">
                 {ours.map((m) => (
                   <li key={`${m.matchday}-${m.home}`}>
-                    <span className="muted">{t('groupMd', { md: m.matchday })}</span>
-                    <span className="gt-name">{t('groupOpponent', { venue: m.home === userId ? 'home' : 'away', club: nameOf(m.home === userId ? m.away : m.home) })}</span>
-                    <span>{m.hg !== undefined ? ourScore(m, userId) : weeks ? t('groupAfterWeek', { week: m.matchweek }) : '–'}</span>
+                    <span className="muted" title={t('groupMdTip', { n: m.matchday })}>{t('groupMd', { n: m.matchday })}</span>
+                    <span className="gt-name">
+                      {t('groupFixture', { home: m.home === userId ? 'yes' : 'no', club: nameOf(m.home === userId ? m.away : m.home) })}
+                    </span>
+                    <span title={m.hg === undefined && weeks ? t('groupAfterMwTip', { n: m.matchweek }) : undefined}>{m.hg !== undefined ? ourScore(m, userId) : weeks ? t('groupAfterMw', { n: m.matchweek }) : '–'}</span>
                   </li>
                 ))}
               </ol>

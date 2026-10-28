@@ -12,6 +12,10 @@ import type { SquadPlayer, Tactics } from '@engine/types'
 import type { LiveMatch } from '@game/types'
 import { appliedText, canEdit, closeDrawer, CLOSED_DRAWER, landing, openDrawer, queueIntoDraft, refusalText, shoutsOpen, stopSubCap, type DrawerId, type DrawerState, type Landing, type StopDraft, type Sub } from './controls'
 import type { LiveControl, MatchClockApi } from './types'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 export interface ManagerHand {
   landing: Landing
@@ -93,7 +97,7 @@ export function useManagerHand(o: {
     if (where.kind === 'now') {
       const out = control.apply(change)
       if (!out) {
-        toast('The change could not be made.')
+        toast(tx('changeFailed'))
         return false
       }
       const refused = refusalText(out, name)
@@ -104,8 +108,8 @@ export function useManagerHand(o: {
     const cap = stopSubCap(where.stop ?? 70, made)
     const r = queueIntoDraft(draft, change, cap)
     setDraft(r.draft)
-    if (r.dropped.length) toast(`No room for ${r.dropped.length === 1 ? 'that change' : 'those changes'} at this stop.`)
-    else if (where.kind === 'queue') toast(`Queued: ${where.stop === 45 ? 'changes wait for half time' : 'changes wait for the 70th minute'}.`)
+    if (r.dropped.length) toast(tx('noRoomAtStop', { n: r.dropped.length }))
+    else if (where.kind === 'queue') toast(tx(where.stop === 45 ? 'queuedHalfTime' : 'queued70'))
     return true
   }
 

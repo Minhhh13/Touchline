@@ -16,6 +16,7 @@ import { labelRoom, panelPoints, slotViews } from '../model'
 import type { PanelProps } from '../types'
 import { RatingPill, TeamCode } from './bits'
 import { translator } from '../../i18n'
+import { roleName } from '../../i18n/engineText'
 import { match } from '../../i18n/en/match'
 
 const tx = translator(match)
@@ -57,7 +58,7 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}
               aria-pressed={selected}
-              title={`${name ?? tx('emptySlot')} · ${getRole(tactics.roles[s.slotId] ?? DEFAULT_ROLE[s.position]).name}${rating === undefined ? '' : ` · ${rating.toFixed(1)}`}${s.subbedOn ? tx('cardOn', { m: s.onAt }) : ''}`}
+              title={`${name ?? tx('emptySlot')} · ${roleName(getRole(tactics.roles[s.slotId] ?? DEFAULT_ROLE[s.position]))}${rating === undefined ? '' : ` · ${rating.toFixed(1)}`}${s.subbedOn ? tx('cardOn', { m: s.onAt }) : ''}`}
             >
               <span className="md-man-shirt">
                 <Shirt colour={s.position === 'GK' ? view.keeper : view.colour} number={s.psId ? view.numbers[s.psId] : undefined} size={24} dim={s.out} />

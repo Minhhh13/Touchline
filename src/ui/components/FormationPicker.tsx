@@ -3,6 +3,7 @@ import type { Formation } from '@engine/types'
 import { THUMB_DOT_R, THUMB_H, THUMB_PAD, THUMB_W, formationThumb } from '@game/logic/formationThumb'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
+import { formationBlurb } from '../i18n/engineText'
 
 const t = translator(setup)
 
@@ -61,7 +62,7 @@ export function FormationPicker({ value, onChange, blurbs, label = t('formation'
           <FormationThumb formation={f} />
           <span className="ftext">
             <FormationName name={f.name} />
-            {blurbs && <span className="fblurb">{f.blurb}</span>}
+            {blurbs && <span className="fblurb">{formationBlurb(f)}</span>}
           </span>
         </button>
       ))}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStorePick } from '../useStorePick'
 import { seasonTable } from '@engine/season'
-import { RUN_IN_TEMPLATE_LABEL, runInShare, runInVerdict } from '@game/logic/runin'
+import { runInShare, runInVerdict } from '@game/logic/runin'
 import { gameLabel, storyForGame } from '@game/logic/story'
 import { TableView } from '../components/TableView'
 import { CasualStatus } from '../online/CasualStatus'
@@ -10,6 +10,7 @@ import { Check, Copy, House, RotateCcw } from 'lucide-react'
 import { clubName, ordinal, outcomeClass, outcomeOf, seasonLabel } from '../format'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
+import { templateText } from '../runInText'
 
 const t = translator(runin)
 
@@ -47,7 +48,7 @@ export function RunInSummary() {
             <ClubBadge clubId={host} size={22} />
             {clubName(u, host)} {seasonLabel(game.settings.leagueSeason)}
           </span>
-          <span className="bm-rest">{t('modeLine', { template: RUN_IN_TEMPLATE_LABEL[v.template] })}</span>
+          <span className="bm-rest">{t('modeLine', { template: templateText(v.template) })}</span>
         </div>
         <div className="tier-wrap">
           <div className={`tier ${v.met ? 'CHAMPIONS' : 'RELEGATED'}`} data-testid="runin-chip">

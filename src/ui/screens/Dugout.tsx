@@ -7,7 +7,7 @@ import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from
 import { getFormation } from '@engine/formations'
 import { getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
-import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
+import { TRAINING, type TrainingFocus } from '@engine/training'
 import { nextOpponent, upcomingCupTie } from '@game/logic/week'
 import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
@@ -23,10 +23,11 @@ import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/st
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { unlockedNames } from '../i18n/trophyText'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
-import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
+import { foreseeStop, nextStop, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, surname, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
-import { slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { slotRating } from '@game/logic/slotRating'
+import { slotRatingText } from '../slotRatingText'
 import { Pitch, PitchLegend } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
@@ -72,6 +73,8 @@ import { InboxStorylines, MatchPreviewPanel, StoryChip, SummerHeadline } from '.
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
 import { rich } from '../i18n/rich'
+import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, trainingBlurb, trainingLabel } from '../i18n/engineText'
+import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
 
 const t = translator(dugout)
 
@@ -320,10 +323,10 @@ export function Dugout() {
                 <span className="icon" aria-hidden="true">
                   <BriefingIcon item={headline} size={15} />
                 </span>
-                <span className="text">{headline.text}</span>
+                <span className="text">{briefingLineText(headline)}</span>
                 {headline.action && headline.action.op !== 'friendly' && (
                   <button className="btn sm" onClick={() => act(headline.action!)}>
-                    {headline.action.label}
+                    {briefingActionText(headline.action.label)}
                   </button>
                 )}
               </div>
@@ -331,8 +334,8 @@ export function Dugout() {
             <div className="match-play" data-testid="match-play" role="radiogroup" aria-label={t('howToPlay')}>
               <span className="small muted">{t('matchLabel')}</span>
               {MATCH_PLAY_MODES.map((m) => (
-                <button key={m.id} type="button" role="radio" aria-checked={playMode === m.id} className={`chip-btn ${playMode === m.id ? 'active' : ''}`} title={m.hint} onClick={() => store.setMatchPlay(m.id)} data-testid={`match-play-${m.id}`}>
-                  {m.label}
+                <button key={m.id} type="button" role="radio" aria-checked={playMode === m.id} className={`chip-btn ${playMode === m.id ? 'active' : ''}`} title={t(`playHint_${m.id}`)} onClick={() => store.setMatchPlay(m.id)} data-testid={`match-play-${m.id}`}>
+                  {t(`play_${m.id}`)}
                 </button>
               ))}
             </div>
@@ -350,7 +353,7 @@ export function Dugout() {
                 {next && playMode !== 'watch' && <span className="mode-tag">{t(playMode === 'auto' ? 'autoPlay' : 'simResult')}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatchSoon())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? t('bigTip', { label: bigNext.label }) : t('bigTipNone')}>
-                <span className="lbl-long">{bigNext ? t('bigNext', { label: bigNext.label }) : simToLabel(game, u)}</span>
+                <span className="lbl-long">{bigNext ? t('bigNext', { label: bigNext.label }) : simToText(foreseeStop(game, u))}</span>
                 <span className="lbl-short">{t(bigNext ? 'bigNextShort' : 'toBigShort')}</span>
               </button>
               <button className="btn" onClick={() => afterPaint(() => store.simWeeksSoon(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title={t('sim5Tip')} data-testid="sim-5">
@@ -427,8 +430,8 @@ export function Dugout() {
                 </button>
                 <span className="segmented squad-views-seg" role="radiogroup" aria-label={t('squadView')} data-testid="squad-view">
                   {SQUAD_VIEWS.map((v) => (
-                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
-                      {v.label}
+                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} className={view === v.id ? 'active' : ''} title={t(`viewHint_${v.id}`)} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
+                      {t(`view_${v.id}`)}
                     </button>
                   ))}
                 </span>
@@ -737,7 +740,7 @@ function SlotOptionRow({ o, at, onPick }: { o: SlotOption; at: Position; onPick?
         </>
       }
       right={
-        <span className="slot-disc" title={slotRatingLine(rated, at, { attributes: true })} role="img" aria-label={slotRatingLine(rated, at)} data-testid="slot-disc">
+        <span className="slot-disc" title={slotRatingText(rated, at, { attributes: true })} role="img" aria-label={slotRatingText(rated, at)} data-testid="slot-disc">
           {o.disc}
           {rated.cost > 0 && <span className="slot-disc-cost">−{rated.cost}</span>}
         </span>
@@ -953,6 +956,11 @@ function FxName({ full, short }: { full: string; short: string }) {
  * (styles.css) only the first line shows, with a "+n more" button that opens the rest over the tab rather than
  * pushing the tab's box down; elsewhere the toggle is hidden and every line shows.
  */
+/** The sim button's label (`simToLabel` in seasonHighlights.ts): names the target when one is in sight. */
+function simToText(seen: { label: string; matchweek: number } | null): string {
+  return seen ? t('simToStop', { label: seen.label, n: seen.matchweek }) : t('simToNextBig')
+}
+
 function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
@@ -962,13 +970,13 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
         <BriefingIcon item={item} size={15} />
       </span>
       <span className="text">
-        {item.text}
-        {item.hint && <Info label={t('aboutItem', { text: item.text })}>{item.hint}</Info>}
+        {briefingLineText(item)}
+        {item.hint && <Info label={t('aboutItem', { text: briefingLineText(item) })}>{briefingHintText(item)}</Info>}
       </span>
       {/* Play friendly is the panel's own button, so the checklist line does not repeat it */}
       {item.action && item.action.op !== 'friendly' ? (
         <button className="btn sm" onClick={() => onAction(item.action!)}>
-          {item.action.label}
+          {briefingActionText(item.action.label)}
         </button>
       ) : (
         <span />
@@ -1051,8 +1059,8 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
           {on('training') && (
           <div className="panel">
             <h3>{t('trainingWeek')}</h3>
-            <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: TRAINING_LABEL[k] }))} />
-            <p className="help">{TRAINING[game.training].blurb}</p>
+            <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: trainingLabel(k) }))} />
+            <p className="help">{trainingBlurb(game.training)}</p>
           </div>
           )}
           {on('set-pieces') && (
@@ -1134,14 +1142,14 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
                         </span>
                       )}
                       <span className="role-pick">
-                        <select className="input" aria-label={t('roleFor', { pos: slot.position })} title={role.blurb} value={roleId} onChange={(e) => store.setRole(slot.id, e.target.value)}>
+                        <select className="input" aria-label={t('roleFor', { pos: slot.position })} title={roleBlurb(role)} value={roleId} onChange={(e) => store.setRole(slot.id, e.target.value)}>
                           {roleOptions(p, slot.position).map((r) => (
                             <option key={r.id} value={r.id}>
-                              {r.rating === null ? r.name : `${r.name} · ${r.rating}`}
+                              {r.rating === null ? roleName(r) : `${roleName(r)} · ${r.rating}`}
                             </option>
                           ))}
                         </select>
-                        <Info label={t('aboutName', { name: role.name })}>{role.blurb}</Info>
+                        <Info label={t('aboutName', { name: roleName(role) })}>{roleBlurb(role)}</Info>
                       </span>
                     </span>
                     {ev ? (
@@ -1751,17 +1759,17 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
             return (
               <div key={role} className="staff-row">
                 <div className="row between wrap" style={{ gap: 'var(--space-2)' }}>
-                  <b>{info.label}</b>
-                  <span className="small muted">{info.tiers[tier].title}</span>
+                  <b>{staffLabel(role)}</b>
+                  <span className="small muted">{staffTierTitle(role, tier)}</span>
                 </div>
                 <div className="segmented" style={{ marginTop: 'var(--space-2)' }}>
                   {info.tiers.map((x) => (
-                    <button key={x.tier} className={x.tier === tier ? 'active' : ''} onClick={() => store.hireStaff(role, x.tier)} title={x.blurb}>
+                    <button key={x.tier} className={x.tier === tier ? 'active' : ''} onClick={() => store.hireStaff(role, x.tier)} title={staffTierBlurb(role, x.tier)}>
                       {x.tier === 0 ? t('tierNone') : t(x.tier === 1 ? 'tierGood' : 'tierElite', { w: wage(x.wage) })}
                     </button>
                   ))}
                 </div>
-                <div className="small muted one-line" style={{ marginTop: 'var(--space-1)' }} title={info.tiers[tier].blurb}>{info.tiers[tier].blurb}</div>
+                <div className="small muted one-line" style={{ marginTop: 'var(--space-1)' }} title={staffTierBlurb(role, tier)}>{staffTierBlurb(role, tier)}</div>
               </div>
             )
           })}
