@@ -609,7 +609,7 @@
    squad strip, so it never covers the last man's card */
 @media (min-width: 1200px) {
   .matchday .decisions-pill {
-    bottom: calc(124px + var(--safe-bottom));
+    bottom: calc(clamp(112px, 11.3vh, 128px) + var(--safe-bottom));
   }
 }
 .matchday .md-strip-squad {

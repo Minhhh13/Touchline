@@ -10928,6 +10928,70 @@ table.tbl.match-stats th {
   border-top: 2px solid color-mix(in srgb, var(--danger) 50%, transparent);
 }
 
+/* The Dugout's league table: each zone a 3px edge on the place cell (the live table's colours), a rule where zones meet */
+table.tbl tr.zone-title > td:first-child {
+  box-shadow: inset 3px 0 0 var(--good);
+}
+table.tbl tr.zone-top4 > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 80%, transparent);
+}
+table.tbl tr.zone-top6 > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 40%, transparent);
+}
+table.tbl tr.zone-releg > td:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+table.tbl tr.zone-end > td {
+  border-bottom-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+table.tbl tr.zone-title.zone-end > td {
+  border-bottom-color: color-mix(in srgb, var(--good) 55%, var(--line));
+}
+table.tbl tr.zone-start > td {
+  border-top: 1px solid color-mix(in srgb, var(--danger) 55%, var(--line));
+}
+/* The run-in summary's games: result, matchweek, opponent, score and place in columns, so every row reads alike */
+.runin-games {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.runin-games li {
+  display: grid;
+  grid-template-columns: auto 3.6em minmax(0, 1fr) auto 3em;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+.runin-games li:last-child {
+  border-bottom: 0;
+}
+.runin-games .chip {
+  justify-content: center;
+  min-width: 2em;
+}
+.runin-games .rg-opp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.runin-games .rg-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.runin-games .rg-score,
+.runin-games .rg-pos,
+.runin-games .rg-mw {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.runin-games .rg-pos {
+  text-align: right;
+}
 /* The position chart: zone bands, faint rivals, the user's line drawing on as each game lands */
 .pc-band.title {
   fill: color-mix(in srgb, var(--good) 14%, transparent);

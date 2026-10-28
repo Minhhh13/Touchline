@@ -67,4 +67,7 @@ export const runin = catalog('runin', {
   aboutTable: 'About the table',
   tableInfo: 'The first {from} matchweeks are projected from the real final table; the last {played} were played.',
   shareText: 'Share text',
+  mwShort: 'MW {n}',
+  versus: '{home, select, home {v} other {at}} {club}',
+  placeAfter: '{pos} in the table after it',
 })

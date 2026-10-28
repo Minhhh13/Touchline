@@ -636,7 +636,7 @@ export function Dugout() {
               </span>
             </div>
             <div className="tbl-wrap">
-              <TableView rows={table} teamName={game.settings.teamName} />
+              <TableView rows={table} teamName={game.settings.teamName} zones />
             </div>
           </div>
           )}

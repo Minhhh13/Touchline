@@ -259,6 +259,7 @@ export function ArenaSummary() {
                       <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                         {s.gf}-{s.ga}
                         {s.pens ? t('pensSuffix', { score: `${s.pens.us}-${s.pens.them}` }) : ''}
+                        <span className="res-letter">{won(s) ? 'W' : 'L'}</span>
                       </span>
                       {challenge && <span className="small muted" data-testid="ghost-step">{ghostStepLine(challenge, i)}</span>}
                     </span>

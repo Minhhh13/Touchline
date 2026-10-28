@@ -246,7 +246,7 @@ A new colour pair is only added after it is checked against both themes.
 
 ## 4. Typography
 
-One family: **Sora** (Google Fonts, SIL Open Font License; 400, 600, 700, 800 from one stylesheet in `index.html`) for titles, big numbers, the call to action and body text alike: a wide geometric sans with flat, squared terminals, our free stand-in for the look of a European club-competition broadcast face (the real broadcast fonts are exclusive and are never used). `--font-display` and `--font-body` both name it, so a rule can still say which role it plays; the fallbacks are `'Segoe UI', system-ui, -apple-system, Roboto, sans-serif`. `--mono` for seeds, minutes and codes. Sora is about 45 % wider than the old condensed display face, so display sizes were cut where a box is fixed (below). The share cards draw in Sora too and wait (up to 2 s) for `document.fonts` before drawing; `public/sw.js` caches the Google Fonts stylesheet and files cache-first, so the type survives offline after one visit.
+One family: **Sora** (Google Fonts, SIL Open Font License; 400, 600, 700, 800 from one stylesheet in `index.html`) for titles, big numbers, the call to action and body text alike: a wide geometric sans with flat, squared terminals, our free stand-in for the look of a European club-competition broadcast face (the real broadcast fonts are exclusive and are never used). `--font-display` and `--font-body` both name it, so a rule can still say which role it plays; the fallbacks are `'Segoe UI', system-ui, -apple-system, Roboto, sans-serif`. Figures (minutes, ratings, scores, stats, the match clock) are Sora too: `--mono` names `--font-body`, and every rule that sets it (and the `.mono` class) turns on tabular figures, so columns line up without a second face (2026-10-28: it was the system monospace, which outside a Mac drew DejaVu Sans Mono or Consolas beside Sora on the match day and the player card). `--code` keeps a true monospace for what a reader types or copies: seed fields, room codes, links and share text (`.input.mono`, `pre.mono`, `.chip.mono`, `.btn.mono`, `kbd`). Sora is about 45 % wider than the old condensed display face, so display sizes were cut where a box is fixed (below). The share cards draw in Sora too and wait (up to 2 s) for `document.fonts` before drawing; `public/sw.js` caches the Google Fonts stylesheet and files cache-first, so the type survives offline after one visit.
 
 | Token | Size | Phone | Face | Use |
 |---|---|---|---|---|
@@ -433,6 +433,14 @@ One card for the Dugout squad and the Explore database (`PlayerCardModal`, `.mod
 ### Tables (`table.tbl`)
 
 Capital 11 px headers in `--text-3`; `.num` for figures; `tr.me` (the user's row) takes `--primary-soft`; `tr.clickable` hovers on `--bg-3`. On a phone a table scrolls sideways inside itself (`display: block; overflow-x: auto`), never the page; keep tables to the columns that matter there. A table that can be wider than its panel on a desktop sits in a `.tbl-wrap` (scrolls inside the panel); a select in a row is `select.input.sm` (control-h-sm, `--fs-sm`, sized to its text); a trailing action cell is `td.end`.
+
+### Group tables (`GroupTables`, `.group-card`)
+
+The Continental Cup's groups (engine 7): one small `table.tbl` a group, the cards filling the row (`auto-fit`). The top two carry a 3px left edge: `--accent` while the group is open (the qualifying places, `tr.zone`), `--good` once it is complete (`tr.through`), and the sides out step back to 60 % opacity (`tr.out`); a key line under the cards says what the edge means. A W-D-L column shows only when a card is wider than 330 px (a container query). Our group is outlined in `--primary` and lists our matchdays, each played one as `.gt-score` with its W/D/L letter and outcome colour, our goals first. Every word comes from the summary catalogue.
+
+### A ledger (`dl.kv.ledger`)
+
+Figures in a key-value list (the Club tab's finances): one row a figure, hairline rules between, the label on one line and the figure right-aligned in tabular digits.
 
 ### Tabs (`Tabs`, `.tabs`)
 
