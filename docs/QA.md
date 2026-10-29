@@ -265,10 +265,21 @@ Also: the Office tab's components read the store through `useStorePick` (a bare 
 
 | Id | Severity | Where | What happens, and how to see it | Proposed patch |
 | --- | --- | --- | --- | --- |
-| R9-O1 | Low (a11y) | `src/ui/App.tsx`, the dock | On a phone the dock's visible words are "Explore", "H2H" and "Guide" (`nav-tiny`, aria-hidden) while the buttons are named "Database", "Head-to-head" and "How it works": voice control ("click Explore") finds nothing (WCAG 2.5.3, label in name) | Make each name start with its visible word (`aria-label` "Explore the database", "H2H, head-to-head", "Guide: how it works"), or show the long label's first word |
-| R9-O2 | Low | `src/game/logic/marketOps.ts` `bidFor` (bundled) | Personal terms with a wage below his listed wage × status are refused by the market's wage-cap check when the squad is near the cap, with that check's words, though the agreed wage fits (R9-2 keeps the listing intact) | `BidOptions.wage`: `placeBid` checks the wage given. Renames the edge bundle |
-| R9-O3 | Low (perf) | `EndCase.tsx`, `HomeBadgeNudge.tsx`, `ContractTalks.tsx`, `JanuaryWindow.tsx`, `BadgeUnlocks.tsx`, `CupRuns.tsx`, `WorldBoard.tsx`, `Rooms.tsx`, `matchday/StopPanel.tsx`, `matchday/MatchDashboard.tsx` | 25 components still read the store with a bare `useStore()`, so every store write re-renders them (the match day's dashboard on every clock-driven write) | `useStorePick` with the keys each reads, as the Office tab now does |
-| R9-O4 | Note | the Office's conversation box at 1280 | The four topic buttons scroll sideways inside a narrow box ("His fu…" cut at the edge) | Let the topics wrap in the box, or two rows of two |
+| R9-O1 (fixed r10) | Low (a11y) | `src/ui/App.tsx`, the dock | On a phone the dock's visible words are "Explore", "H2H" and "Guide" (`nav-tiny`, aria-hidden) while the buttons are named "Database", "Head-to-head" and "How it works": voice control ("click Explore") finds nothing (WCAG 2.5.3, label in name) | Make each name start with its visible word (`aria-label` "Explore the database", "H2H, head-to-head", "Guide: how it works"), or show the long label's first word |
+| R9-O2 (fixed r10, bundled) | Low | `src/game/logic/marketOps.ts` `bidFor` (bundled) | Personal terms with a wage below his listed wage × status are refused by the market's wage-cap check when the squad is near the cap, with that check's words, though the agreed wage fits (R9-2 keeps the listing intact) | `BidOptions.wage`: `placeBid` checks the wage given. Renames the edge bundle |
+| R9-O3 (fixed r10) | Low (perf) | `EndCase.tsx`, `HomeBadgeNudge.tsx`, `ContractTalks.tsx`, `JanuaryWindow.tsx`, `BadgeUnlocks.tsx`, `CupRuns.tsx`, `WorldBoard.tsx`, `Rooms.tsx`, `matchday/StopPanel.tsx`, `matchday/MatchDashboard.tsx` | 25 components still read the store with a bare `useStore()`, so every store write re-renders them (the match day's dashboard on every clock-driven write) | `useStorePick` with the keys each reads, as the Office tab now does |
+| R9-O4 (fixed r9 visual) | Note | the Office's conversation box at 1280 | The four topic buttons scroll sideways inside a narrow box ("His fu…" cut at the edge) | Let the topics wrap in the box, or two rows of two |
+
+
+### Round 10 (`claude/r10-fixes`, 2026-10-29): what became of them
+
+| Id | State | How | Test |
+| --- | --- | --- | --- |
+| R9-O1 | **Fixed** (display) | The three captions that differ from their label ("H2H", "Explore", "Guide") are no longer aria-hidden: on a phone they start the button's name ("H2H Head-to-head", "Explore Database", "Guide How it works") before the visually hidden label; captions equal to their label stay hidden; on a desktop the captions are `display: none`, so the names are unchanged | `src/ui/__tests__/r10FixesUi.test.ts` |
+| R9-O2 | **Fixed**, `BUNDLED:` (renames the edge bundle; no default draw moves) | `BidOptions.wage` → `StatusTerms.wage`: `offerTerms` passes the agreed wage and `placeBid` checks the cap with it; absent everywhere else | `src/game/__tests__/r10Fixes.test.ts` (three seeds sign where the old check refused) |
+| R9-O3 | **Fixed** (perf) | ContractTalks (both cards), CupRuns, EndCase, HomeBadgeNudge, JanuaryWindow (four panels), StopPanel and MatchDashboard read through `useStorePick` (the rest of the list was done in round 9); a source test fails on any bare `useStore()` under `src/ui` | `r10FixesUi.test.ts` |
+| R9-O4 | **Fixed** by round 9's visual pass (the topics' row lost `.scroll` and wraps), now pinned | — | `r10FixesUi.test.ts` |
+| r9-audit-new: a sacked Season never paid its instalments | **Fixed** (no draw; `transferTalks.ts` is not bundled) | `payInstalments` settles what is left at the week of the sack, in a Season or a Dynasty, as it does at a Season's last matchweek | `r10Fixes.test.ts` |
 
 ## R4-4. Coverage notes
 
