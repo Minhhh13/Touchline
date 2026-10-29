@@ -329,14 +329,15 @@ export function counterBid(game: Game, u: LoadedUniverse, index: number, amount:
 
 /**
  * Instalments: one payment falls due as each window after the deal opens (in a Season, whatever is left is settled
- * at the final matchweek). Called by the office's tick; an empty list writes nothing.
+ * at the final matchweek; in any mode, at the week the manager is sacked). Called by the office's tick; an empty list writes nothing.
  */
 export function payInstalments(game: Game): void {
   const list = game.office?.instalments
   if (!list?.length) return
   const key = windowKey(game)
   const season = game.season
-  const settleAll = game.settings.mode !== 'dynasty' && !!season && season.matchweek >= season.matchweeks
+  // A sacked manager's club settles what it still owes as the season ends there, in a Dynasty too (r10: it was never paid)
+  const settleAll = !!season && (season.sacked || (game.settings.mode !== 'dynasty' && season.matchweek >= season.matchweeks))
   for (let i = list.length - 1; i >= 0; i--) {
     const inst = list[i]
     let n = 0

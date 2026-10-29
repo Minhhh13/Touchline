@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { WAGE_MULT } from '@engine/status'
-import { clubValuation, offerTerms, openingStatus, proposeFee, termsDemand } from '../logic/transferTalks'
+import { clubValuation, offerTerms, openingStatus, paymentPlan, proposeFee, termsDemand } from '../logic/transferTalks'
 import { squadWages } from '../logic/squad'
+import { officeTick } from '../logic/office'
 import { seasonGame, seasonSettings } from './seasonGame'
 import type { Game } from '../types'
 
@@ -60,4 +61,24 @@ describe('r9-audit-new / R9-O2: the market checks the wage cap against the wage 
     expect(out.ok).toBe(false)
     expect(out.message).toMatch(/wage cap/)
   })
+})
+
+describe('r9-audit-new: a sacked manager\'s club pays the instalments it still owes', () => {
+  for (const mode of [undefined, 'dynasty'] as const) {
+    it(`${mode ?? 'season'}: what is owed is settled at the week of the sack`, () => {
+      const { g, listingId } = january(`r10-sacked-${mode ?? 'season'}`, mode)
+      g.finances.wageCap = 100000
+      const { wage, signingFee, status, fee } = lowWageTerms(g, listingId, 3)
+      expect(offerTerms(g, u, listingId, { wage, years: 1, status, signingFee }).signed).toBe(true)
+      expect(g.office!.instalments).toHaveLength(1)
+      const owed = paymentPlan({ fee, instalments: 3 }).later * 2
+      const budget = g.finances.budget
+      officeTick(g, u)
+      expect(g.office!.instalments).toHaveLength(1)
+      g.season!.sacked = true
+      officeTick(g, u)
+      expect(g.office!.instalments ?? []).toHaveLength(0)
+      expect(g.finances.budget).toBeCloseTo(budget - owed, 1)
+    })
+  }
 })
