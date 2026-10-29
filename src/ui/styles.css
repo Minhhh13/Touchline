@@ -3861,7 +3861,7 @@ table.tbl.contracts .btn.sm {
   gap: 4px;
   color: var(--accent);
 }
-/* On a card with a picture on top, the marker sits on the picture's corner: in the text it pushed that card's title and button out of line with the other three (visual audit, round 7) */
+/* On a card with a picture on top, the marker sits on the picture's corner: in the text it pushed that card's title and button out of line with the other three (visual audit, QA round 8) */
 @media (min-width: 521px) {
   .mode-card {
     position: relative;
@@ -5502,7 +5502,7 @@ dl.kv {
 .road-rung.bonus svg {
   color: var(--good);
 }
-/* A gift rung keeps its icon beside the number: stacked under it, the icon made rungs 2 to 8 taller than the next, breaking the climb (visual audit, round 7) */
+/* A gift rung keeps its icon beside the number: stacked under it, the icon made rungs 2 to 8 taller than the next, breaking the climb (visual audit, QA round 8) */
 .road-rung.bonus {
   grid-auto-flow: column;
   justify-content: center;
@@ -6175,7 +6175,7 @@ dl.kv {
   background: var(--info-soft);
   font-size: calc(var(--fs-sm) + 0.5px);
 }
-/* A notice with its (i) at the end: the button keeps to the first line's right instead of wrapping alone onto a second (visual audit, round 7) */
+/* A notice with its (i) at the end: the button keeps to the first line's right instead of wrapping alone onto a second (visual audit, QA round 8) */
 .notice.with-info {
   display: flex;
   align-items: flex-start;
@@ -8743,7 +8743,7 @@ dl.kv {
 }
 .h2h-side .h2h-cup {
   position: absolute;
-  /* On the card's top edge, centred like a medal: in the corner it ran over the end of a narrow card's name (visual audit, round 7) */
+  /* On the card's top edge, centred like a medal: in the corner it ran over the end of a narrow card's name (visual audit, QA round 8) */
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
@@ -10071,7 +10071,7 @@ table.tbl.match-stats th {
   .app.shell .page.home .mode-card-body {
     flex: 1 1 auto;
   }
-  /* The picture takes any height the row has spare, so every card's text and button sit at its foot, in one line across the four (visual audit, round 7) */
+  /* The picture takes any height the row has spare, so every card's text and button sit at its foot, in one line across the four (visual audit, QA round 8) */
   .app.shell .page.home .mode-art {
     flex: 1 1 clamp(64px, calc(100dvh - 600px), 200px);
     min-height: 40px;
@@ -10442,7 +10442,7 @@ table.tbl.match-stats th {
   gap: 8px;
   margin-top: auto;
 }
-/* While neither cup has ties to show, the two cards share a height and their Play buttons one line (visual audit, round 7) */
+/* While neither cup has ties to show, the two cards share a height and their Play buttons one line (visual audit, QA round 8) */
 .cup-cards:not(:has(.cup-ties)) {
   align-items: stretch;
 }
@@ -12230,7 +12230,7 @@ table.tbl.board-table tr.chase-perfect td:first-child {
   padding: var(--space-5) var(--space-3);
   text-align: center;
 }
-/* An empty board in the one-screen desktop: the line sits in the middle of its tall box, not under its head (visual audit, round 7) */
+/* An empty board in the one-screen desktop: the line sits in the middle of its tall box, not under its head (visual audit, QA round 8) */
 @media (min-width: 1100px) {
   .app.shell .fit-panel > .fit-scroll:has(> .board-empty) {
     display: flex;
@@ -13131,7 +13131,7 @@ table.tbl.board-table tr.chase-perfect td:first-child {
     display: none;
   }
 }
-/* A step title on the same line as its field (steps 2 and 3) loses the panel heading's bottom margin, which lifted it 6px off the field's middle (visual audit, round 7) */
+/* A step title on the same line as its field (steps 2 and 3) loses the panel heading's bottom margin, which lifted it 6px off the field's middle (visual audit, QA round 8) */
 .setup-team > .step-head,
 .step-head-row > .step-head {
   margin-bottom: 0;
@@ -13635,7 +13635,7 @@ table.tbl.contracts-overview .link-btn.name {
 .home-tiles.casual .home-tile {
   min-width: 0;
   overflow: hidden;
-  /* Titles on one line across the row, whether the line under them wraps or not (visual audit, round 7) */
+  /* Titles on one line across the row, whether the line under them wraps or not (visual audit, QA round 8) */
   align-items: flex-start;
 }
 .home-tiles.casual .tile-text b,
@@ -13905,7 +13905,7 @@ table.tbl.hub td.name {
   .grid.three.market-closed {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr);
   }
-  /* A wrapper column's room for its scrollbar; a box that is itself a column keeps its own padding (it put the Draft's sort control flush on the box's edge: visual audit, round 7) */
+  /* A wrapper column's room for its scrollbar; a box that is itself a column keeps its own padding (it put the Draft's sort control flush on the box's edge: visual audit, QA round 8) */
   .app.shell .grid.fill > .col:not(.panel) {
     padding-right: 2px;
   }
@@ -15469,7 +15469,7 @@ table.tbl td.strong {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   }
 }
-/* Compare with nobody picked: its empty state sits in the middle of the tall box, as the Draft's does, not stuck under the field (visual audit, round 7) */
+/* Compare with nobody picked: its empty state sits in the middle of the tall box, as the Draft's does, not stuck under the field (visual audit, QA round 8) */
 @media (min-width: 1100px) {
   .app.shell .explore-compare > .compare-players:has(> .empty-state) {
     display: flex;
@@ -15691,7 +15691,7 @@ table.tbl td.strong {
 button.home-nudge.linklike {
   color: var(--on-photo-2);
   text-decoration: none;
-  /* A button centres its text: on a phone the wrapped next-badge line drifted away from its icon (visual audit, round 7) */
+  /* A button centres its text: on a phone the wrapped next-badge line drifted away from its icon (visual audit, QA round 8) */
   text-align: left;
 }
 button.home-nudge.linklike:hover {
@@ -15855,7 +15855,7 @@ button.home-nudge.linklike:hover {
   margin: 0 0 calc(-1 * var(--space-1));
   padding-inline: var(--space-1);
 }
-/* Below the one-screen desktop the page is not a flex column with a gap, so the label sat flush on the Dynasty card (visual audit, round 7) */
+/* Below the one-screen desktop the page is not a flex column with a gap, so the label sat flush on the Dynasty card (visual audit, QA round 8) */
 @media (max-width: 1099px) {
   .home-more {
     margin-top: var(--space-4);

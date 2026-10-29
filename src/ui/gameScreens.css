@@ -2251,7 +2251,7 @@ details.opposition {
     padding-inline: 7px;
   }
 }
-/* The arena's team talk on a phone: the four choices share the row's width instead of wrapping Fire up alone onto a second line (visual audit, round 7) */
+/* The arena's team talk on a phone: the four choices share the row's width instead of wrapping Fire up alone onto a second line (visual audit, QA round 8) */
 @media (max-width: 520px) {
   .arena-prep .segmented {
     display: flex;

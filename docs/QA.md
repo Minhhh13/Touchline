@@ -353,17 +353,17 @@ Each test fails on the runtime before its fix (checked by stashing the fix).
 - `runtime.ts`'s room wiring (the seat store, `onFinished`'s Trophy Room credit) is reached only through `roomSession.test.ts`'s own deps.
 - Still untested: `server/entry.ts` (the verifier bundle's entry, run by `check:verifier`).
 
-# Round 7: visual audit (r12, 2026-10-29)
+# Round 8: visual audit (r12, 2026-10-29)
 
 Branch `claude/r12-visual`, from `main` at #95. The owner kept finding layout oddities by eye (#95 fixed three: the ended room's row, the lockup's pole seam, the glint on the mode cards' ball). This round looked at every screen and state on purpose. Display only: CSS and two lines of markup, no draw, no save field, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.
 
-## R7-1. How it was checked
+## R8-1. How it was checked
 
 - Playwright (the preinstalled one, nothing added to the repo) against `npx vite preview`, scripts kept outside the repository. One pass drove each flow once at 1280x800 and kept the save at every state worth looking at (Quick Draft, the Daily, Season, Dynasty, the Gauntlet, the Cup, the Run-in, head-to-head on this device); a second pass loaded each save in a fresh context and shot it in Floodlit and Daylight at 1280x800, 1440x900, 390x844 and 844x390 (touch), 2 themes × 4 sizes × 67 states. The online screens (World, Account, Home online) and the rooms (setup, waiting, join, draft for host and guest, result, ended after the 30-minute window, not found) came from an online build pointed at `scripts/online/room-mock.mjs` (docs/ONLINE.md 5e), never the real project.
 - States: Home new and returning; Setup for Quick Draft, the Daily, the Weekly, Season and Dynasty; the Gauntlet's, the Cup's and the Daily Arena's setup; the Run-in setup; the Draft mid-way, with an offer landed, and complete (Quick, Daily, Season, Gauntlet, Cup, Run-in); the manager spin, the end-of-draft case before and after, Squad complete; the playback, January and the season's end; both Summaries; the Dugout before the season and at matchweek 7 on all 14 tabs; the match day at 45' and 70' and its report; the digest; the arena hubs before and after a rung or round and both arena summaries; the run-in's dugout and summary; head-to-head setup, draft and result; every Explore view and a player card; Profile, How it works, Privacy.
 - Each shot was looked at, and also checked by script for a page scroll on a shell screen at 1100 px and up, sideways overflow on a phone and a button whose text overflows it. The script found none: every finding below was by eye.
 
-## R7-2. Fixed
+## R8-2. Fixed
 
 | # | Screen, size, theme | Before | After |
 | --- | --- | --- | --- |
@@ -382,7 +382,7 @@ Branch `claude/r12-visual`, from `main` at #95. The owner kept finding layout od
 | 13 | Head-to-head result, this device and online (desktop, both) | The winner's trophy in the card's corner ran over the end of a narrow card's name ("Manager 1") | The trophy sits on the card's top edge, centred like a medal; both heads still match |
 | 14 | Arena hub, Gauntlet and Cup (390x844, both) | Team talk wrapped Fire up alone onto a second row | The four choices share the row |
 
-## R7-3. Checked and left as is
+## R8-3. Checked and left as is
 
 - No page scroll at 1100 px and up on any shell screen, no sideways scroll on a phone, no page error in any run.
 - The ended room (#95) holds at every size: the buttons centred, the paste box under them.
