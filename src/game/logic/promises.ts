@@ -21,8 +21,8 @@ import { getFormation } from '@engine/formations'
 import { MINUTES_PER_WEEK } from '@engine/status'
 import { playerLookup, squadPlayers } from './players'
 import { contractDemand } from './contracts'
-import { newsTotal, postNews } from './news'
-import { dressingRoomRipple, lodgeRequest, officeOf, realIdOf, shiftMorale, squadIdOf, weekOf } from './officeCore'
+import { newsTotal } from './news'
+import { dressingRoomRipple, lodgeRequest, officeOf, postOfficeNews, realIdOf, shiftMorale, squadIdOf, weekOf } from './officeCore'
 
 /** Open promises the squad can hold at once, and the list's length with the settled ones kept for the record. */
 export const MAX_OPEN_PROMISES = 4
@@ -226,13 +226,13 @@ export function settlePromises(game: Game, u: LoadedUniverse): void {
     if (v) {
       shiftMorale(s, week, KEPT_LIFT, 'kept', 'promise')
       if (o.broken?.[promise.playerId]) o.broken[promise.playerId] -= 1
-      postNews(game, { matchweek: week, kind: 'event', title: `Promise kept: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and delivered. He trusts you more for it.`, playerId: id })
+      postOfficeNews(game, { matchweek: week, kind: 'event', title: `Promise kept: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and delivered. He trusts you more for it.`, playerId: id })
     } else {
       shiftMorale(s, week, BROKEN_COST, 'broken', 'promise')
       const broken = (o.broken ??= {})
       broken[promise.playerId] = (broken[promise.playerId] ?? 0) + 1
       dressingRoomRipple(game, u, id, BROKEN_RIPPLE, `A team-mate's broken promise`)
-      postNews(game, { matchweek: week, kind: 'event', title: `Promise broken: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and did not deliver. His team-mates noticed.`, playerId: id })
+      postOfficeNews(game, { matchweek: week, kind: 'event', title: `Promise broken: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and did not deliver. His team-mates noticed.`, playerId: id })
       lodgeRequest(game, u, id, 'promise')
     }
   }

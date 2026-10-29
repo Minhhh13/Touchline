@@ -26,9 +26,8 @@ import { playerLookup } from './players'
 import { personalityOf } from './personality'
 import { agentMood } from './contracts'
 import { recentShare } from './week'
-import { postNews } from './news'
 import { makePromise, promiseProblem } from './promises'
-import { dressingRoomRipple, lodgeRequest, officeOf, officeRoll, REQUEST_WHY, shiftMorale, squadIdOf, weekOf } from './officeCore'
+import { dressingRoomRipple, lodgeRequest, officeOf, officeRoll, postOfficeNews, REQUEST_WHY, shiftMorale, squadIdOf, weekOf } from './officeCore'
 
 /** Matchweeks an open request waits before it counts as refused. */
 export const REQUEST_PATIENCE = 3
@@ -140,7 +139,7 @@ export function expireRequests(game: Game, u: LoadedUniverse, sim = false): void
     r.settledAt = week
     if (!id) continue
     shiftMorale(game.squad[id], week, REFUSED_COST / 2, 'Transfer request ignored')
-    postNews(game, { matchweek: week, kind: 'event', title: `${r.name} feels ignored`, body: `Nobody answered his transfer request, so he takes it as a no.`, playerId: id })
+    postOfficeNews(game, { matchweek: week, kind: 'event', title: `${r.name} feels ignored`, body: `Nobody answered his transfer request, so he takes it as a no.`, playerId: id })
   }
 }
 
@@ -186,7 +185,7 @@ export function answerRequest(game: Game, u: LoadedUniverse, playerSeasonId: str
     req.stage = 'listed'
     req.settledAt = week
     shiftMorale(s, week, LISTED_LIFT, 'Transfer request accepted')
-    postNews(game, { matchweek: week, kind: 'transfer', title: `${p.name} transfer-listed`, body: 'You accepted his request. Offers will come in the window.', playerId: playerSeasonId })
+    postOfficeNews(game, { matchweek: week, kind: 'transfer', title: `${p.name} transfer-listed`, body: 'You accepted his request. Offers will come in the window.', playerId: playerSeasonId })
     return { ok: true, message: `${p.name} is on the list. He settles while he waits for a move.` }
   }
   if (answer === 'refuse') {
@@ -194,7 +193,7 @@ export function answerRequest(game: Game, u: LoadedUniverse, playerSeasonId: str
     req.settledAt = week
     shiftMorale(s, week, REFUSED_COST, 'Transfer request refused')
     const moved = dressingRoomRipple(game, u, playerSeasonId, REFUSED_RIPPLE, `A team-mate's request refused`)
-    postNews(game, { matchweek: week, kind: 'event', title: `Request refused: ${p.name}`, body: `You told him he stays. ${moved.length ? 'The dressing room took his side.' : 'He sulks.'}`, playerId: playerSeasonId })
+    postOfficeNews(game, { matchweek: week, kind: 'event', title: `Request refused: ${p.name}`, body: `You told him he stays. ${moved.length ? 'The dressing room took his side.' : 'He sulks.'}`, playerId: playerSeasonId })
     return { ok: true, message: `${p.name} is told he stays. He is not happy${moved.length ? `, and ${moved.length} team-mate${moved.length === 1 ? '' : 's'} feel for him` : ''}.` }
   }
   const odds = talkOdds(game, u, req, answer)

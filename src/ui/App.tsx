@@ -22,7 +22,7 @@ import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { watchFocusRescue } from './focusRescue'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { Bandage, Banknote, BookOpen, Briefcase, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
@@ -431,7 +431,8 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   for (const r of league) tally[r.outcome]++
   // From pre-season nobody has played, so the table's order before the run means nothing: only where you stand now
   const move = d.positionTo < d.positionFrom ? 'up' : d.positionTo > d.positionFrom ? 'down' : 'level'
-  const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length
+  const office = d.office ?? []
+  const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length && !office.length
   return (
     <div className="col digest" data-testid="digest">
       <div className="digest-results" data-testid="digest-results">
@@ -482,6 +483,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
           ))}
         </DigestGroup>
       )}
+      <NewsGroup title={t('digestOffice')} icon={<Briefcase size={14} />} items={office} testId="digest-office" />
       <NewsGroup title={t('injuries')} icon={<Bandage size={14} />} items={d.injuries} />
       <NewsGroup title={t('suspensions')} icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
       <NewsGroup title={t('transfers')} icon={<Banknote size={14} />} items={d.transfers} />
@@ -500,9 +502,9 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   )
 }
 
-function DigestGroup({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
+function DigestGroup({ title, icon, count, children, testId }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode; testId?: string }) {
   return (
-    <div className="digest-group">
+    <div className="digest-group" data-testid={testId}>
       <div className="small muted digest-group-title">
         {icon} {title}
       </div>
@@ -512,10 +514,10 @@ function DigestGroup({ title, icon, count, children }: { title: string; icon: Re
   )
 }
 
-function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNode; items: NewsItem[] }) {
+function NewsGroup({ title, icon, items, testId }: { title: string; icon: React.ReactNode; items: NewsItem[]; testId?: string }) {
   if (!items.length) return null
   return (
-    <DigestGroup title={title} icon={icon} count={items.length}>
+    <DigestGroup title={title} icon={icon} count={items.length} testId={testId}>
       {items.slice(0, DIGEST_GROUP_CAP).map((n, i) => {
         // A development report lists a dozen players: up and down as two short lists, five names each
         const dev = n.kind === 'training' ? developmentLists(n.body) : null
