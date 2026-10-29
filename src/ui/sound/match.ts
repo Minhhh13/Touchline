@@ -15,6 +15,7 @@ import { REPLAY, replayMs } from '../match/keyMoments'
 import type { Side } from '../match/pitchGeometry'
 import { foulTimes, inRange, strikeTimes } from '../match/timing'
 import type { SoundRequest } from './scores'
+import type { MixKind } from './mix'
 
 /** A chance this good gets the crowd's "ooh"; a save always gets its gloves. */
 export const OOH_XG = 0.08
@@ -22,8 +23,6 @@ export const OOH_XG = 0.08
 export const FULL_OOH_XG = 0.35
 /** A clock step longer than this (match minutes) is a skip, not play: only the whistles in it sound. */
 export const MAX_STEP = 1
-/** The crowd's sounds never come closer than this, ms (a fast-forward through a busy spell). */
-export const CROWD_GAP_MS = 350
 
 export interface MatchSoundCue {
   /** Match time (fractional minute) when it sounds. */
@@ -116,13 +115,9 @@ export function dueMatchSounds(prev: TimelinePoint, cur: TimelinePoint, cues: re
   return out
 }
 
-/** Drops a crowd sound that comes within `CROWD_GAP_MS` of the last (`last` holds when each kind last played, and is updated). */
-export function throttleCrowd(reqs: SoundRequest[], last: Partial<Record<string, number>>, now: number): SoundRequest[] {
-  return reqs.filter((r) => {
-    if (r.id !== 'near-miss' && r.id !== 'save') return true
-    const prev = last.crowd
-    if (prev !== undefined && now - prev < CROWD_GAP_MS) return false
-    last.crowd = now
-    return true
-  })
+/** What a match cue is to the mix (mix.ts): the whistle and the goal always sound, a chance or a save is the crowd's, a card or a change a chime. */
+export function mixKindOf(req: SoundRequest): MixKind {
+  if (req.id === 'whistle' || req.id === 'goal') return req.id
+  if (req.id === 'near-miss' || req.id === 'save') return 'crowd'
+  return 'chime'
 }
