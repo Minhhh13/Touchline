@@ -20,6 +20,7 @@ import { minuteLabel } from '../format'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
+import { eventLine } from '../i18n/commentaryText'
 
 const t = translator(summary)
 
@@ -155,7 +156,7 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
             </span>
             {happened ? (
               <span>
-                <span className={CHIP[m.kind]}>{t(`hl_${m.kind}`)}</span> {m.text}
+                <span className={CHIP[m.kind]}>{t(`hl_${m.kind}`)}</span> {eventLine(m.text)}
               </span>
             ) : (
               <span className="muted">{t(m.kind === 'yellow' || m.kind === 'red' ? 'challengeFlies' : m.side === ourSide ? 'yourSideOnBall' : 'theyComeForward')}</span>
@@ -171,7 +172,7 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
                     <button className="hl-moment" onClick={() => go(i)} data-testid="highlights-moment">
                       <span className="mono small muted">{minuteLabel(x.minute)}</span>
                       <span className={CHIP[x.kind]}>{t(`hl_${x.kind}`)}</span>
-                      <span className="hl-moment-text">{x.text}</span>
+                      <span className="hl-moment-text">{eventLine(x.text)}</span>
                       <span className="mono small">
                         {x.score.home}-{x.score.away}
                       </span>

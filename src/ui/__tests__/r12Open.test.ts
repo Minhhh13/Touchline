@@ -36,8 +36,19 @@ describe('R11-O1: Setup’s Skip to Start link', () => {
     }
   })
 
+  interface Stand {
+    disabled: boolean
+    focused: boolean
+    getAttribute(k: string): string | null
+    setAttribute(k: string, v: string): void
+    removeAttribute(k: string): void
+    addEventListener(type: string, f: () => void): void
+    closest(): Stand | null
+    focus(): void
+    blur(): void
+  }
   /** A stand-in element with what `skipToControl` reads and writes. */
-  function el(disabled = false, section: ReturnType<typeof el> | null = null) {
+  function el(disabled = false, section: Stand | null = null): Stand {
     const attrs = new Map<string, string>()
     const listeners: Array<() => void> = []
     return {
