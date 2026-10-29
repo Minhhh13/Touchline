@@ -4,6 +4,12 @@ import { join } from 'node:path'
 import { roomCodeFrom, roomInviteText } from '../../online/rooms'
 import { paceLine } from '@game/logic/gameByGame'
 import { gapLine, type LiveRow } from '@game/logic/liveTable'
+import { h2hAutoPick, h2hComplete, h2hSpin, newH2HDraft } from '@engine/h2h'
+import { getFormation } from '@engine/formations'
+import { Rng } from '@engine/rng'
+import { h2hRules } from '@game/logic/h2h'
+import { roomLogLine } from '@game/logic/h2hRoom'
+import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { POWER_UPS } from '@engine/powerups'
 import { formatText, setLocaleMessages } from '../i18n'
 import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
@@ -192,5 +198,39 @@ describe('R11-12: the playback’s points gap in the viewer’s language', () =>
       setLocaleMessages({ id: 'en', messages: {} })
     }
     expect(src('screens/SeasonPlayback.tsx')).toContain('{logicLine(gap)}')
+  })
+})
+
+describe('R11-13: the head-to-head draft log in the viewer’s language', () => {
+  it('every line of hot-seat drafts and their online rooms’ form is a logicText message, read back as written', () => {
+    const u = loadTestUniverse(['england'])
+    const lines = new Set<string>()
+    for (const seed of ['r11-h2h-a', 'r11-h2h-b', 'r11-h2h-c']) {
+      const h = newH2HDraft([getFormation('4-3-3'), getFormation('3-5-2')], h2hRules(['england'], false))
+      const rng = new Rng(seed)
+      for (let i = 0; i < 80 && !h2hComplete(h); i++) {
+        if (!h.current) h2hSpin(u, h, rng)
+        h2hAutoPick(u, h)
+        if (h.current) h2hAutoPick(u, h)
+      }
+      for (const l of h.log) {
+        lines.add(l)
+        lines.add(roomLogLine(l, [{ name: 'Ann', shortName: 'ANN', formationId: '4-3-3', hostClubId: 'everton' }, { name: 'Bob Dee', shortName: 'BOB', formationId: '3-5-2', hostClubId: 'fulham' }]))
+      }
+    }
+    expect(lines.size).toBeGreaterThan(40)
+    for (const line of lines) {
+      const hit = matchLogicLine(line)
+      expect(hit, line).not.toBeNull()
+      expect(formatText(logicText.messages[hit!.key as keyof typeof logicText.messages], hit!.vars)).toBe(line)
+    }
+    setLocaleMessages({ id: PSEUDO_LOCALE, messages: {} })
+    try {
+      for (const line of lines) expect(isPseudo(logicLine(line)), line).toBe(true)
+    } finally {
+      setLocaleMessages({ id: 'en', messages: {} })
+    }
+    expect(src('screens/H2H.tsx')).toContain('<li key={i}>{logicLine(l)}</li>')
+    expect(src('online/Rooms.tsx')).toContain('<li key={i}>{logicLine(roomLogLine(l, view.managers))}</li>')
   })
 })

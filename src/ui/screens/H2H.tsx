@@ -42,6 +42,7 @@ import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
 import { formationBlurb } from '../i18n/engineText'
 import { tierText } from '../i18n/tierText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(h2hText)
 
@@ -429,7 +430,7 @@ export function H2HScreen() {
               <div className="eyebrow">{t('draftLog')}</div>
               <ol className="h2h-log">
                 {[...d.log].reverse().slice(0, 30).map((l, i) => (
-                  <li key={i}>{l}</li>
+                  <li key={i}>{logicLine(l)}</li>
                 ))}
               </ol>
             </div>

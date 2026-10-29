@@ -34,6 +34,7 @@ import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
 import { formationBlurb } from '../i18n/engineText'
 import { rich } from '../i18n/rich'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(h2hText)
 
@@ -703,7 +704,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
             <div className="eyebrow">{t('draftLog')}</div>
             <ol className="h2h-log">
               {[...d.log].reverse().slice(0, 30).map((l, i) => (
-                <li key={i}>{roomLogLine(l, view.managers)}</li>
+                <li key={i}>{logicLine(roomLogLine(l, view.managers))}</li>
               ))}
             </ol>
           </div>

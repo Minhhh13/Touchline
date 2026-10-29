@@ -1717,4 +1717,9 @@ export const logicText = catalog('logicText', {
   liveTable_offTop: '{n, plural, one {# pt} other {# pts}} off top',
   liveTable_levelWith: 'Level with {pos, ordinal}',
   liveTable_offPlace: '{n, plural, one {# pt} other {# pts}} off {pos, ordinal}',
+  // engine/h2h.ts: the head-to-head draft log (an online room's with the managers' names in place; QA r11)
+  h2h_spinPicksFirst: 'Spin {n, number}: {clubSeason}. {manager} picks first.',
+  h2h_missesOut: '{manager} has no eligible player here and misses out.',
+  h2h_drafts: '{manager} drafts {name}.',
+  h2h_managerN: 'Manager {n, number}',
 })
