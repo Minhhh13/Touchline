@@ -26,6 +26,6 @@ describe('a tall bottom bar', () => {
       expect(src).toContain("${tallBar ? ' bar-static' : ''}")
     }
     const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8')
-    expect(css).toMatch(/\.page\.bar-static \.bottom-bar,\n {2}\.page\.bar-static \.cta-bar \{\n {4}position: static;/)
+    expect(css).toMatch(/\.page\.bar-static \.bottom-bar,\n {2}\.page\.bar-static \.cta-bar \{\n {4}position: static;\n {4}z-index: auto;/)
   })
 })

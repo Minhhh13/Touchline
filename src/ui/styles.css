@@ -16415,6 +16415,11 @@ button.home-nudge.linklike:hover {
 /* A small phone on its side (iPhone SE, 667 x 375): the arena hub's calls took 157 of its 375 px over the page; like
    the Dugout's call bar they go back to the foot of their box there */
 @media (max-width: 720px) and (max-height: 500px) {
+  .arena-actions.bottom-bar,
+  .cta-bar {
+    /* In the page's flow a bar's z-index (it is a flex item) would paint it over the sticky top bar */
+    z-index: auto;
+  }
   .arena-actions.bottom-bar {
     position: static;
     padding: var(--space-3) var(--panel-pad);
@@ -16430,6 +16435,7 @@ button.home-nudge.linklike:hover {
   .page.bar-static .bottom-bar,
   .page.bar-static .cta-bar {
     position: static;
+    z-index: auto;
     box-shadow: none;
   }
   .page.bar-static.has-bottom-bar {
@@ -16453,6 +16459,15 @@ button.home-nudge.linklike:hover {
   .mode-card p {
     overflow-wrap: anywhere;
     hyphens: auto;
+  }
+  /* A W-D-L record wraps rather than run past its card (head-to-head's result at 200 %) */
+  .record {
+    flex-wrap: wrap;
+    column-gap: 0.6em;
+  }
+  /* The fixture list's matchweek column grows with its text ("MW15" ran into the opponent's place at 200 %) */
+  .fixture-list .fixture {
+    grid-template-columns: minmax(38px, max-content) minmax(0, 1fr) auto minmax(0, 1fr);
   }
   /* The Dugout's club strip: two figures a row while two fit, one under 200 % text ("£119M" ran into the board's 55) */
   .stat-strip {

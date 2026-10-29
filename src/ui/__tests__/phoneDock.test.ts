@@ -64,7 +64,10 @@ describe('the dock on a narrow phone (round 12)', () => {
 describe("a small phone on its side's arena hub (round 12)", () => {
   it("puts the calls back at the foot of their box, as the Dugout's call bar", () => {
     const r12 = css.slice(css.indexOf('/* Phones, round 12'))
-    expect(r12).toMatch(/@media \(max-width: 720px\) and \(max-height: 500px\) \{\n {2}\.arena-actions\.bottom-bar \{\n {4}position: static;/)
+    const side = r12.slice(r12.indexOf('@media (max-width: 720px) and (max-height: 500px) {'))
+    expect(side).toMatch(/\.arena-actions\.bottom-bar \{\n {4}position: static;/)
+    // In the flow, neither bar's z-index paints it over the sticky top bar
+    expect(side).toMatch(/\.arena-actions\.bottom-bar,\n {2}\.cta-bar \{\n[^}]*z-index: auto;/)
     expect(r12).toMatch(/\.page\.arena-hub\.has-bottom-bar \{\n {4}padding-bottom: calc\(80px \+ var\(--safe-bottom\)\);/)
   })
 })

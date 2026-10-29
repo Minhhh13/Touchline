@@ -398,7 +398,8 @@
   }
 }
 /* A drawer's bottom sheet on a phone carries the grip the other sheets have, and follows a finger pulled down from it
-   or from its header (useSheetDrag in Drawer.tsx); its close button takes a 44 px target (phones, round 12) */
+   or from its header (useSheetDrag in Drawer.tsx); its close button takes a 44 px target, and a bench card on the
+   substitution board is 44 px tall (it was 40) (phones, round 12) */
 @media (max-width: 720px) {
   .matchday .md-drawer > .sheet-grip {
     display: block;
@@ -429,6 +430,9 @@
   }
   .matchday .md-drawer:not(.dragging) {
     transition: transform var(--dur-2) var(--ease-out);
+  }
+  .matchday .sub-bench-card {
+    min-height: 44px;
   }
   .matchday .md-x {
     position: relative;
