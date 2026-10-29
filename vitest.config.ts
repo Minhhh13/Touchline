@@ -31,6 +31,7 @@ export const SLOW_FILES = [
   'src/game/__tests__/classicRelease.test.ts', // 25
   'src/ui/__tests__/qaR9Render.test.ts', // 42 (r9)
   'src/game/__tests__/qaR9Europe.test.ts', // 20 (r9)
+  'src/game/__tests__/dynastyHistory.test.ts', // 23
   'src/game/__tests__/medical.test.ts', // 16
 ]
 

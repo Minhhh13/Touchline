@@ -45,6 +45,7 @@ import type { OfficeTick } from './logic/officeSteps'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import type { OffseasonReport } from './logic/dynasty'
+import type { SummerStories } from './logic/dynastyHistory'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
 import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
@@ -105,6 +106,9 @@ const withTick = late('withTick')
 const advanceToNextSeason = late('advanceToNextSeason')
 const letContractGo = late('letContractGo')
 const postRenewals = late('postRenewals')
+const noteSeasonEnd = late('noteSeasonEnd')
+const summerSnapshot = late('summerSnapshot')
+const summerStories = late('summerStories')
 const h2hAutoPick = late('h2hAutoPick')
 const h2hComplete = late('h2hComplete')
 const h2hPick = late('h2hPick')
@@ -215,7 +219,8 @@ interface Store {
    * older game). A full storage is `saveFailing`, which goes with the next write that lands.
    */
   saveIssue: 'elsewhere' | null
-  offseason: OffseasonReport | null
+  /** The summer's report, with the player stories the club's history tells (round 9; transient). */
+  offseason: (OffseasonReport & { stories?: SummerStories }) | null
   /** What happened over the matchweeks just simulated (Sim 5, Sim to end); transient, never saved. */
   digest: SimDigest | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
@@ -1682,9 +1687,12 @@ export const useStore = create<Store>()(
           const run = () => {
             // Only a finished season moves on (a second tap while leagues load must not run the summer twice)
             if (get().game?.phase !== 'summary') return
-            let report: OffseasonReport | null = null
+            let report: (OffseasonReport & { stories?: SummerStories }) | null = null
             mutate((g, u) => {
-              report = advanceToNextSeason(g, u)
+              // The stories read the squad before the summer drops last season's men; neither draws
+              const snap = summerSnapshot(g, u)
+              const r = advanceToNextSeason(g, u)
+              report = { ...r, stories: summerStories(snap, r.retired, g, u) }
             })
             set({ offseason: report })
           }
@@ -1702,6 +1710,11 @@ export const useStore = create<Store>()(
         dismissOffseason: () => set({ offseason: null }),
 
         recordResult: () => {
+          const ended = get().game
+          if (ended && rulesReady() && (ended.settings.mode === 'dynasty' || ended.settings.mode === 'season') && ended.phase === 'summary' && ended.season && ended.history.at(-1)?.year === ended.year && !ended.history.at(-1)?.notes) {
+            // The club's history notes the season once (display only, no draw; the rules chunk holds it, in since the season ended)
+            mutate((g, u) => void noteSeasonEnd(g, u))
+          }
           const { game, profile, universe } = get()
           if (!game || !universe || game.phase !== 'summary') return
           // The arena files a run on its own table and shelves: no leaderboard row, no daily streak, no season counted

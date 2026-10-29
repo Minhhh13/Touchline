@@ -42,6 +42,8 @@ import { SQUAD_COLUMNS } from '../components/AttributePanel'
 import { PlayerCardModal } from '../components/PlayerCard'
 import { careerSeasons } from '@game/logic/playerCard'
 import { LeagueFlag } from '../components/Flag'
+import { boardLastLabel, boardLastLine, ClubHistory, LegendsTable } from '../components/ClubHistory'
+import { lastVerdict } from '@game/logic/dynastyHistory'
 import { roleCode } from '../match/shirts'
 import { chemistryLinkLabel, clubName, clubShort, signedValue, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
 import type { PlayerSeason, Position, TableRow } from '@engine/types'
@@ -108,7 +110,7 @@ const TABLE_COLS = [
 function tabPresent(tab: string, game: Game): string[] | undefined {
   if (tab === 'next') return nextOpponent(game) ? ['preview', 'opposition', 'match-up', 'team-talk'] : [...(upcomingCupTie(game) ? ['preview'] : []), 'team-talk']
   if (tab === 'window' && game.window) return ['recruitment', ...((game.scoutReports ?? []).length > 0 ? ['scout-reports'] : []), 'approach', 'shortlist', ...(doneDeals(game.window).length > 0 ? ['done-deals'] : []), 'log']
-  if (tab === 'club') return ['board', 'requests', 'finances', 'staff', 'contracts', ...(game.careerStats && Object.keys(game.careerStats).length > 0 ? ['legends'] : []), 'achievements']
+  if (tab === 'club') return ['board', 'requests', 'finances', 'staff', 'contracts', ...(game.careerStats && Object.keys(game.careerStats).length > 0 ? ['legends'] : []), ...(game.history.length > 0 ? ['history'] : []), 'achievements']
   return undefined
 }
 
@@ -1721,11 +1723,12 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
   const grid = boxes.grid([
     { track: 'minmax(0, 0.85fr)', ids: ['board', 'requests'] },
     { track: 'minmax(0, 0.85fr)', ids: ['finances', 'staff'] },
-    { track: 'minmax(0, 1.5fr)', ids: ['contracts', 'legends', 'achievements'] },
+    { track: 'minmax(0, 1.5fr)', ids: ['contracts', 'legends', 'history', 'achievements'] },
   ])
   const col1 = on('board') || on('requests')
   const col2 = on('finances') || on('staff')
-  const col3 = on('contracts') || (on('legends') && !!game.careerStats && Object.keys(game.careerStats).length > 0) || on('achievements')
+  const col3 = on('contracts') || (on('legends') && !!game.careerStats && Object.keys(game.careerStats).length > 0) || (on('history') && game.history.length > 0) || on('achievements')
+  const verdict = lastVerdict(game.history)
   return (
     <div className={`grid three fill squad-views club-grid3 ${grid.className}`} style={grid.style} data-testid="club-tab">
       {col1 && (
@@ -1742,6 +1745,12 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
           </dd>
           <dt>{t('expectation')}</dt>
           <dd>{t('finishOrBetter', { pos: season.boardTarget })}</dd>
+          {verdict && (
+            <>
+              <dt>{boardLastLabel()}</dt>
+              <dd data-testid="board-last" className={verdict.met ? 'res-w' : 'res-l'}>{boardLastLine(verdict.target, verdict.position, verdict.met)}</dd>
+            </>
+          )}
           <dt>{t('current')}</dt>
           <dd>{season.matchweek ? ordinal(positionOf(table, USER_TEAM)) : t('preseason')}</dd>
           <dt>{t('confidence')}</dt>
@@ -1922,37 +1931,10 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
             <h3>{t('clubLegends')}</h3>
             <span className="small muted">{t('allSeasons')}</span>
           </div>
-          <div className="tbl-wrap"><table className="tbl">
-            <thead>
-              <tr>
-                <th>{t('player')}</th>
-                <th className="num">{t('seasonsCol')}</th>
-                <th className="num">{t('appsCol')}</th>
-                <th className="num">{t('goalsCol')}</th>
-                <th className="num">{t('assistsCol')}</th>
-                <th className="num">{t('motmCol')}</th>
-                <th className="num">{t('titlesCol')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.values(game.careerStats)
-                .sort((a, b) => b.apps - a.apps || b.goals - a.goals)
-                .slice(0, 12)
-                .map((r) => (
-                  <tr key={r.name + r.lastYear}>
-                    <td>{r.name}</td>
-                    <td className="num">{r.seasons}</td>
-                    <td className="num">{r.apps}</td>
-                    <td className="num">{r.goals}</td>
-                    <td className="num">{r.assists}</td>
-                    <td className="num">{r.motm}</td>
-                    <td className="num">{r.titles}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table></div>
+          <LegendsTable game={game} u={u} labels={{ player: t('player'), seasons: t('seasonsCol'), apps: t('appsCol'), goals: t('goalsCol'), assists: t('assistsCol'), motm: t('motmCol'), titles: t('titlesCol') }} />
         </div>
       )}
+      {on('history') && game.history.length > 0 && <ClubHistory game={game} u={u} />}
       {on('achievements') && (
       <div className="panel">
         <h3>{t('achievementsGame')}</h3>

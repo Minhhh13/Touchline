@@ -34,6 +34,8 @@ import { app } from './i18n/en/app'
 import { shell } from './i18n/en/shell'
 import { useLanguage } from './i18n/language'
 import { B, rich } from './i18n/rich'
+// The summer's player stories ride in their own chunk, with the history catalogue (the first download stays as it was)
+const SummerStories = lazy(() => import('./components/SummerStories').then((m) => ({ default: m.SummerStories })))
 
 const t = translator(app)
 const tShell = translator(shell)
@@ -379,6 +381,11 @@ export function App() {
             )}
             {offseason.returned.length > 0 && (
               <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
+            )}
+            {offseason.stories && (
+              <Suspense fallback={null}>
+                <SummerStories stories={offseason.stories} />
+              </Suspense>
             )}
             {offseason.improved.length > 0 && (
               <div className="summer-moves" data-testid="summer-improved">

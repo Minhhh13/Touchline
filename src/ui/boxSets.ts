@@ -27,7 +27,7 @@ export const DUGOUT_TABS: Record<string, BoxSet> = {
   stats: set('dugout-stats', 'Stats tab', [['records', 'Season records'], ['league-stats', 'League statistics'], ['data-hub', 'Data hub']]),
   market: set('dugout-market', 'Market tab', [['recruitment', 'Recruitment'], ['scout-reports', 'Scout reports'], ['shortlist', 'Shortlist'], ['values', 'Squad values']], 0),
   window: set('dugout-window', 'Market tab (window open)', [['recruitment', 'Recruitment'], ['scout-reports', 'Scout reports'], ['approach', 'Approach any player'], ['shortlist', 'Shortlist'], ['done-deals', 'Done deals'], ['log', 'Market log']], 0),
-  club: set('dugout-club', 'Club tab', [['board', 'Board'], ['requests', 'Board requests'], ['finances', 'Finances'], ['staff', 'Backroom staff'], ['contracts', 'Contracts'], ['legends', 'Club legends'], ['achievements', 'Achievements']]),
+  club: set('dugout-club', 'Club tab', [['board', 'Board'], ['requests', 'Board requests'], ['finances', 'Finances'], ['staff', 'Backroom staff'], ['contracts', 'Contracts'], ['legends', 'Club legends'], ['history', 'Club history'], ['achievements', 'Achievements']]),
 }
 
 /** Every Dugout set, for Reset. */
