@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
+import { loadRules, rules } from '@game/rulesHook'
 import { useStorePick } from './useStorePick'
 import { Home } from './screens/Home'
-import { isArenaPayload } from '@engine/challenge'
 import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { SaveBanner } from './components/SaveBanner'
@@ -38,30 +38,40 @@ import { B, rich } from './i18n/rich'
 const t = translator(app)
 const tShell = translator(shell)
 
+/**
+ * A screen that plays a game loads the rules chunk (`src/game/rulesHook.ts`) and the game screens' styles
+ * (`gameScreens.css`) with its own: the store's actions it calls find the rules in place and its boxes their styles,
+ * and Home's first download leaves both out.
+ */
+const withRules =
+  <T,>(load: () => Promise<T>) =>
+  (): Promise<T> =>
+    Promise.all([load(), loadRules(), import('./gameStyles')]).then(([m]) => m)
+
 // Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
 // after Home fetches them in this order, the Quick Draft path first
 const SCREENS = {
-  setup: lazyScreen(() => import('./screens/Setup'), 'Setup'),
-  draft: lazyScreen(() => import('./screens/Draft'), 'Draft'),
-  kickOff: lazyScreen(() => import('./screens/KickOff'), 'KickOff'),
-  playback: lazyScreen(() => import('./screens/SeasonPlayback'), 'SeasonPlayback'),
-  summary: lazyScreen(() => import('./screens/Summary'), 'Summary'),
-  dugout: lazyScreen(() => import('./screens/Dugout'), 'Dugout'),
-  match: lazyScreen(() => import('./screens/MatchScreen'), 'MatchScreen'),
-  explore: lazyScreen(() => import('./screens/Explore'), 'Explore'),
-  profile: lazyScreen(() => import('./screens/ProfileScreen'), 'ProfileScreen'),
-  h2h: lazyScreen(() => import('./screens/H2H'), 'H2HScreen'),
+  setup: lazyScreen(withRules(() => import('./screens/Setup')), 'Setup'),
+  draft: lazyScreen(withRules(() => import('./screens/Draft')), 'Draft'),
+  kickOff: lazyScreen(withRules(() => import('./screens/KickOff')), 'KickOff'),
+  playback: lazyScreen(withRules(() => import('./screens/SeasonPlayback')), 'SeasonPlayback'),
+  summary: lazyScreen(withRules(() => import('./screens/Summary')), 'Summary'),
+  dugout: lazyScreen(withRules(() => import('./screens/Dugout')), 'Dugout'),
+  match: lazyScreen(withRules(() => import('./screens/MatchScreen')), 'MatchScreen'),
+  explore: lazyScreen(withRules(() => import('./screens/Explore')), 'Explore'),
+  profile: lazyScreen(withRules(() => import('./screens/ProfileScreen')), 'ProfileScreen'),
+  h2h: lazyScreen(withRules(() => import('./screens/H2H')), 'H2HScreen'),
   howTo: lazyScreen(() => import('./screens/HowTo'), 'HowTo'),
-  arenaSetup: lazyScreen(() => import('./screens/ArenaSetup'), 'ArenaSetup'),
-  arena: lazyScreen(() => import('./screens/Arena'), 'Arena'),
-  arenaSummary: lazyScreen(() => import('./screens/ArenaSummary'), 'ArenaSummary'),
-  arenaChallengeSetup: lazyScreen(() => import('./screens/ArenaChallengeSetup'), 'ArenaChallengeSetup'),
-  runInSetup: lazyScreen(() => import('./screens/RunInSetup'), 'RunInSetup'),
-  runInSummary: lazyScreen(() => import('./screens/RunInSummary'), 'RunInSummary'),
+  arenaSetup: lazyScreen(withRules(() => import('./screens/ArenaSetup')), 'ArenaSetup'),
+  arena: lazyScreen(withRules(() => import('./screens/Arena')), 'Arena'),
+  arenaSummary: lazyScreen(withRules(() => import('./screens/ArenaSummary')), 'ArenaSummary'),
+  arenaChallengeSetup: lazyScreen(withRules(() => import('./screens/ArenaChallengeSetup')), 'ArenaChallengeSetup'),
+  runInSetup: lazyScreen(withRules(() => import('./screens/RunInSetup')), 'RunInSetup'),
+  runInSummary: lazyScreen(withRules(() => import('./screens/RunInSummary')), 'RunInSummary'),
   privacy: lazyScreen(() => import('./screens/Privacy'), 'Privacy'),
-  world: lazyScreen(() => import('./online/WorldBoard'), 'WorldBoard'),
-  account: lazyScreen(() => import('./online/AccountPanel'), 'AccountScreen'),
-  room: lazyScreen(() => import('./online/Rooms'), 'RoomScreen'),
+  world: lazyScreen(withRules(() => import('./online/WorldBoard')), 'WorldBoard'),
+  account: lazyScreen(withRules(() => import('./online/AccountPanel')), 'AccountScreen'),
+  room: lazyScreen(withRules(() => import('./online/Rooms')), 'RoomScreen'),
 }
 const { setup: { Screen: Setup }, draft: { Screen: Draft }, kickOff: { Screen: KickOff }, playback: { Screen: SeasonPlayback }, summary: { Screen: Summary }, dugout: { Screen: Dugout }, match: { Screen: MatchScreen }, explore: { Screen: Explore }, profile: { Screen: ProfileScreen }, h2h: { Screen: H2HScreen }, howTo: { Screen: HowTo }, arenaSetup: { Screen: ArenaSetup }, arena: { Screen: Arena }, arenaSummary: { Screen: ArenaSummary }, arenaChallengeSetup: { Screen: ArenaChallengeSetup }, runInSetup: { Screen: RunInSetup }, runInSummary: { Screen: RunInSummary }, privacy: { Screen: Privacy }, world: { Screen: WorldBoard }, account: { Screen: AccountScreen }, room: { Screen: RoomScreen } } = SCREENS
 
@@ -261,7 +271,7 @@ export function App() {
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
     else body = game.arena ? <Arena /> : <Dugout />
-  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
+  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && rules().isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'room') body = <RoomScreen />
   else if (screen === 'explore') body = <Explore />
