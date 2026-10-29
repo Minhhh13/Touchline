@@ -58,9 +58,10 @@ export const history = catalog('history', {
   farewell: '<b>{name}</b> retires at {age}: {seasons, plural, one {# season} other {# seasons}}, {apps, plural, one {# appearance} other {# appearances}}, {goals, plural, one {# goal} other {# goals}}{titles, plural, =0 {} one {, a league title} other {, # league titles}}.',
   farewellCaptain: '<b>{name}</b>, the captain, retires at {age}: {seasons, plural, one {# season} other {# seasons}}, {apps, plural, one {# appearance} other {# appearances}}, {goals, plural, one {# goal} other {# goals}}{titles, plural, =0 {} one {, a league title} other {, # league titles}}. The armband needs a new owner.',
   summerBreakthroughs: 'Breakthroughs',
-  breakthrough: '<b>{name}</b>, {age}: {from} → {to}',
-  breakthroughJoined: '<b>{name}</b>, {age}: {from} → {to} (he joined at {joined})',
+  breakthrough: '<b>{name}</b>, {age}, is up from {from} to {to}.',
+  breakthroughJoined: '<b>{name}</b>, {age}, is up from {from} to {to}; he joined us at {joined}.',
   summerMilestones: 'Milestones',
   milestoneApps: '<b>{name}</b> passed {mark} appearances for the club',
   milestoneGoals: '<b>{name}</b> passed {mark} goals for the club',
+  milestonesMore: '{n, plural, one {And one more.} other {And # more.}}',
 })

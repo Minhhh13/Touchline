@@ -191,7 +191,8 @@ export function LegendsTable({ game, u, labels }: { game: Game; u: LoadedUnivers
             const avg = legendAverage(r)
             return (
               <tr key={r.playerId}>
-                <td>
+                {/* Positioned, so the screen-reader label stays inside the box that scrolls it (else it lengthens the page) */}
+                <td style={{ position: 'relative' }}>
                   <span className="row" style={{ gap: 4 }}>
                     {r.current ? <b>{r.name}</b> : r.name}
                     {r.current && <span className="sr-only">{t('legendCurrent')}</span>}
