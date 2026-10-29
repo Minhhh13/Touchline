@@ -333,13 +333,23 @@ describe('round 9: nothing before a gesture, every cue through its switch and it
   it('caps the Upgrader dial at one tick each 15 ms, as the reel is', async () => {
     const { synth, gesture } = await freshSynth()
     gesture()
+    // The page's clock held in hand: on a loaded machine three real calls can be more than 15 ms apart (r10)
+    let t = 1000
+    const now = vi.spyOn(performance, 'now').mockImplementation(() => t)
     const before = sources
     synth.playDialTick(1)
     const one = sources - before
     expect(one).toBeGreaterThan(0)
+    t += 5
     synth.playDialTick(1)
+    t += 9
     synth.playDialTick(1.1)
     expect(sources - before).toBe(one)
+    // The first tick past the gap sounds again
+    t += 1
+    synth.playDialTick(1)
+    expect(sources - before).toBe(2 * one)
+    now.mockRestore()
     expect(synth.DIAL_TICK_GAP_MS).toBe(15)
   })
 })
