@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { onlineConfigFrom } from '../config'
 import { AUTH_KEY } from '../localState'
 import { REQUEST_TIMEOUT_MS } from '../transport'
+import { ENGINE_VERSION } from '@engine/version'
 
 /**
  * The two places the online layer meets the browser's own objects (r11): the supabase-js client (`client.ts`, its
@@ -120,7 +121,7 @@ describe('the error reporter on the page', () => {
     win.dispatchEvent(Object.assign(new Event('error'), { error: new TypeError('Cannot read properties of undefined (reading "season")') }))
     await vi.advanceTimersByTimeAsync(30000)
     expect(posts).toHaveLength(1)
-    expect(posts[0].url).toBe(`${URL_}/functions/v1/touchline-e7?forceFunctionRegion=ap-southeast-2`)
+    expect(posts[0].url).toBe(`${URL_}/functions/v1/touchline-e${ENGINE_VERSION}?forceFunctionRegion=ap-southeast-2`)
     expect(posts[0].headers).toEqual({ 'content-type': 'application/json', apikey: KEY })
     expect(posts[0].body.op).toBe('errors.report')
     expect(posts[0].body.reports[0]).toMatchObject({ kind: 'error' })

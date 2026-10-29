@@ -220,9 +220,14 @@ export function rematchOf(view: Pick<RoomView, 'code' | 'managers'>, seat: 0 | 1
  * link pasted in (`https://touchline.quest/#h=K7Q2MX9A`, with or without the address, even inside the invite's text).
  */
 export function roomCodeFrom(input: string): string | null {
-  const link = /#h=([A-Za-z0-9]{8})(?![A-Za-z0-9])/.exec(input)
+  const link = /#h=([A-Za-z0-9]{4}-?[A-Za-z0-9]{4})(?![A-Za-z0-9])/i.exec(input)
   if (link) return normaliseCode(link[1])
-  return normaliseCode(input.trim())
+  const whole = normaliseCode(input.trim())
+  if (whole) return whole
+  // The invite's words without its link (a share sheet or a messaging app that passes the text alone): its code as it
+  // prints it, in capitals, "Room K7Q2-MX9A" or "same settings: K7Q2-MX9A" (a hyphenated word is not one; QA r11)
+  const printed = /(?<![A-Za-z0-9])([A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4})(?![A-Za-z0-9])/.exec(input)
+  return printed ? normaliseCode(printed[1]) : null
 }
 
 export interface RoomSessionDeps {
