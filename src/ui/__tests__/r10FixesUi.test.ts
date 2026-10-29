@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from '../i18n/en/app'
 
@@ -38,5 +38,18 @@ describe('R9-O1: the phone dock names each button starting with the word on scre
 
   it('the captions stay out of the desktop name: display: none outside the phone block', () => {
     expect(src('styles.css')).toMatch(/\.topbar nav \.nav-tiny \{\n {2}display: none;\n\}/)
+  })
+})
+
+describe('R9-O3: no component reads the whole store', () => {
+  function tsx(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === '__tests__' ? [] : tsx(join(dir, e.name))) : e.name.endsWith('.tsx') ? [join(dir, e.name)] : []))
+  }
+
+  it('every component under src/ui picks its keys (useStorePick or a selector), never a bare useStore()', () => {
+    const files = tsx(join(__dirname, '..'))
+    expect(files.length).toBeGreaterThan(100)
+    const bare = files.filter((f) => /useStore\(\)/.test(readFileSync(f, 'utf8'))).map((f) => f.slice(f.indexOf('src/ui')))
+    expect(bare).toEqual([])
   })
 })

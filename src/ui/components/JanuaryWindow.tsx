@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpCircle, Dices, ShoppingBag, SkipForward } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import type { Game, QuickJanuary } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason } from '@engine/types'
@@ -41,7 +41,7 @@ type Stage = 'halfway' | 'market' | 'spin' | 'upgrade'
  * fold sits under every step. Every draw and every check is the store's; this only shows them.
  */
 export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j: QuickJanuary }) {
-  const { closeJanuarySoon: closeJanuary, closingJanuary: busy, setTactics, setCaptain, warmKickOff } = useStore()
+  const { closeJanuarySoon: closeJanuary, closingJanuary: busy, setTactics, setCaptain, warmKickOff } = useStorePick('closeJanuarySoon', 'closingJanuary', 'setTactics', 'setCaptain', 'warmKickOff')
   // The second half is played in the quick-season worker: it loads the packs while the window is up
   useEffect(() => warmKickOff(), [warmKickOff])
   const gamble = januaryGambleOn(game)
@@ -141,7 +141,7 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
 
 /** The market: the budget and three to five deals, one of which can be done, or the XI kept after all. */
 function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
-  const { closeJanuarySoon: closeJanuary, closingJanuary: busy } = useStore()
+  const { closeJanuarySoon: closeJanuary, closingJanuary: busy } = useStorePick('closeJanuarySoon', 'closingJanuary')
   const [chosen, setChosen] = useState<number | null>(null)
   const get = playerLookup(game, u)
   // The deals are players from outside the squad: hidden in blind mode, as every offer is
@@ -197,7 +197,7 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
  * the slide; Quick spin (Profile) runs the short one; a reload after opening shows him landed.
  */
 function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
-  const { januarySpin, closeJanuarySpinSoon: closeJanuarySpin, closingJanuary: busy } = useStore()
+  const { januarySpin, closeJanuarySpinSoon: closeJanuarySpin, closingJanuary: busy } = useStorePick('januarySpin', 'closeJanuarySpinSoon', 'closingJanuary')
   const [quick] = usePref(quickSpinPref)
   const get = playerLookup(game, u)
   // The player the case lands on is still being chosen until he is brought in: hidden in blind mode, as any offer;
@@ -352,7 +352,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
 
 /** The January Upgrader: the Upgrader's stage on the XI; once the dial lands, the second half is played with the result. */
 function JanuaryUpgrade({ j, xi, hide, onBack }: { j: QuickJanuary; xi: PlayerSeason[]; hide: boolean; onBack: () => void }) {
-  const { januaryUpgrade, closeJanuarySoon: closeJanuary } = useStore()
+  const { januaryUpgrade, closeJanuarySoon: closeJanuary } = useStorePick('januaryUpgrade', 'closeJanuarySoon')
   const ratingOf = (id: string) => xi.find((p) => p.id === id)?.overall ?? 0
   return (
     <div className="jw-upgrade" data-testid="january-upgrade">
