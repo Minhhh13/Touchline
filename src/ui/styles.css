@@ -8698,6 +8698,22 @@ dl.kv {
   flex: 1;
   min-width: 0;
 }
+/* An online result's (or ended room's) way into the other manager's rematch, under the buttons */
+.room-join-rematch {
+  flex-basis: 100%;
+  width: 100%;
+  max-width: 440px;
+  margin: var(--space-3) auto 0;
+  text-align: left;
+}
+.room-join-rematch .row {
+  gap: var(--space-2);
+}
+.room-join-rematch .input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+}
 .room-share .btn {
   flex: none;
 }
@@ -8813,6 +8829,10 @@ dl.kv {
   }
   .room-turn-pill .mono {
     font-variant-numeric: tabular-nums;
+  }
+  /* A toast stands above the turn pill, not over it */
+  .app:has(.page.has-turn-pill) .toast {
+    bottom: calc(68px + var(--safe-bottom));
   }
 }
 /* Explore */
@@ -15779,6 +15799,9 @@ button.home-nudge.linklike:hover {
   }
   .room-turn-pill {
     bottom: calc(12px + var(--dock-h) + var(--dock-safe));
+  }
+  .app:has(.page.has-turn-pill) .toast {
+    bottom: calc(68px + var(--dock-h) + var(--dock-safe));
   }
 }
 @keyframes dock-bar-in {

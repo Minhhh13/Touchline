@@ -148,7 +148,19 @@ describe('Play with a friend, screen by screen against the fakes', () => {
       expect(r.problems).toEqual([])
       expect(r.html).toContain('data-testid="room-result"')
       expect(text(r.html)).toContain('Rematch')
+      // Each seat can also open the other's rematch from its code
+      expect(r.html).toContain('data-testid="room-rematch-code"')
+      expect(text(r.html)).toContain(`Did ${d === a ? 'Ben' : 'Ana'} make the rematch?`)
     }
+    // Ben's rematch: the waiting room says who it is for
+    const done = b.session.state!.view!
+    const again = await b.session.rematch(done, 1, ENGINE_VERSION, u.generatedAt)
+    expect(again.ok).toBe(true)
+    const rematch = screenOf(b.session.state)
+    expect(rematch.problems).toEqual([])
+    expect(rematch.html).toContain('data-testid="room-rematch-for"')
+    expect(text(rematch.html)).toContain('Rematch with Ana')
+    expect(text(rematch.html)).toContain('send Ana this new link')
   }, 180000)
 
   it('a friend who leaves mid-draft: the other seat is told who left and offered the same room again', async () => {
@@ -166,6 +178,7 @@ describe('Play with a friend, screen by screen against the fakes', () => {
     expect(ended.html).toContain('data-testid="room-ended"')
     expect(text(ended.html)).toContain('Ben left')
     expect(ended.html).toContain('data-testid="room-rematch"')
+    expect(ended.html).toContain('data-testid="room-join-rematch"')
   }, 60000)
 
   it('a code nobody holds, and a dropped connection before the room was read, each say what to do next', async () => {
