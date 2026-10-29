@@ -13626,6 +13626,66 @@ table.tbl.contracts-overview .link-btn.name {
     flex: 1 1 7rem;
   }
 }
+/* r10: under 1000 px the Modes row is one grid of cards, two to a row at 390 px: the seven modes and the four switches
+   (Power-ups, End case, Moneyball, Teammate chain) alike, each its icon, its whole name and one line saying what it does,
+   so no name breaks mid-word ("Underdo g") and every card explains itself without a tap. Larger text takes one column */
+@media (max-width: 999px) {
+  .setup-page .setup-modes-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+    gap: 6px;
+  }
+  .setup-page .setup-modes-row .qmode-row,
+  .setup-page .setup-modes-row .pu-setup {
+    display: contents;
+  }
+  /* The cards carry their own tip (tap or hover); the separate Info buttons would be grid cells of their own */
+  .setup-page .setup-modes-row .pu-setup .qinfo {
+    display: none;
+  }
+  .setup-page .setup-modes-row .qmode,
+  .setup-page .setup-modes-row .qmode.pu-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    row-gap: 0;
+    align-items: center;
+    justify-items: start;
+    text-align: left;
+    padding: 8px 10px;
+    min-width: 0;
+    min-height: 44px;
+    flex: none;
+  }
+  .setup-page .setup-modes-row .qmode .micon {
+    grid-row: 1 / span 2;
+    font-size: calc(var(--fs-h3) + 1px);
+  }
+  .setup-page .setup-modes-row .qmode .ctitle,
+  .setup-page .setup-modes-row .qmode.pu-card > .ctitle {
+    font-size: calc(var(--fs-base) + 1px);
+    line-height: 1.2;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+  .setup-page .setup-modes-row .qmode .cline,
+  .setup-page .setup-modes-row .qmode:not(.pu-card) .cline,
+  .setup-page .setup-modes-row .qmode.pu-card > .cline {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+    font-size: var(--fs-xs);
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: normal;
+  }
+}
 /* ------------------------------------------------------------------ recruitment: scouting, contract talks, the board, the data hub */
 .good-text {
   color: var(--good);
