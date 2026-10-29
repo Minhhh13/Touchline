@@ -21,7 +21,7 @@ import { pressable } from '../a11y'
 import { ClubView, CompareButton, CompareView, LeagueView, SearchView, ShortlistStar, WheelLine } from './ExploreViews'
 import { RecordsView } from './ExploreRecords'
 import { playerCard } from '../i18n/en/playerCard'
-import { warmExplore } from '@game/logic/exploreIndex'
+import { indexSoon, ratingsSoon } from '../useExploreIndex'
 
 type ExploreView = 'browse' | 'clubs' | 'league' | 'records' | 'legends' | 'search' | 'compare'
 
@@ -121,7 +121,12 @@ export function Explore() {
     if (!u || typeof window === 'undefined') return
     const idle = window.requestIdleCallback ?? ((fn: () => void) => window.setTimeout(fn, 300))
     const cancel = window.cancelIdleCallback ?? window.clearTimeout
-    const id = idle(() => warmExplore(u))
+    // The player index in slices (`indexSoon`), then the rating list the same way
+    const id = idle(() => {
+      void indexSoon(u).then((ok) => {
+        if (ok) void ratingsSoon(u)
+      })
+    })
     return () => cancel(id)
   }, [u])
   if (!u) return null
