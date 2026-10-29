@@ -1,5 +1,5 @@
 import { Share2, Trophy } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { nextToChase, unlockShareText, type TrophyItem } from '@game/logic/trophyChase'
 import { translator } from '../i18n'
 import { profile as profileText } from '../i18n/en/profile'
@@ -53,7 +53,7 @@ export function ChaseRow({ item }: { item: TrophyItem }) {
  * viewer says Got it or opens the Trophy Room. Nothing shows while nothing is new. Presentation only.
  */
 export function BadgeUnlocks() {
-  const { profile, universe, go, showToast } = useStore()
+  const { profile, universe, go, showToast } = useStorePick('profile', 'universe', 'go', 'showToast')
   const items = profileTrophyItems(profile, universe)
   const { fresh, markSeen } = useTrophyReveal(items)
   // The medal's ring, once, as the Trophy Room rings it (the same heard list)

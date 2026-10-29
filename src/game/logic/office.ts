@@ -64,7 +64,8 @@ export function setListed(game: Game, u: LoadedUniverse, id: string, on: boolean
   const s = game.squad[id]
   if (!p || !c || !s) return { ok: false, message: 'He is not in your squad.' }
   if (c.loan) return { ok: false, message: `${p.name} is on loan: he is not yours to sell.` }
-  const req = game.office?.requests?.[p.playerId]
+  // Only this season's request: one refused last season (a Dynasty) is not what he is asking now
+  const req = game.office?.requests?.[p.playerId]?.year === game.year ? game.office.requests[p.playerId] : undefined
   const week = weekOf(game)
   if (on) {
     if (c.listed) return { ok: false, message: `${p.name} is already listed.` }
