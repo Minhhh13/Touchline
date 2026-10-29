@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Handshake } from 'lucide-react'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { AGENT_MOOD_HELP, AGENT_MOOD_LABEL, agentView, evaluateOffer, openingOffer, talksClosedUntil, type ContractOffer, type Stance, type TermKey } from '@game/logic/contracts'
 import { playerLookup } from '@game/logic/players'
 import { STATUS_LABEL, STATUSES, type SquadStatus } from '@engine/status'
@@ -20,7 +21,7 @@ const MOOD_CHIP = { greedy: 'warn', fair: '', loyal: 'good' } as const
  * `src/game/logic/contracts.ts`; the screen only edits the offer and sends it.
  */
 export function ContractTalks({ id, onBack }: { id: string; onBack: () => void }) {
-  const store = useStore()
+  const store = useStorePick('game', 'proposeContract', 'universe')
   const { universe: u, game } = store
   const [offer, setOffer] = useState<ContractOffer | null>(() => (u && game ? openingOffer(game, u, id) : null))
   const [msg, setMsg] = useState<string | null>(null)
@@ -156,7 +157,7 @@ export function ContractTalks({ id, onBack }: { id: string; onBack: () => void }
 
 /** The player modal's Contract card: his terms, his agent, the talks and the agent's search for a buyer. */
 export function ContractCard({ id, onTalks }: { id: string; onTalks: () => void }) {
-  const store = useStore()
+  const store = useStorePick('game', 'setShopped', 'universe')
   const { universe: u, game } = store
   const [msg, setMsg] = useState<string | null>(null)
   if (!u || !game) return null

@@ -16,7 +16,7 @@ import { HoverTips } from '../components/PowerUpButton'
 import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
-import { fitGroups, fitsFirst } from '../draftFit'
+import { fitGroups, fitsFirst, slotLabelText } from '../draftFit'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
 import { SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
@@ -29,6 +29,7 @@ import { clubName, nationName, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
 import { useFinishDraft } from '../useArenaWarmup'
+import { useAfterPaint } from '../afterPaint'
 import { RUN_IN_SPINS } from '@game/logic/runin'
 import { finishDraftText, modeText } from '../i18n/modeText'
 import { translator } from '../i18n'
@@ -71,6 +72,8 @@ export function Draft() {
   const firstDraft = useStore((s) => resultsFinished(s.profile) === 0)
   // An arena run's first field pass is finished in slices with the busy state painted (useArenaWarmup.ts)
   const finishing = useFinishDraft(finishDraft)
+  // Auto-complete paints its busy state (and the closed question) before the assistant drafts the rest
+  const [autoBusy, runAuto] = useAfterPaint()
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -166,8 +169,17 @@ export function Draft() {
   const squadRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!revealed || typeof window === 'undefined' || !window.matchMedia?.('(max-width: 720px)').matches) return
-    squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    // The club's head at the top of the screen (under the top bar, `scroll-margin-top`), so the best players are in view;
+    // a frame later, so the focus moved to the club's name below (an instant scroll of its own) does not cut it short
+    const frame = requestAnimationFrame(() => squadRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' }))
+    return () => cancelAnimationFrame(frame)
   }, [revealed])
+  // "Where does he play?" sits above the squad list: a player tapped further down brings it into view, so the slot
+  // choice is never off screen (on a phone the page scrolls, on a desktop the squad box)
+  const slotChoicesRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (selectedPlayer) slotChoicesRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' })
+  }, [selectedPlayer])
   // The landing moves the focus to the club's name (the Spin button under it is disabled), so the squad is the next Tab
   const clubHeadRef = useRef<HTMLHeadingElement>(null)
   useFocusOnLanding(revealed, clubHeadRef)
@@ -180,6 +192,16 @@ export function Draft() {
   useFocusOnLanding(draftDone, finishRef)
 
   const allBoxes = useBoxes(DRAFT)
+  // The pick grades and the recap follow a beat behind (a deferred, interruptible render), so the tap that completes
+  // the draft (Auto-complete, the last pick) is not also the one that grades every spin and searches the Hindsight XI
+  const gradedDraft = useDeferredValue(d)
+  const settledDone = !!gradedDraft && isComplete(gradedDraft)
+  const settledGrades = !!gradedDraft && ratingShown(gradedDraft.rules, 'grades', { complete: settledDone })
+  const gradedNow = useMemo(() => (u && gradedDraft && settledGrades ? pickGrades(u, gradedDraft, get) : []), [u, gradedDraft, settledGrades, get])
+  const recapNow = useMemo(() => (u && gradedDraft && settledDone ? draftRecap(u, gradedDraft, get, settledGrades) : null), [u, gradedDraft, settledDone, settledGrades, get])
+  // Only ever this draft's: a new draft never shows the last one's grades while the deferred render catches up
+  const graded = gradedDraft === d ? gradedNow : []
+  const recap = gradedDraft === d ? recapNow : null
   if (!u || !game || !d) return null
   const current = spinClubSeason(u, d)
   const iconsSpin = isIcons(d.current)
@@ -199,7 +221,6 @@ export function Draft() {
   const surprise = d.surprise && d.surprise.atSpin === d.spins && !d.current ? d.surprise : null
   const complete = isComplete(d)
   // Pick grades once the squad is complete (nothing left to choose, so blind mode shows them too): each XI pick against the best on its spin
-  const graded = ratingShown(d.rules, 'grades', { complete }) ? pickGrades(u, d, get) : []
   const grades = new Map(graded.map((g) => [g.spin, g]))
   const slotPos = (id: string) => d.formation.slots.find((x) => x.id === id)?.position ?? id
   const top = bestPick(graded)
@@ -444,11 +465,11 @@ export function Draft() {
                   </button>
                 )}
                 <div className="row between wrap">
-                  <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
+                  <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()} title={t('respinTip', { n: d.respinsLeft })} data-testid="respin">
                     {t('respin', { n: d.respinsLeft })}
                   </button>
-                  <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
-                    {t('autoComplete')}
+                  <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning || autoBusy} aria-busy={autoBusy || undefined} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) runAuto(() => autoDraftRest()) })}>
+                    {t(autoBusy ? 'autoCompleting' : 'autoComplete')}
                   </button>
                 </div>
               </>
@@ -553,7 +574,7 @@ export function Draft() {
             />
           )}
           {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
-          {!current && !managerChoice.length && complete && <DraftRecap recap={draftRecap(u, d, get, ratingShown(d.rules, 'grades', { complete }))} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} />}
+          {!current && !managerChoice.length && complete && recap && <DraftRecap recap={recap} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} />}
           {!current && !managerChoice.length && !complete && (
             <div className="empty-state">
               <span className="empty-icon" aria-hidden="true">
@@ -624,7 +645,7 @@ export function Draft() {
               {!revealed && spinning && <div className="notice">{t('reelRunning')}</div>}
               {revealed && twist === 'blind' && <div className="notice">{t('blindPick')}</div>}
               {revealed && selected && (
-                <div className="notice slot-choices" data-testid="slot-choices">
+                <div className="notice slot-choices" data-testid="slot-choices" ref={slotChoicesRef}>
                   <div>
                     {rich(t('whereDoes', { name: selected.name }), B)}
                   </div>
@@ -633,8 +654,8 @@ export function Draft() {
                       // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
                       const r = slotRating(selected, c.position)
                       return (
-                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingText(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${fitText(c.fit)}` : `${slotRatingText(r, c.label)}, ${fitText(c.fit)}`}>
-                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {fitText(c.fit)}
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingText(r, slotLabelText(c.label), { attributes: true })} aria-label={hide ? `${slotLabelText(c.label)}, ${fitText(c.fit)}` : `${slotRatingText(r, slotLabelText(c.label))}, ${fitText(c.fit)}`}>
+                          <b>{slotLabelText(c.label)}</b> {hide ? '?' : r.inSlot} · {fitText(c.fit)}
                           {!hide && r.cost > 0 && (
                             <span className="slot-cost" data-testid="slot-cost">
                               {' '}{t('slotCost', { n: r.overall, cost: costText(r) })}

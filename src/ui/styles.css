@@ -125,9 +125,10 @@
   --pitch-disc: rgba(7, 16, 46, 0.86);
   --pitch-disc-empty: rgba(7, 16, 46, 0.5);
   --pitch-highlight: #5ee3fb;
-  --pitch-bad: #f87171;
-  /* The substitution board's fit glows on the grass: natural, can cover (out of position is --pitch-bad) */
-  --pitch-fit: #34d399;
+  /* On the grass (a flagged disc, the high xG trail, a held man out of position): 3:1 on both stripes (r10; #f87171 was 1.9:1) */
+  --pitch-bad: #ffb3b3;
+  /* The substitution board's fit glows on the grass: natural, can cover (out of position is --pitch-bad); 3:1 on both stripes (r10; #34d399 was 2.8:1) */
+  --pitch-fit: #6ee7b7;
   /* The match day's heat map on the grass: warm cells, and the hottest overlaid (gold stays for trophies and records) */
   --heat-warm: #f5c542;
   --heat-hot: #f87171;
@@ -855,8 +856,9 @@ pre.mono,
   .topbar .tl-lockup {
     --h: 32px;
   }
-  /* On a phone the nav's row is icons over a one-word caption (`.nav-tiny`, hidden from screen readers, which hear
-     the full label): five bare icons left a new player guessing */
+  /* On a phone the nav's row is icons over a one-word caption (`.nav-tiny`): five bare icons left a new player guessing.
+     A caption that is the full label is hidden from screen readers; one that differs (H2H, Explore, Guide) starts the
+     button's name, so voice control finds the word on screen (WCAG 2.5.3, r10) */
   .topbar nav button {
     padding: 5px 6px 4px;
     flex-direction: column;
@@ -4298,8 +4300,48 @@ table.tbl.contracts .btn.sm {
 .summer-review > :nth-child(n + 4) {
   animation-delay: calc(var(--dur-3) * 2.2);
 }
+/* Round 9: a win bumps once as it lands, the table move's arrow springs in after the line and a run of wins flares */
+.digest-results .chip.res-w {
+  animation: digest-deal var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--i, 0) * 40ms) backwards, digest-win var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--dur-3) + var(--i, 0) * 40ms);
+}
+@keyframes digest-win {
+  50% {
+    transform: scale(1.08);
+  }
+}
+.digest-move {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-left: 4px;
+  --mv: 8px;
+  animation: digest-pop var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 2) backwards;
+}
+.digest-move.up {
+  color: var(--good);
+}
+.digest-move.down {
+  color: var(--danger);
+  --mv: -8px;
+}
+.chip.digest-flare {
+  margin-left: 8px;
+  vertical-align: 1px;
+  color: color-mix(in srgb, var(--good) 72%, var(--text));
+  border-color: color-mix(in srgb, var(--good) 55%, var(--line));
+  background: color-mix(in srgb, var(--good) 14%, var(--panel-2));
+  animation: digest-pop var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 2.6) backwards;
+}
+@keyframes digest-pop {
+  from {
+    transform: translateY(var(--mv, 6px)) scale(0.4);
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .digest-results .chip,
+  .digest-results .chip.res-w,
+  .digest-move,
+  .chip.digest-flare,
   .digest > *,
   .summer-review > * {
     animation: none;
@@ -8698,6 +8740,22 @@ dl.kv {
   flex: 1;
   min-width: 0;
 }
+/* An online result's (or ended room's) way into the other manager's rematch, under the buttons */
+.room-join-rematch {
+  flex-basis: 100%;
+  width: 100%;
+  max-width: 440px;
+  margin: var(--space-3) auto 0;
+  text-align: left;
+}
+.room-join-rematch .row {
+  gap: var(--space-2);
+}
+.room-join-rematch .input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+}
 .room-share .btn {
   flex: none;
 }
@@ -8813,6 +8871,10 @@ dl.kv {
   }
   .room-turn-pill .mono {
     font-variant-numeric: tabular-nums;
+  }
+  /* A toast stands above the turn pill, not over it */
+  .app:has(.page.has-turn-pill) .toast {
+    bottom: calc(68px + var(--safe-bottom));
   }
 }
 /* Explore */
@@ -13564,6 +13626,66 @@ table.tbl.contracts-overview .link-btn.name {
     flex: 1 1 7rem;
   }
 }
+/* r10: under 1000 px the Modes row is one grid of cards, two to a row at 390 px: the seven modes and the four switches
+   (Power-ups, End case, Moneyball, Teammate chain) alike, each its icon, its whole name and one line saying what it does,
+   so no name breaks mid-word ("Underdo g") and every card explains itself without a tap. Larger text takes one column */
+@media (max-width: 999px) {
+  .setup-page .setup-modes-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+    gap: 6px;
+  }
+  .setup-page .setup-modes-row .qmode-row,
+  .setup-page .setup-modes-row .pu-setup {
+    display: contents;
+  }
+  /* The cards carry their own tip (tap or hover); the separate Info buttons would be grid cells of their own */
+  .setup-page .setup-modes-row .pu-setup .qinfo {
+    display: none;
+  }
+  .setup-page .setup-modes-row .qmode,
+  .setup-page .setup-modes-row .qmode.pu-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    row-gap: 0;
+    align-items: center;
+    justify-items: start;
+    text-align: left;
+    padding: 8px 10px;
+    min-width: 0;
+    min-height: 44px;
+    flex: none;
+  }
+  .setup-page .setup-modes-row .qmode .micon {
+    grid-row: 1 / span 2;
+    font-size: calc(var(--fs-h3) + 1px);
+  }
+  .setup-page .setup-modes-row .qmode .ctitle,
+  .setup-page .setup-modes-row .qmode.pu-card > .ctitle {
+    font-size: calc(var(--fs-base) + 1px);
+    line-height: 1.2;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+  .setup-page .setup-modes-row .qmode .cline,
+  .setup-page .setup-modes-row .qmode:not(.pu-card) .cline,
+  .setup-page .setup-modes-row .qmode.pu-card > .cline {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+    font-size: var(--fs-xs);
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: normal;
+  }
+}
 /* ------------------------------------------------------------------ recruitment: scouting, contract talks, the board, the data hub */
 .good-text {
   color: var(--good);
@@ -13814,6 +13936,12 @@ table.tbl.hub td.name {
   min-width: 0;
   border-bottom: 0;
   margin-bottom: 0;
+}
+/* The keyboard's Info beside the tabs only where there is a keyboard to speak of (r10) */
+@media (max-width: 720px), (pointer: coarse) {
+  .tabs-row .dugout-keys {
+    display: none;
+  }
 }
 /* On a phone the control beside the tabs is its icon (the word stays for screen readers), so the tab strip keeps the
    room: "Tactics" ran under "Boxes" at 390 px */
@@ -15239,6 +15367,20 @@ table.tbl td.strong {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   }
 }
+/* Explore's search lists up to 200 rows: those out of view skip layout and paint until scrolled to (r10 perf) */
+.explore-search .plist > .prow-shell {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
+}
+/* The containment clips what a row draws outside itself: the row's focus ring goes inside */
+.explore-search .plist > .prow-shell > .prow:focus-visible {
+  outline-offset: -2px;
+}
+@media (max-width: 720px) {
+  .explore-search .plist > .prow-shell {
+    contain-intrinsic-size: auto 125px;
+  }
+}
 @media (max-width: 720px) {
   .filter-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -15779,6 +15921,9 @@ button.home-nudge.linklike:hover {
   }
   .room-turn-pill {
     bottom: calc(12px + var(--dock-h) + var(--dock-safe));
+  }
+  .app:has(.page.has-turn-pill) .toast {
+    bottom: calc(68px + var(--dock-h) + var(--dock-safe));
   }
 }
 @keyframes dock-bar-in {

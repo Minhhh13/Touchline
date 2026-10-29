@@ -1,6 +1,6 @@
 import type { PlayerSeason, Position } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { byRating, foldName, playerIndex } from './exploreIndex'
+import { byRating, nameMatchesOf, nameStarts, queryWords } from './exploreIndex'
 
 /**
  * Explore's database search and its Highest rated list (display only, pure, no RNG): one row per real player,
@@ -29,17 +29,15 @@ export const SEARCH_LIMIT = 100
 
 /** Every player whose name holds each word of the query, best match first: a word that starts his name, then peak rating. */
 export function searchPlayers(u: LoadedUniverse, query: string, opts: { position?: Position; limit?: number } = {}): PlayerHit[] {
-  const words = foldName(query).trim().split(/\s+/).filter(Boolean)
+  const words = queryWords(query)
   if (!words.length || words.join('').length < 2) return []
   const hits: Array<PlayerHit & { rank: number }> = []
-  // The cached index, not a fresh pass over every player-season on each keystroke
-  for (const e of playerIndex(u)) {
-    if (!e.folded.some((n) => words.every((w) => n.includes(w)))) continue
-    const best = e.seasons.reduce((m, p) => (p.overall > m.overall ? p : m), e.seasons[0])
+  // The cached index narrowed by the name (from the last query when this one narrows it), not a pass over every player
+  for (const e of nameMatchesOf(u, words)) {
+    const best = e.best
     if (opts.position && best.positions[0] !== opts.position) continue
     // A word that starts a part of his name ranks first ("Kane" finds Harry Kane before Kanté)
-    const starts = e.parts.some((parts) => words.every((w) => parts.some((part) => part.startsWith(w))))
-    hits.push({ playerId: e.playerId, name: e.name, best, latest: e.seasons[e.seasons.length - 1], seasons: e.seasonCount, from: e.from, to: e.to, clubs: [...e.clubs], rank: starts ? 0 : 1 })
+    hits.push({ playerId: e.playerId, name: e.name, best, latest: e.seasons[e.seasons.length - 1], seasons: e.seasonCount, from: e.from, to: e.to, clubs: [...e.clubs], rank: nameStarts(e, words) ? 0 : 1 })
   }
   hits.sort((a, b) => a.rank - b.rank || b.best.overall - a.best.overall || a.name.localeCompare(b.name) || a.playerId.localeCompare(b.playerId))
   return hits.slice(0, opts.limit ?? SEARCH_LIMIT).map(({ rank: _rank, ...hit }) => hit)

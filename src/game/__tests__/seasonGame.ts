@@ -24,8 +24,8 @@ export function seasonSettings(seed: string, partial: Partial<GameSettings> = {}
 }
 
 /** A drafted season game in pre-season, then `simmed` matchweeks played through by the assistant. */
-export function seasonGame(u: LoadedUniverse, seed: string, simmed = 0): Game {
-  const g = createGame(seasonSettings(seed))
+export function seasonGame(u: LoadedUniverse, seed: string, simmed = 0, settings?: GameSettings): Game {
+  const g = createGame(settings ?? seasonSettings(seed))
   const rng = Rng.fromState(g.rngState)
   autoDraft(u, g.draft!, rng)
   g.rngState = rng.getState()

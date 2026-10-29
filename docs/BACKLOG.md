@@ -102,7 +102,7 @@ The owner's other two answers stood as they were: Home's waiting games stay mode
 | 9 | Old Dynasty saves keep ",NN" in their aged copies (the playback's chip and names were done on `r6-ui`) | Polish | Low | S | Low | As in round 4's list |
 | 10 | The week's own task after Kick off (220 to 330 ms at 4x: `produce` over `playMatchweekAs`); playing the AI fixtures a task each needs `week.ts`'s matchweek in steps, with a seeded test that the game equals `playWeek`'s | Perf | Low | M | Medium | Found on `r6-ui`; `week.ts` is not in the verifier bundle |
 | 11 | The match screen's mount (about 300 ms at 4x: React's render of the dashboard and its first layout, the phone's `CompactLayout` measure forcing it): mount the panels a frame later | Perf | Low | M | Low | PERFORMANCE.md "Next" #2 |
-| 12 | The arena hub's two inline px headings (`Arena.tsx`) onto the tokens | Polish | Low | S | Low | For the agent that owns `Arena.tsx`; `cssGuards.test.ts` lists them |
+| 12 | The arena hub's two inline px headings (`Arena.tsx`) onto the tokens | Polish | Low | S | Low | Done: none left; `cssGuards.test.ts` exempts no file since r10 |
 
 ## Owned by other agents (do not take)
 

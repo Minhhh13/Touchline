@@ -7,8 +7,25 @@ import type { LoadedUniverse } from '@engine/universe'
  * universe whenever a league or the classic pack loads, which drops these with it.
  */
 
+/**
+ * `a.localeCompare(b)`, as a collator made once: the same order (both are the default locale's collation with the
+ * default options), without the per-call set-up that made the index's sorts most of its build on a phone.
+ */
+const collate = new Intl.Collator().compare
+
+/** Folded names, kept across universes (every league load builds a new one with mostly the same names). */
+const folds = new Map<string, string>()
+
 /** Lower case with the accents dropped: "Guéhi" and "guehi" match, "Ødegaard" reads "odegaard". */
 export function foldName(s: string): string {
+  const hit = folds.get(s)
+  if (hit !== undefined) return hit
+  const out = foldRaw(s)
+  folds.set(s, out)
+  return out
+}
+
+function foldRaw(s: string): string {
   return s
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -33,6 +50,8 @@ export interface PlayerEntry {
   seasonCount: number
   /** Every club he played for, in the order he first did. */
   clubs: string[]
+  /** His highest-rated season, the earliest of equals. */
+  best: PlayerSeason
 }
 
 interface Built {
@@ -42,23 +61,64 @@ interface Built {
 
 const indexCache = new WeakMap<LoadedUniverse, Built>()
 
+/**
+ * The last index built, with each entry's player-seasons in the order they were grouped. A league load merges the
+ * same player-season objects into a new universe, so a player whose seasons are the very same objects in the same
+ * order gets his entry back as it was (an entry is a function of that list alone).
+ */
+let lastBuilt: Map<string, { raw: PlayerSeason[]; entry: PlayerEntry }> | null = null
+
+const sameList = (a: PlayerSeason[], b: PlayerSeason[]) => a.length === b.length && a.every((p, i) => p === b[i])
+
 function built(u: LoadedUniverse): Built {
   const hit = indexCache.get(u)
   if (hit) return hit
+  const steps = buildIndexSteps(u, lastBuilt)
+  let r = steps.next()
+  while (!r.done) r = steps.next()
+  return keep(u, r.value)
+}
+
+/** Keep a finished build for `u` (a build already kept for it wins: both are the same index). */
+function keep(u: LoadedUniverse, out: { built: Built; kept: NonNullable<typeof lastBuilt> }): Built {
+  const hit = indexCache.get(u)
+  if (hit) return hit
+  lastBuilt = out.kept
+  indexCache.set(u, out.built)
+  return out.built
+}
+
+/** Player-seasons or entries handled between two pauses of a stepped build. */
+const STEP = 2500
+
+/** The build, pausing (a bare `yield`) every `STEP` items, so a screen can spread it over several tasks. */
+function* buildIndexSteps(u: LoadedUniverse, prev: typeof lastBuilt): Generator<void, { built: Built; kept: NonNullable<typeof lastBuilt> }, void> {
   const by = new Map<string, PlayerSeason[]>()
-  for (const p of Object.values(u.index)) {
+  let n = 0
+  // A key walk, not `Object.values`: the same order, without a copy of 78,000 entries
+  for (const id in u.index) {
+    const p = u.index[id]
     const list = by.get(p.playerId)
     if (list) list.push(p)
     else by.set(p.playerId, [p])
+    if (++n % STEP === 0) yield
   }
   const list: PlayerEntry[] = []
+  const kept = new Map<string, { raw: PlayerSeason[]; entry: PlayerEntry }>()
   for (const [playerId, raw] of by) {
-    const seasons = [...raw].sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId))
+    if (++n % STEP === 0) yield
+    const before = prev?.get(playerId)
+    if (before && sameList(before.raw, raw)) {
+      list.push(before.entry)
+      kept.set(playerId, before)
+      continue
+    }
+    const seasons = [...raw].sort((a, b) => a.season - b.season || collate(a.clubId, b.clubId))
     const names = [...new Set(seasons.map((p) => p.name))]
     const folded = names.map(foldName)
     const clubs: string[] = []
     for (const p of seasons) if (!clubs.includes(p.clubId)) clubs.push(p.clubId)
-    list.push({
+    const entry: PlayerEntry = {
       playerId,
       seasons,
       name: names.reduce((m, n) => (n.length > m.length ? n : m), names[0]),
@@ -68,12 +128,45 @@ function built(u: LoadedUniverse): Built {
       to: seasons[seasons.length - 1].season,
       seasonCount: new Set(seasons.map((p) => p.season)).size,
       clubs,
-    })
+      best: seasons.reduce((m, p) => (p.overall > m.overall ? p : m), seasons[0]),
+    }
+    list.push(entry)
+    kept.set(playerId, { raw, entry })
   }
-  list.sort((a, b) => a.playerId.localeCompare(b.playerId))
-  const out = { list, byId: new Map(list.map((e) => [e.playerId, e])) }
-  indexCache.set(u, out)
-  return out
+  yield
+  list.sort((a, b) => collate(a.playerId, b.playerId))
+  yield
+  const byId = new Map<string, PlayerEntry>()
+  for (const e of list) {
+    byId.set(e.playerId, e)
+    if (++n % STEP === 0) yield
+  }
+  return { built: { list, byId }, kept }
+}
+
+/**
+ * Whether `u`'s player index is built: a screen that would build it during a render (search, compare, the records)
+ * first steps `exploreIndexSteps` over a few tasks while this is false.
+ */
+export function exploreIndexed(u: LoadedUniverse): boolean {
+  return indexCache.has(u)
+}
+
+/**
+ * `u`'s player index built a step at a time: the same index `playerIndex` builds in one go (kept for `u` when the
+ * last step returns). Nothing to step when it is already built.
+ */
+export function* exploreIndexSteps(u: LoadedUniverse): Generator<void, void, void> {
+  if (indexCache.has(u)) return
+  keep(u, yield* buildIndexSteps(u, lastBuilt))
+}
+
+/** The index built from nothing, nothing kept or cached (tests: what `playerIndex` must equal, kept entries or not). */
+export function freshPlayerIndex(u: LoadedUniverse): PlayerEntry[] {
+  const steps = buildIndexSteps(u, null)
+  let r = steps.next()
+  while (!r.done) r = steps.next()
+  return r.value.built.list
 }
 
 /** One entry per real player, by player id; built once per universe. */
@@ -92,13 +185,151 @@ const ratedCache = new WeakMap<LoadedUniverse, PlayerSeason[]>()
 export function byRating(u: LoadedUniverse): PlayerSeason[] {
   const hit = ratedCache.get(u)
   if (hit) return hit
-  const all = Object.values(u.index).sort((a, b) => b.overall - a.overall || a.season - b.season || a.id.localeCompare(b.id))
-  ratedCache.set(u, all)
-  return all
+  const steps = ratingSteps(u)
+  let r = steps.next()
+  while (!r.done) r = steps.next()
+  return ratedCache.get(u)!
+}
+
+/**
+ * The rating list in steps: the player-seasons bucketed by rating and season (the comparator's first two keys), each
+ * bucket sorted by id, the buckets in order: the very order one sort with the whole comparator gives (ids are
+ * unique), with a fraction of the id comparisons. Kept for `u` when it ends.
+ */
+function* ratingSteps(u: LoadedUniverse): Generator<void, void, void> {
+  const buckets = new Map<string, PlayerSeason[]>()
+  let n = 0
+  for (const id in u.index) {
+    const p = u.index[id]
+    const key = `${p.overall}|${p.season}`
+    const b = buckets.get(key)
+    if (b) b.push(p)
+    else buckets.set(key, [p])
+    if (++n % STEP === 0) yield
+  }
+  // Best rating first, then the earlier season (every bucket holds one of each)
+  const ordered = [...buckets.values()].sort((a, b) => b[0].overall - a[0].overall || a[0].season - b[0].season)
+  const all: PlayerSeason[] = []
+  for (const b of ordered) {
+    b.sort((x, y) => collate(x.id, y.id))
+    for (const p of b) all.push(p)
+    n += b.length
+    if (n >= STEP) {
+      n = 0
+      yield
+    }
+  }
+  if (!ratedCache.has(u)) ratedCache.set(u, all)
+}
+
+/** `u`'s rating list built a step at a time (`byRating`'s list); nothing to step when it is built. */
+export function* exploreRatingSteps(u: LoadedUniverse): Generator<void, void, void> {
+  if (!ratedCache.has(u)) yield* ratingSteps(u)
+}
+
+/** A typed query as Explore matches it: folded, split on spaces, empty words dropped. */
+export function queryWords(query: string): string[] {
+  return foldName(query).trim().split(/\s+/).filter(Boolean)
+}
+
+/** Whether one of his spellings holds every word. */
+export function nameMatches(e: PlayerEntry, words: string[]): boolean {
+  return e.folded.some((n) => words.every((w) => n.includes(w)))
+}
+
+/** Whether every word starts a part of one of his spellings ("Kane" starts Harry Kane, not Kanté). */
+export function nameStarts(e: PlayerEntry, words: string[]): boolean {
+  return e.parts.some((parts) => words.every((w) => parts.some((part) => part.startsWith(w))))
+}
+
+interface NameText {
+  /** Every player's folded spellings, in index order, each ended by a line break (never inside a word). */
+  text: string
+  /** Where each player's spellings start in `text`. */
+  starts: Int32Array
+}
+
+const textCache = new WeakMap<LoadedUniverse, NameText>()
+
+function nameText(u: LoadedUniverse): NameText {
+  const hit = textCache.get(u)
+  if (hit) return hit
+  const list = playerIndex(u)
+  const starts = new Int32Array(list.length)
+  const chunks: string[] = []
+  let at = 0
+  list.forEach((e, i) => {
+    starts[i] = at
+    for (const n of e.folded) {
+      chunks.push(n, '\n')
+      at += n.length + 1
+    }
+  })
+  const out = { text: chunks.join(''), starts }
+  textCache.set(u, out)
+  return out
+}
+
+/** Every player one of whose spellings holds `word` (a word has no spaces, so no match spans two names), in index order. */
+function holding(u: LoadedUniverse, word: string): PlayerEntry[] {
+  const list = playerIndex(u)
+  const { text, starts } = nameText(u)
+  const out: PlayerEntry[] = []
+  let last = -1
+  for (let at = text.indexOf(word); at >= 0; at = text.indexOf(word, at + 1)) {
+    // The player whose block holds this offset: the last start at or before it
+    let lo = last < 0 ? 0 : last
+    let hi = starts.length - 1
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1
+      if (starts[mid] <= at) lo = mid
+      else hi = mid - 1
+    }
+    if (lo !== last) {
+      out.push(list[lo])
+      last = lo
+    }
+  }
+  return out
+}
+
+/** How many earlier queries each universe keeps: typing one name, and the compare box beside the search. */
+const MATCH_KEEP = 8
+
+const matchCache = new WeakMap<LoadedUniverse, Array<{ words: string[]; entries: PlayerEntry[] }>>()
+
+/**
+ * Every player whose name holds each word, in index order: the same list a pass over the whole index gives, but a
+ * query that narrows an earlier one ("haa" after "ha": each earlier word inside one of the new ones) filters that
+ * earlier answer instead, so a keystroke reads a few hundred names rather than 21,000.
+ */
+export function nameMatchesOf(u: LoadedUniverse, words: string[]): PlayerEntry[] {
+  if (!words.length) return playerIndex(u)
+  let kept = matchCache.get(u)
+  if (!kept) {
+    kept = []
+    matchCache.set(u, kept)
+  }
+  const key = words.join(' ')
+  const same = kept.findIndex((k) => k.words.join(' ') === key)
+  if (same >= 0) {
+    const [hit] = kept.splice(same, 1)
+    kept.unshift(hit)
+    return hit.entries
+  }
+  // Any earlier query whose every word lies inside a new word admits a superset: the smallest one is the base;
+  // without one, the players whose names hold the longest word, found by the engine's own string search
+  let base: PlayerEntry[] | null = null
+  for (const k of kept) if ((!base || k.entries.length < base.length) && k.words.every((w) => words.some((n) => n.includes(w)))) base = k.entries
+  const entries = (base ?? holding(u, words.reduce((m, w) => (w.length > m.length ? w : m), words[0]))).filter((e) => nameMatches(e, words))
+  kept.unshift({ words, entries })
+  if (kept.length > MATCH_KEEP) kept.length = MATCH_KEEP
+  return entries
 }
 
 /** Builds the indexes ahead of need (Explore calls it in an idle moment); a second call per universe is free. */
 export function warmExplore(u: LoadedUniverse): void {
   playerIndex(u)
+  nameText(u)
   byRating(u)
 }

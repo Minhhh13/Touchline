@@ -249,7 +249,7 @@ describe('the briefing’s fixed words', () => {
       }
     }
     expect(seen).toBeGreaterThan(5)
-    for (const label of ['Auto-pick', 'Choose', 'Club', 'Contracts', 'Decide', 'Market', 'Medical', 'Play friendly', 'Squad', 'Tactics', 'View']) expect(briefingActionText(label)).toBe(label)
+    for (const label of ['Auto-pick', 'Choose', 'Club', 'Contracts', 'Decide', 'Market', 'Medical', 'Office', 'Play friendly', 'Squad', 'Tactics', 'View']) expect(briefingActionText(label)).toBe(label)
     expect(briefingLineText({ id: 'renewals', text: 'Contracts: 3 out' })).toBe('Contracts: 3 out')
     expect(briefingLineText({ id: 'captain', text: 'Captain: H. Kane' })).toBe('Captain: H. Kane')
   })

@@ -1720,6 +1720,33 @@
 .cup-night-line.live {
   color: var(--accent);
 }
+/* Round 9: the user's tie in play beats like a heart, faster in the final (transform only; still under reduced motion) */
+.cup-night-line.live svg {
+  animation: cup-live-beat calc(var(--dur-4) * 2.5) var(--ease-in-out) infinite;
+}
+.cup-night-line.final svg {
+  animation-duration: calc(var(--dur-4) * 1.5);
+}
+@keyframes cup-live-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.3);
+  }
+  40% {
+    transform: scale(1);
+  }
+  55% {
+    transform: scale(1.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cup-night-line.live svg {
+    animation: none;
+  }
+}
 .cup-night-body {
   position: relative;
   flex: 1;

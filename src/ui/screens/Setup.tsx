@@ -8,6 +8,7 @@ import { gateText, LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
 import { DAILY_RULES, dailyLoaded, dailyPlan, defaultHostClub, setupRules, startFormation, summariseSetup } from '@game/logic/setup'
 import { rememberTeamName, useTeamName } from '../teamName'
+import { defaultChoices, isDefault, loadChoices, rememberedModes, saveChoices, type SetupChoices } from '../setupMemory'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { wheelHasRoom } from '@game/logic/wheelCheck'
@@ -44,7 +45,7 @@ import { weeklyRecord } from '@game/logic/weeklyRecord'
 import { WeeklyRecordBox } from '../components/WeeklyRecordBox'
 import { CapControl } from '../components/CapControl'
 import { ChainToggle } from '../components/ChainControl'
-import { CAP_NARROW_NOTE, CAP_PRESETS, DEFAULT_CAP_CHOICE, capBudget, capTotal, withCap, type CapChoice } from '@game/logic/cap'
+import { CAP_NARROW_NOTE, CAP_PRESETS, capBudget, capTotal, withCap, type CapChoice } from '@game/logic/cap'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
@@ -106,54 +107,56 @@ export function Setup() {
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
   // Today's pinned ranked Daily, when the online layer has read it (the local mapping otherwise)
   const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
-  const [leagueId, setLeagueId] = useState('england')
-  const [europe, setEurope] = useState(false)
+  // This viewer's last choices for the mode (setupMemory.ts), so a returning player starts in two taps; a challenge link starts plain
+  const [initial] = useState<SetupChoices>(() => (rememberedModes(mode) && !pendingChallenge ? loadChoices(mode) : null) ?? defaultChoices(mode))
+  const [leagueId, setLeagueId] = useState(initial.leagueId)
+  const [europe, setEurope] = useState(initial.europe)
   // An invented club name, or the one this viewer last typed (teamName.ts); the game logic's fallback stays Touchline XI
   const team = useTeamName()
-  const [formationId, setFormationId] = useState('4-3-3')
+  const [formationId, setFormationId] = useState(initial.formationId)
   // The 38-0 options, each defaulting to the mode's base rules
-  const [draftDifficulty, setDraftDifficulty] = useState<DraftDifficulty>(modeBase.difficulty ?? 'normal')
-  const [showRatings, setShowRatings] = useState(true)
-  const [draftMode, setDraftMode] = useState<DraftMode>('squad')
-  const [ratingsMode, setRatingsMode] = useState<RatingsMode>('prime')
-  const [eraPreset, setEraPreset] = useState<EraPreset>('all')
-  const [customEra, setCustomEra] = useState<[number, number] | null>(null)
+  const [draftDifficulty, setDraftDifficulty] = useState<DraftDifficulty>(initial.difficulty ?? modeBase.difficulty ?? 'normal')
+  const [showRatings, setShowRatings] = useState(initial.showRatings)
+  const [draftMode, setDraftMode] = useState<DraftMode>(initial.draftMode)
+  const [ratingsMode, setRatingsMode] = useState<RatingsMode>(initial.ratingsMode)
+  const [eraPreset, setEraPreset] = useState<EraPreset>(initial.eraPreset)
+  const [customEra, setCustomEra] = useState<[number, number] | null>(initial.customEra)
   // Classic seasons (1992-93 to 2007-08, estimated ratings): off unless asked for, never on the Daily
-  const [classicOn, setClassicOn] = useState(false)
+  const [classicOn, setClassicOn] = useState(initial.classicOn)
   // Quick Draft: the Super League (the 19 greatest club-seasons) in place of a real league season; its wheel spans every league
-  const [superOn, setSuperOn] = useState(false)
+  const [superOn, setSuperOn] = useState(initial.superOn)
   const [onlyClub, setOnlyClub] = useState('')
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
-  const [benchPicks, setBenchPicks] = useState(1)
+  const [benchPicks, setBenchPicks] = useState(initial.benchPicks)
   // Quick Draft modes (Crazy, Underdog, Legends, Speedrun); the Hard card is the difficulty above
-  const [modes, setModes] = useState<Array<QuickMode | 'upgrader'>>([])
+  const [modes, setModes] = useState<Array<QuickMode | 'upgrader'>>(initial.modes)
   // Quick Draft power-ups: the tray of six one-use power-ups on the draft screen
-  const [powerUps, setPowerUps] = useState(false)
+  const [powerUps, setPowerUps] = useState(initial.powerUps)
   // Quick Draft: a manager after the draft, spun from three reels unless switched to a pick or off
-  const [managerChoice, setManagerChoice] = useState<'spin' | 'pick' | 'off'>('spin')
+  const [managerChoice, setManagerChoice] = useState<'spin' | 'pick' | 'off'>(initial.managerChoice)
   const managers = managerChoice !== 'off'
   // Quick Draft: the end-of-draft case (a power-up for the locker, or a rare Icon), on unless switched off
-  const [endCase, setEndCase] = useState(true)
+  const [endCase, setEndCase] = useState(initial.endCase)
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
-  const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
+  const [twistsChoice, setTwistsChoice] = useState<boolean | null>(initial.twistsChoice)
   // The casual rules: Moneyball's salary cap and the Teammate Chain (Quick Draft, Season and Dynasty)
-  const [cap, setCap] = useState<CapChoice>(DEFAULT_CAP_CHOICE)
-  const [chain, setChain] = useState(false)
+  const [cap, setCap] = useState<CapChoice>(initial.cap)
+  const [chain, setChain] = useState(initial.chain)
   const [leagueSeason, setLeagueSeason] = useState(() => {
     if (!u) return 2025
     const complete = u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)
     return Math.max(...complete)
   })
   const [hostClubId, setHostClubId] = useState('')
-  const [jobSecurity, setJobSecurity] = useState(true)
-  const [playerPower, setPlayerPower] = useState(false)
-  const [continental, setContinental] = useState(false)
+  const [jobSecurity, setJobSecurity] = useState(initial.jobSecurity)
+  const [playerPower, setPlayerPower] = useState(initial.playerPower)
+  const [continental, setContinental] = useState(initial.continental)
   // Quick Draft: the season stops at the halfway mark for a January window unless switched off
-  const [january, setJanuary] = useState(true)
-  const [opposition, setOpposition] = useState<'calibrated' | 'realistic'>('calibrated')
+  const [january, setJanuary] = useState(initial.january)
+  const [opposition, setOpposition] = useState<'calibrated' | 'realistic'>(initial.opposition)
   const [seed, setSeed] = useState(() => randomSeed())
-  const [squadSize, setSquadSize] = useState(18)
+  const [squadSize, setSquadSize] = useState(initial.squadSize)
   const [advanced, setAdvanced] = useState(readAdvanced)
   const moreRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLSelectElement>(null)
@@ -182,6 +185,22 @@ export function Setup() {
       void ensureLeagues([...new Set([plan.leagueId, ...plan.wheelLeagues, ...(pinLeague ? [pinLeague] : [])])])
     }
   }, [u, isDaily, pinLeague, ensureLeagues])
+  // Remembered choices that need more than the default pack: their leagues and the classic pack load on arrival, and a
+  // league no longer offered (or a classic pack that cannot load) falls back to the default
+  useEffect(() => {
+    if (!u || isDefault(initial, mode)) return
+    if (!u.available.some((l) => l.id === initial.leagueId)) setLeagueId('england')
+    const all = initial.europe || (initial.superOn && mode === 'quick') || (initial.continental && mode !== 'quick')
+    void ensureLeagues(all ? u.available.map((l) => l.id) : [initial.leagueId])
+    if (initial.classicOn)
+      void ensureClassic().then((ok) => {
+        if (ok) return
+        setClassicOn(false)
+        setEraPreset('all')
+        setCustomEra(null)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!u])
 
   const superLeague = superOn && mode === 'quick'
   const wheelLeagues = useMemo(() => ((europe || superLeague) && u ? u.available.map((l) => l.id) : [leagueId]), [europe, superLeague, leagueId, u])
@@ -233,6 +252,42 @@ export function Setup() {
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : defaultHost
   const hostRow = u?.tables[leagueId]?.[effectiveSeason]?.find((r) => r.clubId === host)
 
+  // Everything Start would remember (setupMemory.ts), and whether it is the screen's defaults (Reset shows only when not)
+  const choices: SetupChoices = { formationId, leagueId, superOn, europe, difficulty: draftDifficulty, showRatings, draftMode, ratingsMode, eraPreset, customEra, classicOn, benchPicks, modes, powerUps, managerChoice, endCase, twistsChoice, cap, chain, january, opposition, squadSize, jobSecurity, playerPower, continental }
+  const remembers = rememberedModes(mode) && !pendingChallenge
+  const changed = remembers && !isDefault(choices, mode)
+  const resetChoices = () => {
+    const d = defaultChoices(mode)
+    setFormationId(d.formationId)
+    setLeagueId(d.leagueId)
+    setSuperOn(d.superOn)
+    setEurope(d.europe)
+    setDraftDifficulty(d.difficulty)
+    setShowRatings(d.showRatings)
+    setDraftMode(d.draftMode)
+    setRatingsMode(d.ratingsMode)
+    setEraPreset(d.eraPreset)
+    setCustomEra(d.customEra)
+    setClassicOn(d.classicOn)
+    setBenchPicks(d.benchPicks)
+    setModes(d.modes)
+    setPowerUps(d.powerUps)
+    setManagerChoice(d.managerChoice)
+    setEndCase(d.endCase)
+    setTwistsChoice(d.twistsChoice)
+    setCap(d.cap)
+    setChain(d.chain)
+    setJanuary(d.january)
+    setOpposition(d.opposition)
+    setSquadSize(d.squadSize)
+    setJobSecurity(d.jobSecurity)
+    setPlayerPower(d.playerPower)
+    setContinental(d.continental)
+    setOnlyClub('')
+    setOnlyNation('')
+    setHostClubId('')
+    if (rememberedModes(mode)) saveChoices(mode, d)
+  }
   if (!u) return <div className="page">{t('loading')}</div>
   const pickLeague = (id: string) => {
     // The Super League keeps the league chosen before it as the save's league; its field needs every league loaded
@@ -337,6 +392,8 @@ export function Setup() {
     if (puzzle && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(t('confirmStart', { puzzle, mode: modeTitle(game.settings.mode), team: game.settings.teamName }), { ok: t('startOk'), danger: true }))) return
     const settings = buildSettings(false)
     rememberTeamName(settings.teamName)
+    // The setup is remembered for next time; a puzzle's or a challenge's fixed rules are not the player's choices
+    if (remembers && !fixed && rememberedModes(mode)) saveChoices(mode, choices)
     startGame(settings)
   }
   const preview = buildSettings(true)
@@ -529,7 +586,7 @@ export function Setup() {
                 <StepHead n={4} title={t('setRules')} />
                 {!isManage && (
                   <div className="setup-modes" data-testid="modes-panel">
-                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => t('modeInfoItem', { title: modeCardTitle(c), line: modeCardLine(c) })).join(' ') })} testId="modes" right={<span className="small muted">{t('modesOn', { n: cardsOn.length })}</span>} />
+                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => t('modeInfoItem', { title: modeCardTitle(c), line: modeCardLine(c) })).join(' ') })} testId="modes" right={<span className="small muted" data-testid="modes-on">{t('modesOn', { n: cardsOn.length + [powerUps, endCase, capOn, chain].filter(Boolean).length })}</span>} />
                     <HoverTips className="setup-modes-row" testId="mode-tip">
                       <ModeCards cards={MODE_CARDS} on={cardsOn} info={modeCardInfo()} icons={MODE_ICON} onToggle={toggleMode} />
                       <div className="pu-setup">
@@ -830,6 +887,14 @@ export function Setup() {
                     <button type="button" className="linklike" onClick={openMore} data-testid="setup-change">
                       {t('changeLink')}
                     </button>
+                    {changed && (
+                      <>
+                        {' · '}
+                        <button type="button" className="linklike" onClick={resetChoices} data-testid="setup-reset" title={t('resetTip')}>
+                          {t('resetLink')}
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>

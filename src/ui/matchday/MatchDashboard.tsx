@@ -18,6 +18,7 @@ import { getFormation } from '@engine/formations'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { USER_TEAM } from '@engine/season'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { playerLookup } from '@game/logic/players'
 import { latestScores, liveTable, roundRefOf } from '@game/logic/matchday'
 import { LeagueFlag } from '../components/Flag'
@@ -75,7 +76,7 @@ export type DashboardSource = { mode: 'live'; live: LiveMatch } | { mode: 'repla
  * (Full sim with the stop's changes, or Sim result in play without any).
  */
 export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumbEnd }: { source: DashboardSource; onWhistle: () => void; onAdvance?: (changes: LiveChanges) => void; onSimToEnd?: (changes?: LiveChanges) => void; /** The replay's Live and Report tabs and its buttons, at the end of the competition line. */ crumbEnd?: ReactNode }) {
-  const store = useStore()
+  const store = useStorePick('assistantAdvance', 'game', 'interveneLive', 'setLiveAuto', 'showToast', 'universe')
   const game = store.game!
   const u = store.universe!
   const get = useMemo(() => playerLookup(game, u), [game, u])

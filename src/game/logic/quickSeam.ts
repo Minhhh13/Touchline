@@ -67,6 +67,13 @@ export function quickSeasonStale(game: Game, u: LoadedUniverse): boolean {
   return stale
 }
 
+/** Whether this page has already found the quick season on show to replay as stored (no check needed before a change). */
+export function quickSeasonKnownFresh(game: Game): boolean {
+  const j = game.quickJanuary
+  if (game.phase === 'january') return !!j && fresh.has(keyOf(game, `jan:${JSON.stringify(j.firstHalfTactics)}:${j.firstHalfCaptainId ?? ''}`, j.firstHalf))
+  return !!game.quickResult && !!game.quickStartRng && fresh.has(keyOf(game, `season:${JSON.stringify(game.quickJanuary?.move ?? null)}`, game.quickResult.results))
+}
+
 /**
  * Note a quick season this page has just played (a kick-off, a bench change, the January window closed) as fresh, so
  * the next bench change's check does not play it all again before the change plays it once more.

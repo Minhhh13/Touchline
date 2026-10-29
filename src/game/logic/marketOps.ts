@@ -53,6 +53,8 @@ export interface BidOptions {
   status?: SquadStatus
   /** A sell-on share offered to the selling club (0.1 or 0.2): worth `sellOnValue` to them now, paid out of his next sale. */
   sellOn?: number
+  /** A weekly wage agreed in personal terms (GBP thousands): the market's wage-cap check reads it, not his wage at the status. */
+  wage?: number
 }
 
 /**
@@ -86,7 +88,7 @@ export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount:
   const status = opts.status ?? (target ? naturalStatus(target, overalls) : 'rotation')
   const pct = opts.sellOn && opts.sellOn > 0 && target ? Math.min(0.2, opts.sellOn) : 0
   const sweetener = pct && target ? { value: sellOnValue(target, pct), label: `a ${Math.round(pct * 100)}% sell-on` } : undefined
-  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls }, sweetener)
+  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls, ...(opts.wage !== undefined ? { wage: opts.wage } : {}) }, sweetener)
   if (out.accepted) {
     if (exchange) {
       releasePlayer(game, u, exchange.p.id)

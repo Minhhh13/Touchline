@@ -1,4 +1,5 @@
-import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useExploreIndex, useLast } from '../useExploreIndex'
 import { BookOpen, Columns3, Crown, Medal, Plus, Search, Shield, Star as StarIcon, Trophy, X } from 'lucide-react'
 import type { Position } from '@engine/types'
 import { useStore } from '@game/store'
@@ -7,7 +8,7 @@ import { isEstimated } from '@game/logic/era'
 import { careerSeasons, positionMap, seasonSeries } from '@game/logic/playerCard'
 import { searchPlayers, topPlayerSeasons } from '@game/logic/exploreSearch'
 import { bestXIEver, careerLine, clubHistory, clubSummary, compareRows, COMPARE_MAX, leagueChampions, leagueClubs, leagueRecordBook, oneIn, shareLabel, titleCounts, topRatedBySeason, wheelChanceOf, type WheelChance } from '@game/logic/exploreDb'
-import { BLANK_SEARCH, filterActive, filterPlayers, FILTER_LIMIT, formFilter, nationCounts, type FilterSort, type SearchForm } from '@game/logic/exploreFilter'
+import { BLANK_SEARCH, filterActive, filterPlayers, FILTER_LIMIT, formFilter, nationCounts, type FilterHit, type FilterSort, type SearchForm } from '@game/logic/exploreFilter'
 import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented } from '../components/bits'
 import { NationFlag } from '../components/Flag'
 import { PlayerRow } from '../components/PlayerRow'
@@ -15,6 +16,7 @@ import { PositionMap, SeasonChart } from '../components/PlayerCharts'
 import { clubName, clubShort, fixed, formatLocale, money, nationName, seasonLabel } from '../format'
 import { pressable } from '../a11y'
 import { translator } from '../i18n'
+import { listKey, useProgressiveRows } from '../progressiveRows'
 import { explore } from '../i18n/en/explore'
 
 const tx = translator(explore)
@@ -381,17 +383,27 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
 const SORTS: FilterSort[] = ['relevance', 'rating', 'age', 'value', 'season', 'name']
 
 export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: { form: SearchForm; setForm: (f: SearchForm) => void; onPlayer: (playerId: string) => void; compare: string[]; toggleCompare: (playerId: string) => void }) {
-  const { universe: u, loadingLeagues, shortlist, toggleShortlist, ensureLeagues } = useStorePick('universe', 'loadingLeagues', 'shortlist', 'toggleShortlist', 'ensureLeagues')
-  // Typing stays on the input's own render: the filter over every player-season follows a beat behind
-  const deferred = useDeferredValue(form)
-  const filter = useMemo(() => formFilter(deferred), [deferred])
-  const active = filterActive(filter)
+  const { universe: u, ensureLeagues } = useStorePick('universe', 'ensureLeagues')
+  const active = filterActive(formFilter(form))
   // The search covers every league: the ones not loaded yet load on the first search
   useEffect(() => {
     if (active && u) void ensureLeagues(u.available.map((l) => l.id))
   }, [active, u, ensureLeagues])
-  const result = useMemo(() => (u && active ? filterPlayers(u, filter) : { rows: [], total: 0 }), [u, filter, active])
-  const nations = useMemo(() => (u ? nationCounts(u) : []), [u])
+  // The index behind the filter builds in slices when a league loads; meanwhile the last answer stays up
+  const indexed = useExploreIndex(u)
+  const nations = useLast(useMemo(() => (u && indexed ? nationCounts(u) : null), [u, indexed]), [])
+  // The nation list (a hundred and more options) is drawn once per universe, not on every keystroke
+  const nationOptions = useMemo(
+    () =>
+      u
+        ? nations.map((n) => (
+            <option key={n.nation} value={n.nation}>
+              {nationName(u, n.nation)} ({n.players})
+            </option>
+          ))
+        : null,
+    [u, nations],
+  )
   if (!u) return null
   const set = <K extends keyof SearchForm>(k: K, v: SearchForm[K]) => setForm({ ...form, [k]: v })
   const changed = (Object.keys(BLANK_SEARCH) as Array<keyof SearchForm>).some((k) => form[k] !== BLANK_SEARCH[k])
@@ -409,11 +421,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
               {form.nation && <NationFlag nation={form.nation} named />}
               <select className="input" aria-label={tx('nation')} value={form.nation} onChange={(e) => set('nation', e.target.value)} data-testid="filter-nation">
                 <option value="">{tx('everyNation')}</option>
-                {nations.map((n) => (
-                  <option key={n.nation} value={n.nation}>
-                    {nationName(u, n.nation)} ({n.players})
-                  </option>
-                ))}
+                {nationOptions}
               </select>
             </span>
           </label>
@@ -480,51 +488,90 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
         {!active && <p className="help">{tx('searchHelp')}</p>}
       </div>
 
-      <div className="panel search-out">
-        <div className="panel-head">
-          <span className="small muted" data-testid="search-count" aria-live="polite">
-            {!active ? tx('noSearch') : loadingLeagues ? tx('loadingEvery') : result.total > result.rows.length ? tx('firstOf', { shown: result.rows.length, total: result.total.toLocaleString(formatLocale()) }) : tx(form.every ? 'seasonCount' : 'players', { n: result.total })}
-          </span>
-          <span className="row" style={{ gap: 6 }}>
-            <select className="input" style={{ width: 'auto' }} aria-label={tx('sortBy')} value={form.sort} onChange={(e) => set('sort', e.target.value as FilterSort)} data-testid="filter-sort">
-              {SORTS.map((s) => (
-                <option key={s} value={s} disabled={s === 'relevance' && form.query.trim().length < 2}>
-                  {tx(`sort_${s}`)}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="btn sm ghost" onClick={() => set('reverse', !form.reverse)} aria-pressed={form.reverse} title={tx('reverseOrder')} data-testid="filter-reverse">
-              {form.reverse ? '↑' : '↓'}
-            </button>
-          </span>
-        </div>
-        <div className="plist lined" data-testid="search-results">
-          {result.rows.map((h) => (
-            <PlayerRow
-              key={h.p.id}
-              p={h.name === h.p.name || form.every ? h.p : { ...h.p, name: h.name }}
-              showClub
-              onClick={() => onPlayer(h.p.playerId)}
-              extra={
-                <span className="search-career">
-                  {h.from === h.to ? seasonLabel(h.from) : tx('seasonRange', { from: seasonLabel(h.from), to: seasonLabel(h.to) })} · {tx('seasonCount', { n: h.seasons })} · {money(h.p.value)}
-                </span>
-              }
-              actions={
-                <>
-                  <CompareButton on={compare.includes(h.p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => toggleCompare(h.p.playerId)} />
-                  <ShortlistStar on={shortlist.includes(h.p.id)} onClick={() => toggleShortlist(h.p.id)} />
-                </>
-              }
-            />
-          ))}
-          {active && !loadingLeagues && result.total === 0 && <div className="muted small">{tx('noPlayersMatch')}</div>}
-        </div>
-        {result.total > FILTER_LIMIT && <p className="help">{tx('showingFirst', { n: FILTER_LIMIT })}</p>}
-      </div>
+      <SearchOut form={form} setForm={setForm} onPlayer={onPlayer} compare={compare} toggleCompare={toggleCompare} />
     </div>
   )
 }
+
+/**
+ * The search's results box. Typing renders the form at once and this box with the list it already holds; the filter
+ * and the new rows follow on the deferred render, which draws this box alone, not the form beside it.
+ */
+const SearchOut = memo(function SearchOut({ form, setForm, onPlayer, compare, toggleCompare }: { form: SearchForm; setForm: (f: SearchForm) => void; onPlayer: (playerId: string) => void; compare: string[]; toggleCompare: (playerId: string) => void }) {
+  const { universe: u, loadingLeagues, shortlist, toggleShortlist } = useStorePick('universe', 'loadingLeagues', 'shortlist', 'toggleShortlist')
+  // Typing stays on the input's own render: the filter over every player-season follows a beat behind
+  const deferred = useDeferredValue(form)
+  const filter = useMemo(() => formFilter(deferred), [deferred])
+  const active = filterActive(filter)
+  // The index behind the filter builds in slices when a league loads; meanwhile the last answer stays up
+  const indexed = useExploreIndex(u)
+  const fresh = useMemo(() => (u && indexed ? (active ? filterPlayers(u, filter) : { rows: [], total: 0 }) : null), [u, indexed, filter, active])
+  const result = useLast(fresh, { rows: [], total: 0 })
+  const indexing = active && !indexed
+  // The parent hands a new toggle on every keystroke: the rows keep one, so typing never redraws them
+  const compareRef = useRef(toggleCompare)
+  compareRef.current = toggleCompare
+  const stableCompare = useCallback((playerId: string) => compareRef.current(playerId), [])
+  const set = <K extends keyof SearchForm>(k: K, v: SearchForm[K]) => setForm({ ...form, [k]: v })
+  return (
+    <div className="panel search-out">
+      <div className="panel-head">
+        <span className="small muted" data-testid="search-count" aria-live="polite">
+          {!active ? tx('noSearch') : loadingLeagues || indexing ? tx('loadingEvery') : result.total > result.rows.length ? tx('firstOf', { shown: result.rows.length, total: result.total.toLocaleString(formatLocale()) }) : tx(form.every ? 'seasonCount' : 'players', { n: result.total })}
+        </span>
+        <span className="row" style={{ gap: 6 }}>
+          <select className="input" style={{ width: 'auto' }} aria-label={tx('sortBy')} value={form.sort} onChange={(e) => set('sort', e.target.value as FilterSort)} data-testid="filter-sort">
+            {SORTS.map((s) => (
+              <option key={s} value={s} disabled={s === 'relevance' && form.query.trim().length < 2}>
+                {tx(`sort_${s}`)}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn sm ghost" onClick={() => set('reverse', !form.reverse)} aria-pressed={form.reverse} title={tx('reverseOrder')} data-testid="filter-reverse">
+            {form.reverse ? '↑' : '↓'}
+          </button>
+        </span>
+      </div>
+      {/* A new list replaces the whole box of rows: one removal, not one per row */}
+      <div className="plist lined" data-testid="search-results" key={listKey(result.rows)}>
+        <SearchRows rows={result.rows} every={form.every} compare={compare} shortlist={shortlist} onPlayer={onPlayer} toggleCompare={stableCompare} toggleShortlist={toggleShortlist} />
+        {active && !loadingLeagues && !indexing && result.total === 0 && <div className="muted small">{tx('noPlayersMatch')}</div>}
+      </div>
+      {result.total > FILTER_LIMIT && <p className="help">{tx('showingFirst', { n: FILTER_LIMIT })}</p>}
+    </div>
+  )
+})
+
+/**
+ * The search's rows, kept apart so a keystroke's own render (the input, a beat before the deferred list) leaves them
+ * alone, and drawn a slice at a time (`useProgressiveRows`) so the top rows paint first.
+ */
+const SearchRows = memo(function SearchRows({ rows, every, compare, shortlist, onPlayer, toggleCompare, toggleShortlist }: { rows: FilterHit[]; every: boolean; compare: string[]; shortlist: string[]; onPlayer: (playerId: string) => void; toggleCompare: (playerId: string) => void; toggleShortlist: (id: string) => void }) {
+  const shown = useProgressiveRows(rows)
+  return (
+    <>
+      {rows.slice(0, shown).map((h) => (
+        <PlayerRow
+          key={h.p.id}
+          p={h.name === h.p.name || every ? h.p : { ...h.p, name: h.name }}
+          showClub
+          onClick={() => onPlayer(h.p.playerId)}
+          extra={
+            <span className="search-career">
+              {h.from === h.to ? seasonLabel(h.from) : tx('seasonRange', { from: seasonLabel(h.from), to: seasonLabel(h.to) })} · {tx('seasonCount', { n: h.seasons })} · {money(h.p.value)}
+            </span>
+          }
+          actions={
+            <>
+              <CompareButton on={compare.includes(h.p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => toggleCompare(h.p.playerId)} />
+              <ShortlistStar on={shortlist.includes(h.p.id)} onClick={() => toggleShortlist(h.p.id)} />
+            </>
+          }
+        />
+      ))}
+    </>
+  )
+})
 
 // ---------------------------------------------------------------- Compare
 
@@ -536,11 +583,12 @@ export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: 
   useEffect(() => {
     if (ids.length && u) void ensureLeagues(u.available.map((l) => l.id))
   }, [ids.length, u, ensureLeagues])
-  const careers = useMemo(() => (u ? ids.map((id) => careerSeasons(u, id)).filter((s) => s.length > 0) : []), [u, ids])
+  const indexed = useExploreIndex(u)
+  const careers = useLast(useMemo(() => (u && indexed ? ids.map((id) => careerSeasons(u, id)).filter((s) => s.length > 0) : null), [u, indexed, ids]), [])
   const shown = useMemo(() => careers.map((seasons) => seasons.find((s) => s.id === picked[seasons[0].playerId]) ?? seasons.reduce((m, s) => (s.overall > m.overall ? s : m), seasons[0])), [careers, picked])
   const rows = useMemo(() => compareRows(shown), [shown])
   const deferredQuery = useDeferredValue(query)
-  const hits = useMemo(() => (u && deferredQuery.trim().length >= 2 ? searchPlayers(u, deferredQuery, { limit: 6 }) : []), [u, deferredQuery])
+  const hits = useLast(useMemo(() => (deferredQuery.trim().length < 2 ? [] : u && indexed ? searchPlayers(u, deferredQuery, { limit: 6 }) : null), [u, indexed, deferredQuery]), [])
   if (!u) return null
   const add = (playerId: string) => {
     if (!ids.includes(playerId)) setIds([...ids, playerId].slice(-COMPARE_MAX))

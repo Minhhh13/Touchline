@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Share2, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useFocusOnLanding } from '../a11y'
 import { type H2HGame } from '@game/store'
@@ -548,10 +548,12 @@ export interface H2HResultViewProps {
   /** The mode in the share text, which stays English: "Head-to-head" when unset. */
   shareLabel?: string
   testId?: string
+  /** Under the banner's buttons (an online room's way into the other manager's rematch). */
+  extra?: ReactNode
 }
 
 /** A head-to-head's result, hot-seat or online: the banner with both sides, the derbies, the XIs and the table. */
-export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label: labelProp, rematchLabel = t('rematch'), shareLabel = 'Head-to-head', you, testId }: H2HResultViewProps) {
+export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label: labelProp, rematchLabel = t('rematch'), shareLabel = 'Head-to-head', you, testId, extra }: H2HResultViewProps) {
   const { universe: u, showToast } = useStorePick('universe', 'showToast')
   const [copied, flashCopied] = useFlash()
   // A decided result is celebrated once per visit: always on the hot seat (somebody won), online only on the winner's device
@@ -665,6 +667,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
             {t('home')}
           </button>
         </div>
+        {extra}
       </div>
       <div className="screen-body fill">
       <div className="grid two">
