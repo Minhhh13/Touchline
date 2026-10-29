@@ -75,8 +75,9 @@ function quickPin(s: GameSettings): string {
 // with the squad's condition and some of those weeks now put a natural man where the greedy played a cover. The Quick
 // Draft and the Daily field the draft's XI and hold. Re-baselined on '7': a cup tie the assistant plays settles on its
 // week's stream (it rebuilt a stale one before), which moves these Seasons from their first drawn tie; the Quick Draft
-// and the Daily hold
-const SEASON_BASELINE = '56f1efcc7dd821e158279aac5df9e9dc205df06082d6de83153c90bd165053b1'
+// and the Daily hold. Re-baselined on '8': a simmed week with an event waiting starts its stream after the assistant
+// answers it (`playMatchweekSteps`), which moves these Seasons from their first event; the Quick Draft and the Daily hold
+const SEASON_BASELINE = '38367abc51e9a68747aff59684b6aa766e84d835a635d7f42c210f00697314ca'
 const QUICK_BASELINE = '4e07e3cec479ea921e46c0f8026e70fde73381812bf31118bb6bb6ed61dc5e6f'
 const DAILY_BASELINE = '7a1c2fc4be66cb66acb142dd66c60def02c9df91e6c0f0b77746e301694b4c53'
 

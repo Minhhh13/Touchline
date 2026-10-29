@@ -35,8 +35,9 @@ function quickGame(seed: string) {
 // hidden traits): the same draws, but the players behind them changed, so seven clubs' goal tallies
 // moved by one or two while every won/drawn/lost count stayed put. Re-pinned for ENGINE_VERSION '5' (the playtest fixes:
 // new fixtures, the assistant's placement and the keeper rule moved the whole season), and for '6' (the calibration, cards
-// and the user's men out of their real clubs). Engine 7 (the Continental Cup, the Gauntlet, the Run-in) left it as it was.
-const BASELINE_ENGINE = '7'
+// and the user's men out of their real clubs). Engines 7 (the Continental Cup, the Gauntlet, the Run-in) and 8 (the capped bench
+// assistant, the simmed event week, the Gauntlet's alternates) left it as it was.
+const BASELINE_ENGINE = '8'
 const BASELINE_TABLE = [
   'user:84/26/6/6/92/37',
   'manchester-city:78/25/3/10/63/34',

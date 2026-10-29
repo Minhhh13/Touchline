@@ -350,12 +350,12 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
  * Adding the Super League changes no other game: these hashes were taken on the commit before it (57f3453) and must
  * not move. Re-baselined on ENGINE_VERSION '5' (the playtest fixes moved every quick season; two of the three odds
  * hashes held), and on '6' (every match moved: the calibration, the user's men out of their real clubs), and on '7' (the post-season
- * Continental Cup's groups and two legs move the quick results that played it; the odds and the Daily held). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
+ * Continental Cup's groups and two legs move the quick results that played it; the odds and the Daily held), and held on '8' (no quick season here takes a capped bench draft, a simmed event week or a Gauntlet). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
  * classic seasons in La Liga 2015-16 (the Continental Cup included), the pundits' odds and today's Daily.
  */
 describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
   it('reproduces the pinned results of the commit before the Super League', () => {
-    expect(ENGINE_VERSION).toBe('7')
+    expect(ENGINE_VERSION).toBe('8')
     const play = (s: GameSettings): Game => {
       const g = drafted(s)
       kickOff(g, u)

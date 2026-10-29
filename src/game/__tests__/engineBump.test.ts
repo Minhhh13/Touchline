@@ -15,7 +15,7 @@ import type { Game, GameSettings } from '../types'
 import { seasonGame } from './seasonGame'
 
 /**
- * What an ENGINE_VERSION bump (here '5' to '6', as '4' to '5' before it) does to what a player already has: a link made on the old engine opens
+ * What an ENGINE_VERSION bump (here '5' to '6' and each since, as '4' to '5' before it) does to what a player already has: a link made on the old engine opens
  * as unverified with its draft shown, a save carries on, and a quick season whose stored games the new engine would
  * play differently shows no highlight reel rather than a wrong one. Nothing throws.
  */
@@ -35,18 +35,18 @@ function quickPlayed(seed: string): Game {
 }
 
 describe('after the engine bump', () => {
-  it('runs on engine 7', () => {
-    expect(ENGINE_VERSION).toBe('7')
+  it('runs on engine 8', () => {
+    expect(ENGINE_VERSION).toBe('8')
   })
 
-  it('opens a challenge link made on engine 6 (or 5, or 4) as unverified, with its draft resolved', () => {
+  it('opens a challenge link made on engine 7 (or 6, 5, 4) as unverified, with its draft resolved', () => {
     const g = quickPlayed('bump-link')
     const c = challengeFromGame(g, u, 'Minh')!
-    for (const engine of ['6', '5', '4']) {
+    for (const engine of ['7', '6', '5', '4']) {
       const old = decodeChallenge(encodeChallenge({ ...c, engine }))
       const out = replayChallenge(u, old)
       expect(out.verified).toBe('unverified')
-      expect(out.reason).toBe(`built with engine ${engine}, this build is 7`)
+      expect(out.reason).toBe(`built with engine ${engine}, this build is 8`)
       expect(out.picks.length).toBeGreaterThan(0)
     }
     // The same link on this engine verifies

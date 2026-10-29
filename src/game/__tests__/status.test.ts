@@ -193,8 +193,8 @@ describe('squad status and playing time', () => {
   })
 
   it('suggests the status against the squad without the part-exchange player, and the bid carries exactly that status', () => {
-    // A seed whose January window lists a man rated between our fourth and fifth best (engine 6: status-exchange-1)
-    const g = newGame(u, { seed: 'status-exchange-1' })
+    // A seed whose January window lists a man rated between our fourth and fifth best (engine 6: status-exchange-1; engine 8: -4)
+    const g = newGame(u, { seed: 'status-exchange-4' })
     while (g.season!.matchweek < 19) playMatchweek(g, u, true)
     expect(g.window?.kind).toBe('january')
     g.finances.budget = 999
@@ -406,9 +406,14 @@ describe('squad status and playing time', () => {
       for (let i = 0; i < 20; i++) playMatchweek(g, u, true)
       const morale = Object.values(g.squad).map((s) => s.morale)
       means.push(morale.reduce((a, b) => a + b, 0) / morale.length)
+      // Nearly everyone has the full window
+      expect(Object.values(g.squad).filter((s) => s.recentMinutes!.length === RECENT_WEEKS).length).toBeGreaterThanOrEqual(Object.keys(g.squad).length - 3)
       for (const id of Object.keys(g.squad)) {
         expect(g.contracts[id].status).toBeDefined()
-        expect(g.squad[id].recentMinutes!.length).toBe(RECENT_WEEKS)
+        // A full window of weeks, less any a man spent injured or banned (nothing is recorded for those: status-flow-8's
+        // Sessegnon breaks a leg in week 5 and keeps five entries)
+        expect(g.squad[id].recentMinutes!.length).toBeLessThanOrEqual(RECENT_WEEKS)
+        if (!g.squad[id].injury) expect(g.squad[id].recentMinutes!.length).toBeGreaterThan(0)
       }
     }
     const mean = means.reduce((a, b) => a + b, 0) / means.length

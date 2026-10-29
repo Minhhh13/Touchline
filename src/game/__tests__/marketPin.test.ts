@@ -56,8 +56,10 @@ const ENGINE_BASELINE = '738c872e6bcc42f88fd9024547dcd47d0d4a3f8427b1c57b2b032e4
 // market-pin-game-1's assistant opens with N. Shorey at left-back and G. Johnson at right-back instead of Johnson at
 // left-back and V. Kompany (CB) at right-back, so its 19 matchweeks play differently; the engine windows hold.
 // Re-baselined on '7': a cup tie in the 19 matchweeks now settles on its own week's stream (the nested RNG in
-// `afterLeagueMatch`), so the stream before the window differs; the 200 engine windows, the market itself, still hold
-const GAME_BASELINE = 'a164677020c578be099c27c6c391e619641f06817eb7739a780b3d517994670e'
+// `afterLeagueMatch`), so the stream before the window differs; the 200 engine windows, the market itself, still hold.
+// Re-baselined on '8': a simmed week with an event waiting now starts its stream after the assistant answers it
+// (`playMatchweekSteps`), so the 19 matchweeks before the window play differently; the 200 engine windows still hold
+const GAME_BASELINE = '15742c4687412d4d7dfde4b9846dfc9cfc62db635174a7caf8351e23adc3780f'
 
 describe('a market with no recruitment focus is unchanged', () => {
   it('opens and ticks 200 seeded windows exactly as before', () => {

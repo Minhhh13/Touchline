@@ -14,7 +14,8 @@
  * the match-day work) moved this season, and main's `noMove.test.ts` season hash holds unchanged. Re-baselined on
  * ENGINE_VERSION '5' (the playtest fixes: fixtures, the assistant's placement, keeper subs, development), and on '6' (the
  * goal calibration, discipline, the reserve keeper, the user's men out of their real clubs, the assistant's keepers,
- * the economy and minutes: every match of the season moved).
+ * the economy and minutes: every match of the season moved), and on '8' (a simmed week with an event waiting starts its
+ * stream after the assistant answers it, so the season moved from its first event).
  */
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
@@ -42,9 +43,9 @@ describe('pins', () => {
     expect(weeks).toBe(38)
     const s = g.season!
     const table = computeTable(s.fixtures, [USER_TEAM, ...Object.keys(s.ai)])
-    expect(table.slice(0, 3).map((r) => `${r.teamId}:${r.points}`)).toEqual(['user:99', 'manchester-city:85', 'newcastle-united:69'])
-    expect(s.cup.find((t) => t.round === 'F')?.winnerId).toBe('leeds-united')
-    expect(g.rngState).toEqual({ a: -474852327, b: -17855737, c: 1170251567, d: -1221589694 })
+    expect(table.slice(0, 3).map((r) => `${r.teamId}:${r.points}`)).toEqual(['user:89', 'manchester-city:76', 'liverpool:65'])
+    expect(s.cup.find((t) => t.round === 'F')?.winnerId).toBe('crystal-palace')
+    expect(g.rngState).toEqual({ a: -1435641252, b: 1486700593, c: 2036647222, d: -59626930 })
     // A whole season: allow for a loaded machine rather than the 5 s default
   }, 30_000)
 })

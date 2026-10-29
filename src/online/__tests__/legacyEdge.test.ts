@@ -7,7 +7,7 @@ import { EDGE_GLOBAL } from '../../../scripts/online/edgeBundle.mjs'
 
 // An outgoing engine's edge bundle, served byte for byte from public/edge/ so its deployed loader (which fetches
 // edge/verifier-<hash16>.js from the live site and refuses any other SHA-256) keeps working for its last 7 days
-// after the site moves to the next engine (docs/ONLINE.md section 7, "Release engine 5", "Release engine 6" and "Release engine 7"). Each entry is the exact
+// after the site moves to the next engine (docs/ONLINE.md section 7, "Release engine 5", "Release engine 6", "Release engine 7" and "Release engine 8"). Each entry is the exact
 // SHA-256 that function's loader pins. Remove the file and its entry when that function is deleted.
 const LEGACY: Record<string, { engine: string; sha256: string; retireOnOrAfter: string }> = {
   // touchline-e4: built from main at c897f2c (#80), the bundle the live site served before engine 5
@@ -17,7 +17,11 @@ const LEGACY: Record<string, { engine: string; sha256: string; retireOnOrAfter: 
   // touchline-e6: built from release-e6 at 45e3093 (PR #84, QA's Moneyball fix in src/engine/draft.ts included), the bundle
   // the engine 6 site serves (its build.json names it); check it against the live build.json before engine 7 ships
   // (ONLINE.md section 7, "Release engine 7")
-  'verifier-f088fc41409257f9.js': { engine: '6', sha256: 'f088fc41409257f94d55ebb2194386d87476c618abaf70869f7b66f4a736591d', retireOnOrAfter: "7 days after engine 7's release" },
+  'verifier-f088fc41409257f9.js': { engine: '6', sha256: 'f088fc41409257f94d55ebb2194386d87476c618abaf70869f7b66f4a736591d', retireOnOrAfter: '2026-11-05' },
+  // touchline-e7: built from main at d76e552 (#89; the same bytes as #88's 9b4e8a0), the bundle the engine 7 site serves and
+  // touchline-e7's loader pins since its redeploy of 2026-10-28 20:03 UTC; check it against the live build.json before
+  // engine 8 ships (ONLINE.md section 7, "Release engine 8")
+  'verifier-ecc269657e48639b.js': { engine: '7', sha256: 'ecc269657e48639b6cedd5b60fe6df4b0e877577f9a829611824af01356469de', retireOnOrAfter: "7 days after engine 8's release" },
 }
 
 const dir = path.resolve(__dirname, '../../../public/edge')
