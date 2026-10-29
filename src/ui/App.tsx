@@ -15,7 +15,7 @@ import { AHEAD_CAP, digestAhead } from '@game/logic/digestAhead'
 import type { NewsItem } from '@engine/season'
 import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
-import { digestWinRun } from './seasonDrama'
+import { DIGEST_MOOD_WORDINGS, digestMood, digestWinRun, digestWording } from './seasonDrama'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
@@ -448,8 +448,14 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   // A run of three wins or more in the stretch flares beside the table line (seasonDrama.ts)
   const winRun = digestWinRun(league.map((r) => r.outcome))
   const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length && !office.length
+  // A line on the stretch as a whole and the quiet line, each worded by a hash of the game and its weeks (display only)
+  const mood = digestMood(league.map((r) => r.outcome), { from: d.positionFrom, to: d.positionTo, fromPreseason: d.fromMatchweek === 0 })
+  const said = (line: string, count = DIGEST_MOOD_WORDINGS) => digestWording(game?.id ?? '', d.fromMatchweek, d.toMatchweek, line, count)
+  const moodKey = mood ? (`digestMood_${mood}_${said('mood')}` as keyof typeof app.messages) : null
+  const quietKey = (`digestQuiet_${said('quiet')}` as keyof typeof app.messages)
   return (
     <div className="col digest" data-testid="digest">
+      {moodKey && <p className="digest-mood" data-testid="digest-mood">{t(moodKey, { n: Math.abs(d.positionTo - d.positionFrom) })}</p>}
       <div className="digest-results" data-testid="digest-results">
         {d.results.map((r, i) => (
           <span
@@ -513,7 +519,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
       <NewsGroup title={t('suspensions')} icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
       <NewsGroup title={t('transfers')} icon={<Banknote size={14} />} items={d.transfers} />
       <NewsGroup title={t('development')} icon={<TrendingUp size={14} />} items={d.development} />
-      {quiet && <p className="muted small">{t('digestQuiet')}</p>}
+      {quiet && <p className="muted small">{t(quietKey)}</p>}
       {d.truncated && <p className="muted small">{t('digestTruncated')}</p>}
       {/* Where the run leaves you: the next match and who misses it (r10) */}
       {ahead && (

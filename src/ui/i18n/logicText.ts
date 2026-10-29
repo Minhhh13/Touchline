@@ -61,9 +61,21 @@ export function logicLine(text: string | null | undefined): string | null | unde
   if (known !== undefined) return known
   let out = mirror(text, 0)
   // A line of several sentences the logic put together (the pundit's verdict) is mirrored sentence by sentence
-  if (out === text && /[.!?] [A-Z]/.test(text)) out = text.split(/(?<=[.!?]) (?=[A-Z])/).map((x) => mirror(x, 0)).join(' ')
+  if (out === text && /[.!?] [A-Z]/.test(text)) out = bySentences(text.split(/(?<=[.!?]) (?=[A-Z])/))
   said.set(text, out)
   return out
+}
+
+/** Sentences mirrored a message at a time: the longest run from each sentence on that a message matches (a pundit's line can be two sentences itself), else the sentence alone. */
+function bySentences(parts: string[]): string {
+  const out: string[] = []
+  for (let i = 0; i < parts.length; ) {
+    let j = parts.length
+    while (j > i + 1 && !matchLogicLine(parts.slice(i, j).join(' '), 0)) j--
+    out.push(mirror(parts.slice(i, j).join(' '), 0))
+    i = j
+  }
+  return out.join(' ')
 }
 
 function mirror(text: string, depth: number): string {

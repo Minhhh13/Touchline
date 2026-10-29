@@ -6,6 +6,7 @@
  */
 import type { QuickGameResult } from '@game/types'
 import type { LiveRow } from '@game/logic/liveTable'
+import { pickVariant } from '@game/logic/flavour'
 
 /** The last games of a season in which a close race slows the reveal. */
 export const RACE_GAMES = 6
@@ -125,4 +126,34 @@ export function digestWinRun(outcomes: ReadonlyArray<'W' | 'D' | 'L'>): number {
     best = Math.max(best, run)
   }
   return best >= 3 ? best : 0
+}
+
+/** What a digest's stretch of league results says, in one word: the shape of a one-line read at the top of the digest. */
+export type DigestMood = 'perfect' | 'unbeaten' | 'winless' | 'climb' | 'slide' | 'good' | 'poor' | 'mixed'
+
+/** Each mood's wordings in the `app` catalogue (`digestMood_<mood>_0`…). */
+export const DIGEST_MOOD_WORDINGS = 3
+
+/**
+ * The digest's mood from its league results and the table's move: every game won, none lost, none won, a climb or a
+ * slide of three places or more (not from pre-season, where the table before means nothing), then points a game; null
+ * for fewer than two league matches, where the results say it all.
+ */
+export function digestMood(outcomes: ReadonlyArray<'W' | 'D' | 'L'>, move: { from: number; to: number; fromPreseason: boolean }): DigestMood | null {
+  const n = outcomes.length
+  if (n < 2) return null
+  const w = outcomes.filter((o) => o === 'W').length
+  const l = outcomes.filter((o) => o === 'L').length
+  if (w === n) return 'perfect'
+  if (!l && n >= 3) return 'unbeaten'
+  if (!w) return 'winless'
+  if (!move.fromPreseason && move.from - move.to >= 3) return 'climb'
+  if (!move.fromPreseason && move.to - move.from >= 3) return 'slide'
+  const ppg = (w * 3 + (n - w - l)) / n
+  return ppg >= 2 ? 'good' : ppg < 1 ? 'poor' : 'mixed'
+}
+
+/** Which wording of a digest line to say, by a pure hash of the game and the weeks it covers: the same digest always reads the same. */
+export function digestWording(gameId: string, from: number, to: number, line: string, count = DIGEST_MOOD_WORDINGS): number {
+  return pickVariant(Array.from({ length: count }, (_, i) => i), `${gameId}|digest|${from}-${to}|${line}`)
 }

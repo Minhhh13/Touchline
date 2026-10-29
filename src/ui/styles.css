@@ -4784,6 +4784,10 @@ table.tbl.contracts .btn.sm {
 .digest {
   gap: 12px;
 }
+.digest-mood {
+  margin: 0;
+  font-weight: 600;
+}
 .digest-results {
   display: flex;
   flex-wrap: wrap;
