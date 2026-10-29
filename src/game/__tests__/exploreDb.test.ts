@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { freshTestUniverse, loadTestUniverse } from '../../engine/__tests__/helpers'
+import { mergeUniverses } from '@engine/universe'
 import { canCover } from '@engine/positions'
 import { getFormation } from '@engine/formations'
 import { realChampion } from '@engine/records'
@@ -116,6 +117,25 @@ describe('on this wheel', () => {
     expect(wheelChanceOf(u, champ)!.p).toBeGreaterThan(wheelChanceOf(u, last)!.p)
     // Cached: the same map on a second call
     expect(wheelChances(u, 'england')).toBe(map)
+  })
+
+  it('keeps a wheel across universes that hold the same club-seasons, and equals one worked out afresh (r13)', () => {
+    const england = freshTestUniverse(['england'])
+    const spain = freshTestUniverse(['spain'])
+    const merged = mergeUniverses([england, spain], england.available, england.generatedAt)
+    const alone = wheelChances(england, 'england')
+    const classicAlone = wheelChances(england, 'england', true)
+    // The merged universe (every league load is one) reuses the wheels of the same club-seasons
+    expect(wheelChances(merged, 'england')).toBe(alone)
+    expect(wheelChances(merged, 'england', true)).toBe(classicAlone)
+    // Built afresh (new objects), the wheel is worked out again and comes out the same
+    const fresh = freshTestUniverse(['england', 'spain'])
+    expect(wheelChances(fresh, 'england')).not.toBe(alone)
+    expect(wheelChances(fresh, 'england')).toEqual(alone)
+    expect(wheelChances(fresh, 'england', true)).toEqual(classicAlone)
+    expect(wheelChances(merged, 'spain')).toEqual(wheelChances(fresh, 'spain'))
+    // The standard and classic wheels differ
+    expect(classicAlone.size).toBeGreaterThan(alone.size)
   })
 
   it('words a chance', () => {

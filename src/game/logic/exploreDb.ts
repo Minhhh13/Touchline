@@ -261,11 +261,44 @@ export interface WheelChance {
 }
 
 const wheelCache = new WeakMap<LoadedUniverse, Map<string, Map<string, WheelChance>>>()
+/**
+ * The wheels already worked out, by the club-seasons they were worked out over. Every league load is a new universe
+ * that holds the same club-season objects, so a league's wheel worked out on the last universe is still this one's
+ * (the first spin's odds read nothing but those club-seasons and their squads). Kept for the last few wheels.
+ */
+const wheelsByPool: Array<{ key: string; pool: ClubSeason[]; out: Map<string, WheelChance> }> = []
+const WHEELS_KEPT = 12
+
+/** The club-seasons a league's first-spin wheel draws from: the league's own, classic ones only on the classic wheel. */
+function wheelPool(u: LoadedUniverse, leagueId: string, classic: boolean): ClubSeason[] {
+  const out: ClubSeason[] = []
+  for (const cs of u.clubSeasons) if (cs.leagueId === leagueId && (classic || !cs.classic)) out.push(cs)
+  return out
+}
+
+const samePool = (a: ClubSeason[], b: ClubSeason[]) => a.length === b.length && a.every((cs, i) => cs === b[i])
+
+function keptWheel(u: LoadedUniverse, leagueId: string, classic: boolean): Map<string, WheelChance> | null {
+  const key = `${leagueId}${classic ? '#classic' : ''}`
+  if (!wheelsByPool.some((w) => w.key === key)) return null
+  const pool = wheelPool(u, leagueId, classic)
+  return wheelsByPool.find((w) => w.key === key && samePool(w.pool, pool))?.out ?? null
+}
+
+/** A league's wheel if it is already worked out for this universe's club-seasons, else null: never works it out. */
+export function knownWheelChances(u: LoadedUniverse, leagueId: string, classic = false): Map<string, WheelChance> | null {
+  const hit = wheelCache.get(u)?.get(`${leagueId}${classic ? '#classic' : ''}`)
+  if (hit) return hit
+  const kept = keptWheel(u, leagueId, classic)
+  if (kept) wheelChances(u, leagueId, classic)
+  return kept
+}
 
 /**
  * The first spin of an untouched Quick Draft on one league's wheel (`QUICK_RULES`, the default 4-3-3, every season;
  * the Classic toggle's wheel for a classic club-season), read from the engine's exact `spinOdds`. The first spin has
- * no twist, no re-spin and nothing drafted, so this is the plain wheel. No RNG; cached per universe.
+ * no twist, no re-spin and nothing drafted, so this is the plain wheel. No RNG; cached per universe, and across
+ * universes by the very club-seasons the wheel holds (`spinOdds` is about 300 ms on a 4x-throttled phone, r13).
  */
 export function wheelChances(u: LoadedUniverse, leagueId: string, classic = false): Map<string, WheelChance> {
   let byWheel = wheelCache.get(u)
@@ -276,12 +309,20 @@ export function wheelChances(u: LoadedUniverse, leagueId: string, classic = fals
   const key = `${leagueId}${classic ? '#classic' : ''}`
   const hit = byWheel.get(key)
   if (hit) return hit
+  const kept = keptWheel(u, leagueId, classic)
+  if (kept) {
+    byWheel.set(key, kept)
+    return kept
+  }
+  const pool = wheelPool(u, leagueId, classic)
   const d = newDraft(getFormation('4-3-3'), { ...QUICK_RULES, leagues: [leagueId], ...(classic ? { classic: true } : {}) })
   const odds = spinOdds(u, d)
   const seasons = new Set(odds.outcomes.map((o) => o.cs.season)).size
   const out = new Map<string, WheelChance>()
   for (const o of odds.outcomes) out.set(`${o.cs.clubId}@${o.cs.season}`, { p: o.p, seasonShare: o.p * seasons, seasons })
   byWheel.set(key, out)
+  wheelsByPool.unshift({ key, pool, out })
+  if (wheelsByPool.length > WHEELS_KEPT) wheelsByPool.pop()
   return out
 }
 
