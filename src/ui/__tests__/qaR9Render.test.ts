@@ -31,7 +31,7 @@ import { PSEUDO_LOCALE } from '../i18n/pseudo'
 import { Summary } from '../screens/Summary'
 import { ArenaSummary } from '../screens/ArenaSummary'
 import { RunInSummary } from '../screens/RunInSummary'
-import { OfficeInbox, OfficeTab } from '../screens/OfficeTab'
+import { CounterBidControl, FeeTalkPanel, OfficeInbox, OfficeTab } from '../screens/OfficeTab'
 import { BestSeasons, CareerTable, RoleList, SimilarList } from '../components/PlayerProfile'
 import { RecordsView } from '../screens/ExploreRecords'
 import { Chooser, badValues } from '../../game/__tests__/qaHarness'
@@ -56,6 +56,9 @@ function renderBoth(label: string, C: ComponentType<never>, props: Record<string
     setLocaleMessages({ id: 'en', messages: {} })
   }
   for (const p of openFiltered(en)) fails.push(`${label}: ${p}`)
+  // Money printed twice over: a message adding £ and M around a figure `money()` already wrote (R9-8)
+  const twice = en.replace(/<[^>]+>/g, ' ').match(/.{0,30}(££|£[\d.,]+[Mk]M\b|£[\d.,]+M\s?M\b).{0,20}/)
+  if (twice) fails.push(`${label}: money twice: ${twice[0]}`)
   return en
 }
 
@@ -179,6 +182,7 @@ describe('QA r9: the Office tab while the office is worked', () => {
       st().autoDraftRest()
       st().finishDraft()
       let renders = 0
+      let talksRendered = 0
       for (let step = 0; step < 400; step++) {
         const g = st().game!
         if (g.phase === 'summary') break
@@ -225,6 +229,15 @@ describe('QA r9: the Office tab while the office is worked', () => {
           show({})
           renderBoth(`mw ${st().game!.season?.matchweek} OfficeTab`, OfficeTab as ComponentType<never>, { onPlayer: noop }, fails)
           renderBoth(`mw ${st().game!.season?.matchweek} OfficeInbox`, OfficeInbox as ComponentType<never>, { onOpen: noop }, fails)
+          // The market's Negotiate dialog and counter-bid box, for a listing in talks (or the first) and an open bid
+          const w = st().game!.window
+          if (w) {
+            const l = w.listings.find((x) => feeTalkOf(st().game!, x.playerSeasonId)) ?? w.listings[0]
+            if (l) renderBoth(`mw ${st().game!.season?.matchweek} FeeTalkPanel`, FeeTalkPanel as ComponentType<never>, { listingId: l.playerSeasonId }, fails)
+            const n = w.offers.findIndex((o) => o.status === 'open')
+            if (n >= 0) renderBoth(`mw ${st().game!.season?.matchweek} CounterBidControl`, CounterBidControl as ComponentType<never>, { index: n, name: 'him' }, fails)
+            talksRendered++
+          }
           renders++
         }
         if (ch.chance(0.6)) st().playWeek()
@@ -232,6 +245,7 @@ describe('QA r9: the Office tab while the office is worked', () => {
       }
       expect(st().game!.office, 'the office was used').toBeTruthy()
       expect(renders).toBeGreaterThan(10)
+      expect(talksRendered).toBeGreaterThan(0)
       expect([...new Set(fails)].slice(0, 12)).toEqual([])
     }, 300_000)
   }
