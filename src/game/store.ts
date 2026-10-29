@@ -1970,10 +1970,13 @@ export const useStore = create<Store>()(
  * Another tab or window wrote the save (it played on, imported a file or wiped the browser): this page's game is now
  * older than the stored one, and its next write would put that older game back over the newer progress. It stops
  * writing at once and asks to be reloaded. The browser fires the event only in the other pages, never in the writer.
+ * Chromium also hands a reloaded page the events of the page it replaced (that page's last write on `pagehide`, a
+ * clear made before the reload): a save that still reads as the one this page loaded or wrote changed nothing (QA r11).
  */
 export function saveChangedElsewhere(key: string | null): void {
   // A null key is localStorage.clear(), which takes the save with it
   if (key !== null && key !== SAVE_KEY) return
+  if (!saveStorage.changedElsewhere(SAVE_KEY)) return
   saveStorage.freeze()
   useStore.setState({ saveIssue: 'elsewhere' })
 }

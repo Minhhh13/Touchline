@@ -455,7 +455,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
             <span className="eyebrow">{tx('colAge')}</span>
             <span className="row range-pair">
               <input className="input" type="number" inputMode="numeric" min={15} max={45} placeholder={tx('rangeFrom')} aria-label={tx('youngestAge')} value={form.minAge} onChange={(e) => set('minAge', e.target.value)} data-testid="filter-min-age" />
-              <span className="muted">to</span>
+              <span className="muted">{tx('rangeBetween')}</span>
               <input className="input" type="number" inputMode="numeric" min={15} max={45} placeholder={tx('rangeTo')} aria-label={tx('oldestAge')} value={form.maxAge} onChange={(e) => set('maxAge', e.target.value)} />
             </span>
           </div>
@@ -463,7 +463,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
             <span className="eyebrow">{tx('rating')}</span>
             <span className="row range-pair">
               <input className="input" type="number" inputMode="numeric" min={1} max={99} placeholder={tx('rangeFrom')} aria-label={tx('lowestRating')} value={form.minRating} onChange={(e) => set('minRating', e.target.value)} data-testid="filter-min-rating" />
-              <span className="muted">to</span>
+              <span className="muted">{tx('rangeBetween')}</span>
               <input className="input" type="number" inputMode="numeric" min={1} max={99} placeholder={tx('rangeTo')} aria-label={tx('highestRating')} value={form.maxRating} onChange={(e) => set('maxRating', e.target.value)} />
             </span>
           </div>

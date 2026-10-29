@@ -11,6 +11,8 @@ import { MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL, type ManagerStyle } from '@eng
 import { TRAINING, TRAINING_LABEL } from '@engine/training'
 import { STAFF, type StaffRole } from '@engine/staff'
 import { STATUS_LABEL, type SquadStatus } from '@engine/status'
+import { STYLE_LABEL } from '@engine/tactics'
+import type { PlayStyle } from '@engine/types'
 import type { TrainingFocus } from '@engine/training'
 import { YOUTH_AGE } from '@engine/managers'
 import type { CaseRarity } from '@engine/endCase'
@@ -36,6 +38,8 @@ export const roleBlurb = (r: Pick<Role, 'id' | 'blurb'>) => read(`roleBlurb_${r.
 export const powerUpTitle = (k: PowerUp) => read(`powerUp_${k}`, POWER_UP_INFO[k].title)
 export const powerUpLine = (k: PowerUp) => read(`powerUpLine_${k}`, POWER_UP_INFO[k].line)
 export const styleLabel = (k: ManagerStyle) => read(`style_${k}`, MANAGER_STYLE_LABEL[k])
+/** A club's way of playing (`STYLE_LABEL`, the opposition's "Counter-attack side"), not a manager's style (QA r11). */
+export const playStyleLabel = (k: PlayStyle) => read(`playStyle_${k}`, STYLE_LABEL[k])
 export const styleHelp = (k: ManagerStyle) => read(`styleHelp_${k}`, MANAGER_STYLE_HELP[k])
 export const trainingLabel = (k: TrainingFocus) => read(`training_${k}`, TRAINING_LABEL[k])
 export const trainingBlurb = (k: TrainingFocus) => read(`trainingBlurb_${k}`, TRAINING[k].blurb)
