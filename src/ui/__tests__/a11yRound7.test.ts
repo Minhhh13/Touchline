@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { focusHomeOf, type HomeLike } from '../dialogLayers'
-import { takeFresh } from '../liveOnce'
+import { sayStep, takeFresh } from '../liveOnce'
 
 // Round 7 (docs/ACCESSIBILITY.md section 3g): the game screens round 6 did not reach, the Draft mid-spin to the
 // match day, the arena's shoot-out and the Run-in, audited with axe-core, the keyboard and a live-region recorder.
@@ -26,6 +26,24 @@ describe('a live region says each moment once', () => {
     expect(takeFresh(spoken, 'k4')).toBe(true)
     expect(takeFresh(spoken, null)).toBe(false)
     expect(takeFresh(spoken, '')).toBe(false)
+  })
+
+  it('what a region holds when it mounts is not news: the board mounts afresh after each stop', () => {
+    const spoken = new Set<string>()
+    // The 45' booking was the last moment before the stop: the new board's region records it and stays quiet
+    expect(sayStep(spoken, 'k12', true)).toBe(false)
+    expect(sayStep(spoken, 'k12', false)).toBe(false)
+    expect(sayStep(spoken, 'k13', false)).toBe(true)
+    // A region that mounts before any moment says the first one
+    const quiet = new Set<string>()
+    expect(sayStep(quiet, null, true)).toBe(false)
+    expect(sayStep(quiet, 'k0', false)).toBe(true)
+  })
+
+  it('the score region in the top bar says each score once through the same hook', () => {
+    const src = read('../matchday/TopBar.tsx')
+    expect(src).toMatch(/const scoreSaid = useSayOnce\(/)
+    expect(src).toMatch(/data-testid="score-live">\s*\{scoreSaid\}/)
   })
 
   it('the match day banner has one polite region, mounted in both its forms and fed through useSayOnce', () => {

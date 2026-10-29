@@ -13,12 +13,28 @@ export function takeFresh(spoken: Set<string>, id: string | null | undefined): b
   return true
 }
 
-/** The text a polite region should hold: `text` once for each new `id`, else what it last said. */
+/**
+ * One step of a region that says each moment once: true when `id` is to be said now. On the region's first step
+ * (`mounting`) the moment already there is recorded but not said.
+ */
+export function sayStep(spoken: Set<string>, id: string | null | undefined, mounting: boolean): boolean {
+  const fresh = takeFresh(spoken, id)
+  return fresh && !mounting
+}
+
+/**
+ * The text a polite region should hold: `text` once for each new `id`, else what it last said. What is already there
+ * when the region mounts is not news: the match day's board mounts afresh after each stop, and its banner region read
+ * the last booking before the stop a second time.
+ */
 export function useSayOnce(id: string | null | undefined, text: string): string {
   const spoken = useRef(new Set<string>())
+  const mounted = useRef(false)
   const [said, setSaid] = useState('')
   useEffect(() => {
-    if (takeFresh(spoken.current, id)) setSaid(text)
+    const mounting = !mounted.current
+    mounted.current = true
+    if (sayStep(spoken.current, id, mounting)) setSaid(text)
     // The text belongs to its id: a new id brings its own
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
