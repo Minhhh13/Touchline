@@ -7,7 +7,7 @@ import { TableView } from '../components/TableView'
 import { CasualStatus } from '../online/CasualStatus'
 import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { ClubBadge, Info, Stat } from '../components/bits'
-import { Check, Copy, House, ImageDown, RotateCcw, Send } from 'lucide-react'
+import { Check, ChevronDown, Copy, House, ImageDown, RotateCcw, Send } from 'lucide-react'
 import { clubName, ordinal, outcomeClass, outcomeOf, seasonLabel } from '../format'
 import { getFormation } from '@engine/formations'
 import { playerLookup } from '@game/logic/players'
@@ -179,10 +179,11 @@ export function RunInSummary() {
           </div>
         </div>
         <details className="panel fold">
-          <summary className="fold-head">
+          <summary className="panel-head">
             <h3>{t('shareText')}</h3>
+            <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
           </summary>
-          <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="runin-share-text">
+          <pre className="mono small share-text" data-testid="runin-share-text">
             {text}
           </pre>
         </details>

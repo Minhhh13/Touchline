@@ -18,7 +18,7 @@ import { playerLookup } from '@game/logic/players'
 import { aiLookup } from '@engine/reserve'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge, Info, Stat, TeamBadge } from '../components/bits'
-import { Check, Copy, Dices, ImageDown, Plus, RotateCcw, Send } from 'lucide-react'
+import { Check, ChevronDown, Copy, Dices, ImageDown, Plus, RotateCcw, Send } from 'lucide-react'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { Celebrate } from '../components/Celebrate'
 import { TrophyArt } from '../components/TrophyArt'
@@ -342,10 +342,11 @@ export function ArenaSummary() {
           </div>
         )}
         <details className="panel fold">
-          <summary className="fold-head">
+          <summary className="panel-head">
             <h3>{t('shareText')}</h3>
+            <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
           </summary>
-          <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="arena-share-text">
+          <pre className="mono small share-text" data-testid="arena-share-text">
             {text}
           </pre>
         </details>

@@ -249,7 +249,7 @@ function TalkBox({ game, u, say }: BoxProps) {
           </option>
         ))}
       </select>
-      <div className="segmented scroll" style={{ margin: 'var(--space-2) 0' }} role="radiogroup" aria-label={t('talks')} onKeyDown={onRadioGroupKey}>
+      <div className="segmented" style={{ margin: 'var(--space-2) 0' }} role="radiogroup" aria-label={t('talks')} onKeyDown={onRadioGroupKey}>
         {(Object.keys(TOPIC_TONES) as ConversationTopic[]).map((tp, i, all) => (
           <button key={tp} type="button" role="radio" aria-checked={topic === tp} tabIndex={radioTabIndex(i, all.indexOf(topic))} className={topic === tp ? 'active' : ''} onClick={() => setTopic(tp)} data-testid={`talk-topic-${tp}`}>
             {t(`topic_${tp}`)}
