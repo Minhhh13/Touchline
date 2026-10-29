@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Dices, Flame, Globe, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
@@ -11,10 +11,11 @@ import { arenaDailySeed, dailySeed as dailySeedOf, randomSeed, weeklySeed } from
 import { dailyNudge, personalBests, type Best } from '@game/logic/shareInvite'
 import { recordLabel } from '@game/logic/perfect'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer, nextUpFor } from '@game/logic/onboarding'
-import { dailyStartSettings } from '../../online/daily'
+import type { StartDecision } from '../../online/daily'
+import type { PuzzlePin } from '../../online/server/dailyVerify'
+import type { LoadedUniverse } from '@engine/universe'
 import { onlineAvailable } from '../../online/api'
 import { startingTeamName, teamShortName } from '../teamName'
-import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { useOnline } from '../../online/state'
 import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel, formationName } from '../format'
@@ -31,6 +32,37 @@ const t = translator(home)
 /** The next-badge line reads the trophies' catalogue: its own chunk, out of the first download. */
 const HomeBadgeNudge = lazy(() => import('../components/HomeBadgeNudge'))
 import { askConfirm } from '../confirm'
+
+/** Today's ranked Daily with its tag and note, worked out once a board's pin is in. */
+interface PinnedDaily {
+  start: StartDecision
+  tag: string
+  note: string
+}
+
+/**
+ * Online and pinned: the ranked puzzle (the same as the local mapping unless the data or rules changed since the pin),
+ * worked out once per universe, day and pin. Its code (the verifier's mapping and the challenge codec) loads with the
+ * pin, never in the first download: the pin itself arrives after Home is up, so the card read the local mapping first
+ * before this too.
+ */
+function usePinnedDaily(u: LoadedUniverse | null, seed: string, pin: PuzzlePin | null, here: boolean): PinnedDaily | null {
+  const [done, setDone] = useState<{ u: LoadedUniverse; seed: string; pin: PuzzlePin; value: PinnedDaily } | null>(null)
+  useEffect(() => {
+    if (!here || !u || !pin) return
+    let live = true
+    void Promise.all([import('../../online/daily'), import('../../online/engineRoute')]).then(([{ dailyStartSettings }, { PIN_NOTE, PIN_TAG, pinStanding }]) => {
+      if (!live) return
+      const start = dailyStartSettings(u, seed, 'Touchline XI', pin)
+      const standing = start.ranked ? 'ranked' : pinStanding(pin, start.source)
+      setDone({ u, seed, pin, value: { start, tag: PIN_TAG[standing], note: standing === 'ranked' ? '' : PIN_NOTE[standing] } })
+    })
+    return () => {
+      live = false
+    }
+  }, [u, seed, pin, here])
+  return here && done && done.u === u && done.seed === seed && done.pin === pin ? done.value : null
+}
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
 function compact(n: number): string {
@@ -145,7 +177,8 @@ export function Home() {
   // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
   // Both scan every club-season, so they are worked out once per universe, day and pin, not on every render of Home
   const dailySeed = todaysDailySeed()
-  const dailyStart = useMemo(() => (dailyHere && u ? dailyStartSettings(u, dailySeed, 'Touchline XI', pin) : null), [dailyHere, u, dailySeed, pin])
+  const pinned = usePinnedDaily(u, dailySeed, pin, dailyHere)
+  const dailyStart = pinned?.start ?? null
   const daily = useMemo((): { formationId: string; leagueId: string; season: number | null } | null => {
     if (!dailyReady || !u) return null
     if (dailyStart?.source === 'pinned') return { formationId: dailyStart.settings.formationId, leagueId: dailyStart.settings.leagueId, season: dailyStart.settings.leagueSeason }
@@ -369,9 +402,9 @@ export function Home() {
                     {daily.season !== null && ` · ${seasonLabel(daily.season)}`}
                   </span>
                 )}
-                {pin && dailyStart && (
-                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? t('dailyRanked') : PIN_NOTE[pinStanding(pin, dailyStart.source) as Exclude<PinStanding, 'ranked'>]}>
-                    {PIN_TAG[dailyStart.ranked ? 'ranked' : pinStanding(pin, dailyStart.source)]}
+                {pin && pinned && (
+                  <span className={`ranked-tag${pinned.start.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={pinned.start.ranked ? t('dailyRanked') : pinned.note}>
+                    {pinned.tag}
                   </span>
                 )}
                 {dailyResult && (
