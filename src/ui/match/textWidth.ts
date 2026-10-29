@@ -26,6 +26,27 @@ export function forgetWidths(): void {
   cache.clear()
 }
 
+/** The page's font set, as `document.fonts` gives it (an argument for tests). */
+type Fonts = { ready: Promise<unknown> } | undefined
+
+let fontsWait: Promise<void> | null = null
+let fontsSettled = false
+
+/**
+ * A promise for the web font having loaded (the widths measured before it forgotten then, once), or null once it has:
+ * a pitch mounted after that has nothing to wait for. Reading `document.fonts.ready` forces the page's style to be
+ * worked out there and then (126 ms inside the commit of a 4x-throttled phone's season summary), so it is read once a
+ * page, not on every mount.
+ */
+export function whenFontsReady(fonts: Fonts = typeof document === 'undefined' ? undefined : document.fonts): Promise<void> | null {
+  if (fontsSettled || !fonts) return null
+  fontsWait ??= fonts.ready.then(() => {
+    fontsSettled = true
+    forgetWidths()
+  })
+  return fontsWait
+}
+
 /** The width of `text` in px at `size` px, semi-bold. */
 export function textWidth(text: string, size: number): number {
   const key = `${size}|${text}`

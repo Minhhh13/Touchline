@@ -14,7 +14,7 @@
  * pop-up comes back with them listed (each with Undo).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { currentScore, SHOUTS, type LiveChanges, type Shout, type TeamTalk } from '@engine/match'
 import type { PlayerSeason, SquadPlayer, Tactics } from '@engine/types'
 import { lineHelp, mentalityHelp, pressingHelp, shoutHint, shoutLabel, tempoHelp } from './tacticText'
@@ -54,7 +54,7 @@ export interface StopBoardProps {
 }
 
 export function StopPanel({ live, actions, draft, setDraft, board }: { live: LiveMatch; actions: StopActions; draft: StopDraft; setDraft: (d: StopDraft) => void; board: StopBoardProps }) {
-  const store = useStore()
+  const store = useStorePick('game', 'universe')
   const { universe: u, game } = store
   const [open, setOpen] = useState(true)
   // The board in the pop-up, and what it has staged (sent to the stop's pending changes on "Make changes")

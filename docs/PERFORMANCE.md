@@ -2,7 +2,9 @@
 
 What a mid-range phone pays for TouchLine, measured before the iOS App Store release, what the perf pass of
 2026-10-26 (`perf-pass`, from `claude/touchline-preview` 32ace40) changed, what round 2 (`perf-r2`, from 9aaa6c0, the
-same evening) changed, round 6's UI work, round 3 (`r7-perf`, 2026-10-27, on engine 6), round 9's first download (`r9-firstload`, 2026-10-29, on engine 7), and what to look at next. Every number is from the production build.
+same evening) changed, round 6's UI work, round 3 (`r7-perf`, 2026-10-27, on engine 6), round 9's first download
+(`r9-firstload`, 2026-10-29, on engine 7), round 4 (`r9-perf`, 2026-10-29, on engine 7), and what to look at next.
+Every number is from the production build.
 
 ## How it was measured
 
@@ -373,6 +375,84 @@ The budget test now also fails on a value import of a rules module in `store.ts`
 not export, and on a game screen that does not wait for the rules. No seeded outcome moved: the pins, `noMove`,
 `dailyPin`, `marketPin` and the whole suite pass untouched, and the edge bundle keeps its name.
 
+## Round 4 (`r9-perf`)
+
+The fourth phone round, on `main` after round 8 and accessibility round 4 (engine 7, d76e552). Measured as above
+(iPhone 13 viewport, DPR 3, touch, `isMobile`, 4x CPU through `Emulation.setCPUThrottlingRate`, network unthrottled),
+`vite preview` of the build before (d76e552) and after, one after the other, one or two runs each. The harness drives
+the store's real flows from a cleared page (Season: Setup, Auto-complete, the Dugout's thirteen tabs, three Sim result
+matchweeks with their reports, Sim 5, a Watch matchweek at 1x, Sim result, Sim to end; Quick Draft: Auto-complete, the
+manager spin, the kick-off, a bench change, the January close; Explore: typing into the search), with the 4x throttle on
+only from the tap until 1.5 s after the screen is up. "Longest task" is from `PerformanceObserver` long tasks in that
+window; profiles came from `Profiler.start` on an unminified build. The machine was shared (other builds), so runs vary
+by about 20 %; a long task under 100 ms moves by more than the changes here.
+
+| Phone, 4x CPU, longest task | Before | After |
+| --- | --- | --- |
+| Explore: the first search (every league loads behind it) | 1,290 to 1,406 ms (13 to 15 long tasks, 2.2 to 2.8 s in all) | 429 to 496 ms (the league builds, below) |
+| Explore: typing the next search | 66 to 352 ms | 67 to 148 ms (one run 357, while the rating list was building) |
+| Quick Draft: a bench change in the playback | 734 ms (the season replayed on the page) | none over 50 ms (the worker) |
+| Quick Draft: Auto-complete | 313 to 452 ms | 189 to 205 ms |
+| Quick Draft: kick-off / January close (stick) | 67 to 80 / 89 to 134 ms | 69 / 86 to 95 ms (unchanged: already in the worker) |
+| Season: Play matchweek (Sim result) to the report | 91 to 231 ms | 62 to 104 ms |
+| Season: the report's Continue back to the Dugout | 121 to 148 ms | 133 to 177 ms (the Dugout's own style and layout, left) |
+| Season: Dugout tab switches (thirteen tabs) | 0 to 171 ms (Fixtures 82 to 171, Club 111 to 165) | 0 to 143 ms (Fixtures 87, Club 143) |
+| Season: Sim 5 / Sim to end | 138 to 154 / 280 to 292 ms | 194 (one run; nothing in its path changed but the tab ink) / 230 ms |
+| Season: the live match's Sim result to the report | 181 to 186 ms | 160 ms |
+| Live pitch at 1x: fps, p95 frame, main thread a second | 60 fps, 17 ms, 367 to 383 ms | 60 fps, 17 ms, 407 ms (the same code) |
+| The Office tab | 56 to 58 ms | 63 ms |
+| Edge verifier | `verifier-ecc269657e48639b.js` | unchanged (no bundled file touched) |
+
+What changed:
+
+1. **Explore's index never builds inside a render.** The first search loads every league; each load is a new universe,
+   and the search's render then built the whole player index (and the nation counts) in one task, over a second each
+   time. `exploreIndex.ts` now builds it a step at a time (`exploreIndexSteps`, a pause every 2,500 player-seasons),
+   which `src/ui/useExploreIndex.ts` runs in 12 ms slices (`indexSoon`); Search, Compare and Records keep their last
+   answer up and say "Loading every league…" until it is built (`useExploreIndex`, `useLast`). Each build is also
+   cheaper: an entry whose player-seasons are the very same objects as in the last index is kept (the store merges the
+   same objects at every load), the sorts use one `Intl.Collator` (localeCompare's order without its per-call set-up),
+   `byRating` sorts rating-and-season buckets (the same order, a fraction of the id comparisons) and is stepped too
+   (`ratingsSoon`), folded names are cached, the walks over `u.index` skip `Object.values`' copy, and
+   `tidyUniverseNames` skips player-seasons it has already looked at. `exploreIndexReuse.test.ts`: the kept and the
+   stepped indexes equal one built from nothing, the orders equal localeCompare's.
+2. **The bench change in the worker** (round 3's Next, item 3). `benchChangeSoon` paints the bench panel busy, then
+   sends the change to the quick-season worker as the job `quickChange`, with the staleness check (`quickSeasonStale`)
+   inside the job unless the page already knows the season fresh (`quickSeasonKnownFresh`): the first change after a
+   reload used to replay the season twice on the page. A stale season, an error, no Worker or a game that moved falls
+   back to `benchChange`. The bench panel keeps the worker warm while a change can still be made. `quickWorkerBench.test.ts`
+   (16 seeded changes and second changes, byte for byte, checked and not) and `quickBenchSoon.test.ts` (the store through
+   a stand-in Worker running the real job, the stale and refused paths).
+3. **Auto-complete** paints "Drafting…" first, the Draft's pick grades and recap (the Hindsight XI search, worked out
+   twice and on every render before) are memoised on a deferred draft (an interruptible render after the commit, only
+   ever this draft's), and `useFocusOnLanding` moves the focus after the paint (the focus forced the new layout inside
+   the task).
+4. **No forced layout in a commit from the tab ink or the font wait.** The tab strip's ink measured the selected tab in a
+   layout effect, so the Dugout, the match report and every tab switch laid out the new screen inside the commit (70 to
+   100 ms at 4x); the ResizeObserver's first report, after the frame's layout, measures it now. Every `Pitch` mount read
+   `document.fonts.ready`, which forces the page's style (126 ms at the season's end); `whenFontsReady` reads it once
+   a page.
+5. **The last 32 bare `useStore()` calls** (the match day's dashboard and stop panel, the Office tab, the January window,
+   contract talks, the end case, the cup runs, the badge nudges, the World boards, the rooms) read the store through
+   `useStorePick`, so a toast or a busy flag no longer re-renders them.
+
+Measured and left:
+
+- **Explore's first search, 430 to 500 ms:** the league packs' `buildLeague` (France's is the slowest) and
+  `mergeUniverses`, both in the edge bundle; the column-index build on `perf-r2-with-buildleague` is for an engine
+  release.
+- **The Dugout's mount and its heavy tabs (Club, Fixtures), 110 to 180 ms:** the browser's own style, layout and paint
+  of a large screen ("(program)" in the profile, the script under 20 ms); `content-visibility` on the boxes out of view
+  or a smaller first mount would be the next step.
+- **Sim 5 and Sim to end in total** (about 5 s for a season at 4x, never more than 230 ms in one task): about 30 % of the
+  CPU is Immer's proxies (`get`, `isDraftable`, the array traps) over the week's draft. A plain copy, as Auto-complete
+  uses, would mean copying a game that holds every result of the season each week (round 3's Next, item 5, the
+  in-memory compaction, would make that cheap).
+- **A dialog's focus going back to its opener** forces layout on close (about 70 ms after the Sim to end question); it
+  stays synchronous, so the focus never lands anywhere else first.
+
+No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` pass untouched, ENGINE_VERSION is `'7'`.
+
 ## Next
 
 In order of what a phone would gain:
@@ -385,10 +465,9 @@ In order of what a phone would gain:
    the function is redeployed anyway. A Dynasty summer that loads a new league pays 600 to 740 ms for its build (round 3).
 2. **The match report's and the quick summary's first render** (about 230 to 340 ms): the same two-frame mount as the
    match day, or their heaviest memos built before (as `prepare.ts` does for the match day).
-3. **Bench changes in the worker**: `makeQuickChange` replays the whole quick season on the page (about 1 s at 4x);
-   `quickJob.ts` can take it as the January closes now are.
-4. **Auto-complete one pick a task**: the engine's `autoDraft` in one call is about 180 ms at 4x on a plain draft; a
-   game-side loop over `spin`, `assistantChoice` and `pick` (tested equal to `autoDraft`) could slice it.
+3. **Bench changes in the worker**: done in round 4.
+4. **Auto-complete one pick a task**: the engine's `autoDraft` in one call is about 110 ms at 4x on a plain draft (round
+   4); a game-side loop over `spin`, `assistantChoice` and `pick` (tested equal to `autoDraft`) could slice it.
 5. **The in-memory game**: compact finished results in memory as the save does (invariant 5 already limits what
    may read them), about 0.7 MB a matchweek. Test: seeded seasons with and without it give identical games.
 6. **`src/engine/data/managers.json`** left the entry chunk with the rules chunk in round 9; it still rides in the

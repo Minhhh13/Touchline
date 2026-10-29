@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Bandage } from 'lucide-react'
 import { useStorePick } from '../useStorePick'
 import type { Game } from '@game/types'
@@ -229,7 +229,7 @@ export function SeasonPlayback() {
  * replaces makes the change from the next game on. The store decides whether a change is allowed.
  */
 function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: LoadedUniverse; results: QuickGameResult[]; revealed: number; onChoose: () => void }) {
-  const { benchChange } = useStorePick('benchChange')
+  const { benchChangeSoon: benchChange, changingBench: busy, warmKickOff } = useStorePick('benchChangeSoon', 'changingBench', 'warmKickOff')
   const [inId, setInId] = useState<string | null>(null)
   const get = playerLookup(game, u)
   const hide = ratingHidden(game.settings.rules, 'squad')
@@ -245,8 +245,11 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
   const chosenP = inId ? get(inId) : undefined
   const canPlay = canPlayFor(game)
   const targets = choosing && chosenP ? formation.slots.filter((s) => view.lineup[s.id] && canPlay(chosenP, s.position)).map((s) => s.id) : []
+  // A change plays the season again in the quick-season worker: keep it warm while one can still be made
+  const canChange = view.changesLeft > 0 && view.next !== null
+  useEffect(() => (canChange ? warmKickOff() : undefined), [canChange, warmKickOff])
   return (
-    <div className="panel col bench-panel" data-testid="bench-panel">
+    <div className="panel col bench-panel" data-testid="bench-panel" aria-busy={busy || undefined}>
       <div className="panel-head">
         <h3>{view.next === null ? t('xiAndBench') : t('forMatchweek', { n: view.next })}</h3>
         <span className={`chip ${view.changesLeft ? '' : 'warn'}`} data-testid="changes-left">
@@ -255,7 +258,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
       </div>
       <div className="grid two bench-grid">
         <div className={`bench-pitch ${choosing ? '' : 'pitch-mini'}`} {...(choosing ? {} : { inert: true })}>
-          <Pitch formation={formation} lineup={fielded} getPlayer={get} hideRatings={hide} eligibleSlots={targets} onSlotClick={choosing ? (slotId) => { benchChange(revealed, slotId, inId!); setInId(null) } : undefined} />
+          <Pitch formation={formation} lineup={fielded} getPlayer={get} hideRatings={hide} eligibleSlots={targets} onSlotClick={choosing && !busy ? (slotId) => { benchChange(revealed, slotId, inId!); setInId(null) } : undefined} />
         </div>
         <div className="col" style={{ gap: 6 }}>
           <b className="small">{t('bench')}</b>
@@ -305,6 +308,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
                     key={slotId}
                     type="button"
                     className="chip-btn"
+                    disabled={busy}
                     onClick={() => {
                       benchChange(revealed, slotId, inId!)
                       setInId(null)
