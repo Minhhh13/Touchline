@@ -125,6 +125,9 @@ describe('contrast and larger text on the game screens', () => {
     expect(css).toMatch(/\.season-strip \{\s*grid-template-columns: repeat\(auto-fill, minmax\(3\.6rem, 1fr\)\);/)
     expect(rule('.ss-cell.free')).not.toMatch(/opacity/)
     expect(rule('.ss-chips')).toMatch(/flex-wrap: wrap/)
+    // The position chart's rival key (January) and the report's chart heads
+    expect(read('../components/LiveLeague.tsx')).toContain('<span className="row wrap small" style={{ gap: 10 }}>')
+    expect(read('../components/MatchCharts.tsx').match(/className="row between wrap small"/g)).toHaveLength(2)
     // The Gauntlet hub's lifeline beside the opponent's name
     expect(rule('.arena-opp-row')).toMatch(/flex-wrap: wrap/)
     expect(read('../screens/Arena.tsx')).toContain('className="row between arena-opp-row"')
