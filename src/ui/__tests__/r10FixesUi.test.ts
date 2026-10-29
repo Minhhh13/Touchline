@@ -28,7 +28,9 @@ describe('R9-O1: the phone dock names each button starting with the word on scre
         continue
       }
       const caption = word(tiny![2])
-      const name = [...(hidden ? [] : [caption]), ...labelKeys.map(word)].join(' ')
+      // The name is read in DOM order: a caption in the name comes before the label
+      if (!hidden) expect(b.indexOf('nav-tiny')).toBeLessThan(b.indexOf('nav-label'))
+      const name = (b.indexOf('nav-tiny') < b.indexOf('nav-label') ? [...(hidden ? [] : [caption]), ...labelKeys.map(word)] : [...labelKeys.map(word), ...(hidden ? [] : [caption])]).join(' ')
       expect(name.startsWith(caption), `${caption} → "${name}"`).toBe(true)
       // A caption equal to the label stays hidden so the name is not said twice
       if (labelKeys.map(word).join(' ') === caption) expect(hidden).toBe(true)

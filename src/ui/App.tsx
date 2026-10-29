@@ -309,13 +309,13 @@ export function App() {
           )}
           <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')}>
             <Swords size={16} />
-            <span className="nav-label">{t('navH2H')}</span>
             <span className="nav-tiny">{t('navTinyH2H')}</span>
+            <span className="nav-label">{t('navH2H')}</span>
           </button>
           <button className={screen === 'explore' ? 'active' : ''} aria-current={screen === 'explore' ? 'page' : undefined} onClick={() => nav('explore')}>
             <Search size={16} />
-            <span className="nav-label"><span className="nav-long">{t('navExplore')}</span><span className="nav-short">{t('navExploreShort')}</span></span>
             <span className="nav-tiny">{t('navTinyExplore')}</span>
+            <span className="nav-label"><span className="nav-long">{t('navExplore')}</span><span className="nav-short">{t('navExploreShort')}</span></span>
           </button>
           {onlineAvailable() && (
             <button className={screen === 'world' ? 'active' : ''} aria-current={screen === 'world' ? 'page' : undefined} onClick={() => nav('world')} data-testid="nav-world">
@@ -331,8 +331,8 @@ export function App() {
           </button>
           <button className={screen === 'howto' ? 'active' : ''} aria-current={screen === 'howto' ? 'page' : undefined} onClick={() => nav('howto')}>
             <BookOpen size={16} />
-            <span className="nav-label">{t('navHowTo')}</span>
             <span className="nav-tiny">{t('navTinyGuide')}</span>
+            <span className="nav-label">{t('navHowTo')}</span>
           </button>
         </nav>
         {onlineAvailable() && (
