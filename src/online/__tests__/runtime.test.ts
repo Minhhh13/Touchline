@@ -7,6 +7,7 @@ import { OnlineError } from '../transport'
 import type { SessionLike } from '../auth'
 import type { PuzzlePin } from '../server/dailyVerify'
 import { FakeBackend, FakeTransport } from './fakeTransport'
+import { ENGINE_VERSION } from '@engine/version'
 
 /**
  * The running online layer (r11): `Runtime` over a stand-in supabase-js client (only `auth`, which is all the runtime
@@ -102,10 +103,10 @@ async function settle(): Promise<void> {
   }
 }
 
-const pin = (kind: 'daily' | 'weekly', key: string): PuzzlePin => ({ kind, key, seed: `${kind}-${key}`, settings: {} as PuzzlePin['settings'], settingsHash: 'abc', engineVersion: '7', dataVersion: '2026-10-25' })
+const pin = (kind: 'daily' | 'weekly', key: string): PuzzlePin => ({ kind, key, seed: `${kind}-${key}`, settings: {} as PuzzlePin['settings'], settingsHash: 'abc', engineVersion: ENGINE_VERSION, dataVersion: '2026-10-25' })
 
 function entry(over: Partial<OutboxEntry> = {}): OutboxEntry {
-  return { id: 'daily:2026-10-29:g1', kind: 'daily', key: '2026-10-29', encoded: 'ENC', teamName: 'Minh FC', shortName: 'MFC', points: 71, at: '2026-10-29T11:00:00.000Z', attempts: 0, nextAt: 0, owner: null, engine: '7', ...over }
+  return { id: 'daily:2026-10-29:g1', kind: 'daily', key: '2026-10-29', encoded: 'ENC', teamName: 'Minh FC', shortName: 'MFC', points: 71, at: '2026-10-29T11:00:00.000Z', attempts: 0, nextAt: 0, owner: null, engine: ENGINE_VERSION, ...over }
 }
 
 const syncPasses = () => backend.calls.filter((c) => c === 'listSaves').length

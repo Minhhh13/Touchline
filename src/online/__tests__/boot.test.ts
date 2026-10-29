@@ -5,6 +5,7 @@ import { autoDraft } from '@engine/draft'
 import { createGame, dailyGameSettings } from '@game/logic/setup'
 import { runQuickSeason } from '@game/logic/quick'
 import type { Game } from '@game/types'
+import { ENGINE_VERSION } from '@engine/version'
 
 /**
  * The online layer's dynamic entry (r11): `boot.ts` runs as it is imported (main.tsx imports it only in a configured
@@ -80,7 +81,7 @@ describe('the online layer boot', () => {
     for (let i = 0; i < 5; i++) await new Promise<void>((r) => setImmediate(r))
     const rec = local.loadRecord()
     expect(rec.outbox).toHaveLength(1)
-    expect(rec.outbox[0]).toMatchObject({ kind: 'daily', key: '2026-10-29', owner: null, engine: '7' })
+    expect(rec.outbox[0]).toMatchObject({ kind: 'daily', key: '2026-10-29', owner: null, engine: ENGINE_VERSION })
     expect(rec.posts['daily:2026-10-29']).toMatchObject({ state: 'waiting', reason: 'sign_in' })
     expect(onlineStore.getState().outboxCount).toBe(1)
     expect(h.flushed).toBe(1)

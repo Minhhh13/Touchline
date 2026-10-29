@@ -1722,4 +1722,9 @@ export const logicText = catalog('logicText', {
   h2h_missesOut: '{manager} has no eligible player here and misses out.',
   h2h_drafts: '{manager} drafts {name}.',
   h2h_managerN: 'Manager {n, number}',
+  // game/logic/briefing.ts: round 10's Office line (officeLine), mirrored here by engine 8's merge
+  briefing_officeWaiting: '{count} things wait in the Office: {names}',
+  briefing_officeRequest: '{name} has asked to leave: answer him in the Office ({weeks, plural, =0 {this matchweek} one {# matchweek left} other {# matchweeks left}})',
+  briefing_officeTerms: 'Fee agreed for {name}: his personal terms wait in the Office',
+  briefing_officePromise: 'Your promise to {name} falls due: {weeks, plural, =0 {this matchweek} one {# matchweek left} other {# matchweeks left}}',
 })

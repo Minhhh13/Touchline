@@ -10,6 +10,7 @@ import { initialOnlineState, onlineStore } from '../state'
 import { OnlineError } from '../transport'
 import type { SessionLike } from '../auth'
 import { FakeBackend, FakeTransport } from './fakeTransport'
+import { ENGINE_VERSION } from '@engine/version'
 
 /**
  * `api.ts`'s online half (r11): a build with both variables, the runtime replaced by a stand-in over `FakeTransport`
@@ -357,7 +358,7 @@ describe('the 38-0 chase through the API', () => {
     const asked: Array<Record<string, unknown>> = []
     backend.fn = (body) => (asked.push(body), { status: 200, body: { attempt: { code: 'K7Q2MX9A3B' }, left: 2 } })
     expect(await api.startChaseRun('england', '4-3-3', options, 'Minh FC')).toEqual({ ok: true, left: 2 })
-    expect(asked[0]).toMatchObject({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: '7', data: u.generatedAt })
+    expect(asked[0]).toMatchObject({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: ENGINE_VERSION, data: u.generatedAt })
     expect(useStore.getState().game?.settings.seed).toBe('chase-K7Q2MX9A3B')
     useStore.setState({ game: null })
   })
