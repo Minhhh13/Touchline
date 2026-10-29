@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Check, CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, RefreshCw, Repeat, RotateCcw, Share2, Swords, Trophy, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
+import { useFlash } from '../useFlash'
 import { ENGINE_VERSION } from '@engine/version'
 import { getFormation } from '@engine/formations'
 import { fillingXI, isComplete, picksMade, suggestSlot } from '@engine/draft'
@@ -8,14 +10,14 @@ import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine
 import type { H2HManager } from '@game/logic/h2h'
 import type { LoadedUniverse } from '@engine/universe'
 import { draftFromEvents, roomClubs, roomEndLine, roomLeagues, roomLogLine, roomSeasons, roomWheel, ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS, ROOM_WAIT_MINUTES, type RoomSettings, type RoomView } from '@game/logic/h2hRoom'
-import { clockText, pollDelay, roomInviteText, turnClock, waitClock, type RoomUi } from '../../online/rooms'
+import { clockText, pollDelay, roomCodeFrom, roomInviteText, turnClock, waitClock, type RoomUi } from '../../online/rooms'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { useOnline } from '../../online/state'
 import { useTurnSound } from '../sound/useTurnSound'
 import { closeRoom, createRoom, joinRoom, leaveRoom, openRoom, pickInRoom, refreshRoom, resumeRoom, roomSeats } from '../../online/api'
-import { formatCode, normaliseCode, roomLink } from '../../online/core/codes'
+import { formatCode, roomLink } from '../../online/core/codes'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
@@ -31,8 +33,15 @@ import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
 import { formationBlurb } from '../i18n/engineText'
+import { rich } from '../i18n/rich'
 
 const t = translator(h2hText)
+
+/** A clock figure inside a sentence (`<m>0:42</m>`). */
+const MONO = { m: (c: ReactNode) => <span className="mono">{c}</span> }
+
+/** The page's own address, for the room's link (none when rendered off a page, as the tests do). */
+const here = () => (typeof location === 'undefined' ? { origin: '', pathname: '/' } : location)
 
 /** The four rules of an online room, as pictures with a line each (the hot-seat's, for two devices). */
 const roomSteps = (): Array<{ Icon: LucideIcon; title: string; line: string }> => [
@@ -59,22 +68,28 @@ function useNow(ms = 15000): number {
 let rematchFor: { code: string; opponent: string } | null = null
 
 /** A new room with a finished or ended room's settings and this seat's manager (name, shape, club). */
+let rematching = false
 async function rematch(u: LoadedUniverse, view: RoomView, seat: 0 | 1, showToast: (t: string) => void): Promise<void> {
   const me = view.managers[seat]
   const other = view.managers[seat === 0 ? 1 : 0]
-  if (!me) return
-  const r = await createRoom(view.settings, { name: me.name, formationId: me.formationId, hostClubId: me.hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')
-  if (!r.ok) {
-    showToast(r.message)
-    return
+  if (!me || rematching) return
+  rematching = true
+  try {
+    const r = await createRoom(view.settings, { name: me.name, formationId: me.formationId, hostClubId: me.hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')
+    if (!r.ok) {
+      showToast(r.message)
+      return
+    }
+    rematchFor = other ? { code: r.code, opponent: other.name } : null
+    showToast(other ? t('rematchOpen', { code: formatCode(r.code), name: other.name }) : t('rematchOpenAnon', { code: formatCode(r.code) }))
+  } finally {
+    rematching = false
   }
-  rematchFor = other ? { code: r.code, opponent: other.name } : null
-  showToast(other ? t('rematchOpen', { code: formatCode(r.code), name: other.name }) : t('rematchOpenAnon', { code: formatCode(r.code) }))
 }
 
 /** Head-to-head setup's online half: make a room, or open one by its code. */
 export function RoomSetup() {
-  const { universe: u, ensureLeagues, loadingLeagues, loadedLeagues, go, showToast } = useStore()
+  const { universe: u, ensureLeagues, loadingLeagues, loadedLeagues, go, showToast } = useStorePick('universe', 'ensureLeagues', 'loadingLeagues', 'loadedLeagues', 'go', 'showToast')
   const [leagueId, setLeagueId] = useState('england')
   const [scope, setScope] = useState<'league' | 'all'>('league')
   const [season, setSeason] = useState(0)
@@ -101,7 +116,9 @@ export function RoomSetup() {
   const clubs = roomClubs(u, settings)
   const hostClubId = clubs.includes(host) ? host : clubs[Math.floor(clubs.length / 3)]
   const ready = roomLeagues(u, settings).every((l) => loadedLeagues.includes(l))
-  const typed = normaliseCode(code)
+  const typed = roomCodeFrom(code)
+  // Something typed that is not a code yet: said once the box holds as many characters as a code
+  const codeProblem = !typed && code.replace(/[^A-Za-z0-9]/g, '').length >= 8
   const open = async (c: string) => {
     go('room')
     await openRoom(c)
@@ -202,8 +219,11 @@ export function RoomSetup() {
           </p>
           <label className="field">
             {t('roomCode')}
-            <input className="input mono room-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={12} autoCapitalize="characters" spellCheck={false} data-testid="room-code-input" onKeyDown={(e) => e.key === 'Enter' && typed && void open(typed)} />
+            <input className="input mono room-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={200} autoCapitalize="characters" autoComplete="off" spellCheck={false} aria-invalid={codeProblem || undefined} aria-describedby="room-code-help" data-testid="room-code-input" onKeyDown={(e) => e.key === 'Enter' && typed && void open(typed)} />
           </label>
+          <span id="room-code-help" className={`small ${codeProblem ? 'bad-text' : 'muted'}`} aria-live="polite" data-testid="room-code-help">
+            {codeProblem ? t('codeNotValid') : typed ? t('codeReady', { code: formatCode(typed) }) : t('codePasteLink')}
+          </span>
           <button className="btn primary block" disabled={!typed} onClick={() => typed && void open(typed)} data-testid="room-open">
             <DoorOpen size={16} aria-hidden="true" /> {t('openRoom')}
           </button>
@@ -212,7 +232,7 @@ export function RoomSetup() {
               <div className="eyebrow">{t('yourRooms')}</div>
               <div className="row wrap">
                 {seats.map((c) => (
-                  <button key={c} className="btn sm mono" onClick={() => void open(c)} data-testid="room-seat">
+                  <button key={c} className="btn sm mono" onClick={() => void open(c)} aria-label={t('openRoomCode', { code: formatCode(c) })} data-testid="room-seat">
                     {formatCode(c)}
                   </button>
                 ))}
@@ -233,7 +253,7 @@ export function RoomSetup() {
 /** The screen of an online room (screen `room`): the join step, the waiting room, the draft and the result. */
 export function RoomScreen() {
   const ui = useOnline((s) => s.room)
-  const { universe: u, go, ensureLeagues, loadedLeagues } = useStore()
+  const { universe: u, go, ensureLeagues, loadedLeagues } = useStorePick('universe', 'go', 'ensureLeagues', 'loadedLeagues')
   const view = ui?.view ?? null
   const code = ui?.code ?? null
   // The room's code stays in the address, so a reload or a shared tab opens the same room; it goes when the screen does
@@ -349,7 +369,7 @@ function RoomStatusLine({ ui }: { ui: RoomUi }) {
 
 /** A room that ended without a result: why, and a way on (the same room again for a manager who held a seat). */
 function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
-  const { universe: u, go, showToast } = useStore()
+  const { universe: u, go, showToast } = useStorePick('universe', 'go', 'showToast')
   const [busy, setBusy] = useState(false)
   if (!u) return null
   const other = seat === null ? null : view.managers[seat === 0 ? 1 : 0]
@@ -380,37 +400,46 @@ function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
 /** Share the room's link: the share sheet on a phone, the clipboard elsewhere. */
 function ShareRoom({ view, primary }: { view: RoomView; primary?: boolean }) {
   const showToast = useStore((s) => s.showToast)
-  const [copied, setCopied] = useState(false)
+  const [copied, flashCopied] = useFlash()
+  const [codeCopied, flashCode] = useFlash()
   const sheet = hasShareSheet()
-  const link = roomLink(view.code, location.origin, location.pathname)
+  const link = roomLink(view.code, here().origin, here().pathname)
   const go = async () => {
     const out = await shareOrCopy({ title: t('inviteTitle'), text: roomInviteText(view.managers[0]?.name ?? null, view.code), url: link })
     if (out === 'failed') showToast(t('shareLinkFailed'))
-    else if (out !== 'dismissed') {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    }
+    else if (out !== 'dismissed') flashCopied()
   }
   const copy = async () => {
     const out = await copyText(link)
     if (out === 'failed') showToast(t('copyLinkFailed'))
-    else {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    }
+    else flashCopied()
+  }
+  // The code alone, for a friend who types it in (Head-to-head, Join with a code)
+  const copyCode = async () => {
+    const out = await copyText(formatCode(view.code))
+    if (out === 'failed') showToast(t('copyCodeFailed'))
+    else flashCode()
   }
   return (
-    <div className="room-share">
-      <input className="input mono" readOnly value={link} aria-label={t('roomLink')} data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
-      {sheet ? (
-        <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void go()} data-testid="room-share">
-          {copied ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />} {t(copied ? 'sent' : 'shareInvite')}
-        </button>
-      ) : (
-        <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void copy()} data-testid="room-copy">
-          {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyLink')}
-        </button>
-      )}
+    <div className="col" style={{ gap: 'var(--space-2)' }}>
+      <div className="room-share">
+        <input className="input mono" readOnly value={link} aria-label={t('roomLink')} data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
+        {sheet ? (
+          <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void go()} data-testid="room-share">
+            {copied ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />} {t(copied ? 'sent' : 'shareInvite')}
+          </button>
+        ) : (
+          <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void copy()} data-testid="room-copy">
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyLink')}
+          </button>
+        )}
+      </div>
+      <button className="btn sm ghost" onClick={() => void copyCode()} aria-label={t('copyCodeAria', { code: formatCode(view.code) })} data-testid="room-copy-code">
+        {codeCopied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />} {t(codeCopied ? 'copied' : 'copyCode')}
+      </button>
+      <span className="sr-only" role="status">
+        {copied || codeCopied ? t('copied') : ''}
+      </span>
     </div>
   )
 }
@@ -423,7 +452,7 @@ function settingsLine(u: NonNullable<ReturnType<typeof useStore.getState>['unive
 
 /** Seat 0, waiting: the code, the link to share and the deadline. */
 function RoomWaiting({ view }: { view: RoomView }) {
-  const { universe: u } = useStore()
+  const u = useStore((s) => s.universe)
   const now = useNow(1000)
   if (!u) return null
   const clock = waitClock(view, now)
@@ -466,7 +495,7 @@ function RoomWaiting({ view }: { view: RoomView }) {
 }
 
 function ManagerCard({ m, you, turn }: { m: H2HManager | null; you?: boolean; turn?: boolean }) {
-  const { universe: u } = useStore()
+  const u = useStore((s) => s.universe)
   if (!u) return null
   if (!m)
     return (
@@ -491,7 +520,7 @@ function ManagerCard({ m, you, turn }: { m: H2HManager | null; you?: boolean; tu
 
 /** A device without a seat, on a waiting room: take the other seat. */
 function RoomJoin({ view }: { view: RoomView }) {
-  const { universe: u } = useStore()
+  const u = useStore((s) => s.universe)
   const signedIn = useOnline((s) => !!s.session)
   const busy = useOnline((s) => s.room?.busy ?? false)
   const now = useNow()
@@ -550,7 +579,7 @@ function RoomJoin({ view }: { view: RoomView }) {
 
 /** The draft: the reel and whose turn, the squad on the wheel, both pitches. Picks go to the server. */
 function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
-  const { universe: u, showToast } = useStore()
+  const { universe: u, showToast } = useStorePick('universe', 'showToast')
   const busy = useOnline((s) => s.room?.busy ?? false)
   const signedIn = useOnline((s) => !!s.session)
   const managers = view.managers as [H2HManager, H2HManager]
@@ -746,17 +775,15 @@ function TurnTimer({ view, mine, name, watching }: { view: RoomView; mine: boole
         <span>
           {mine ? t('yourClock') : t('theirClock', { name })} <span className="mono" data-testid="room-turn-elapsed">{clockText(clock.elapsed)}</span>
         </span>
-        <span className={late ? 'bad-text' : 'muted'}>
-          Times out in <span className="mono">{clockText(clock.left)}</span>
-        </span>
+        <span className={late ? 'bad-text' : 'muted'}>{rich(t('timesOutIn', { clock: clockText(clock.left) }), MONO)}</span>
       </div>
       <div className="meter room-meter" aria-hidden="true">
         <span style={{ transform: `scaleX(${Math.min(1, clock.elapsed / (ROOM_IDLE_MINUTES * 60000))})` }} />
       </div>
-      {mine && late && <div className="notice warn small">Pick within {Math.max(1, Math.ceil(clock.left / 60000))} min, or the room times out for both of you.</div>}
+      {mine && late && <div className="notice warn small" data-testid="room-late">{t('pickWithin', { n: Math.max(1, Math.ceil(clock.left / 60000)) })}</div>}
       {!mine && !watching && clock.quiet && (
         <div className="notice small" data-testid="room-quiet">
-          {name} has not picked for {Math.floor(clock.elapsed / 60000)} min: they may have stepped away. Wait, or leave and make a new room; the room times out by itself after {ROOM_IDLE_MINUTES} min.
+          {t('quietTurn', { name, n: Math.floor(clock.elapsed / 60000), idle: ROOM_IDLE_MINUTES })}
         </div>
       )}
     </div>
@@ -778,7 +805,7 @@ function TurnPill({ view, mine, line }: { view: RoomView; mine: boolean; line: s
 
 /** The room's season, as the server played it (the hot-seat's result screen), with a rematch for a manager who held a seat. */
 function RoomResult({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
-  const { universe: u, go, showToast } = useStore()
+  const { universe: u, go, showToast } = useStorePick('universe', 'go', 'showToast')
   const managers = view.managers as [H2HManager, H2HManager]
   const d = useMemo(() => (u ? draftFromEvents(u, view.settings, managers, view.events) : null), [u, view.code, view.version]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!u || !d || !view.result) return null
@@ -786,5 +813,5 @@ function RoomResult({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
     if (seat === null) go('h2h')
     else void rematch(u, view, seat, showToast)
   }
-  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label={t('onlineTitle')} shareLabel="Online head-to-head" rematchLabel={t(seat === null ? 'newRoom' : 'rematch')} onRematch={onRematch} onHome={() => go('home')} you={seat ?? undefined} testId="room-result" />
+  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label={t('resultLabel')} shareLabel="Online head-to-head" rematchLabel={t(seat === null ? 'newRoom' : 'rematch')} onRematch={onRematch} onHome={() => go('home')} you={seat ?? undefined} testId="room-result" />
 }

@@ -10,6 +10,7 @@
  */
 import { roomEnded, ROOM_IDLE_MINUTES, ROOM_WAIT_MINUTES, type RoomManagerInput, type RoomSettings, type RoomView } from '@game/logic/h2hRoom'
 import { olderEngine } from './engineRoute'
+import { normaliseCode } from './core/codes'
 import type { FunctionReply } from './transport'
 
 export const ROOMS_KEY = 'touchline-rooms-v1'
@@ -192,6 +193,16 @@ export function clockText(ms: number): string {
 export function roomInviteText(hostName: string | null, code: string): string {
   const pretty = `${code.slice(0, 4)}-${code.slice(4)}`
   return `${hostName ? `${hostName} invites you to` : 'Join me for'} a TouchLine head-to-head. Room ${pretty}, no account needed.`
+}
+
+/**
+ * A room's code from whatever the player put in the box: a typed code ("k7q2 mx9a", "K7Q2-MX9A"), or the whole invite
+ * link pasted in (`https://touchline.quest/#h=K7Q2MX9A`, with or without the address, even inside the invite's text).
+ */
+export function roomCodeFrom(input: string): string | null {
+  const link = /#h=([A-Za-z0-9]{8})(?![A-Za-z0-9])/.exec(input)
+  if (link) return normaliseCode(link[1])
+  return normaliseCode(input.trim())
 }
 
 export interface RoomSessionDeps {
@@ -441,7 +452,10 @@ export class RoomSession {
 
   /** A seat this device holds in a room that has not ended (Home's "Back to your room"). */
   openSeats(): string[] {
-    return Object.keys(liveSeats(this.d.seats.get(), this.d.now()))
+    // Newest first: the room just made or joined heads the list
+    return Object.entries(liveSeats(this.d.seats.get(), this.d.now()))
+      .sort((a, b) => b[1].at - a[1].at)
+      .map(([code]) => code)
   }
 
   /** The page became visible or hidden (or came back from the back-forward cache): read now, or plan a slower read. */
