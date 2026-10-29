@@ -52,6 +52,8 @@ describe('a live region says each moment once', () => {
     const body = banner.slice(0, banner.indexOf('\n}\n'))
     expect(body.match(/aria-live=/g)).toHaveLength(1)
     expect(body).toContain('useSayOnce(')
+    // The assistant's word carries its minute: the 15' and 30' checkpoints can say the same words
+    expect(body).toMatch(/\$\{minuteLabel\(assist\.minute\)\} \$\{tx\('assistantSays'/)
     // The assistant's form and the commentary's form both render the same region
     expect(body.match(/\{region\}/g)).toHaveLength(2)
   })
@@ -98,6 +100,13 @@ describe('contrast and larger text on the game screens', () => {
       const body = rule(`.prow:hover .chip.${tone},\n.office-view .chip.${tone}`)
       expect(body).toContain(`linear-gradient(var(--${tone}-soft), var(--${tone}-soft)) var(--panel)`)
     }
+  })
+
+  it('a Continental Cup side out of its group steps back in grey ink and a grey badge, never by opacity', () => {
+    expect(rule('.group-card tr.out td')).not.toMatch(/opacity/)
+    expect(rule('.group-card tr.out td')).toMatch(/color: var\(--text-2\)/)
+    expect(rule('.group-card tr.out .badge')).toMatch(/grayscale\(1\)/)
+    expect(rule('.group-card tr.me.out td')).not.toMatch(/opacity/)
   })
 
   it("Kick-off's two Simulate buttons and the end case's items may wrap at 200 % text", () => {

@@ -259,7 +259,7 @@ export function CommentaryBanner({ d }: PanelProps) {
   // One region for both, mounted throughout, each moment said once: two regions swapped in place re-read the booking
   // before the assistant's word once his word went (a11y round 7)
   const keyAt = key ? lines.lastIndexOf(key) : -1
-  const said = useSayOnce(showAssist && assist ? `a${assist.minute}` : key ? `k${keyAt}` : null, showAssist && assist ? tx('assistantSays', { text: commentaryPiece(assist.text) }) : key ? `${minuteLabel(key.minute)} ${commentaryLineText(key)}` : '')
+  const said = useSayOnce(showAssist && assist ? `a${assist.minute}` : key ? `k${keyAt}` : null, showAssist && assist ? `${minuteLabel(assist.minute)} ${tx('assistantSays', { text: commentaryPiece(assist.text) })}` : key ? `${minuteLabel(key.minute)} ${commentaryLineText(key)}` : '')
   const region = (
     <span className="sr-only" aria-live="polite" data-testid="banner-live">
       {said}

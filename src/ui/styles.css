@@ -15613,12 +15613,16 @@ table.tbl td.strong {
 .group-card tr.zone td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
-/* A side out once the group is complete steps back */
+/* A side out once the group is complete steps back: grey ink and a grey badge, no opacity, which took a small badge's
+   code under AA (Sporting CP's 3.3:1 on the Season summary, a11y round 7); your own row keeps its ink */
 .group-card tr.out td {
-  opacity: 0.6;
+  color: var(--text-2);
+}
+.group-card tr.out .badge {
+  filter: grayscale(1);
 }
 .group-card tr.me.out td {
-  opacity: 0.85;
+  color: var(--text);
 }
 .group-card {
   container-type: inline-size;
