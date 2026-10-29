@@ -89,7 +89,7 @@ describe('commentary colour', () => {
     covers(FORM_LINES.hot, (k) => goalColour(k, ev({}), opener, names, { form: { p1: 7.8 } }))
     covers(FORM_LINES.cold, (k) => goalColour(k, ev({}), opener, names, { form: { p1: 6.1 } }))
     const season = new Set(KEYS.map((k) => goalColour(k, ev({}), opener, names, { seasonGoals: { p1: 11 } })))
-    expect([...season].some((l) => /12th of the season|12 for the season|number 12/.test(l))).toBe(true)
+    expect([...season].some((l) => l !== null && /12th of the season|12 for the season|number 12/.test(l))).toBe(true)
   })
 
   it('reads every goal type off the engine’s words', () => {
