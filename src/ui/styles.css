@@ -8463,6 +8463,7 @@ dl.kv {
   }
   .stat-strip .stat .value {
     font-size: var(--fs-h2);
+    white-space: normal;
     overflow-wrap: anywhere;
   }
   .stat-strip .stat .bar {

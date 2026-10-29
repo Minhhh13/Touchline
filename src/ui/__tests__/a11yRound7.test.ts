@@ -130,6 +130,7 @@ describe('contrast and larger text on the game screens', () => {
     expect(read('../components/MatchCharts.tsx').match(/className="row between wrap small"/g)).toHaveLength(2)
     // The Season summary's stat strip on a phone
     expect(css).toMatch(/\.stat-strip \{\s*width: 100%;\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
+    expect(css).toMatch(/\.stat-strip \.stat \.value \{\s*font-size: var\(--fs-h2\);\s*white-space: normal;\s*overflow-wrap: anywhere;/)
     // The Gauntlet hub's lifeline beside the opponent's name
     expect(rule('.arena-opp-row')).toMatch(/flex-wrap: wrap/)
     expect(read('../screens/Arena.tsx')).toContain('className="row between arena-opp-row"')
