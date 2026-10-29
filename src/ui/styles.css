@@ -2202,6 +2202,10 @@ kbd {
   gap: 2px;
   flex-shrink: 0;
 }
+/* 'No more tips' sits 2 px under Got it: its own box is the 24 px target (WCAG 2.5.8; the ::after area is not counted) */
+.tip .tip-actions .linklike {
+  min-height: 24px;
+}
 
 /* The pitch key: what the disc number and its rings mean */
 .pitch-legend {
