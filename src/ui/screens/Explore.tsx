@@ -16,7 +16,8 @@ import { classicFromFor, isEstimated } from '@game/logic/era'
 import { careerSeasons } from '@game/logic/playerCard'
 import { topPlayerSeasons } from '@game/logic/exploreSearch'
 import { BLANK_SEARCH, seasonFilterIn, type SearchForm } from '@game/logic/exploreFilter'
-import { COMPARE_MAX, toggleCompare, wheelChanceOf } from '@game/logic/exploreDb'
+import { COMPARE_MAX, toggleCompare } from '@game/logic/exploreDb'
+import { useWheelChances } from '../useWheelChances'
 import { pressable } from '../a11y'
 import { ClubView, CompareButton, CompareView, LeagueView, SearchView, ShortlistStar, WheelLine } from './ExploreViews'
 import { RecordsView } from './ExploreRecords'
@@ -130,6 +131,7 @@ export function Explore() {
   // Worked out only on the Top view: it sorts every player-season loaded, and the universe changes as packs load
   const legends = useMemo(() => (u && view === 'legends' ? topPlayerSeasons(u, { leagueId, position: posFilter === 'all' ? undefined : posFilter, onePerPlayer, season: legendSeason === 'all' ? undefined : legendSeason }) : []), [u, view, posFilter, leagueId, onePerPlayer, legendSeason])
   const boxes = useBoxes(EXPLORE)
+  const chanceOf = useWheelChances(u)
   // The player indexes behind search, careers and the top lists build in an idle moment, not on the first tap
   useEffect(() => {
     if (!u || typeof window === 'undefined') return
@@ -324,7 +326,7 @@ export function Explore() {
                       {selected.estimated && <EstimatedChip compact />}
                     </div>
                     <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 4 }}>
-                      <WheelLine chance={wheelChanceOf(u, selected)} leagueName={leagueName} />
+                      <WheelLine chance={chanceOf(selected)} leagueName={leagueName} />
                       <button type="button" className="btn sm ghost" onClick={() => openClub(selected.clubId)} data-testid="open-club-page">
                         <Shield size={14} aria-hidden="true" /> {t('clubPage')}
                       </button>
