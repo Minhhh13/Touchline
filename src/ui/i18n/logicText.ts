@@ -10,7 +10,7 @@
  * `src/ui/__tests__/copyMirror.test.ts` holds every message to its source's English.
  */
 import { activeLocale, translator, type Vars } from '.'
-import { parseMessage, type Part } from './icu'
+import { compilePatterns, varsOf, type Pattern } from './mirror'
 import { logicText } from './en/logicText'
 import { setLogicMirror } from './logicLine'
 
@@ -18,67 +18,16 @@ const t = translator(logicText)
 /** `t` by a key found at run time (the message a line matched). */
 const say = (key: string, vars: Vars) => t(key as keyof typeof logicText.messages & string, vars)
 
-type Group = { name: string; kind: 'arg' | 'num' | 'branch'; value?: string | number }
-interface Pattern {
+interface LogicPattern extends Pattern {
   key: keyof typeof logicText.messages & string
-  re: RegExp
-  groups: Group[]
 }
 
 /** Messages too general to stand alone ("{objective}: {risk}"): they match only when every hole is itself a known line. */
 const STRICT = new Set<string>(['briefing_objectiveRisk', 'runin_verdictLine'])
 
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const PLURAL_VALUE: Record<string, number> = { zero: 0, one: 1, two: 2 }
-
-/** A message as a regular expression, its capture groups in `groups` (one per hole, branch and `#`). */
-function compile(parts: Part[], groups: Group[], plural: string | null): string {
-  let out = ''
-  for (const p of parts) {
-    if (p.kind === 'text') out += escape(p.text)
-    else if (p.kind === 'tag') out += escape(p.raw)
-    else if (p.kind === 'hash') {
-      groups.push({ name: plural ?? '', kind: 'num' })
-      out += '(-?\\d+(?:\\.\\d+)?)'
-    } else if (p.kind === 'arg') {
-      if (p.format === 'number' || p.format === 'ordinal') {
-        groups.push({ name: p.name, kind: 'num' })
-        out += p.format === 'ordinal' ? '(\\d+)(?:st|nd|rd|th)' : '(-?\\d+(?:\\.\\d+)?)'
-      } else {
-        groups.push({ name: p.name, kind: 'arg' })
-        out += '(.+?)'
-      }
-    } else {
-      // An exact branch (`=0`) first, so "no games" is not read as the `other` branch of a number
-      const options = Object.entries(p.options).sort(([a], [b]) => Number(b.startsWith('=')) - Number(a.startsWith('=')))
-      const alts = options.map(([k, ps]) => {
-        const value = p.kind === 'select' ? k : k.startsWith('=') ? Number(k.slice(1)) : PLURAL_VALUE[k]
-        groups.push({ name: p.name, kind: 'branch', value })
-        return `(${compile(ps, groups, p.kind === 'select' ? plural : p.name)})`
-      })
-      out += `(?:${alts.join('|')})`
-    }
-  }
-  return out
-}
-
-/** How much of a message is its own words: the longest are tried first, so a line finds its most specific message. */
-function literalLength(parts: Part[]): number {
-  return parts.reduce((n, p) => n + (p.kind === 'text' ? p.text.length : p.kind === 'tag' ? p.raw.length : 'options' in p ? Math.max(...Object.values(p.options).map(literalLength)) : 0), 0)
-}
-
-let patterns: Pattern[] | null = null
-function allPatterns(): Pattern[] {
-  if (patterns) return patterns
-  const list: Array<Pattern & { weight: number }> = []
-  for (const [key, src] of Object.entries(logicText.messages)) {
-    const parts = parseMessage(src)
-    const groups: Group[] = []
-    const re = new RegExp(`^${compile(parts, groups, null)}$`, 's')
-    list.push({ key: key as Pattern['key'], re, groups, weight: literalLength(parts) })
-  }
-  list.sort((a, b) => b.weight - a.weight)
-  return (patterns = list)
+let patterns: LogicPattern[] | null = null
+function allPatterns(): LogicPattern[] {
+  return (patterns ??= compilePatterns(logicText.messages) as LogicPattern[])
 }
 
 /** The message a line of the logic's English came from, with what its holes held (for the tests; English only). */
@@ -88,15 +37,7 @@ export function matchLogicLine(text: string, depth = 0): { key: string; vars: Va
     const m = p.re.exec(text)
     if (!m) continue
     if (STRICT.has(p.key) && p.groups.some((g, i) => g.kind === 'arg' && m[i + 1] !== undefined && !matchLogicLine(m[i + 1], depth + 1))) continue
-    const vars: Vars = {}
-    p.groups.forEach((g, i) => {
-      const v = m[i + 1]
-      if (v === undefined) return
-      if (g.kind === 'num') vars[g.name] = Number(v)
-      else if (g.kind === 'arg') vars[g.name] = v
-      else if (g.value !== undefined && vars[g.name] === undefined) vars[g.name] = g.value
-    })
-    return { key: p.key, vars }
+    return { key: p.key, vars: varsOf(p, m) }
   }
   return null
 }

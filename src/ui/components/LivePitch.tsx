@@ -51,6 +51,18 @@ import { match } from '../i18n/en/match'
 
 const tx = translator(match)
 
+/** The caption's English words (`phaseCaption`, `cornerDelivery`) to their `caption_` messages, built once from the catalogue. */
+let captionKeys: Map<string, string> | null = null
+/** A caption word in the viewer's language; one the catalogue does not hold stays as it came. */
+export function captionWords(text: string): string {
+  if (!captionKeys) {
+    captionKeys = new Map()
+    for (const [k, v] of Object.entries(match.messages)) if (k.startsWith('caption_')) captionKeys.set(v, k.slice('caption_'.length))
+  }
+  const name = captionKeys.get(text)
+  return name ? tx(`caption_${name}` as keyof typeof match.messages & string) : text
+}
+
 export interface PitchSide {
   name: string
   shortName: string
@@ -723,7 +735,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
         const c = hold || rf ? null : phaseCaption(path, b, scene)
         // A corner on its way in says where it is going
         const where = c && c.text === 'Corner' ? cornerDelivery(path, b) : null
-        const text = c ? `${codes[c.side]} · ${c.text}${where ? ` · ${where}` : ''}` : ''
+        const text = c ? `${codes[c.side]} · ${captionWords(c.text)}${where ? ` · ${captionWords(where)}` : ''}` : ''
         if (text !== caption) {
           caption = text
           captionRef.current.textContent = text
@@ -923,7 +935,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       </PitchSvg>
       {reduced ? (
         <div className={`pitch-caption ${stillCaption ? 'on' : ''}`} data-testid="pitch-caption" aria-hidden="true" style={{ '--caption-kit': stillCaption ? colourOf[stillCaption.side] : 'transparent' } as CSSProperties}>
-          {stillCaption ? `${codes[stillCaption.side]} · ${stillCaption.text}` : ''}
+          {stillCaption ? `${codes[stillCaption.side]} · ${captionWords(stillCaption.text)}` : ''}
         </div>
       ) : (
         <div ref={captionRef} className="pitch-caption" data-testid="pitch-caption" aria-hidden="true" />

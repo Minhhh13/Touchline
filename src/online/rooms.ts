@@ -215,11 +215,36 @@ export function rematchOf(view: Pick<RoomView, 'code' | 'managers'>, seat: 0 | 1
   return { manager: { name: me.name, formationId: me.formationId, hostClubId: me.hostClubId }, note: { of: view.code, opponent: other?.name ?? null } }
 }
 
+/** The text with a URL-encoded link's marks read back ("%23h%3D" is "#h="). */
+function decoded(text: string): string {
+  if (!/%[0-9A-F]{2}/i.test(text)) return text
+  try {
+    return decodeURIComponent(text)
+  } catch {
+    // A stray "%" or an escape cut short at the end of a paste: every whole run of escapes still reads, so "%20K7Q2-MX9A"
+    // is " K7Q2-MX9A" and the printed code is found (QA r13, R13-3)
+    return text.replace(/(?:%[0-9A-F]{2})+/gi, (run) => {
+      try {
+        return decodeURIComponent(run)
+      } catch {
+        return run.replace(/%23/gi, '#').replace(/%3D/gi, '=').replace(/%2D/gi, '-').replace(/%20/gi, ' ')
+      }
+    })
+  }
+}
+
+/** The room code box's length: a whole invite pasted URL-encoded (a rematch's, with two 24-letter names, is about 240) fits. */
+export const ROOM_CODE_INPUT_MAX = 600
+
 /**
  * A room's code from whatever the player put in the box: a typed code ("k7q2 mx9a", "K7Q2-MX9A"), or the whole invite
  * link pasted in (`https://touchline.quest/#h=K7Q2MX9A`, with or without the address, even inside the invite's text).
  */
-export function roomCodeFrom(input: string): string | null {
+export function roomCodeFrom(raw: string): string | null {
+  // Full-width letters, digits and marks typed on a Japanese keyboard fold to plain ones (NFKC), and a link or invite
+  // pasted URL-encoded ("%23h%3D", "%20") reads as it was written (QA r11, R11-O2)
+  // A dash a text editor or keyboard swapped in (en dash, minus, the katakana long mark) reads as the invite's hyphen (QA r13, R13-2)
+  const input = decoded(raw.normalize('NFKC')).replace(/[\u2010-\u2015\u2212\u30FC]/g, '-')
   const link = /#h=([A-Za-z0-9]{4}-?[A-Za-z0-9]{4})(?![A-Za-z0-9])/i.exec(input)
   if (link) return normaliseCode(link[1])
   const whole = normaliseCode(input.trim())

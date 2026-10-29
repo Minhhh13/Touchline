@@ -325,7 +325,7 @@ Quick Draft's Setup and Draft at 1280x800 and 390x844 (and 360x740), Floodlit an
 
 Looked at and left: the reel's timing (`reelCurve.ts`, untouched), the recap and Hindsight XI (clear, with the grade tip above them), the desktop Modes row (hover, focus or a tap shows each card's line), and an invented team name, which is invented again on the next setup by design (`teamName.ts`; a typed name is kept).
 
-# Round 6 (coverage): the online layer's browser half (r11, 2026-10-29)
+# Round 6: the online layer's browser half (r11, 2026-10-29)
 
 Branch `claude/r11-online-tests`. Round 5 left the parts of `src/online` that need supabase-js or a page untested. They now run in Vitest's node environment against stand-ins: a fake supabase-js `auth` (and a recorder in place of `createClient`), the in-memory `FakeTransport` in place of `SupabaseTransport`, a fake window, document, `navigator`, `localStorage`, `history` and `fetch`, and fake timers. No request leaves a test.
 
@@ -352,18 +352,19 @@ Each test fails on the runtime before its fix (checked by stashing the fix).
 - `boot.ts`'s casual-board filing (the 50 ms delay before `captureCasualEntry`) is not driven through the boot subscription (`captureCasualEntry` itself is tested in `casualClient.test.ts`); `main.tsx`'s one-line gate stays covered by the budget test (no online chunk in an offline build).
 - `runtime.ts`'s room wiring (the seat store, `onFinished`'s Trophy Room credit) is reached only through `roomSession.test.ts`'s own deps.
 - Still untested: `server/entry.ts` (the verifier bundle's entry, run by `check:verifier`).
-# Round 6: what round 10 shipped (r11, 2026-10-29)
+
+# Round 7: what round 10 shipped (r11, 2026-10-29)
 
 Branch `claude/r11-qa`, from `main` at #93 (round 10) with `claude/r10-i18n-a11y` merged in first. Same rules as before: every fix has a test that fails without it, nothing moves a draw or a seeded outcome (pins, `noMove`, `marketPin`, `dailyPin` green, ENGINE_VERSION `'7'`), no module in the edge verifier's graph is touched and the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`. No save field, no migration. No commit is titled `FIX (moves draws):` or `BUNDLED:`.
 
-## R6-1. What was tested
+## R7-1. What was tested
 
 - **The digest's next match and the Office's briefing line** (`src/game/__tests__/qaR11Season.test.ts`, new): random Seasons and Dynasties through the store (`driveSeason`, Sim 5 weighted), read at every step: `digestAhead` names exactly the men injured or banned, longest out first, the next league fixture's opponent, and none of the men it names plays that match; `officeLine` is in the briefing exactly while `officeItems` has something, counted as the Office counts, with no NaN or `undefined`. The sweep counts what it met (men named out, matches checked, Office lines and warnings) and fails on a sweep that checked nothing. Nothing wrong.
 - **Setup's remembered choices** (`src/ui/__tests__/qaR11Setup.test.ts`, new): 3,000 stored values bent at random (another build's fields, wrong types, NaN, a custom era backwards, modes twice, junk) read as whole choices of the right shapes, the same on a second read; a save reads back as it went, the defaults leave no key, one mode's memory never reaches another's; a value that is not JSON or a storage that refuses starts from the defaults. Nothing wrong.
 - **In the browser** (Playwright on `vite preview`, scripts not committed): a Quick Draft from Setup to the summary with a reload at every step (draft complete, manager spin, end case, tactics, playback, January, summary) at 1280x800 Daylight and 390x844 Floodlit in the pseudo-locale; Setup's memory and **defaults** at both widths; a Season to the Dugout with the tab keys (digits and letters from the page and on a focused tab), Sim 5, the digest (focus inside, Escape, a reload with it open), Space from the page, at 1280 Floodlit and 390 Daylight with and without the pseudo-locale; Explore's search (12 rows, then growing to 200; a new query starts again; Tab into a row, Enter opens the card, Escape returns to the row) at both widths; the arena's Cup and Gauntlet and the Run-in from Home to their summaries with reloads in the hub and on the summary; hot-seat Head-to-head at 390 in the pseudo-locale; **a whole Quick Draft by keyboard alone** (Tab, Enter) at both widths; the online rooms against `scripts/online/room-mock.mjs` (round 10's mock): two contexts made, joined by typed code, pasted link and pasted invite, drafted to the result, Rematch from either side, both at once, a reload in the rematch's waiting room, a leave and a rejoin, at 1280 and 390 in both themes. Found R11-1 to R11-6, R11-9.
 - **The pseudo-locale, scanned**: on every screen above, every visible text node and every `title`, `aria-label` and `placeholder` that still read as an English sentence (two or more common function words, plain ASCII) was listed: Home, Setup, every Dugout tab in pre-season, at matchweek 5 and in January, four digests, a match, Profile, Explore, the guide, the whole Quick Draft flow, the arena hub and summary. Found R11-7, R11-8, R11-10 to R11-13. The match commentary is the one English left on purpose (DESIGN_SYSTEM.md section 17).
 
-## R6-2. Fixed
+## R7-2. Fixed
 
 | Id | Severity | What was wrong | Fix | Test |
 | --- | --- | --- | --- | --- |
@@ -381,15 +382,115 @@ Branch `claude/r11-qa`, from `main` at #93 (round 10) with `claude/r10-i18n-a11y
 | R11-12 | Low (i18n) | The playback's points gap ("Level on points with 1st", "3 pts off 5th") | Six `logicText` messages | `r11FixesUi.test.ts` R11-12 |
 | R11-13 | Low (i18n) | The head-to-head draft log ("Spin 1: West Ham United 2014-15. Manager 1 picks first."), hot-seat and in an online room | Four `logicText` messages, the room's names in place | `r11FixesUi.test.ts` R11-13 (three seeded drafts) |
 
-## R6-3. Open
+## R7-3. Open
 
-| Id | Severity | Where | What happens | Proposed patch |
-| --- | --- | --- | --- | --- |
-| R11-O1 | Low (a11y) | `src/ui/screens/Setup.tsx` | From the top of Setup, Start is 39 Tabs away at 1280 (the whole options page comes first); a skip link reaches the page, not Start | A "Skip to Start" link at the top of Setup's options, or Start first in the bar's Tab order on a desktop |
-| R11-O2 | Note (rooms) | `src/online/rooms.ts` `roomCodeFrom` | A URL-encoded `%23h=` link and full-width characters typed on a Japanese keyboard read as no code | Decode `%23` and fold full-width letters and digits (NFKC) before matching |
-| R11-O3 | Note (i18n) | the match commentary and the match events' text | English in every language, as DESIGN_SYSTEM.md section 17 says | A commentary catalogue, as the logic's lines have now |
+All three closed on `claude/r12-open` (2026-10-29); the rows keep their ids.
 
-## R6-4. Coverage notes
+| Id | Severity | Where | What happened | Closed by | Test |
+| --- | --- | --- | --- | --- | --- |
+| R11-O1 | Low (a11y) | `src/ui/screens/Setup.tsx` | From the top of Setup, Start was 39 Tabs away at 1280 (the whole options page comes first); a skip link reached the page, not Start | **Closed.** A "Skip to Start" link, Setup's first Tab stop and built like the app's `skip-link` (off the screen until focused): `skipToControl(SETUP_START_ID)` in `landmarks.ts` focuses Start, or, while Start is disabled, its box for that once (`tabindex="-1"` dropped on blur), so the next Tab lands beside it | `r12Open.test.ts` (the link is the first focusable element on every mode's Setup and points at Start's id; the focus with Start on and off) |
+| R11-O2 | Note (rooms) | `src/online/rooms.ts` `roomCodeFrom` | A URL-encoded `%23h=` link and full-width characters typed on a Japanese keyboard read as no code | **Closed.** The input is folded with NFKC, then a percent-encoded link or invite is decoded (`decodeURIComponent`; a stray `%` it refuses still lets `%23`, `%3D` and `%2D` read) before matching | `r12Open.test.ts` (encoded links and invites, full-width codes, links and dashes; what it refused before still refused) |
+| R11-O3 | Note (i18n) | the match commentary and the match events' text | English in every language | **Closed.** A `commentaryText` catalogue (about 620 messages: the engine's event wordings, the lines of play, the colour, the assistant's word, the pieces a hole may hold) and `src/ui/i18n/commentaryText.ts`, the way `logicLine` mirrors the logic: a line keeps its English and carries the pieces it was joined from (`CommentaryLine.source`), each mirrored on screen (the commentary list, the banner and its live region, the events list, the highlights, the shot map's tooltips); a change of instructions, the board and a goal elsewhere said by key. The matcher moved to `src/ui/i18n/mirror.ts`. No line, pick or order moved in English | `commentaryMirror.test.ts` (English hashed against the commentary before the change; every template and engine wording a message; every piece of 60 matches read back character for character; the pseudo-locale) |
+
+Left in English on the match day: the live pitch's caption pill ("Building from the back", "Corner"), drawn by `LivePitch.tsx` and `aria-hidden`; a small catalogue of its fifteen labels would close it. (Closed in round 9, R13-6.)
+
+## R7-4. Coverage notes
 
 - Round 10's logic held up: the digest, the Office's line and Setup's memory met every check. The bugs were at the edges again: a browser behaviour the two-tab guard did not expect (R11-1), two people pressing the same button (R11-3), the order of the page against the order of the eye (R11-4, R11-5, R11-9), and English that reached the screen through a door the round 10 mirror had not covered.
 - Not covered: the signed-in online screens beyond round 10's own audit (`claude/r10-i18n-a11y`, 72 states against a network fake), real iOS, sound, and the share card's canvas.
+
+# Round 8: visual audit (r12, 2026-10-29)
+
+Branch `claude/r12-visual`, from `main` at #95. The owner kept finding layout oddities by eye (#95 fixed three: the ended room's row, the lockup's pole seam, the glint on the mode cards' ball). This round looked at every screen and state on purpose. Display only: CSS and two lines of markup, no draw, no save field, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.
+
+## R8-1. How it was checked
+
+- Playwright (the preinstalled one, nothing added to the repo) against `npx vite preview`, scripts kept outside the repository. One pass drove each flow once at 1280x800 and kept the save at every state worth looking at (Quick Draft, the Daily, Season, Dynasty, the Gauntlet, the Cup, the Run-in, head-to-head on this device); a second pass loaded each save in a fresh context and shot it in Floodlit and Daylight at 1280x800, 1440x900, 390x844 and 844x390 (touch), 2 themes × 4 sizes × 67 states. The online screens (World, Account, Home online) and the rooms (setup, waiting, join, draft for host and guest, result, ended after the 30-minute window, not found) came from an online build pointed at `scripts/online/room-mock.mjs` (docs/ONLINE.md 5e), never the real project.
+- States: Home new and returning; Setup for Quick Draft, the Daily, the Weekly, Season and Dynasty; the Gauntlet's, the Cup's and the Daily Arena's setup; the Run-in setup; the Draft mid-way, with an offer landed, and complete (Quick, Daily, Season, Gauntlet, Cup, Run-in); the manager spin, the end-of-draft case before and after, Squad complete; the playback, January and the season's end; both Summaries; the Dugout before the season and at matchweek 7 on all 14 tabs; the match day at 45' and 70' and its report; the digest; the arena hubs before and after a rung or round and both arena summaries; the run-in's dugout and summary; head-to-head setup, draft and result; every Explore view and a player card; Profile, How it works, Privacy.
+- Each shot was looked at, and also checked by script for a page scroll on a shell screen at 1100 px and up, sideways overflow on a phone and a button whose text overflows it. The script found none: every finding below was by eye.
+
+## R8-2. Fixed
+
+| # | Screen, size, theme | Before | After |
+| --- | --- | --- | --- |
+| 1 | Summary, Cup nights (desktop, both) | The Cup and Continental Cup cards were different heights; their Play buttons sat 37 px out of line | While neither cup has ties, the cards share a height and the Play row sits at each card's foot |
+| 2 | Home, the four mode cards (1100 px and up, both) | The Daily's Try next chip in its text pushed its title 27 px above the other three titles; at 1440x900 its button sat 27 px below the Start buttons and every card had about 40 px empty under its button | The chip sits on the picture's top-right corner (521 px and up); on the one-screen desktop the picture takes the spare height, so titles and buttons line up across the four |
+| 3 | Home, More modes tiles (desktop, both) | A one-line tile's title sat lower than a two-line tile's (the text was centred on the icon) | Titles at the top, one line across the row |
+| 4 | Setup, every mode (desktop, both) | Step 2's "Name your team" and step 3's "League and season" sat 6 px above the middle of their field (a panel heading's bottom margin) | No bottom margin on a title sharing its field's line |
+| 5 | Dugout, Market tab with the window closed (desktop, both) | The (i) wrapped alone onto a second line of the notice | The notice is a row: text, then the (i) at its right |
+| 6 | Home, phone and tablet (under 1100 px, both) | "More modes" sat flush on the Dynasty card (0 px above it, 12 above the tiles) | A gap above it |
+| 7 | Home, phone (both) | The next-badge nudge, a button, centred its wrapped line, leaving its icon alone on the left | Left-aligned under the icon |
+| 8 | Gauntlet setup, the road ahead (every size, both) | The gift icon stacked under rungs 2, 4, 6 and 8 made them taller than the next rung, breaking the climb | The icon sits beside the number, so the rungs rise evenly |
+| 9 | Explore, Compare with nobody picked (desktop, both) | The empty state sat right under the field, the rest of a tall box empty | Centred in its box, as the Draft's is |
+| 10 | Draft's offer box, and every shell box that is a `.panel.col` (1100 px and up) | `.app.shell .grid.fill > .col { padding-right: 2px }` replaced the box's own 16 px right padding: By rating / By position touched the box's edge | The 2 px scrollbar room is for wrapper columns only (`:not(.panel)`) |
+| 11 | Summary banner, Daily and Season results (desktop, both) | A meta line of 37 to 42 characters wrapped the Boxes icon alone onto a second line | The stacked layout (team and Boxes, the rest under them) from 37 characters |
+| 12 | World board, an empty board (desktop, both) | "Nobody has posted here yet" sat under the head of a full-height box | Centred in the box |
+| 13 | Head-to-head result, this device and online (desktop, both) | The winner's trophy in the card's corner ran over the end of a narrow card's name ("Manager 1") | The trophy sits on the card's top edge, centred like a medal; both heads still match |
+| 14 | Arena hub, Gauntlet and Cup (390x844, both) | Team talk wrapped Fire up alone onto a second row | The four choices share the row |
+
+## R8-3. Checked and left as is
+
+- No page scroll at 1100 px and up on any shell screen, no sideways scroll on a phone, no page error in any run.
+- The ended room (#95) holds at every size: the buttons centred, the paste box under them.
+- On a phone the head-to-head result's final table cuts club names short ("Liverpo…", "Manag…"): it shows seven columns in 390 px; the cut is an ellipsis, by design.
+- The live match day at 844x390 shows the stop panel over the pitch with its controls in two scrolling columns; usable, nothing clipped.
+- A full-page phone screenshot paints the fixed dock part way down the page: an artefact of the capture, not of the page (viewport shots scrolled down the page show it at the foot).
+
+# Round 9: what round 12 changed (r13, 2026-10-29)
+
+Branch `claude/r13-qa`, from `main` at #96 with round 12 brought in first: `claude/r12-open`'s own changes since its `claude/r11-qa` merge (that merge is #96's squash, so they were applied as a diff; only HANDOVER's change-log lines conflicted, both kept), then `claude/r12-visual` merged (the same, both kept). Same rules as before: every fix has a test that fails without it, nothing moves a draw or a seeded outcome (pins, `noMove`, `marketPin`, `dailyPin` green, ENGINE_VERSION `'7'`), nothing in the edge verifier's graph is touched and the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`. No save field, no migration. No commit is titled `FIX (moves draws):` or `BUNDLED:`.
+
+## R9-1. What was tested
+
+- **The English commentary, byte for byte against `main`** (a worktree of `main` at #96 beside this branch, one script on both, not committed): 160 seeded matches (every fifth one changed live at 30' and 75'), real multi-word club names, a goal elsewhere with and without a scorer, read at 30', 60' and the whistle with four occasions and three contexts: 32,639 lines (minute, kind, side, weight, text) plus every event's own text and the elsewhere lines hash the same on both. `commentaryMirror.test.ts` keeps its own pin of 40 matches.
+- **The commentary in another language** (`src/ui/__tests__/qaR13Commentary.test.ts`, new): 60 seeded matches with names of several words ("Brighton & Hove Albion", "Real Sociedad de Fútbol", the players' full names): English reads exactly as written; every piece matches its message and every hole holds a whole name, a known piece or a number (found R13-1); in the pseudo-locale every line is translated and no zone is left in English. The pitch's caption and a corner's delivery over 24 matches sampled every 0.04 of a minute (R13-6), and every round and occasion label the season writes (R13-5).
+- **The room code box** (`src/ui/__tests__/qaR13Rooms.test.ts`, new): 4,000 pastes built at random from the invite as the game writes it (one name, two, none; a rematch's), a link with or without its dash, and a typed code, each sent through what phones and keyboards do to text: URL-encoded whole or as a form (`+` for spaces), full-width, the dash swapped for an en dash or the katakana long mark, cut at the box's length. Found R13-2 and R13-3.
+- **In the browser** (Playwright on `vite preview`, scripts not committed): Setup's **Skip to Start** by keyboard alone on Quick Draft, Season, Dynasty and the Daily at 1280x800 and 390x844 (touch), Daylight and Floodlit, English and the pseudo-locale (32 runs): the link is the first Tab stop, visible and on top when focused, Enter puts the focus on Start in view and uncovered, and Start is the last stop. The **ended room** through `scripts/online/room-mock.mjs` and an online build (two contexts: the guest pastes an encoded rematch invite or an en-dashed one, joins, leaves), at both sizes, both themes, both languages, live and after a reload, and its Tab order (found R13-4). A **Season match day** watched at 4x in the pseudo-locale and in English at 1280 Floodlit and 390 Daylight with a reload at about 25': every commentary line, the banner and its live region, the events list and the shot map's tooltips scanned for English (about 5,400 texts in the pseudo-locale: none; the English runs prove the scan finds it), which found R13-5 and R13-6. **The visual audit's changes** in both languages and themes at 1280 and 390: Home new and returning (with Try next), Setup, Explore's Compare, the Gauntlet's setup and road, the arena hub with its team talk after a reload; Home's four cards at 1100x700, 1280x800, 1440x900 and 1920x1080 (found R13-7). No page error in any run.
+
+## R9-2. Fixed
+
+| Id | Severity | What was wrong | Fix | Test |
+| --- | --- | --- | --- | --- |
+| R13-1 | Medium (i18n) | In another language a line of play with a name of several words before its zone ("Saka finds Martin Ødegaard between the lines", "Free kick to Manchester City in midfield") cut the name in two: the matcher took "Martin" as the man and "Ødegaard between the lines" as the zone, so the zone stayed English and the name was split around the translated words. The commentary takes full names, so most lines of play with a two-word name were hit | A hole that only ever holds known pieces matches only those: `compilePatterns(messages, fixed)` in `mirror.ts`, the commentary's `{zone}` as the five zones | `qaR13Commentary.test.ts` (every hole of 60 matches holds a whole name or a known piece; no zone in English in the pseudo-locale) |
+| R13-2 | Low (rooms) | An invite whose dash a text editor, keyboard or messaging app had swapped (en dash, minus, the katakana long mark) read as no code | Those dashes read as the invite's hyphen | `qaR13Rooms.test.ts` |
+| R13-3 | Low (rooms) | A URL-encoded rematch invite runs past 200 characters (about 240 with two long names): the box cut it, and an escape cut short at the end (or any stray `%`) made `decodeURIComponent` throw, after which "%20K7Q2-MX9A" no longer read as a code | Each whole run of escapes is decoded on its own when the whole text will not decode; both code boxes take 600 characters (`ROOM_CODE_INPUT_MAX`) | `qaR13Rooms.test.ts`; Playwright (the encoded rematch invite opens the room) |
+| R13-4 | Low (display) | The ended room's and the online result's rematch paste box: with a longer translation of its button the box shrank to 98 px on a phone and cut its own placeholder ("K7Q2-MX9") | The row wraps and the box keeps its nine characters (`min-width: calc(9ch + 28px)`); English is unchanged (one row at 390) | `qaR13Rooms.test.ts`; Playwright (box and button at 390 in both languages) |
+| R13-5 | Low (i18n) | The match day's and the match report's header, the penalties' head, Next tie and the digest's tooltip printed the round and occasion labels raw ("Fourth round", "Derby day", "Continental Cup, Group A, matchday 2"), though `logicText` holds them | Through `logicLine` (`shellLogicLine` in `App.tsx`); the share card keeps the English | `qaR13Commentary.test.ts` (every label the season writes; a source scan for a raw `ctx.roundLabel`/`importanceLabel`) |
+| R13-6 | Low (i18n) | The live pitch's caption pill ("Building from the back", "Corner · near post"), left in English in round 7 | Nineteen `caption_` messages in the `match` catalogue, said by `captionWords` | `qaR13Commentary.test.ts` (every caption and delivery 24 matches show has a message) |
+| R13-7 | Low (display) | Home's four mode cards on the one-screen desktop: the visual audit lined their titles up (round 8, #2), but a translation that wraps one card's line onto a second (the pseudo-locale: Quick Draft and the Daily) lifted those titles 19 px above the others' | The cards' lines keep two lines' room (`min-height: 2lh`), so the pictures stay one height | Playwright (titles level at 1100, 1280, 1440 and 1920 wide in both languages, returning and new) |
+
+## R9-3. Open
+
+| Id | Severity | Where | What happens | Why not fixed here |
+| --- | --- | --- | --- | --- |
+| R13-O1 | Note (display) | Home, first run, 1100 to 1280 wide | The Daily card's title sits 2 to 3 px above the other three (its picture is 2 px shorter: the flag in its chip row) | Below what the eye finds; the returning Home is level |
+
+## R9-4. Coverage notes
+
+- Round 12 held up where it was tested by its own authors: Skip to Start, the encoded and full-width codes, English commentary byte for byte. The bugs were where real data differs from the fixtures: names of several words (the mirror's tests used "HOM", "AWA" and one-word surnames), invites longer than the box, and text that wraps in a longer language.
+- The phone match day's control strip scrolls sideways and the long-label phone ended room scrolls the page: both by design (a phone page may scroll).
+- Not covered: real iOS, sound, the share card's canvas, and the signed-in online screens beyond the rooms.
+# Round 10: head-to-head's two ways to play as one (r13, 2026-10-29)
+
+Branch `claude/r13-h2h-look`, from `main` at #96 with round 12's integration branch merged in. The owner asked that head-to-head on one device look like online play. Display only: no draw, no save field, `h2h.ts`, `h2hSpin`, `h2hLand` and the pins untouched, the room's behaviour unchanged, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.
+
+## R9-1. How it was checked
+
+- Playwright (the preinstalled one) against `npx vite preview` of an online build pointed at `scripts/online/room-mock.mjs` (docs/ONLINE.md 5e), before and after the change: the hot-seat (setup, a landed spin mid-draft, both squads complete, the result) and the room (setup, waiting, join, a landed spin for the guest, the result, host and guest in two contexts) at 1280x800 and 390x844 (touch), Floodlit and Daylight: 36 shots each time, no page error in either run, every flow played to its result.
+
+## R9-2. Before and after
+
+| # | Screen | Before | After |
+| --- | --- | --- | --- |
+| 1 | Setup, this device (desktop) | Three boxes (Manager 1, Manager 2, the league), Start under the league; the room's setup was two boxes | Two boxes like the room's: Make the match (Manager 1 beside the league, as Make a room puts you beside it) and Manager 2 (as Join with a code), with the match shown as the room shows its two seats; Start across the foot |
+| 2 | Setup, both (desktop) | Only the hot-seat had compact formation tiles and folded its steps on a short window | Both setups (`.h2h-setup`) take the compact tiles and fold the steps the same way; on a phone both fold the steps to a strip of titles |
+| 3 | Draft head, this device | "Head-to-head draft", the managers' names and the seed as text, Home and Abandon in the toolbar beside a "Manager 2 to pick" chip | "Play on this device" with the seed as a chip where the room has its code, the league season, the rules' chips, one way back (as the room's head) |
+| 4 | Draft, whose turn (this device) | The turn only in the toolbar chip; on a phone it scrolled away | The room's turn band under the reel (lit when a pick is due) and, on a phone, its turn pill at the foot; Abandon under the controls where the room has Leave |
+| 5 | Draft, both pitches (online room, desktop) | The room's pitches were not fitted: Manager 2's XI ran under the fold | Both flows fit both pitches in the third box, the manager on the clock bigger (the hot-seat's rule, now shared) |
+| 6 | Waiting for packs (this device) | An empty state straight on the page | The room's message box (`h2h-waiting` kept) |
+| 7 | Result | Already one view (`H2HResultView`) | Unchanged |
+
+## R9-3. Open
+
+- The hot-seat setup still scrolls its body at 1280x800 (as the room's setup does): Manager 1's and Manager 2's formation tiles are the long part. Start stays in view at the foot.
+

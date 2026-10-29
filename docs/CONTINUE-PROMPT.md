@@ -1,133 +1,67 @@
-# Prompt to continue TouchLine in ChatGPT / Codex
+# Prompt to continue TouchLine in another agent (Codex, Claude or similar)
 
-Paste everything below the line into Codex, with the repository `Minhhh13/Touchline` connected.
+Paste everything below the line into the agent, with the repository `Minhhh13/Touchline` connected.
 
 ---
 
-You are taking over **TouchLine**, a browser football game: a 38-0 spin-the-wheel draft fused with Football Manager depth.
+You are taking over **TouchLine**, a browser football game: 38-0's spin-the-wheel draft fused with Football Manager depth.
 
-- **Repo:** https://github.com/Minhhh13/Touchline (public).
-- **Live site:** https://touchline.quest.
-- **Stack:** Vite 6, React 19, TypeScript 5.8 strict, Zustand 5, Immer, Vitest 3. A deterministic seeded engine. An optional online layer on Supabase (project `yvqpmyqomkwtudxmkeou`); Render hosts the site.
+- **Repo:** https://github.com/Minhhh13/Touchline (public; all rights reserved, no licence yet).
+- **Live site:** https://touchline.quest (Render deploys `main` once CI is green).
+- **Stack:** Vite 6, React 19, TypeScript 5.8 strict, Zustand 5, Immer, Vitest 3. A deterministic seeded engine (`ENGINE_VERSION` `'7'`). An optional online layer on Supabase (project `yvqpmyqomkwtudxmkeou`).
 
-The previous agent (Claude) worked through about 15 parallel cloud sessions and local agents. Their work lives on GitHub branches, described below. You will not see those sessions; everything you need is in the repo.
+The previous agent (Claude) worked through many parallel sessions, each on its own branch. Everything you need is in the repository; you will not see those sessions.
 
-## 1. Read first (in this order)
+## 1. Read first, in this order
 
-1. `docs/HANDOVER.md` **section 0, "Where things stand"**. This is the current state and the list of unmerged branches.
-2. `CLAUDE.md`. It holds the architecture map, the commands and the numbered **invariants**. Never break them. The important ones:
-   - Determinism: no `Math.random` or `Date` in the engine or game simulation; every draw goes through `Rng`.
-   - Bump `ENGINE_VERSION` when draws change.
-   - Never change the frozen Daily or Weekly mappings.
-   - Save compatibility: new fields are optional, read with `??`, and get defaults in `normaliseGame`.
-   - The verifier-bundled files: `src/engine/*`, `src/online/server/*`, and `src/game/logic/{managers,endCase,slotSheet,quickCups,arena,h2hRoom,setup,challenge,daily,weekly,quick,youth}.ts`. Changing them changes the edge bundle hash and needs a new loader deploy.
-   - Database changes go in new migration files only.
-3. `docs/ONLINE.md` section 7, the release runbooks, including "Release engine 7".
-4. The rest of `docs/HANDOVER.md`: known issues (section 7) and the change log.
+1. `docs/HANDOVER.md` **section 0, "Start here"**: what is live and how to check it, how to release a batch, the engine 8 release, and the owner's to-dos. It is the current state; when it and this prompt disagree, it wins.
+2. `CLAUDE.md`: the architecture map, the commands and the numbered **invariants**. Never break them. The ones that bite most:
+   - Determinism: no `Math.random`, `Date` or `performance.now` in the engine or the game's simulation; every draw goes through `Rng`.
+   - Bump `ENGINE_VERSION` when draws change (and only in an engine release, below).
+   - Never change the frozen Daily, Daily Arena, Weekly or Run-in of the week mappings; a new Daily rotation or weekly theme goes in a new dated epoch.
+   - Save compatibility: new persisted fields are optional, read with `??`, defaulted in `normaliseGame`.
+   - The edge verifier bundle: `src/engine`, `src/online/server` and every game-logic module the season replay reaches (`setup.ts`, `quick.ts`, `quickCups.ts`, `cabinet.ts`, `arena.ts`, `h2hRoom.ts`, `endCase.ts`, `slotSheet.ts`, `week.ts` and more) are bundled into the Edge Function's verifier. Any change there, even display-only, can rename `dist/edge/verifier-<hash>.js` and then needs a new loader deploy. After `npm run build`, compare `dist/build.json`'s `verifier.path` with the live one.
+   - Database changes are new migration files only, never an edit to an applied one.
+3. `docs/ONLINE.md` section 7, the release runbooks.
+4. The rest of `docs/HANDOVER.md`: known issues (section 7) and the change log (section 10, newest at the bottom).
 
-Then run `npm ci`, `npm run typecheck`, `npm test` and `npm run build`.
+Then run `npm ci`, `npm run typecheck`, `npx vitest run` (about nine minutes on four cores) and `npm run build`.
 
 ## 2. Hard rules
 
 - Only the TouchLine repo, the Render workspace `tea-dbeoghbrjlhs738bpcng` and the Supabase project `yvqpmyqomkwtudxmkeou`.
   - The owner has other, unrelated projects (Trade Desk and others). **Never touch them.**
   - The table `public.telegram_market_snapshots` in the Supabase project is not TouchLine's. Leave it.
-- No secrets in the repo. Never put the Supabase `service_role` key in the browser or in `VITE_` vars.
-- Never push to `main` directly. Use a feature branch and one PR; CI must be green.
-- Batch work into few PRs. CI runs on PRs and on pushes to `main` only.
-- Never force-push or rewrite shared history.
-- When the squash of a PR lands on `main`, record it on your branch with `git merge -s ours` only if your branch already holds a commit with the same tree as that squash. Otherwise do a real merge.
-- No real crests, kits, logos or player photos. No UEFA or Champions League marks. Flags are drawn SVGs. Sounds are synthesised. Icons come from lucide-react.
-- **Engine bumps go live just before 00:00 UTC:** the site first, then the new loader `touchline-e{N}` (Verify JWT off). That way the next day's Daily pins on the new engine. Keep the previous engine's function deployed for 7 days or more.
-- Every user-facing string goes through `t()` (`src/ui/i18n`). Use the design tokens and the motion tokens.
-- The one-screen desktop rule: no page scroll at 1100 px wide and up.
+- No secrets in the repo. The Supabase `service_role` key never goes in the browser or in a `VITE_` variable.
+- Never push to `main` directly. Work on a feature branch, open one PR, and get CI green. Batch work into few PRs (CI runs on PRs and on pushes to `main` only).
+- Never force-push `main` or rewrite shared history.
+- After a squash lands on `main`, record it on your branch with `git merge -s ours origin/main` only when your branch holds a commit with exactly the squash's tree. Otherwise do a real merge.
+- Engine bumps go live just before 00:00 UTC, ideally on a Monday: the site first, then the new loader `touchline-e{N}` (Verify JWT off). Keep the previous engine's function deployed for at least 7 days.
+- No real crests, kits, logos or player photos; no UEFA or Champions League marks. Flags are drawn SVGs, sounds are synthesised, icons come from `lucide-react`.
+- Every user-facing string goes through `t()` (`src/ui/i18n`). Use the design tokens and the motion tokens (`docs/DESIGN_SYSTEM.md`).
+- The one-screen desktop rule: no page scroll at 1100 px wide and up on the shell screens.
+- Every change updates `docs/HANDOVER.md` (and `CLAUDE.md` when a path, command or convention changes) in the same PR, with one dated change-log line at the bottom. Never delete someone else's change-log lines.
 
 ## 3. What to do now
 
-**Current state (2026-10-29, 07:30 UTC). Read this first; it overrides A to B0 below, which are kept as history.**
-
-- Live: `main` at #94 (engine 7, rounds 9 and 10 in). `touchline-e7` pins `verifier-ecc269657e48639b.js`, and nothing since #88 changed it.
-- Next PR: round 11's online tests plus the owner's screenshot fixes, from `claude/youthful-mccarthy-a57idu`.
-- Still running: `claude/r11-qa`, and `claude/r10-engine8` kept level with main.
-- Engine 8 releases on Monday 2026-11-02 just before 00:00 UTC from `claude/r10-engine8`. The steps are in `docs/HANDOVER.md` section 0.
-- The owner still has to:
-  - delete the 87 merged branches listed in `docs/branch-cleanup.txt`;
-  - delete the test row "SMOKE e7 release check" from `private.error_reports`.
-
-**A. Engine 7 is live** (PR #86, squash f51eca0, live on touchline.quest from 2026-10-28 17:29 UTC). The Edge Function `touchline-e7` was deployed at 17:30 UTC as the loader pinning `verifier-5e7764386729eb13.js` (Verify JWT off) and answers `status` with `engine: "7"`; `touchline-e6`, `-e5` and `-e4` still answer. Keep `touchline-e6` (to at least 2026-11-05), `touchline-e5` (to 2026-11-04) and `touchline-e4` (to 2026-11-03).
-
-**A2. The Daily rotation is live too** (PR #87, squash 1df6a32): `touchline-e7` was redeployed at 17:56 UTC pinning `verifier-533df0bd10128be8.js`. Nothing left to do for it.
-
-**B-1. Round 9 is running** (started 2026-10-29 02:00 UTC, seven cloud sessions from `main` at d76e552, tag `touchline-r9`; none opens a PR, each pushes its own branch):
-- `claude/r9-a11y-names`: every switch named (accessibility round 5).
-- `claude/r9-firstload`: the first download back to 320 KB JS and 50 KB CSS.
-- `claude/r9-qa`: QA round 4 on round 8's features; look for `SEVERE:` commits first.
-- `claude/r9-office-ui`: the Office polished and given more depth.
-- `claude/r9-visual`: a whole-app visual consistency pass.
-- `claude/r9-docs`: README, FEATURES, GAME_DESIGN, How it works and CLAUDE.md's stale "Work in progress" section.
-- `claude/r9-engine8`: engine 8 prepared, not released. It holds `45f5754`, the version bump, the re-based pins and e7's bundle in `public/edge`, plus a "Release engine 8" runbook. Release it only at 00:00 UTC on a Monday.
-
-Integrate them as round 8 was integrated: one batch branch from `main`, then `-s ours` of any squashed base the branches share. Merge them in this order: qa, firstload, a11y-names, visual, office-ui, docs. Put engine 8 last, in its own release.
-
-**B0. Round 8 is integrated in PR #88** (`claude/youthful-mccarthy-a57idu`, batch5): every `claude/r8-*` branch except `r8-a11y` (still running when this was written; merge it next), with `45f5754` reverted and held for engine 8. It renames the edge bundle to `verifier-ecc269657e48639b.js`: after #88 is live, rebuild the loader from `main` at the deployed commit and redeploy `touchline-e7` (Verify JWT off), as in A2. The first-download budget was raised to 330 KB JS and 56 KB CSS (`budget.test.ts`, docs/PERFORMANCE.md); splitting `week.ts` and this round's styles out of the first download would win it back.
-
-**B. Integrate the waiting branches** (done for all but `r8-a11y`; kept for reference) (all based on `release-e7`).
-
-Make one batch branch from the latest `main` and real-merge the branches in this order. Look for commits titled `SEVERE:` first and ship those soonest.
-
-- **Bug fixes first:**
-  - `claude/r8-qa`: QA on engine 7.
-  - `claude/r8-audit-logic-a`, `claude/r8-audit-logic-b`, `claude/r8-audit-screens`, `claude/r8-audit-ui`, `claude/r8-audit-online`: file-by-file code audits.
-- **Interface and polish:**
-  - `claude/r8-ui-front`: Home, Setup, the draft, and the Home de-cluttering.
-  - `claude/r8-ui-season`, `claude/r8-ui-phone`, `claude/r8-ui-modes`.
-  - `claude/r8-anim`: season and match motion, ball and kick sounds, the redesigned stadium sounds.
-  - `claude/r8-copy`: translations and wording.
-  - `claude/r8-a11y`, `claude/r8-onboarding`, `claude/r8-share`, `claude/r8-trophies`, `claude/r8-explore`, `claude/r8-tests`.
-- **Bigger features:**
-  - `claude/r8-season-play`: Season and Dynasty usability.
-  - `claude/r8-fm-depth`: Football Manager depth. That means club transfer negotiations with counters, transfer requests from unhappy players, promises, player talks and squad status. Every roll runs on a forked copy, so untouched games are unchanged.
-  - **`claude/e7-daily` (released in #87; skip it):** the Daily rotating through the seven leagues from 2026-10-30 as a dated epoch (every earlier Daily unchanged), plus a slightly easier Super League behind the new optional `superEase` rule (old Super League games replay unchanged). It changes the e7 bundle (`verifier-533df0bd10128be8.js`), so after merging, redeploy the `touchline-e7` loader with the new hash. It must be live **before 2026-10-31 00:00 UTC** (the first La Liga day; 2026-10-30 is a Premier League day and identical on both builds). If that slips, move `DAILY_EPOCHS`' start to a later day. Runbook in its ONLINE.md.
-
-Resolve conflicts by keeping both sides' intent. For `docs/HANDOVER.md`, keep both change-log lines; never delete others' lines.
-
-After each merge, run typecheck and the affected tests. At the end, run:
-
-- the full suite: `npx vitest run --testTimeout=180000`; rerun any file that times out on its own;
-- `rm -rf dist && npm run build`, then check `dist/edge`;
-- `BUDGET_DIST=1 npx vitest run src/ui/__tests__/budget.test.ts`;
-- `npm run check:dist-keys`;
-- `npm run build:verifier && npm run check:verifier`;
-- `npm run sql:test` if anything under `supabase/` changed;
-- a Playwright smoke at 1280x720 and 390x844.
-
-Then open one PR.
-
-**C. Engine 8.** Commits marked `FIX (moves draws):` or `BUNDLED:` in the audit branches change outcomes or the edge bundle. Collect them into an engine 8 release:
-
-- bump `ENGINE_VERSION` to `'8'`;
-- re-baseline the pins, explaining each change;
-- add a GAME_DESIGN section 15 line;
-- ship the e7 bundle as a static file in `public/edge/` and pin it in `legacyEdge.test.ts`;
-- add `[functions.touchline-e8]`;
-- follow a "Release engine 8" runbook in ONLINE.md;
-- release just before 00:00 UTC.
+1. **Engine 8, Monday 2026-11-02 just before 00:00 UTC.** It is ready on `claude/r10-engine8`. Follow "Release engine 8" in that branch's `docs/ONLINE.md` section 7 (`git show origin/claude/r10-engine8:docs/ONLINE.md`): merge `main` into it, run every check, merge into `main` at about 23:30 UTC on Sunday, deploy the new `touchline-e8` loader from the deployed commit, smoke it, and check the next day's Daily and Weekly pin on engine 8. If you miss that Monday, wait for the next one.
+2. **Retire the old functions** on time (`touchline-e4` from 2026-11-03, `-e5` from 2026-11-04, `-e6` from 2026-11-05, `-e7` from 2026-11-09 once engine 8 is live), each with its `public/edge/` file, `legacyEdge.test.ts` entry and `supabase/config.toml` block.
+3. **Then** the next items in `docs/BACKLOG.md` and HANDOVER section 8, one batch and one PR at a time.
 
 ## 4. Owner preferences (decided)
 
-- Push in batches, not many small PRs. The repo is public, so Actions are free.
-- Do not fake leaderboard players. If boards look empty, the approved idea is clearly labelled AI rivals ("AI" badge), shown only when a board has few real players and never stored.
-- Default team names are generated; "Touchline XI" is only the logic fallback.
-- Head-to-head opens on "Play with a friend". Sign-in emails send a 6-digit code only, with no link.
-- iOS is later and the owner's call: their `ios-native` branch versus the friend's PR #72.
+- Push in batches, not many small PRs.
+- Do not fake leaderboard players. If boards look empty, the approved idea is clearly labelled AI rivals (an "AI" badge), shown only when a board has few real players and never stored.
+- Default team names are generated; "Touchline XI" is only the logic's fallback.
+- Head-to-head opens on "Play with a friend". Sign-in emails send a six-digit code only, with no link.
+- iOS is later and the owner's call: their `ios-native` branch or the friend's PR #72.
 
 ## 5. Waiting on the owner
 
-- The iOS app.
-- A data rebuild for the 54 ",NN" player names.
-- A licence.
-- Google and Apple sign-in.
-- Leaked-password protection and the Supabase paid plan before a public launch.
+- Deleting the 87 merged branches in `docs/branch-cleanup.txt` (a cloud session cannot delete other branches).
+- Deleting the engine 7 release's smoke row ("SMOKE e7 release check") from `private.error_reports`.
+- A licence; Google and Apple sign-in; leaked-password protection and the Supabase paid plan before a public launch.
+- The iOS app; a data rebuild that strips the 54 ",NN" player names; the first translation languages.
 
 ## 6. How to report
 

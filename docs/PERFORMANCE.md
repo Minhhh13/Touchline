@@ -3,7 +3,8 @@
 What a mid-range phone pays for TouchLine, measured before the iOS App Store release, what the perf pass of
 2026-10-26 (`perf-pass`, from `claude/touchline-preview` 32ace40) changed, what round 2 (`perf-r2`, from 9aaa6c0, the
 same evening) changed, round 6's UI work, round 3 (`r7-perf`, 2026-10-27, on engine 6), round 9's first download
-(`r9-firstload`, 2026-10-29, on engine 7), round 4 (`r9-perf`, 2026-10-29, on engine 7), and what to look at next.
+(`r9-firstload`, 2026-10-29, on engine 7), round 4 (`r9-perf`, 2026-10-29, on engine 7), round 10 (`r10-perf`), round 11
+(`r13-perf`, 2026-10-29, on engine 7) and what to look at next.
 Every number is from the production build.
 
 ## How it was measured
@@ -505,12 +506,79 @@ season engine, the arena) is in the entry anyway through the store's static `are
 arena live match there). A split would only pay with the arena's live-match path moved to the rules chunk as well,
 and `arena.ts` is in the edge verifier's graph too. The edge bundle keeps its name (`verifier-ecc269657e48639b.js`).
 
+## Round 11 (`r13-perf`)
+
+The fifth phone round, on `main` at 5c6ae29 (#97, round 12; engine 7). Measured as above: Playwright's Chromium at
+390x844 (DPR 3, touch, `isMobile`), 4x CPU through `Emulation.setCPUThrottlingRate`, the production build behind a
+small gzip server; Fast 3G only for the cold loads. The harness drives each flow from a cleared page and reads long
+tasks (`PerformanceObserver`) from the tap until 1.5 s after the screen is up; frame intervals from a
+`requestAnimationFrame` loop for the live match and the playback; traces (devtools.timeline) and CPU profiles on an
+unminified build for the costs. Before is `main` 5c6ae29, after is this branch, run one after the other (the cold loads
+interleaved, three each twice). The machine was quiet this time, but every run drafts a new seed, so a flow varies by
+about 20 % from run to run; a range is the runs' spread.
+
+| Phone, 4x CPU | Before (`main` 5c6ae29) | After |
+| --- | --- | --- |
+| Cold load (Fast 3G): longest task before Home | 554 to 790 ms | 257 to 385 ms (the entry chunk's evaluation, 257 to 410 before too) |
+| Cold load: first paint / Home up | 5.2 to 5.5 s / 6.7 to 7.1 s | 4.5 to 5.4 s / 6.9 to 7.0 s (the network: 919 KB over Fast 3G) |
+| Quick Draft: Finish to Squad complete, longest task | 258 to 372 ms (ready in 0.7 to 1.0 s) | 235 to 268 ms (ready in 0.6 s) |
+| Explore: open, longest task | 413 to 490 ms | 244 to 271 ms |
+| Explore: the first search (every league loads), longest task | 571 to 896 ms | 349 to 409 ms |
+| Explore: typing a name at 180 ms a key | 0 to 78 ms | 0 to 79 ms (unchanged) |
+| Quick Draft: Home to Setup / Setup's Start to the Draft | 136 to 157 / 171 to 234 ms | unchanged (nothing in their path changed) |
+| Quick Draft: Auto-complete / Kick off to the playback / Skip | 216 to 248 / 105 / 93 to 191 ms | unchanged |
+| Quick Draft: the playback running | 58 fps, p95 17 ms | the same |
+| Season: Finish draft to the Dugout | 307 to 558 ms | 438 to 517 ms (unchanged, left: below) |
+| Season: Play matchweek (Sim result) to the report / back | 115 to 264 / 189 to 356 ms | 111 to 237 / 236 to 255 ms (unchanged) |
+| Season: Sim 5 to the digest | 257 to 320 ms (2.2 to 2.9 s in all) | 278 ms (2.5 s; unchanged) |
+| Live match at 2x / 4x: fps, p95 frame, frames over 50 ms in 25 s | 51 fps, 33 ms, 6 to 8 / 47 fps, 33 ms, 21 | 46 fps, 33 ms, 16 / 46 fps, 33 ms, 21 (unchanged code; left) |
+| Arena: Finish draft to the hub | 171 ms | unchanged (nothing in its path changed) |
+| Edge verifier | `verifier-ecc269657e48639b.js` | unchanged (no bundled file touched) |
+
+The three biggest costs and what changed (display and timing only, no draw, nothing bundled):
+
+1. **The cold load's task before Home** (650 to 735 ms at 4x in the after-runs' "before"). One task held the last
+   league's `buildLeague`, `mergeUniverses`, `tidyUniverseNames`, Home's first render and commit, and a forced style
+   and layout of the whole first screen from App.tsx's `--topbar-h` effect (`getBoundingClientRect` in the effect,
+   about 100 ms). The store's loader now yields between the merge (`packs.ts`'s `loadPacks`, after the builds), the tidy
+   and the store write that renders the screens, and the top bar's height comes from the ResizeObserver's first report,
+   after the frame's own layout (only the scroll padding reads it). The work is the same; the longest piece is now
+   the entry chunk's evaluation.
+2. **Squad complete's pre-season odds** (a 340 ms task at 4x, about 1.3 s after the tap). The sampling ran in 20 ms
+   slices already, but its first slice built the odds league whole: 380 pairings, each the match engine's pre-match
+   sums for both sides (`pairingExpectation`, in the edge bundle, so not memoised there). `oddsLeagueSteps`
+   (`src/game/logic/odds.ts`) pauses after every five sides and every `ODDS_PAIRING_STEP` (20) pairings, and
+   `usePreSeasonOdds` steps it in the same slices; `oddsLeague` runs it whole. `odds.test.ts` writes the old one-call
+   build out and holds the stepped league equal to it. What is left of the step is the screen's own render.
+3. **Explore's wheel chances** (the engine's `spinOdds` over a league's wheel, about 300 ms at 4x). `wheelChances` was
+   cached per universe, and every league load is a new universe, so Explore's render worked England's wheel out on
+   open and again after each of the eight loads the first search starts. A wheel is now kept by the very club-seasons
+   it was worked out over (`exploreDb.ts`: the first spin's odds read nothing else, and every merged universe holds the
+   same club-season objects), and `src/ui/useWheelChances.ts` works a missing wheel out after the paint, the line
+   showing an ellipsis until then (`knownWheelChances` never works one out). `exploreDb.test.ts`: a merged universe
+   reuses the wheel and a universe built afresh works out an equal one.
+
+Measured and left:
+
+- **Season's Finish draft to the Dugout, 440 to 560 ms:** `finishDraft` and `beginSeason` in the store write (about 120
+  ms at 4x), the Dugout's render (about 170 ms) and the browser's style and layout of a large screen, then the focus
+  rescue's `focus()` forcing layout once more (about 55 ms). Splitting it means painting the Draft busy first and
+  letting the season begin in a task of its own, then the Dugout's mount in two frames, as the match day mounts.
+- **The live match at 4x** keeps 46 to 47 fps on this phone, about 21 frames over 50 ms in 25 s, long tasks under
+  100 ms: the pitch's canvas and the panels' paint, unchanged since round 3's isolation.
+- **The first tap of a visit** pays about 50 ms for the `AudioContext` (`unlockAudio`, the browser's own cost) and the
+  idle prefetch's first screen about 150 ms of `modulepreload` links (`__vitePreload`'s `appendChild`), both after Home.
+- **Explore's index build** still runs 50 to 110 ms steps at 4x (2,500 player-seasons a step) while the first search
+  loads every league; a smaller step would take longer in all.
+
+No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` pass untouched, ENGINE_VERSION is `'7'`.
+
 ## Next
 
 In order of what a phone would gain:
 
-1. **Home's first render** is the start's longest task (about 375 ms at 4x: React's render and commit of Home, and a
-   forced layout for `--topbar-h` in App.tsx that costs about 100 ms of style and layout in the first frame).
+1. **Home's first render** (round 11 split the pack work and the forced layout for `--topbar-h` off it; the entry
+   chunk's evaluation, 260 to 410 ms at 4x, is now the start's longest task).
    England's `buildLeague` is only 100 to 120 ms of the start now that the classic pack is lazy (round 1's 500 ms
    counted it); a column-index build was tried in round 2 and measures the same on the phone. It did not ship: it
    renames the edge verifier, so it is parked on the branch `perf-r2-with-buildleague` for a future engine bump, when
@@ -534,3 +602,5 @@ In order of what a phone would gain:
    `setup.ts`. Round 10 measured splitting `setup.ts` alone: no gain (243.1 to 243.7 KB). Moving the arena's actions
    behind the rules chunk first, then the split, could; both files are in the edge verifier's graph, so that waits for
    an engine release.
+10. **Season's Finish draft to the Dugout** (440 to 560 ms at 4x, round 11): the Draft painted busy, the season begun in
+    a task of its own, then the Dugout mounted in two frames.

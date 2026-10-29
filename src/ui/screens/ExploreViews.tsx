@@ -7,7 +7,8 @@ import { useStorePick } from '../useStorePick'
 import { isEstimated } from '@game/logic/era'
 import { careerSeasons, positionMap, seasonSeries } from '@game/logic/playerCard'
 import { searchPlayers, topPlayerSeasons } from '@game/logic/exploreSearch'
-import { bestXIEver, careerLine, clubHistory, clubSummary, compareRows, COMPARE_MAX, leagueChampions, leagueClubs, leagueRecordBook, oneIn, shareLabel, titleCounts, topRatedBySeason, wheelChanceOf, type WheelChance } from '@game/logic/exploreDb'
+import { bestXIEver, careerLine, clubHistory, clubSummary, compareRows, COMPARE_MAX, leagueChampions, leagueClubs, leagueRecordBook, oneIn, shareLabel, titleCounts, topRatedBySeason, type WheelChance } from '@game/logic/exploreDb'
+import { useWheelChances } from '../useWheelChances'
 import { BLANK_SEARCH, filterActive, filterPlayers, FILTER_LIMIT, formFilter, nationCounts, type FilterHit, type FilterSort, type SearchForm } from '@game/logic/exploreFilter'
 import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented } from '../components/bits'
 import { NationFlag } from '../components/Flag'
@@ -31,7 +32,9 @@ const tx = translator(explore)
 const POSITIONS: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']
 
 /** "On the wheel" for one club-season: the first spin's chance and its share of its season. */
-export function WheelLine({ chance, leagueName }: { chance: WheelChance | null; leagueName: string }) {
+export function WheelLine({ chance, leagueName }: { chance: WheelChance | null | undefined; leagueName: string }) {
+  // Still being worked out (after the paint, useWheelChances): the line's place kept
+  if (chance === undefined) return <span className="small muted" data-testid="wheel-line" aria-busy="true">…</span>
   if (!chance) return <span className="small muted" data-testid="wheel-line">{tx('wheelNever')}</span>
   return (
     <span className="small muted" data-testid="wheel-line" title={tx('wheelTip', { league: leagueName, pct: (chance.p * 100).toFixed(3), n: chance.seasons })}>
@@ -94,6 +97,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
   const xi = useMemo(() => (u && shown ? bestXIEver(u, shown) : []), [u, shown])
   const [season, setSeason] = useState<number | null>(null)
   const [side, setSide] = useState<'squad' | 'xi'>('squad')
+  const chanceOf = useWheelChances(u)
   useEffect(() => setSeason(null), [shown])
   if (!u) return null
   const line = lines.find((l) => l.cs.season === season) ?? lines[0]
@@ -162,7 +166,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
             </thead>
             <tbody>
               {lines.map((l) => {
-                const w = wheelChanceOf(u, l.cs)
+                const w = chanceOf(l.cs)
                 const on = l === line
                 return (
                   <tr key={`${l.cs.leagueId}@${l.cs.season}`} className={`clickable ${on ? 'me' : ''}`} onClick={() => setSeason(l.cs.season)} {...pressable(() => setSeason(l.cs.season))} aria-current={on ? 'true' : undefined}>
@@ -193,7 +197,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
         {side === 'squad' && line && (
           <>
             <div className="row wrap" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-              <WheelLine chance={wheelChanceOf(u, line.cs)} leagueName={leagueName} />
+              <WheelLine chance={chanceOf(line.cs)} leagueName={leagueName} />
               {line.cs.estimated && <EstimatedChip />}
             </div>
             <div className="plist lined">

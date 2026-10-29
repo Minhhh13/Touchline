@@ -397,7 +397,7 @@ export function Summary() {
     <div className="page summary" data-testid="summary">
       <div className="tier-banner result-banner">
         {!replay.playing && <ResultArt kind={resultArtKind(tier)} />}
-        <div className={`banner-meta${metaChars > 42 ? ' long' : ''}`}>
+        <div className={`banner-meta${metaChars > 36 ? ' long' : ''}`}>
           <span className="bm-team">
             <TeamBadge code={game.settings.shortName} size={22} />
             {game.settings.teamName}

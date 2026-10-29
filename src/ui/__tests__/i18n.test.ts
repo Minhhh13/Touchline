@@ -230,7 +230,8 @@ describe('the catalogues', () => {
     for (const c of Object.values(all)) {
       // The logic's mirror is read by matching a line against every message (`logicLine`), never by a key in code:
       // `logicMirror.test.ts` holds each message to its source instead
-      if (c.ns === 'logicText') continue
+      // The commentary's mirror likewise (`commentaryPiece`; `commentaryMirror.test.ts`)
+      if (c.ns === 'logicText' || c.ns === 'commentaryText') continue
       const users = files.filter(({ code }) => translatorsOf(code).some((x) => x.ns === c.ns))
       const literals = new Set(users.flatMap(({ code }) => translatorsOf(code).filter((x) => x.ns === c.ns).flatMap((x) => firstArgs(code, x.name))).flatMap(keysIn))
       // A key built from a template (`t(\`tier_${x}\`)`) counts as used through its prefix

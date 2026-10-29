@@ -111,8 +111,9 @@ export function App() {
       return
     }
     const set = () => root.style.setProperty('--topbar-h', `${Math.ceil(topbar.getBoundingClientRect().height)}px`)
-    set()
-    if (typeof ResizeObserver === 'undefined') return
+    // Measured by the observer's first report, after the frame's own layout: read here, it forced the whole first screen's
+    // style and layout inside the commit (about 100 ms at 4x on Home's first render). Only the scroll padding reads it.
+    if (typeof ResizeObserver === 'undefined') return set()
     const ro = new ResizeObserver(set)
     ro.observe(topbar)
     return () => ro.disconnect()
@@ -455,7 +456,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
             key={i}
             className={`chip ${outcomeClass(r.outcome)} ${r.comp !== 'league' ? 'cup' : ''}`}
             style={{ ['--i' as string]: String(Math.min(i, 12)) }}
-            title={t(r.comp === 'league' ? 'digestLeagueTip' : 'digestCupTip', { week: r.matchweek, round: r.roundLabel ?? t('digestCupTie'), venue: r.home ? 'home' : 'away', club: clubName(u, r.opponentId), score: `${r.gf}-${r.ga}`, agg: r.aggregate ? t('digestAggTip', { score: `${r.aggregate.gf}-${r.aggregate.ga}` }) : '', pens: r.penalties ? t('digestPensTip', { score: `${r.penalties.gf}-${r.penalties.ga}` }) : '' })}
+            title={t(r.comp === 'league' ? 'digestLeagueTip' : 'digestCupTip', { week: r.matchweek, round: r.roundLabel ? shellLogicLine(r.roundLabel) : t('digestCupTie'), venue: r.home ? 'home' : 'away', club: clubName(u, r.opponentId), score: `${r.gf}-${r.ga}`, agg: r.aggregate ? t('digestAggTip', { score: `${r.aggregate.gf}-${r.aggregate.ga}` }) : '', pens: r.penalties ? t('digestPensTip', { score: `${r.penalties.gf}-${r.penalties.ga}` }) : '' })}
           >
             <ClubBadge clubId={r.opponentId} size={18} />
             <b>
