@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '@engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
-import { autoDraft, canUse, eligibleSlots, pick, spin } from '@engine/draft'
+import { autoDraft, canUse, eligibleSlots, pick, respin, spin } from '@engine/draft'
 import { RUN_IN_LEAGUES, RUN_IN_TEMPLATES } from '@engine/scenario'
 import type { Game } from '../types'
 import { createGame } from '../logic/setup'
@@ -118,6 +118,38 @@ describe('the Run-in of the week', { timeout: 120_000 }, () => {
     const s = weeklyRunInSettings(u, 'runin-2026-W46')!
     expect(() => replayRunIn(u, s, payload.p.slice(1), payload.k)).toThrow()
     expect(() => replayRunIn(u, s, [[null, null], [null, null], ...payload.p], payload.k)).toThrow()
+  })
+
+  it('replays re-spins then an Auto-complete that discards the showing spin, and refuses a different rest (r10)', () => {
+    let replayed = 0
+    for (const seed of ['runin-2026-W44', 'runin-2026-W45', 'runin-2026-W46', 'runin-2026-W47', 'runin-2026-W48']) {
+      const g = started(seed)
+      const rng = Rng.fromState(g.rngState)
+      const d = g.draft!
+      spin(u, d, rng)
+      while (d.respinsLeft > 0) respin(u, d, rng)
+      // The store's autoDraftRest: the showing spin discarded (it drew, so it stays as a skipped row), then the assistant
+      d.history.push({ ...d.current!, pickedId: null, slotId: null, skipped: true })
+      d.current = null
+      d.twist = null
+      autoDraft(u, d, rng)
+      g.rngState = rng.getState()
+      finish(g)
+      const payload = runInPayloadFromGame(g, u, 'x')!
+      // The discarded spin travels as a null row after the re-spins' null rows
+      const nulls = payload.p.findIndex((r) => r[0] !== null)
+      expect(nulls).toBeGreaterThan(0)
+      expect(runInReplayProblem(g, u)).toBeNull()
+      const s = weeklyRunInSettings(u, seed)!
+      const again = replayRunIn(u, s, payload.p, payload.k)
+      expect(runInClaimOf(again)).toEqual(runInClaimOf(g))
+      // A rest after the auto-complete that is not the assistant's is refused at the spin after it
+      const last = payload.p.length - 1
+      const other: typeof payload.p = payload.p.map((r, i) => (i === last ? [r[0], r[1] === 'bench' ? null : 'bench'] : r))
+      expect(() => replayRunIn(u, s, other, payload.k)).toThrow(/after an auto-complete the assistant drafts the rest/)
+      replayed++
+    }
+    expect(replayed).toBe(5)
   })
 
   it('a run-in saved before the draft rows were kept loads and says why it is not on the board', () => {
