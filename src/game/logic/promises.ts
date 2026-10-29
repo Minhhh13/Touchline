@@ -20,6 +20,7 @@ import type { Position } from '@engine/types'
 import { getFormation } from '@engine/formations'
 import { MINUTES_PER_WEEK } from '@engine/status'
 import { playerLookup, squadPlayers } from './players'
+import { contractDemand } from './contracts'
 import { postNews } from './news'
 import { dressingRoomRipple, lodgeRequest, officeOf, realIdOf, shiftMorale, squadIdOf, weekOf } from './officeCore'
 
@@ -80,6 +81,12 @@ export function promiseProblem(game: Game, u: LoadedUniverse, playerSeasonId: st
   if (open.length >= MAX_OPEN_PROMISES) return `You already have ${MAX_OPEN_PROMISES} promises running. Keep those first.`
   if (open.some((x) => x.playerId === p.playerId && x.kind === kind)) return `You have already promised ${p.name} ${KIND_WORD[kind]}.`
   if (kind === 'contract' && c.loan) return `${p.name} is on loan: his contract is his parent club's.`
+  if (kind === 'contract') {
+    // Kept only by a longer deal or a renewal (`verdict`): one he has already agreed, or one he could never be given, is no promise
+    if (c.renewed) return `${p.name} has already agreed to stay: his renewal is done.`
+    const longest = contractDemand(game, u, playerSeasonId, c.status ?? 'rotation')?.maxYears
+    if (longest !== undefined && c.years >= longest) return `${p.name} is already on the longest deal he would sign (${longest} seasons).`
+  }
   if (kind === 'signing' && !windowAhead(game)) return 'No transfer window is left this season to keep it in.'
   return null
 }

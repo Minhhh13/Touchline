@@ -15,7 +15,7 @@ import { answerRequest, openRequests, requestChance, requestPressure, talkOdds, 
 import { converse } from '../logic/conversations'
 import { answerPress, pressQuestions, PRESS_ANSWERS } from '../logic/pressConference'
 import { clubCeiling, clubValuation, counterBid, offerTerms, openingStatus, paymentPlan, proposeFee, termsDemand, walkAway } from '../logic/transferTalks'
-import { proposeContract, openingOffer } from '../logic/contracts'
+import { contractDemand, proposeContract, openingOffer } from '../logic/contracts'
 import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
 import { advanceToNextSeason } from '../logic/dynasty'
@@ -408,5 +408,24 @@ describe('saves', () => {
     expect(back.office?.promises).toHaveLength(1)
     const table = computeTable(back.season!.fixtures, [USER_TEAM, ...Object.keys(back.season!.ai)])
     expect(table.length).toBeGreaterThan(10)
+  }, 60_000)
+})
+
+describe('a contract promise is only made when it can be kept (r9 audit)', () => {
+  it('refuses a man on his longest deal, and one already renewed: either would be broken, or kept for nothing', () => {
+    const g = seasonGame(u, 'r9-office-contract', 2)
+    const id = Object.values(g.lineup)[3]
+    const longest = contractDemand(g, u, id, g.contracts[id].status ?? 'rotation')!.maxYears
+    // On the longest deal he would sign, no contract talks can give him more years: the promise could only break
+    g.contracts[id].years = longest
+    expect(promiseProblem(g, u, id, 'contract')).toMatch(/longest deal/)
+    expect(makePromise(g, u, id, 'contract').ok).toBe(false)
+    expect(openPromises(g)).toHaveLength(0)
+    // Already renewed (a dressing-room event), it would be kept at the next tick for nothing: +4 and +6 morale free
+    g.contracts[id].years = 1
+    g.contracts[id].renewed = true
+    expect(promiseProblem(g, u, id, 'contract')).toMatch(/already agreed/)
+    delete g.contracts[id].renewed
+    expect(promiseProblem(g, u, id, 'contract')).toBeNull()
   }, 60_000)
 })
