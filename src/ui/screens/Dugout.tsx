@@ -1434,8 +1434,8 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
         )}
         {boxes.on('scout-reports') && <ScoutReportsPanel onOpen={setScoutId} />}
         <div className="col">
-          <div className="notice">
-            {logicLine(closedWindowLine(game))}{' '}
+          <div className="notice with-info">
+            <span>{logicLine(closedWindowLine(game))}</span>
             <Info label={t('aboutWindows')}>{t('windowsInfo')}</Info>
           </div>
           {shortlistPanel}

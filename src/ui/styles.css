@@ -3861,6 +3861,19 @@ table.tbl.contracts .btn.sm {
   gap: 4px;
   color: var(--accent);
 }
+/* On a card with a picture on top, the marker sits on the picture's corner: in the text it pushed that card's title and button out of line with the other three (visual audit, round 7) */
+@media (min-width: 521px) {
+  .mode-card {
+    position: relative;
+  }
+  .mode-card .next-up-chip {
+    position: absolute;
+    z-index: 1;
+    top: var(--space-3);
+    right: var(--space-3);
+    background: var(--panel);
+  }
+}
 .home-tile:hover {
   transform: translateY(-2px);
   border-color: var(--primary);
@@ -5489,6 +5502,13 @@ dl.kv {
 .road-rung.bonus svg {
   color: var(--good);
 }
+/* A gift rung keeps its icon beside the number: stacked under it, the icon made rungs 2 to 8 taller than the next, breaking the climb (visual audit, round 7) */
+.road-rung.bonus {
+  grid-auto-flow: column;
+  justify-content: center;
+  align-items: center;
+  align-content: end;
+}
 @media (max-width: 520px) {
   .road-rungs {
     grid-template-columns: repeat(8, minmax(0, 1fr));
@@ -6154,6 +6174,13 @@ dl.kv {
   border: 1px solid color-mix(in srgb, var(--info) 40%, var(--line));
   background: var(--info-soft);
   font-size: calc(var(--fs-sm) + 0.5px);
+}
+/* A notice with its (i) at the end: the button keeps to the first line's right instead of wrapping alone onto a second (visual audit, round 7) */
+.notice.with-info {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 .notice.warn {
   border-color: color-mix(in srgb, var(--warn) 40%, var(--line));
@@ -8716,8 +8743,14 @@ dl.kv {
 }
 .h2h-side .h2h-cup {
   position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
+  /* On the card's top edge, centred like a medal: in the corner it ran over the end of a narrow card's name (visual audit, round 7) */
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: content-box;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--panel);
 }
 /* Online head-to-head rooms (src/ui/online/Rooms.tsx): the code to read out, the link to share, whose turn it is */
 .room-code {
@@ -10038,8 +10071,9 @@ table.tbl.match-stats th {
   .app.shell .page.home .mode-card-body {
     flex: 1 1 auto;
   }
+  /* The picture takes any height the row has spare, so every card's text and button sit at its foot, in one line across the four (visual audit, round 7) */
   .app.shell .page.home .mode-art {
-    flex: 0 1 clamp(64px, calc(100dvh - 600px), 200px);
+    flex: 1 1 clamp(64px, calc(100dvh - 600px), 200px);
     min-height: 40px;
     aspect-ratio: auto;
     height: auto;
@@ -10406,6 +10440,11 @@ table.tbl.match-stats th {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+  margin-top: auto;
+}
+/* While neither cup has ties to show, the two cards share a height and their Play buttons one line (visual audit, round 7) */
+.cup-cards:not(:has(.cup-ties)) {
+  align-items: stretch;
 }
 .cup-ties .gbg-game {
   animation: gbg-drop var(--dur-4) var(--ease-spring);
@@ -12191,6 +12230,17 @@ table.tbl.board-table tr.chase-perfect td:first-child {
   padding: var(--space-5) var(--space-3);
   text-align: center;
 }
+/* An empty board in the one-screen desktop: the line sits in the middle of its tall box, not under its head (visual audit, round 7) */
+@media (min-width: 1100px) {
+  .app.shell .fit-panel > .fit-scroll:has(> .board-empty) {
+    display: flex;
+    flex-direction: column;
+  }
+  .app.shell .fit-panel > .fit-scroll > .board-empty {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
 .board-more {
   margin-top: var(--space-2);
 }
@@ -13081,6 +13131,11 @@ table.tbl.board-table tr.chase-perfect td:first-child {
     display: none;
   }
 }
+/* A step title on the same line as its field (steps 2 and 3) loses the panel heading's bottom margin, which lifted it 6px off the field's middle (visual audit, round 7) */
+.setup-team > .step-head,
+.step-head-row > .step-head {
+  margin-bottom: 0;
+}
 /* Step 3's season picker: a compact select ("2025-26 ▾") on the step's title line, so it costs no height */
 .step-head-row {
   display: flex;
@@ -13580,6 +13635,8 @@ table.tbl.contracts-overview .link-btn.name {
 .home-tiles.casual .home-tile {
   min-width: 0;
   overflow: hidden;
+  /* Titles on one line across the row, whether the line under them wraps or not (visual audit, round 7) */
+  align-items: flex-start;
 }
 .home-tiles.casual .tile-text b,
 .home-tiles.casual .tile-text span {
@@ -13848,7 +13905,8 @@ table.tbl.hub td.name {
   .grid.three.market-closed {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr);
   }
-  .app.shell .grid.fill > .col {
+  /* A wrapper column's room for its scrollbar; a box that is itself a column keeps its own padding (it put the Draft's sort control flush on the box's edge: visual audit, round 7) */
+  .app.shell .grid.fill > .col:not(.panel) {
     padding-right: 2px;
   }
 }
@@ -15411,6 +15469,17 @@ table.tbl td.strong {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   }
 }
+/* Compare with nobody picked: its empty state sits in the middle of the tall box, as the Draft's does, not stuck under the field (visual audit, round 7) */
+@media (min-width: 1100px) {
+  .app.shell .explore-compare > .compare-players:has(> .empty-state) {
+    display: flex;
+    flex-direction: column;
+  }
+  .app.shell .explore-compare > .compare-players > .empty-state {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
 /* Explore's search lists up to 200 rows: those out of view skip layout and paint until scrolled to (r10 perf) */
 .explore-search .plist > .prow-shell {
   content-visibility: auto;
@@ -15622,6 +15691,8 @@ table.tbl td.strong {
 button.home-nudge.linklike {
   color: var(--on-photo-2);
   text-decoration: none;
+  /* A button centres its text: on a phone the wrapped next-badge line drifted away from its icon (visual audit, round 7) */
+  text-align: left;
 }
 button.home-nudge.linklike:hover {
   color: var(--photo-accent);
@@ -15783,6 +15854,12 @@ button.home-nudge.linklike:hover {
 .home-more {
   margin: 0 0 calc(-1 * var(--space-1));
   padding-inline: var(--space-1);
+}
+/* Below the one-screen desktop the page is not a flex column with a gap, so the label sat flush on the Dynasty card (visual audit, round 7) */
+@media (max-width: 1099px) {
+  .home-more {
+    margin-top: var(--space-4);
+  }
 }
 .home-tiles.casual .tile-text span {
   white-space: normal;
