@@ -506,6 +506,7 @@ export const dugout = catalog('dugout', {
   riskTip: '{match}% a match, {training}% in training this week',
   bandPct: '{band} · {pct}%',
   statsOverview: 'Overview',
+  statsView: 'Stats view',
   statsPlayers: 'Players',
   statsPlayersHint: 'Every player in the league, sorted by any column',
   statsTeam: 'Team',

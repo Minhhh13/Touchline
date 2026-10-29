@@ -268,6 +268,7 @@ export function Arena() {
             <div className="field">
               {t('teamTalk')}
               <Segmented<TeamTalk>
+                label={t('teamTalk')}
                 value={game.teamTalk}
                 onChange={store.setTeamTalk}
                 options={[

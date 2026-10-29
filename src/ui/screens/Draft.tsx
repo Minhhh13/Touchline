@@ -617,7 +617,7 @@ export function Draft() {
                   </div>
                   )}
                 </div>
-                <Segmented<'rating' | 'position'> value={sort} onChange={setSort} options={[{ value: 'rating', label: t('byRating') }, { value: 'position', label: t('byPosition') }]} />
+                <Segmented<'rating' | 'position'> label={t('sortPlayers')} value={sort} onChange={setSort} options={[{ value: 'rating', label: t('byRating') }, { value: 'position', label: t('byPosition') }]} />
               </div>
               {!revealed && spinning && <div className="notice">{t('reelRunning')}</div>}
               {revealed && twist === 'blind' && <div className="notice">{t('blindPick')}</div>}

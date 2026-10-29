@@ -112,6 +112,7 @@ export function RunInSetup() {
               <StepHead n={1} title={t('stepBrief')} />
               <div className="field" data-testid="runin-template">
                 <Segmented
+                  label={t('stepBrief')}
                   value={template}
                   onChange={(v) => {
                     setTemplate(v)
@@ -129,6 +130,7 @@ export function RunInSetup() {
               <StepHead n={2} title={t('stepLeague')} />
               <div className="field setup-league" data-testid="runin-league">
                 <Segmented
+                  label={t('stepLeague')}
                   value={leagueId}
                   onChange={(id) => {
                     setLeagueId(id)

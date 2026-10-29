@@ -443,7 +443,7 @@ export function Setup() {
                 </div>
                 <div className="field setup-league">
                   {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
-                  <Segmented value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
+                  <Segmented label={t('leagueChoice')} value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
                   {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: SUPER_LEAGUE_LINE }) : t('europeWheel')}</span>}
                 </div>
                 {isManage && (
@@ -603,14 +603,14 @@ export function Setup() {
                   {!isManage && (
                     <div className="setup-opt setup-bench" data-testid="bench-option" title={t('benchTip')}>
                       <h3>{t('bench')}</h3>
-                      <Segmented value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS()} />
+                      <Segmented label={t('bench')} value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS()} />
                       <span className="help setup-line">{t(benchPicks ? 'benchOn' : 'benchOff')}</span>
                     </div>
                   )}
                   <div className="setup-opt setup-wide-opt" data-testid="era">
                     <div className="setup-era-head">
                       <h3>{t('era')}</h3>
-                      <Segmented value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: t('custom') }] : [])]} />
+                      <Segmented label={t('era')} value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: t('custom') }] : [])]} />
                       {classicFrom !== undefined && (
                         <label className="toggle era-classic" title={t('classicTip')}>
                           <input
@@ -753,6 +753,7 @@ export function Setup() {
                         <div className="field">
                           {t('opposition')}
                           <Segmented
+                            label={t('opposition')}
                             value={opposition}
                             onChange={setOpposition}
                             options={[

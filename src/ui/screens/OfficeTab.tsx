@@ -16,6 +16,7 @@ import { feeTalkOf, MAX_FEE_ROUNDS, openingStatus, paymentPlan, sellTalkOf, term
 import { squadIdOf } from '@game/logic/officeCore'
 import { nextOpponent, recentShare } from '@game/logic/week'
 import { Bar, Info, Modal, Rating } from '../components/bits'
+import { onRadioGroupKey, radioTabIndex } from '../a11y'
 import { moraleClass } from '../components/Happiness'
 import { clubName, meterValue, money, wage } from '../format'
 import { rich } from '../i18n/rich'
@@ -248,9 +249,9 @@ function TalkBox({ game, u, say }: BoxProps) {
           </option>
         ))}
       </select>
-      <div className="segmented scroll" style={{ margin: 'var(--space-2) 0' }} role="radiogroup" aria-label={t('talks')}>
-        {(Object.keys(TOPIC_TONES) as ConversationTopic[]).map((tp) => (
-          <button key={tp} type="button" role="radio" aria-checked={topic === tp} className={topic === tp ? 'active' : ''} onClick={() => setTopic(tp)} data-testid={`talk-topic-${tp}`}>
+      <div className="segmented scroll" style={{ margin: 'var(--space-2) 0' }} role="radiogroup" aria-label={t('talks')} onKeyDown={onRadioGroupKey}>
+        {(Object.keys(TOPIC_TONES) as ConversationTopic[]).map((tp, i, all) => (
+          <button key={tp} type="button" role="radio" aria-checked={topic === tp} tabIndex={radioTabIndex(i, all.indexOf(topic))} className={topic === tp ? 'active' : ''} onClick={() => setTopic(tp)} data-testid={`talk-topic-${tp}`}>
             {t(`topic_${tp}`)}
           </button>
         ))}

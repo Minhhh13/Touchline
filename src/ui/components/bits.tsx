@@ -95,7 +95,7 @@ export function Bar({ value, max = 100, colour, thick }: { value: number; max?: 
   )
 }
 
-export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void; label?: string }) {
+export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void; label: string }) {
   const checked = options.findIndex((o) => o.value === value)
   // A named radio group (`label`: what is being chosen), one Tab stop, the arrows move the choice (round 4)
   return (
