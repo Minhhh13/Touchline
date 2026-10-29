@@ -1710,4 +1710,11 @@ export const logicText = catalog('logicText', {
   // engine/market.ts: the window's log lines the news never carries (QA r11)
   market_windowOpen: 'The {kind, select, summer {summer} other {January}} window is open. {n, number} players are available.',
   market_newPlayersListed: '{n, plural, one {# new player} other {# new players}} listed: {names}.',
+  // game/logic/liveTable.ts: the playback's points gap (QA r11)
+  liveTable_topBy: 'Top by {n, plural, one {# pt} other {# pts}}',
+  liveTable_topOnGd: 'Top on goal difference',
+  liveTable_levelWithFirst: 'Level on points with 1st',
+  liveTable_offTop: '{n, plural, one {# pt} other {# pts}} off top',
+  liveTable_levelWith: 'Level with {pos, ordinal}',
+  liveTable_offPlace: '{n, plural, one {# pt} other {# pts}} off {pos, ordinal}',
 })

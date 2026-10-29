@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { roomCodeFrom, roomInviteText } from '../../online/rooms'
 import { paceLine } from '@game/logic/gameByGame'
+import { gapLine, type LiveRow } from '@game/logic/liveTable'
 import { POWER_UPS } from '@engine/powerups'
 import { formatText, setLocaleMessages } from '../i18n'
 import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
@@ -165,5 +166,31 @@ describe('R11-11: the market’s log and a scouting range’s tip in the viewer�
   it('the rating range’s tip goes through the catalogue', () => {
     expect(src('components/bits.tsx')).not.toContain('scout him to know')
     expect(src('components/bits.tsx')).toContain("t('ratingRangeTip', { lo: range.lo, hi: range.hi })")
+  })
+})
+
+describe('R11-12: the playback’s points gap in the viewer’s language', () => {
+  it('every gap the logic writes is a logicText message, read back as written, and translated in the pseudo-locale', () => {
+    const row = (teamId: string, points: number): LiveRow => ({ teamId, points, played: 10, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 })
+    const lines = new Set<string>()
+    for (let me = 0; me < 8; me++) for (const step of [0, 1, 3]) {
+      const table = Array.from({ length: 8 }, (_, i) => row(i === me ? 'you' : `c${i}`, 40 - i * step))
+      const line = gapLine(table, 'you')
+      if (line) lines.add(line)
+    }
+    expect(lines.size).toBeGreaterThan(5)
+    for (const line of lines) {
+      const hit = matchLogicLine(line)
+      expect(hit, line).not.toBeNull()
+      expect(hit!.key.startsWith('liveTable_'), line).toBe(true)
+      expect(formatText(logicText.messages[hit!.key as keyof typeof logicText.messages], hit!.vars)).toBe(line)
+    }
+    setLocaleMessages({ id: PSEUDO_LOCALE, messages: {} })
+    try {
+      for (const line of lines) expect(isPseudo(logicLine(line)), line).toBe(true)
+    } finally {
+      setLocaleMessages({ id: 'en', messages: {} })
+    }
+    expect(src('screens/SeasonPlayback.tsx')).toContain('{logicLine(gap)}')
   })
 })
