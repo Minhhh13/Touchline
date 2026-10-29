@@ -91,7 +91,8 @@ export function inviteKindOf(game: Pick<Game, 'settings'>): InviteKind {
 
 /** The share text's last line: the call and where to answer it (the challenge link when there is one). */
 export function inviteLine(invite: Invite, url?: string | null): string {
-  return `${invite.title}: ${url || SHARE_HOST}`
+  // A question asks on its own: "Can you top this? touchline.quest", never "this?: "
+  return `${invite.title}${/[?!]$/.test(invite.title) ? ' ' : ': '}${url || SHARE_HOST}`
 }
 
 /** Glyphs that carry a result (the form blocks, a result's own icon) and stay in the share text. */

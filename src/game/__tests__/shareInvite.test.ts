@@ -52,6 +52,8 @@ describe('the share text, emoji-light', () => {
     const invite = inviteFor('quick', { points: 90 })
     expect(invite).toEqual({ title: 'Beat my draft', line: 'Same spins, same wheel. Beat 90 points.', where: SHARE_HOST })
     expect(inviteLine(invite)).toBe(`Beat my draft: ${SHARE_HOST}`)
+    // QA r9: a question takes no colon after its mark
+    expect(inviteLine(inviteFor('season'), 'https://touchline.quest/#s=ABCD2345')).toBe('Can you top this? https://touchline.quest/#s=ABCD2345')
     expect(shareWithInvite('TouchLine · Quick Draft', invite, 'https://touchline.quest/#s=ABCD2345').split('\n')).toEqual(['TouchLine · Quick Draft', 'Beat my draft: https://touchline.quest/#s=ABCD2345'])
     expect(inviteFor('daily', { points: 1, code: 'ABCD2345' })).toEqual({ title: "Beat today's Daily", line: 'One wheel for everyone today. Beat 1 point.', where: `${SHARE_HOST} · code ABCD2345` })
     expect(inviteFor('gauntlet', { rungs: 7 }).line).toBe('Same ladder. Climb past rung 7.')

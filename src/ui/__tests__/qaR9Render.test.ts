@@ -60,7 +60,7 @@ function renderBoth(label: string, C: ComponentType<never>, props: Record<string
 }
 
 const decode = (s: string) => s.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-const INVITES = /^(Beat my draft|Beat today's Daily|Beat this week's draft|Can you top this\?|Beat my final|Beat my cup run|Beat my climb|Take the same job|Draft against a friend): \S+$/
+const INVITES = /^((Beat my draft|Beat today's Daily|Beat this week's draft|Beat my final|Beat my cup run|Beat my climb|Take the same job|Draft against a friend):|Can you top this\?) \S+$/
 
 /** Everything that must hold of a share text as it is sent. */
 export function shareProblems(text: string): string[] {
@@ -74,7 +74,7 @@ export function shareProblems(text: string): string[] {
     if (!l.trim()) out.push('an empty line')
     if (/\b(undefined|NaN|null|Infinity)\b|\[object/.test(l)) out.push(`bad value: ${l}`)
     if (/ {2}|^\s|\s$/.test(l)) out.push(`stray spaces: ${JSON.stringify(l)}`)
-    if (/:\s*$|^:/.test(l)) out.push(`a label with nothing after it: ${l}`)
+    if (/:\s*$|^:|[?!]:/.test(l)) out.push(`a label with nothing after it: ${l}`)
   }
   return out
 }
