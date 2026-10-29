@@ -20,7 +20,7 @@ import type { Position } from '@engine/types'
 import { getFormation } from '@engine/formations'
 import { MINUTES_PER_WEEK } from '@engine/status'
 import { playerLookup, squadPlayers } from './players'
-import { postNews } from './news'
+import { newsTotal, postNews } from './news'
 import { dressingRoomRipple, lodgeRequest, officeOf, realIdOf, shiftMorale, squadIdOf, weekOf } from './officeCore'
 
 /** Open promises the squad can hold at once, and the list's length with the settled ones kept for the record. */
@@ -80,6 +80,7 @@ export function promiseProblem(game: Game, u: LoadedUniverse, playerSeasonId: st
   if (open.length >= MAX_OPEN_PROMISES) return `You already have ${MAX_OPEN_PROMISES} promises running. Keep those first.`
   if (open.some((x) => x.playerId === p.playerId && x.kind === kind)) return `You have already promised ${p.name} ${KIND_WORD[kind]}.`
   if (kind === 'contract' && c.loan) return `${p.name} is on loan: his contract is his parent club's.`
+  if (kind === 'contract' && c.renewed) return `${p.name} has already agreed a new contract this season.`
   if (kind === 'signing' && !windowAhead(game)) return 'No transfer window is left this season to keep it in.'
   return null
 }
@@ -105,6 +106,7 @@ export function makePromise(game: Game, u: LoadedUniverse, playerSeasonId: strin
     what = `${Math.round(promise.share * 100)}% of the minutes over the next ${promise.due - week} matchweeks`
   } else if (kind === 'contract') {
     promise.yearsAt = game.contracts[playerSeasonId].years
+    promise.newsAt = newsTotal(game)
     promise.due = Math.min(season.matchweeks, week + CONTRACT_WEEKS)
     what = `a new contract by matchweek ${promise.due}`
   } else {
@@ -169,7 +171,7 @@ function verdict(game: Game, u: LoadedUniverse, promise: OfficePromise, id: stri
   }
   if (promise.kind === 'contract') {
     const c = game.contracts[id]
-    if (c && (c.years > (promise.yearsAt ?? 0) || c.renewed)) return true
+    if (c && (c.years > (promise.yearsAt ?? 0) || c.renewed || signedSince(game, u, promise, id))) return true
     return week >= promise.due || over ? false : null
   }
   const before = new Set(promise.squadAt ?? [])
@@ -182,6 +184,15 @@ function verdict(game: Game, u: LoadedUniverse, promise: OfficePromise, id: stri
   if (game.window) promise.windowSeen = true
   else if (promise.windowSeen) return false
   return over ? false : null
+}
+
+/** Whether he has signed a new contract since the promise (contract talks post one item each), however long it runs. */
+function signedSince(game: Game, u: LoadedUniverse, promise: OfficePromise, id: string): boolean {
+  if (promise.newsAt === undefined || !game.season) return false
+  const fresh = Math.min(game.season.news.length, newsTotal(game) - promise.newsAt)
+  if (fresh <= 0) return false
+  const title = `${playerLookup(game, u)(id)?.name ?? promise.name} signs a new contract`
+  return game.season.news.slice(0, fresh).some((n) => n.playerId === id && n.title === title)
 }
 
 /**

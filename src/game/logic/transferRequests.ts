@@ -21,6 +21,7 @@ import type { Game, TransferRequest } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { EXPECTED_SHARE, STATUS_RANK } from '@engine/status'
 import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
+import { compareText } from '@engine/rng'
 import { playerLookup } from './players'
 import { personalityOf } from './personality'
 import { agentMood } from './contracts'
@@ -95,7 +96,7 @@ export function requestChance(pressure: RequestPressure): number {
 export function openRequests(game: Game): TransferRequest[] {
   return Object.values(game.office?.requests ?? {})
     .filter((r) => r.stage === 'open' && r.year === game.year)
-    .sort((a, b) => a.at - b.at || a.playerId.localeCompare(b.playerId))
+    .sort((a, b) => a.at - b.at || compareText(a.playerId, b.playerId))
 }
 
 /**
@@ -222,7 +223,7 @@ export function restlessPlayers(game: Game, u: LoadedUniverse): Array<{ id: stri
   return Object.keys(game.squad)
     .map((id) => ({ id, pressure: requestPressure(game, u, id) }))
     .filter((x): x is { id: string; pressure: RequestPressure } => !!x.pressure && x.pressure.score >= 0.3)
-    .sort((a, b) => b.pressure.score - a.pressure.score || a.id.localeCompare(b.id))
+    .sort((a, b) => b.pressure.score - a.pressure.score || compareText(a.id, b.id))
 }
 
 export { REQUEST_WHY }

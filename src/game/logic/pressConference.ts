@@ -11,6 +11,7 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
+import { compareText } from '@engine/rng'
 import { hashUnit } from './scouting'
 import { nextOpponent } from './week'
 import { personalityOf } from './personality'
@@ -53,7 +54,7 @@ export function pressSubject(game: Game, u: LoadedUniverse, q: PressQuestion): s
     const get = playerLookup(game, u)
     return Object.keys(game.squad)
       .filter((id) => game.contracts[id]?.status === 'prospect')
-      .sort((a, b) => (get(b)?.overall ?? 0) - (get(a)?.overall ?? 0) || a.localeCompare(b))[0]
+      .sort((a, b) => (get(b)?.overall ?? 0) - (get(a)?.overall ?? 0) || compareText(a, b))[0]
   }
   return undefined
 }
