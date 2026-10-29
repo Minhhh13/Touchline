@@ -157,6 +157,8 @@ export const explore = catalog('explore', {
   anyOfHis: 'Any of his positions',
   rangeFrom: 'from',
   rangeTo: 'to',
+  /** Between a range's two fields (Age, Rating): "[from] to [to]" */
+  rangeBetween: 'to',
   youngestAge: 'Youngest age',
   oldestAge: 'Oldest age',
   rating: 'Rating',

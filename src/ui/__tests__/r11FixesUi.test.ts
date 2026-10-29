@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { roomCodeFrom, roomInviteText } from '../../online/rooms'
 
@@ -59,5 +59,15 @@ describe('R11-6: the Dugout’s next fixture keeps a long midweek line inside it
   it('the facts column may shrink, so the line ends in its ellipsis', () => {
     expect(css).toMatch(/\.cta-fixture > div \{\s+min-width: 0;\s+\}/)
     expect(css).toMatch(/\.cta-then \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/)
+  })
+})
+
+describe('R11-7: Explore’s range fields say “to” in the viewer’s language', () => {
+  it('no screen prints a bare English word between two tags', () => {
+    const files = (dir: string): string[] => readdirSync(join(__dirname, '..', dir), { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? (d.name === '__tests__' ? [] : files(join(dir, d.name))) : d.name.endsWith('.tsx') ? [join(dir, d.name)] : []))
+    const bare: string[] = []
+    for (const f of files('.')) for (const m of src(f).matchAll(/>\s*([a-z][a-z' ]+)\s*<\//g)) bare.push(`${f}: ${m[1]}`)
+    expect(bare).toEqual([])
+    expect(src('screens/ExploreViews.tsx')).toContain("{tx('rangeBetween')}")
   })
 })
