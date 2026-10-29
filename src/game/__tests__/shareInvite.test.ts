@@ -120,3 +120,17 @@ describe('the invitation of a finished game', () => {
     expect(versusOf('Minh', { pts: 86, l: 3 }, { pts: 86, l: 3 }).won).toBeNull()
   })
 })
+
+describe('QA r9 (R9-4): a whole picture goes, joined parts and tag flags with it', () => {
+  it('leaves no tag letters, joiner or variation selector from a team name', () => {
+    const lines = ['🏴󠁧󠁢󠁥󠁮󠁧󠁿 Lions, 2024-25', '👨‍👩‍👧 Family FC', '🏳️‍🌈 Pride XI', '👍🏽 Thumbs United', '🏴󠁧󠁢󠁳󠁣󠁴󠁿🏴󠁧󠁢󠁷󠁬󠁳󠁿 Celts']
+    const out = tidyShareText(lines.join('\n'))
+    expect(out).toBe('Lions, 2024-25\nFamily FC\nPride XI\nThumbs United\nCelts')
+    expect(out).not.toMatch(/[‍️\u{E0020}-\u{E007F}\u{1F3FB}-\u{1F3FF}]/u)
+  })
+
+  it('keeps the form blocks and a banner icon as before', () => {
+    expect(tidyShareText('🏆 WINNERS\nQF 🟩 2-1 Ajax\n⭐ MOTM: K. De Bruyne\n⚽ Haaland 31')).toBe('🏆 WINNERS\nQF 🟩 2-1 Ajax\nMOTM: K. De Bruyne\nTop scorer: Haaland 31')
+    expect(tidyShareText('🏔️ 15 RUNGS')).toBe('🏔️ 15 RUNGS')
+  })
+})
