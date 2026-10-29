@@ -380,7 +380,7 @@ export function Home() {
                   </span>
                 )}
                 {profile.dailyStreak > 0 && (
-                  <span className="streak" title={t('streakTip', { n: profile.dailyStreak })} aria-label={t('streakLabel', { n: profile.dailyStreak })}>
+                  <span className="streak" role="img" title={t('streakTip', { n: profile.dailyStreak })} aria-label={t('streakLabel', { n: profile.dailyStreak })}>
                     <Flame size={13} aria-hidden="true" />
                     {profile.dailyStreak}
                   </span>

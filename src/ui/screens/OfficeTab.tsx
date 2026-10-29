@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Briefcase, Handshake, MessageCircle, Mic, ScrollText, Users } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { officeActions as act } from '@game/officeActions'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -16,6 +16,7 @@ import { feeTalkOf, MAX_FEE_ROUNDS, openingStatus, paymentPlan, sellTalkOf, term
 import { squadIdOf } from '@game/logic/officeCore'
 import { nextOpponent, recentShare } from '@game/logic/week'
 import { Bar, Info, Modal, Rating } from '../components/bits'
+import { onRadioGroupKey, radioTabIndex } from '../a11y'
 import { moraleClass } from '../components/Happiness'
 import { clubName, meterValue, money, wage } from '../format'
 import { rich } from '../i18n/rich'
@@ -32,7 +33,7 @@ export function officeAlertCount(game: Game, u: LoadedUniverse): number {
 
 /** The Inbox's strip of office items, each opening the Office. */
 export function OfficeInbox({ onOpen }: { onOpen: () => void }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   if (!u || !game) return null
   const items = officeItems(game, u)
   if (!items.length) return null
@@ -50,7 +51,7 @@ export function OfficeInbox({ onOpen }: { onOpen: () => void }) {
 
 /** The Office tab: player requests and promises, conversations and the press, transfer talks and squad status. */
 export function OfficeTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   const [msg, setMsg] = useState<string | null>(null)
   if (!u || !game) return null
   const on = (id: string) => boxes?.on(id) ?? true
@@ -87,7 +88,7 @@ export function OfficeTab({ onPlayer, boxes }: { onPlayer: (id: string) => void;
 type BoxProps = { game: Game; u: LoadedUniverse; say: (m: string) => void }
 
 function RequestsBox({ game, u, onPlayer, say }: BoxProps & { onPlayer: (id: string) => void }) {
-  const store = useStore()
+  const store = useStorePick('setPlayerPower')
   const get = playerLookup(game, u)
   const open = openRequests(game)
   const settled = Object.values(game.office?.requests ?? {}).filter((r) => r.stage !== 'open' && r.year === game.year)
@@ -248,9 +249,9 @@ function TalkBox({ game, u, say }: BoxProps) {
           </option>
         ))}
       </select>
-      <div className="segmented scroll" style={{ margin: 'var(--space-2) 0' }} role="radiogroup" aria-label={t('talks')}>
-        {(Object.keys(TOPIC_TONES) as ConversationTopic[]).map((tp) => (
-          <button key={tp} type="button" role="radio" aria-checked={topic === tp} className={topic === tp ? 'active' : ''} onClick={() => setTopic(tp)} data-testid={`talk-topic-${tp}`}>
+      <div className="segmented scroll" style={{ margin: 'var(--space-2) 0' }} role="radiogroup" aria-label={t('talks')} onKeyDown={onRadioGroupKey}>
+        {(Object.keys(TOPIC_TONES) as ConversationTopic[]).map((tp, i, all) => (
+          <button key={tp} type="button" role="radio" aria-checked={topic === tp} tabIndex={radioTabIndex(i, all.indexOf(topic))} className={topic === tp ? 'active' : ''} onClick={() => setTopic(tp)} data-testid={`talk-topic-${tp}`}>
             {t(`topic_${tp}`)}
           </button>
         ))}
@@ -396,8 +397,7 @@ function StatusBox({ game, u, onPlayer, say }: BoxProps & { onPlayer: (id: strin
 
 /** Fee talks and then personal terms for one listing; in the Office and in the market's Negotiate dialog. */
 export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: string) => void }) {
-  const store = useStore()
-  const { universe: u, game } = store
+  const { universe: u, game, showToast } = useStorePick('universe', 'game', 'showToast')
   const listing = game?.window?.listings.find((l) => l.playerSeasonId === listingId)
   const talk = game ? feeTalkOf(game, listingId) : undefined
   const [fee, setFee] = useState<number | null>(null)
@@ -502,7 +502,17 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
           </div>
           <div className="small muted">{wage(wageNow)}</div>
           <div className="row wrap" style={{ gap: 4 }}>
-            <button type="button" className="btn sm primary" data-testid="terms-offer" onClick={() => tell(act.offerTerms(listingId, { wage: wageNow, years: yearsNow, status: st, signingFee: signNow }).message)}>
+            <button
+              type="button"
+              className="btn sm primary"
+              data-testid="terms-offer"
+              onClick={() => {
+                const out = act.offerTerms(listingId, { wage: wageNow, years: yearsNow, status: st, signingFee: signNow })
+                tell(out.message)
+                // Signed, the listing leaves the market and the Negotiate dialog with it: the toast says so (r9)
+                if (out.signed && !say) showToast(out.message)
+              }}
+            >
               {t('offerTerms')}
             </button>
             {demand && (
@@ -537,7 +547,7 @@ export function NegotiateButton({ listingId, name }: { listingId: string; name: 
 
 /** Counter an AI club's bid for one of our men (the offer's index in the window). */
 export function CounterBidControl({ index, name }: { index: number; name: string }) {
-  const store = useStore()
+  const store = useStorePick('game', 'showToast')
   const { game } = store
   const o = game?.window?.offers[index]
   const [ask, setAsk] = useState<number | null>(null)

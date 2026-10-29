@@ -492,6 +492,8 @@ export interface OfficePromise {
   minutesAt?: number
   /** Contract: the seasons left on his contract when it was made. */
   yearsAt?: number
+  /** Contract: the season's news count (`newsTotal`) when it was made; a "signs a new contract" item after it keeps the promise, however long the new deal (r9). */
+  newsAt?: number
   /** Signing: the position to strengthen, the overall a signing must reach, the real ids already in the squad, and whether the window it waits on has opened. */
   position?: Position
   overall?: number
