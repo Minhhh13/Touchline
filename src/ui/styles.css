@@ -13730,6 +13730,18 @@ table.tbl.contracts-overview .link-btn.name {
   font-weight: 700;
   font-size: calc(var(--fs-h3) - 1px);
 }
+/* At 200 % text on a phone the opponent's name and the Gauntlet's lifeline share no line: the lifeline wraps under it
+   (it ran up to 109 px past a 390 px window, a11y round 7) */
+.arena-opp-row {
+  flex-wrap: wrap;
+}
+.arena-opp-row > .row {
+  min-width: 0;
+}
+.arena-opp-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 @media (min-width: 1100px) and (min-height: 600px) {
   .fit-grid.arena-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.95fr);
