@@ -397,3 +397,40 @@ Left in English on the match day: the live pitch's caption pill ("Building from 
 
 - Round 10's logic held up: the digest, the Office's line and Setup's memory met every check. The bugs were at the edges again: a browser behaviour the two-tab guard did not expect (R11-1), two people pressing the same button (R11-3), the order of the page against the order of the eye (R11-4, R11-5, R11-9), and English that reached the screen through a door the round 10 mirror had not covered.
 - Not covered: the signed-in online screens beyond round 10's own audit (`claude/r10-i18n-a11y`, 72 states against a network fake), real iOS, sound, and the share card's canvas.
+
+# Round 8: visual audit (r12, 2026-10-29)
+
+Branch `claude/r12-visual`, from `main` at #95. The owner kept finding layout oddities by eye (#95 fixed three: the ended room's row, the lockup's pole seam, the glint on the mode cards' ball). This round looked at every screen and state on purpose. Display only: CSS and two lines of markup, no draw, no save field, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.
+
+## R8-1. How it was checked
+
+- Playwright (the preinstalled one, nothing added to the repo) against `npx vite preview`, scripts kept outside the repository. One pass drove each flow once at 1280x800 and kept the save at every state worth looking at (Quick Draft, the Daily, Season, Dynasty, the Gauntlet, the Cup, the Run-in, head-to-head on this device); a second pass loaded each save in a fresh context and shot it in Floodlit and Daylight at 1280x800, 1440x900, 390x844 and 844x390 (touch), 2 themes × 4 sizes × 67 states. The online screens (World, Account, Home online) and the rooms (setup, waiting, join, draft for host and guest, result, ended after the 30-minute window, not found) came from an online build pointed at `scripts/online/room-mock.mjs` (docs/ONLINE.md 5e), never the real project.
+- States: Home new and returning; Setup for Quick Draft, the Daily, the Weekly, Season and Dynasty; the Gauntlet's, the Cup's and the Daily Arena's setup; the Run-in setup; the Draft mid-way, with an offer landed, and complete (Quick, Daily, Season, Gauntlet, Cup, Run-in); the manager spin, the end-of-draft case before and after, Squad complete; the playback, January and the season's end; both Summaries; the Dugout before the season and at matchweek 7 on all 14 tabs; the match day at 45' and 70' and its report; the digest; the arena hubs before and after a rung or round and both arena summaries; the run-in's dugout and summary; head-to-head setup, draft and result; every Explore view and a player card; Profile, How it works, Privacy.
+- Each shot was looked at, and also checked by script for a page scroll on a shell screen at 1100 px and up, sideways overflow on a phone and a button whose text overflows it. The script found none: every finding below was by eye.
+
+## R8-2. Fixed
+
+| # | Screen, size, theme | Before | After |
+| --- | --- | --- | --- |
+| 1 | Summary, Cup nights (desktop, both) | The Cup and Continental Cup cards were different heights; their Play buttons sat 37 px out of line | While neither cup has ties, the cards share a height and the Play row sits at each card's foot |
+| 2 | Home, the four mode cards (1100 px and up, both) | The Daily's Try next chip in its text pushed its title 27 px above the other three titles; at 1440x900 its button sat 27 px below the Start buttons and every card had about 40 px empty under its button | The chip sits on the picture's top-right corner (521 px and up); on the one-screen desktop the picture takes the spare height, so titles and buttons line up across the four |
+| 3 | Home, More modes tiles (desktop, both) | A one-line tile's title sat lower than a two-line tile's (the text was centred on the icon) | Titles at the top, one line across the row |
+| 4 | Setup, every mode (desktop, both) | Step 2's "Name your team" and step 3's "League and season" sat 6 px above the middle of their field (a panel heading's bottom margin) | No bottom margin on a title sharing its field's line |
+| 5 | Dugout, Market tab with the window closed (desktop, both) | The (i) wrapped alone onto a second line of the notice | The notice is a row: text, then the (i) at its right |
+| 6 | Home, phone and tablet (under 1100 px, both) | "More modes" sat flush on the Dynasty card (0 px above it, 12 above the tiles) | A gap above it |
+| 7 | Home, phone (both) | The next-badge nudge, a button, centred its wrapped line, leaving its icon alone on the left | Left-aligned under the icon |
+| 8 | Gauntlet setup, the road ahead (every size, both) | The gift icon stacked under rungs 2, 4, 6 and 8 made them taller than the next rung, breaking the climb | The icon sits beside the number, so the rungs rise evenly |
+| 9 | Explore, Compare with nobody picked (desktop, both) | The empty state sat right under the field, the rest of a tall box empty | Centred in its box, as the Draft's is |
+| 10 | Draft's offer box, and every shell box that is a `.panel.col` (1100 px and up) | `.app.shell .grid.fill > .col { padding-right: 2px }` replaced the box's own 16 px right padding: By rating / By position touched the box's edge | The 2 px scrollbar room is for wrapper columns only (`:not(.panel)`) |
+| 11 | Summary banner, Daily and Season results (desktop, both) | A meta line of 37 to 42 characters wrapped the Boxes icon alone onto a second line | The stacked layout (team and Boxes, the rest under them) from 37 characters |
+| 12 | World board, an empty board (desktop, both) | "Nobody has posted here yet" sat under the head of a full-height box | Centred in the box |
+| 13 | Head-to-head result, this device and online (desktop, both) | The winner's trophy in the card's corner ran over the end of a narrow card's name ("Manager 1") | The trophy sits on the card's top edge, centred like a medal; both heads still match |
+| 14 | Arena hub, Gauntlet and Cup (390x844, both) | Team talk wrapped Fire up alone onto a second row | The four choices share the row |
+
+## R8-3. Checked and left as is
+
+- No page scroll at 1100 px and up on any shell screen, no sideways scroll on a phone, no page error in any run.
+- The ended room (#95) holds at every size: the buttons centred, the paste box under them.
+- On a phone the head-to-head result's final table cuts club names short ("Liverpo…", "Manag…"): it shows seven columns in 390 px; the cut is an ellipsis, by design.
+- The live match day at 844x390 shows the stop panel over the pitch with its controls in two scrolling columns; usable, nothing clipped.
+- A full-page phone screenshot paints the fixed dock part way down the page: an artefact of the capture, not of the page (viewport shots scrolled down the page show it at the foot).
