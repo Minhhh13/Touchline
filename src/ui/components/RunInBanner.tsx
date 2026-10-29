@@ -1,6 +1,7 @@
 import { useStore } from '@game/store'
 import { briefStanding, takeoverTable } from '@game/logic/runin'
 import { positionOf, USER_TEAM } from '@engine/season'
+import { isWeeklyRunIn } from '@game/logic/runinWeekly'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 import { gapText, templateText } from '../runInText'
@@ -20,7 +21,7 @@ export function RunInBanner() {
   return (
     <div className={`notice ${b.settled === 'missed' ? 'danger' : b.position > b.target ? 'warn' : ''}`} data-testid="runin-banner" style={{ marginBottom: 12 }}>
       <div style={{ fontWeight: 700 }}>
-        {t('bannerHead', { template: templateText(b.template), brief })}
+        {t('bannerHead', { week: isWeeklyRunIn(game.settings) ? 'yes' : 'no', template: templateText(b.template), brief })}
       </div>
       <div className="small">
         {t('bannerLine', { week: season.takeoverAt, from, fromPts: start[from - 1].points, pos: b.position, pts: b.points, gap: gapText(b.template, b.target, b.position, b.gap), state })}

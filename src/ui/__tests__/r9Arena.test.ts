@@ -204,3 +204,36 @@ describe('SeasonName (r9)', () => {
     expect(renderToString(createElement(SeasonName, { name: 'Arsenal' }))).toBe('Arsenal')
   })
 })
+
+describe('the Run-in of the week says so (r9)', () => {
+  it('on the Dugout banner and the summary; an ordinary run-in reads "Run-in"', async () => {
+    const { weeklyRunInPlan, weeklyRunInSettings } = await import('@game/logic/runinWeekly')
+    const { runInGameSettings } = await import('@game/logic/runin')
+    const { RunInBanner } = await import('../components/RunInBanner')
+    const { RunInSummary } = await import('../screens/RunInSummary')
+    const seed = Array.from({ length: 52 }, (_, i) => `runin-2026-W${String(i + 1).padStart(2, '0')}`).find((s) => weeklyRunInPlan(s)?.leagueId === 'england')!
+    expect(seed).toBeTruthy()
+    const week = weeklyRunInSettings(u, seed)!
+    const job = { ...week.runIn! }
+    for (const [settings, label] of [
+      [week, 'Run-in of the week · '],
+      [runInGameSettings(u, (await import('@engine/scenario')).runInJob(u, job.template, 'england', week.leagueSeason, week.hostClubId)!, { seed: 'r9-plain-runin' }), 'Run-in · '],
+    ] as const) {
+      show({ universe: u, loadedLeagues: ['england'], game: null, parked: {}, screen: 'game', digest: null, playback: null, offseason: null })
+      st().startGame(settings)
+      st().autoDraftRest()
+      st().finishDraft()
+      show({})
+      const banner = renderToString(createElement(RunInBanner)).replace(/<!-- -->/g, '')
+      expect(banner).toContain(`<div style="font-weight:700">${label}`)
+      for (let i = 0; i < 40 && st().game!.phase !== 'summary'; i++) {
+        if (st().digest) st().dismissDigest()
+        st().simWeeks(5)
+        if (st().game!.phase === 'match') st().closeMatch()
+      }
+      expect(st().game!.phase).toBe('summary')
+      show({})
+      expect(renderToString(createElement(RunInSummary)).replace(/<!-- -->/g, '')).toContain(`<span class="bm-rest">${label}`)
+    }
+  }, 120_000)
+})

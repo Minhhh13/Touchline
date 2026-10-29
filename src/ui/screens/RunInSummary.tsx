@@ -20,6 +20,7 @@ import { APP_NAME, BRAND_COLOURS } from '../brand'
 import { Celebrate } from '../components/Celebrate'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
+import { isWeeklyRunIn } from '@game/logic/runinWeekly'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 import { marginText, templateText } from '../runInText'
@@ -99,7 +100,7 @@ export function RunInSummary() {
             <ClubBadge clubId={host} size={22} />
             {clubName(u, host)} {seasonLabel(game.settings.leagueSeason)}
           </span>
-          <span className="bm-rest">{t('modeLine', { template: templateText(v.template) })}</span>
+          <span className="bm-rest">{t('modeLine', { week: isWeeklyRunIn(game.settings) ? 'yes' : 'no', template: templateText(v.template) })}</span>
         </div>
         <div className="tier-wrap">
           {v.met && <Celebrate tier="CHAMPIONS" resultKey={`${game.id}:runin`} replayed={false} />}
