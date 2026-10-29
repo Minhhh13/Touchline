@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Gift } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { CASE_ITEMS, CASE_RARITIES, caseRarityOdds } from '@engine/endCase'
@@ -36,7 +36,7 @@ const t = translator(season)
  * odds, what each item does (`caseGuide`).
  */
 export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
-  const { openCase, subCaseIcon, finishCase, profile } = useStore()
+  const { openCase, subCaseIcon, finishCase, profile } = useStorePick('openCase', 'subCaseIcon', 'finishCase', 'profile')
   const c = game.endCase!
   const [quick] = usePref(quickSpinPref)
   // 0: not opened in this view; 1: the reel is running or has landed

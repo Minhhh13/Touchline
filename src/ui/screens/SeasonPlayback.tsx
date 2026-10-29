@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Bandage } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Bandage, Flame, Goal, Shield, ShieldCheck, Sparkles, Star } from 'lucide-react'
 import { useStorePick } from '../useStorePick'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -14,6 +14,7 @@ import { playbackDelay, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@
 import { gapLine, momentAt, positionSeries, rivalsOf, tableAfterGame, weeklyTables } from '@game/logic/liveTable'
 import { chaseAt, chaseLine, perfectOverLabel } from '@game/logic/perfect'
 import { brokeMoment } from '../screenText'
+import { flareAt, raceAt, raceDelay, type FlareKind } from '../seasonDrama'
 import { USER_TEAM } from '@engine/season'
 import { LiveTable, PositionChart } from '../components/LiveLeague'
 import { QuickTeamLine } from '../components/QuickTeamLine'
@@ -48,6 +49,8 @@ const t = translator(season)
  */
 /** How long a live-table row takes to slide to its new place; faster playback than this jumps instead, so rows never overlap. */
 const SLIDE_MS = 400
+/** The step from which the playback is calm enough for its heavier motion (1x is 1500 ms, a race's stretched step counts). */
+const CALM_STEP_MS = 1000
 
 export function SeasonPlayback() {
   const { universe: u, game, playback, endPlayback } = useStorePick('universe', 'game', 'playback', 'endPlayback')
@@ -55,29 +58,30 @@ export function SeasonPlayback() {
   const results = game ? playbackResults(game) : []
   // A reload during the first half lands on the window; after the season the playback carries on where the window left it
   const from = playback?.from ?? results.length
-  const pb = useSeasonPlayback(results.length, from)
+  const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
+  const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
+  const fullSeason = game?.quickResult?.results?.length ?? (u && game ? quickSeasonGames(u, game.settings) : results.length)
+  // The title race's last weeks slow down: the wait before each of the last games stretches while a race is on
+  const pb = useSeasonPlayback(results.length, from, results.length, (k, base) => raceDelay(base, j ? null : raceAt(tableAfterGame(tables, results, k), USER_TEAM, k, fullSeason)))
   const [hlWeek, setHlWeek] = useState<number | null>(null)
   // The phone's tab: the January window opens on the box that holds it, until another tab is chosen there
   const [tabState, setTabState] = useState<{ at: string; tab: 'list' | 'table' | 'chart' }>({ at: 'play', tab: 'list' })
-  const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
-  const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
   const allBoxes = useBoxes(PLAYBACK)
   // A phone keeps the head's controls to two short rows: the manager joins the team line
   const phone = useMediaQuery('(max-width: 720px)')
   // The season's sounds as each result lands (seasonCues.ts): the clinch weeks come from the whole season's rounds, so none in the first half
   const q = game?.quickResult
-  const seasonGames = q?.results?.length ?? (u && game ? quickSeasonGames(u, game.settings) : results.length)
   // The clinch weeks once, for the sounds and the beats alike (the beats land on the stingers they mirror)
   const clinch = useMemo(() => (j || !q ? null : q.clinchedAt !== undefined ? { clinchedAt: q.clinchedAt ?? null, doomedAt: q.doomedAt ?? null } : q.rounds ? clinchMatchweeks(roundsFixtures(q.rounds), q.rounds.ids, USER_TEAM) : null), [j, q])
   const cueInput = {
     results,
     tables,
     userId: USER_TEAM,
-    total: seasonGames,
+    total: fullSeason,
     stopAt: results.length,
     january: !!j,
     finalPosition: q?.position ?? results.at(-1)?.position ?? 0,
-    teams: tables[0]?.length || seasonGames / 2 + 1,
+    teams: tables[0]?.length || fullSeason / 2 + 1,
   }
   usePlaybackSounds({ ...cueInput, revealed: pb.revealed, playing: pb.playing, done: pb.done, speed: pb.speed, clinch: () => clinch })
   // The big moments, January and the season's end as a short card over the playback (seasonBeats.ts)
@@ -109,6 +113,14 @@ export function SeasonPlayback() {
   const teams = table.length || total / 2 + 1
   const series = tables.length ? positionSeries(tables, results, USER_TEAM, pb.revealed) : results.slice(0, pb.revealed).map((r) => r.position)
   const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(sideName(id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
+  // The drama of the step shown (seasonDrama.ts): a race in the last weeks, a streak or milestone flaring
+  const race = !j && !pb.done ? raceAt(table, USER_TEAM, pb.revealed, total) : null
+  const flare = pb.revealed > 0 && !moment ? flareAt(results, pb.revealed) : null
+  const nextGame = race && pb.playing ? results[pb.revealed] : undefined
+  const raceText = race ? t(race.kind === 'title' ? 'raceTitle' : 'raceDrop', { n: race.left }) : ''
+  const upcoming = nextGame ? { matchweek: nextGame.matchweek, opponent: opponent(nextGame.opponentId), home: nextGame.home, label: race!.left === 1 ? t('raceFinalDay') : raceText } : null
+  // The heavier motion (the cards' push, the goal flash) only at a calm pace: 1x, 0.5x, or a race's weeks slowed to it
+  const calm = raceDelay(playbackDelay(pb.speed), race) >= CALM_STEP_MS
   const janOpen = !!j && pb.done
   const at = janOpen ? 'jan' : 'play'
   const benchOn = quickBenchRule(game) && !!game.draft && game.draft.bench.length > 0
@@ -127,7 +139,7 @@ export function SeasonPlayback() {
     { track: benchShown ? 'minmax(0, 1.25fr)' : 'minmax(0, 1fr)', ids: janOpen ? [] : ['chart', 'bench'] },
   ])
   return (
-    <div className="page fit pb-page" data-testid="season-playback">
+    <div className={`page fit pb-page ${race ? `racing ${race.kind}` : ''}`} data-testid="season-playback">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{t(j && pb.done ? 'january' : 'theSeason')}</h1>
@@ -171,7 +183,7 @@ export function SeasonPlayback() {
         </div>
       </div>
       <div className="pb-tally-row">
-        <SeasonTally results={results} upTo={pb.revealed} />
+        <SeasonTally results={results} upTo={pb.revealed} flare={flare?.box ? { box: flare.box, stamp: pb.revealed } : undefined} />
         {gap && (
           <span className="chip info pb-gap" data-testid="playback-gap">
             {gap}
@@ -180,6 +192,18 @@ export function SeasonPlayback() {
         {moment && pb.revealed > 0 && (
           <span key={`m${pb.revealed}`} className={`moment ${moment}`} data-testid="playback-moment" data-moment={moment}>
             {momentText}
+          </span>
+        )}
+        {flare && (
+          <span key={`f${pb.revealed}`} className={`pb-flare ${flare.kind}`} data-testid="playback-flare" data-flare={flare.kind}>
+            <FlareIcon kind={flare.kind} />
+            {t(`flare_${flare.kind}`, { n: flare.n })}
+          </span>
+        )}
+        {race && (
+          <span key={`r${race.kind}`} className={`pb-race ${race.kind} ${race.left === 1 ? 'final' : ''}`} data-testid="playback-race" data-race={race.kind} data-left={race.left} style={{ ['--race-k' as string]: String(race.left) }}>
+            <span className="pb-race-dot" aria-hidden="true" />
+            {race.left === 1 ? t('raceFinal', { kind: race.kind }) : raceText}
           </span>
         )}
         {/* One short line for a screen reader: the big moments and the end, never every game (the tally is not live) */}
@@ -197,7 +221,7 @@ export function SeasonPlayback() {
       <div className={`fit-grid c3 pb-grid ${benchShown ? 'pb-bench' : ''} ${pbGrid.className}`} style={pbGrid.style} data-tab={tab}>
         {panes.list && (
         <div className="fit-cell" data-pane="list">
-          <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title={t('gameByGame')} onHighlights={watch} />
+          <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title={t('gameByGame')} onHighlights={watch} upcoming={upcoming} race={!!race} calm={calm} />
         </div>
         )}
         {panes.table && (
@@ -223,13 +247,19 @@ export function SeasonPlayback() {
   )
 }
 
+/** A flare's icon: a run of wins burns, an unbeaten run or clean sheets hold firm, a milestone shines. */
+function FlareIcon({ kind }: { kind: FlareKind }) {
+  const Icon = kind === 'wins' ? Flame : kind === 'unbeaten' ? Shield : kind === 'clean' ? ShieldCheck : kind === 'goals' ? Goal : kind === 'points' ? Star : Sparkles
+  return <Icon size={14} aria-hidden="true" />
+}
+
 /**
  * The bench during the playback: the XI for the next game on the pitch (injured starters shown with their cover), the
  * bench with who is out, and the changes left. Choosing a bench player pauses the playback; tapping the starter he
  * replaces makes the change from the next game on. The store decides whether a change is allowed.
  */
 function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: LoadedUniverse; results: QuickGameResult[]; revealed: number; onChoose: () => void }) {
-  const { benchChange } = useStorePick('benchChange')
+  const { benchChangeSoon: benchChange, changingBench: busy, warmKickOff } = useStorePick('benchChangeSoon', 'changingBench', 'warmKickOff')
   const [inId, setInId] = useState<string | null>(null)
   const get = playerLookup(game, u)
   const hide = ratingHidden(game.settings.rules, 'squad')
@@ -245,8 +275,11 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
   const chosenP = inId ? get(inId) : undefined
   const canPlay = canPlayFor(game)
   const targets = choosing && chosenP ? formation.slots.filter((s) => view.lineup[s.id] && canPlay(chosenP, s.position)).map((s) => s.id) : []
+  // A change plays the season again in the quick-season worker: keep it warm while one can still be made
+  const canChange = view.changesLeft > 0 && view.next !== null
+  useEffect(() => (canChange ? warmKickOff() : undefined), [canChange, warmKickOff])
   return (
-    <div className="panel col bench-panel" data-testid="bench-panel">
+    <div className="panel col bench-panel" data-testid="bench-panel" aria-busy={busy || undefined}>
       <div className="panel-head">
         <h3>{view.next === null ? t('xiAndBench') : t('forMatchweek', { n: view.next })}</h3>
         <span className={`chip ${view.changesLeft ? '' : 'warn'}`} data-testid="changes-left">
@@ -255,7 +288,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
       </div>
       <div className="grid two bench-grid">
         <div className={`bench-pitch ${choosing ? '' : 'pitch-mini'}`} {...(choosing ? {} : { inert: true })}>
-          <Pitch formation={formation} lineup={fielded} getPlayer={get} hideRatings={hide} eligibleSlots={targets} onSlotClick={choosing ? (slotId) => { benchChange(revealed, slotId, inId!); setInId(null) } : undefined} />
+          <Pitch formation={formation} lineup={fielded} getPlayer={get} hideRatings={hide} eligibleSlots={targets} onSlotClick={choosing && !busy ? (slotId) => { benchChange(revealed, slotId, inId!); setInId(null) } : undefined} />
         </div>
         <div className="col" style={{ gap: 6 }}>
           <b className="small">{t('bench')}</b>
@@ -305,6 +338,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
                     key={slotId}
                     type="button"
                     className="chip-btn"
+                    disabled={busy}
                     onClick={() => {
                       benchChange(revealed, slotId, inId!)
                       setInId(null)

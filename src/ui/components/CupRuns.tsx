@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Globe, Medal, Network, type LucideIcon } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import type { Game, QuickCupRun } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { cupReachLabel, cupRoundLabel, cupScoreLabel, quickGroupLine, QUICK_CONTINENTAL_PLACES, QUICK_CUP_ENTRANTS, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
@@ -53,7 +53,7 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
 }
 
 function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp, revealing: boolean) => void; main: boolean }) {
-  const { playCup, skipCup, loadingLeagues } = useStore()
+  const { playCup, skipCup, loadingLeagues } = useStorePick('playCup', 'skipCup', 'loadingLeagues')
   const status = quickCupStatus(game, u, comp)
   const [busy, setBusy] = useState(false)
   // The cup night's modal: 'reveal' as the cup is played, 'view' to look at the finished bracket again

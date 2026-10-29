@@ -7,7 +7,7 @@ import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
 import { surname } from '../match/shirts'
 import { MAT, labelFont, labelRooms } from '../match/pitchLabels'
 import { roleCodeByName, roleLine } from '../match/roleNames'
-import { forgetWidths, textWidth } from '../match/textWidth'
+import { textWidth, whenFontsReady } from '../match/textWidth'
 import { isActivationKey } from '../a11y'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
@@ -55,10 +55,8 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
   const [, setFace] = useState(0)
   useEffect(() => {
     let live = true
-    document.fonts?.ready.then(() => {
-      if (!live) return
-      forgetWidths()
-      setFace((n) => n + 1)
+    void whenFontsReady()?.then(() => {
+      if (live) setFace((n) => n + 1)
     })
     return () => {
       live = false

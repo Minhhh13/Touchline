@@ -4,6 +4,7 @@ import type { PlayerSeason } from '@engine/types'
 import { useStore } from '@game/store'
 import { isEstimated } from '@game/logic/era'
 import { leagueTrivia, STAR_RATING } from '@game/logic/exploreRecords'
+import { useExploreIndex, useLast } from '../useExploreIndex'
 import { ClubBadge, EstimatedChip, Info, Rating } from '../components/bits'
 import { NationFlag } from '../components/Flag'
 import { clubName, clubShort, seasonLabel } from '../format'
@@ -74,7 +75,8 @@ function AgeList({ list, onPlayer }: { list: PlayerSeason[]; onPlayer: (id: stri
 
 export function RecordsView({ leagueId, onClub, onPlayer }: { leagueId: string; onClub: (id: string) => void; onPlayer: (playerId: string) => void }) {
   const u = useStore((s) => s.universe)
-  const trivia = useMemo(() => (u ? leagueTrivia(u, leagueId) : null), [u, leagueId])
+  const indexed = useExploreIndex(u)
+  const trivia = useLast(useMemo(() => (u && indexed ? leagueTrivia(u, leagueId) : null), [u, indexed, leagueId]), null)
   if (!u || !trivia) return null
   const c = trivia.coverage
   const league = u.available.find((l) => l.id === leagueId)?.name ?? leagueId

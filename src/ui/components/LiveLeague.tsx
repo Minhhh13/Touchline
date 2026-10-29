@@ -65,15 +65,29 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
               {stamp !== undefined && me && move !== 0 && <span key={stamp} className={`lt-flash ${move > 0 ? 'up' : 'down'}`} aria-hidden="true" />}
               <span className="lt-pos">{i + 1}</span>
               <span className="lt-move" role={move ? 'img' : undefined} aria-label={move > 0 ? t('up', { n: move }) : move < 0 ? t('down', { n: -move }) : undefined}>
+                {/* The arrows never pop: even your row's alone, popping each step, cost a throttled desktop two frames in fifty */}
                 {move > 0 ? <ArrowUp size={12} className="up" /> : move < 0 ? <ArrowDown size={12} className="down" /> : null}
               </span>
+              {stamp !== undefined && me && Math.abs(move) >= 2 && (
+                <span key={`j${stamp}`} className={`lt-jump ${move > 0 ? 'up' : 'down'}`} aria-hidden="true" data-testid="live-table-jump">
+                  {move > 0 ? `+${move}` : move}
+                </span>
+              )}
               <span className="lt-club">
                 {!me && <ClubBadge clubId={r.teamId} size={16} />}
                 <span className="lt-name">{me ? teamName : nameOf(r.teamId)}</span>
               </span>
               <span className="num">{r.played}</span>
               <span className="num">{gd > 0 ? `+${gd}` : gd}</span>
-              <b className="num">{r.points}</b>
+              {me && stamp !== undefined ? (
+                <b className="num">
+                  <span key={r.points} className="lt-pts">
+                    {r.points}
+                  </span>
+                </b>
+              ) : (
+                <b className="num">{r.points}</b>
+              )}
             </div>
           )
         })}
@@ -161,7 +175,8 @@ export function PositionChart({ series, rivals, teams, games, unit = t('unitGame
             </text>
           </g>
         )}
-        {rivals.map((r) => (r.series.length > 1 ? <path key={r.teamId} d={path(r.series)} className="pc-rival" fill="none" /> : null))}
+        {/* On the first picture the rivals' lines draw in with yours (once: per game they only grow) */}
+        {rivals.map((r) => (r.series.length > 1 ? <path key={r.teamId} d={path(r.series)} className={`pc-rival ${whole ? 'whole' : ''}`} fill="none" pathLength={whole ? 1 : undefined} /> : null))}
         {series.length > 1 && <path key={series.length} d={path(series)} className={`pc-user ${whole ? 'whole' : ''}`} fill="none" pathLength={1} style={{ ['--pc-from' as string]: whole ? '1' : String(1 / (series.length - 1)) }} />}
         {last >= 0 && <circle key={whole ? 'dot-first' : 'dot'} cx={x(last)} cy={y(place)} r="4" className={`pc-dot ${whole ? 'whole' : ''}`} />}
         <text x={x0} y={H - 4} fontSize="8" fill="var(--text-3)">

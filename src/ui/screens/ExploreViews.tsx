@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useExploreIndex, useLast } from '../useExploreIndex'
 import { BookOpen, Columns3, Crown, Medal, Plus, Search, Shield, Star as StarIcon, Trophy, X } from 'lucide-react'
 import type { Position } from '@engine/types'
 import { useStore } from '@game/store'
@@ -390,8 +391,12 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
   useEffect(() => {
     if (active && u) void ensureLeagues(u.available.map((l) => l.id))
   }, [active, u, ensureLeagues])
-  const result = useMemo(() => (u && active ? filterPlayers(u, filter) : { rows: [], total: 0 }), [u, filter, active])
-  const nations = useMemo(() => (u ? nationCounts(u) : []), [u])
+  // The index behind the filter builds in slices when a league loads; meanwhile the last answer stays up
+  const indexed = useExploreIndex(u)
+  const fresh = useMemo(() => (u && indexed ? (active ? filterPlayers(u, filter) : { rows: [], total: 0 }) : null), [u, indexed, filter, active])
+  const result = useLast(fresh, { rows: [], total: 0 })
+  const nations = useLast(useMemo(() => (u && indexed ? nationCounts(u) : null), [u, indexed]), [])
+  const indexing = active && !indexed
   if (!u) return null
   const set = <K extends keyof SearchForm>(k: K, v: SearchForm[K]) => setForm({ ...form, [k]: v })
   const changed = (Object.keys(BLANK_SEARCH) as Array<keyof SearchForm>).some((k) => form[k] !== BLANK_SEARCH[k])
@@ -483,7 +488,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
       <div className="panel search-out">
         <div className="panel-head">
           <span className="small muted" data-testid="search-count" aria-live="polite">
-            {!active ? tx('noSearch') : loadingLeagues ? tx('loadingEvery') : result.total > result.rows.length ? tx('firstOf', { shown: result.rows.length, total: result.total.toLocaleString(formatLocale()) }) : tx(form.every ? 'seasonCount' : 'players', { n: result.total })}
+            {!active ? tx('noSearch') : loadingLeagues || indexing ? tx('loadingEvery') : result.total > result.rows.length ? tx('firstOf', { shown: result.rows.length, total: result.total.toLocaleString(formatLocale()) }) : tx(form.every ? 'seasonCount' : 'players', { n: result.total })}
           </span>
           <span className="row" style={{ gap: 6 }}>
             <select className="input" style={{ width: 'auto' }} aria-label={tx('sortBy')} value={form.sort} onChange={(e) => set('sort', e.target.value as FilterSort)} data-testid="filter-sort">
@@ -518,7 +523,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
               }
             />
           ))}
-          {active && !loadingLeagues && result.total === 0 && <div className="muted small">{tx('noPlayersMatch')}</div>}
+          {active && !loadingLeagues && !indexing && result.total === 0 && <div className="muted small">{tx('noPlayersMatch')}</div>}
         </div>
         {result.total > FILTER_LIMIT && <p className="help">{tx('showingFirst', { n: FILTER_LIMIT })}</p>}
       </div>
@@ -536,11 +541,12 @@ export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: 
   useEffect(() => {
     if (ids.length && u) void ensureLeagues(u.available.map((l) => l.id))
   }, [ids.length, u, ensureLeagues])
-  const careers = useMemo(() => (u ? ids.map((id) => careerSeasons(u, id)).filter((s) => s.length > 0) : []), [u, ids])
+  const indexed = useExploreIndex(u)
+  const careers = useLast(useMemo(() => (u && indexed ? ids.map((id) => careerSeasons(u, id)).filter((s) => s.length > 0) : null), [u, indexed, ids]), [])
   const shown = useMemo(() => careers.map((seasons) => seasons.find((s) => s.id === picked[seasons[0].playerId]) ?? seasons.reduce((m, s) => (s.overall > m.overall ? s : m), seasons[0])), [careers, picked])
   const rows = useMemo(() => compareRows(shown), [shown])
   const deferredQuery = useDeferredValue(query)
-  const hits = useMemo(() => (u && deferredQuery.trim().length >= 2 ? searchPlayers(u, deferredQuery, { limit: 6 }) : []), [u, deferredQuery])
+  const hits = useLast(useMemo(() => (deferredQuery.trim().length < 2 ? [] : u && indexed ? searchPlayers(u, deferredQuery, { limit: 6 }) : null), [u, indexed, deferredQuery]), [])
   if (!u) return null
   const add = (playerId: string) => {
     if (!ids.includes(playerId)) setIds([...ids, playerId].slice(-COMPARE_MAX))

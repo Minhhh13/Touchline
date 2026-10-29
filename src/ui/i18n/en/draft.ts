@@ -68,6 +68,7 @@ export const draft = catalog('draft', {
   respin: 'Re-spin ({n})',
   autoConfirm: 'Let the assistant finish the draft? It makes every pick that is left.',
   autoComplete: 'Auto-complete',
+  autoCompleting: 'Drafting…',
   stillNeed: 'Still need',
   benchMore: 'Bench · {n} more {n, plural, one {pick} other {picks}}{optional, select, yes {, optional} other {}}',
   benchTip: 'Bench picks can be anyone un-drafted; cover every position, injuries will come.',

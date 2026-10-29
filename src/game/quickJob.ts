@@ -1,12 +1,13 @@
 /**
- * The quick season's kick-off, and the close of its January window, as jobs for the quick-season worker
+ * The quick season's kick-off, the close of its January window and a bench change, as jobs for the quick-season worker
  * (`quickWorker.ts`): the same `kickOff` or `closeJanuary` on a copy of the game, so the season played there is the
  * one the page would play (`quickWorker.test.ts`, 50 seeds). Pure:
  * no fetch, no Worker, no React and no store, so the worker's bundle carries the game logic only.
  */
 import type { LoadedUniverse } from '@engine/universe'
 import type { Game } from './types'
-import { closeJanuary, closeJanuarySpin, kickOff } from './logic/quick'
+import { closeJanuary, closeJanuarySpin, kickOff, makeQuickChange, playbackResults } from './logic/quick'
+import { quickSeasonStale } from './logic/quickSeam'
 
 /** What the page asks: kick off `game` (a copy: the worker gets its own), on the universe `mark` names. */
 export interface KickOffJob {
@@ -21,8 +22,22 @@ export interface KickOffJob {
  */
 export type JanuaryJob = { op: 'closeJanuary'; game: Game; index: number | null } | { op: 'closeJanuarySpin'; game: Game; slotId: string | null }
 
+/**
+ * A bench change in the playback (`makeQuickChange` before game `revealed + 1`): it plays the season again. With
+ * `check`, the season on show is first played again on a copy to see this engine plays it as shown
+ * (`quickSeasonStale`); a stale one is refused, and the page then takes its own path (the note, the window drawn again).
+ */
+export interface ChangeJob {
+  op: 'quickChange'
+  game: Game
+  revealed: number
+  slotId: string
+  inId: string
+  check: boolean
+}
+
 /** Every job the worker runs. */
-export type QuickJob = KickOffJob | JanuaryJob
+export type QuickJob = KickOffJob | JanuaryJob | ChangeJob
 
 /** A message to the worker: build the universe ahead of a job (`warm`), or run one. */
 export type QuickWorkerAsk = { type: 'warm'; leagues: string[]; classic: boolean } | { type: 'job'; id: number; leagues: string[]; classic: boolean; mark: string; job: QuickJob }
@@ -35,7 +50,11 @@ export function runQuickJob(job: QuickJob, u: LoadedUniverse): Game {
   const game = job.game
   if (job.op === 'kickOff') kickOff(game, u, job.skip)
   else if (job.op === 'closeJanuary') closeJanuary(game, u, job.index)
-  else closeJanuarySpin(game, u, job.slotId)
+  else if (job.op === 'closeJanuarySpin') closeJanuarySpin(game, u, job.slotId)
+  else {
+    if (job.check && quickSeasonStale(game, u)) throw new Error('stale')
+    makeQuickChange(game, u, playbackResults(game), job.revealed, job.slotId, job.inId)
+  }
   return game
 }
 

@@ -12,6 +12,7 @@ import { renderToString } from 'react-dom/server'
 import { createElement } from 'react'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { BLANK_SEARCH } from '@game/logic/exploreFilter'
+import { exploreIndexed, playerIndex } from '@game/logic/exploreIndex'
 import { ClubView, CompareView, LeagueView, SearchView } from '../screens/ExploreViews'
 import { PlayerStatsTable, TeamStats } from '../screens/StatsTables'
 import { StatsTab } from '../screens/StatsTab'
@@ -23,6 +24,17 @@ const noop = () => {}
 describe("Explore's deeper views", () => {
   const u = loadTestUniverse(['england', 'germany'])
   show({ universe: u, loadedLeagues: ['england', 'germany'], game: null, screen: 'explore' })
+  // Search and compare wait for the player index (built in slices on the page): built here first
+  playerIndex(u)
+
+  it('shows the search waiting, not building, while the index of a new universe is not built', () => {
+    const fresh = loadTestUniverse(['england', 'spain'])
+    show({ universe: fresh, loadedLeagues: ['england', 'spain'], game: null, screen: 'explore' })
+    const html = renderToString(createElement(SearchView, { form: { ...BLANK_SEARCH, query: 'kane' }, setForm: noop, onPlayer: noop, compare: [], toggleCompare: noop }))
+    expect(html).toContain('Loading')
+    expect(exploreIndexed(fresh)).toBe(false)
+    show({ universe: u, loadedLeagues: ['england', 'germany'], game: null, screen: 'explore' })
+  })
 
   it('renders a club page with its seasons, wheel chances and best XI', () => {
     const html = renderToString(createElement(ClubView, { leagueId: 'england', clubId: 'arsenal', onClub: noop, onPlayer: noop }))

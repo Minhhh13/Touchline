@@ -4,6 +4,7 @@
  */
 import { useEffect, type KeyboardEvent, type RefObject } from 'react'
 import { focusHasFallen, rescuedElement } from './focusRescue'
+import { runAfterPaint } from './afterPaint'
 
 /** Enter or Space: the keys that press a button, so a custom control answers them as a real one does. */
 export function isActivationKey(key: string): boolean {
@@ -92,10 +93,19 @@ export function resultsLabel(results: ReadonlyArray<'W' | 'D' | 'L'>, lead = 'Re
 export function useFocusOnLanding(landed: boolean, target: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     if (!landed || typeof document === 'undefined') return
-    // Still somewhere real: leave it. A control disabled under it (the Spin button while a club is on the wheel) is not,
-    // nor a place the focus rescue put it after its control went (focusRescue.ts)
-    const active = document.activeElement as (HTMLElement & { disabled?: boolean }) | null
-    if (!focusHasFallen(active, document.body, rescuedElement())) return
-    target.current?.focus()
+    let live = true
+    // After the paint: a focus inside the commit forces the new screen's layout in the same task (50 to 70 ms on a
+    // 4x-throttled phone after Auto-complete); after it the frame has laid it out already
+    runAfterPaint(() => {
+      if (!live) return
+      // Still somewhere real: leave it. A control disabled under it (the Spin button while a club is on the wheel) is not,
+      // nor a place the focus rescue put it after its control went (focusRescue.ts)
+      const active = document.activeElement as (HTMLElement & { disabled?: boolean }) | null
+      if (!focusHasFallen(active, document.body, rescuedElement())) return
+      target.current?.focus()
+    })
+    return () => {
+      live = false
+    }
   }, [landed, target])
 }

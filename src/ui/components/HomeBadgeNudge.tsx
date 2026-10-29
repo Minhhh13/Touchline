@@ -1,5 +1,5 @@
 import { Award } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { badgeStates } from '@engine/badges'
 import { emptyCabinet, leaguesWon } from '@game/logic/cabinet'
 import { nextBadge } from '@game/logic/shareInvite'
@@ -22,7 +22,7 @@ function scrollToNextBadge(started = Date.now()) {
  * so the trophies' catalogue stays out of the first download.
  */
 export default function HomeBadgeNudge({ onOpen }: { onOpen: () => void }) {
-  const { universe: u, profile } = useStore()
+  const { universe: u, profile } = useStorePick('universe', 'profile')
   const cabinet = profile.cabinet ?? emptyCabinet()
   const chase = nextBadge(badgeStates(cabinet, { leaguesWon: leaguesWon(cabinet, profile.leaderboard, (id) => u?.clubById[id]?.leagueId).leagues.length }))
   if (!chase) return null

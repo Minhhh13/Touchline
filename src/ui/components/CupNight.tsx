@@ -12,7 +12,7 @@ import { ClubBadge, Modal, TeamBadge, Tabs } from './bits'
 import { GroupTables } from './GroupTables'
 import { TrebleArt, TrophyArt } from './TrophyArt'
 import { confettiPieces, prefersReducedMotion } from '../motion'
-import { nightStepDelay, userInPlay } from '../cupReveal'
+import { nightStepDelay, userFinalInPlay, userInPlay } from '../cupReveal'
 import { playSound } from '../sound/synth'
 import { useFocusOnLanding } from '../a11y'
 import { translator } from '../i18n'
@@ -58,6 +58,7 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
   const nameOf = (id: string) => (id === USER_TEAM ? game.settings.teamName : namer(id))
   const badge = (id: string) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={id} size={18} />)
   const live = !done && userInPlay(view, steps, shown)
+  const finalLive = live && userFinalInPlay(view, steps, shown)
   // The user's tie last revealed (or the one in play), for the line over the bracket
   const route = userRoute(view)
   const rounds = quickRunRounds(comp, run).map((r) => r.round)
@@ -83,7 +84,7 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
   return (
     <Modal open onClose={onClose} title={t(`cupTitle_${comp}`)} className="cup-night" testId={`cup-night-${comp}`}>
       <div className="cup-night-bar">
-        <span className={`cup-night-line ${live ? 'live' : ''}`} data-testid="cup-night-line" aria-live="polite">
+        <span className={`cup-night-line ${live ? 'live' : ''} ${finalLive ? 'final' : ''}`} data-testid="cup-night-line" aria-live="polite">
           <Icon size={16} aria-hidden="true" /> {verdict ?? line}
         </span>
         {!done ? (
