@@ -12,6 +12,7 @@
  * `withFeats` over `normaliseCabinet` and `rebuildCabinet` (`cabinetWithFeats`).
  */
 import { USER_TEAM, type ContinentalState } from '@engine/season'
+import { compareText } from '@engine/rng'
 import type { Cabinet, CabinetFeats, Game, LeaderboardEntry, Profile, QuickCupRun, RunInEntry } from '../types'
 import { countsAsLeagueSeason, finishedRecord, isTitle, normaliseCabinet, rebuildCabinet } from './cabinet'
 
@@ -62,7 +63,7 @@ export interface GroupRead {
 
 type GroupMatchRow = { home: string; away: string; hg: number; ag: number }
 
-/** The engine's group order (points, goal difference, goals, then id), read for the user's side. */
+/** The engine's group order (points, goal difference, goals, then id in English collation, as `computeTable`), read for the user's side. */
 function readGroup(teams: string[], matches: GroupMatchRow[], played: boolean): GroupRead | null {
   if (!teams.includes(USER_TEAM) || !played || !matches.length) return null
   const rows = new Map(teams.map((id) => [id, { id, pts: 0, gf: 0, ga: 0 }]))
@@ -87,7 +88,7 @@ function readGroup(teams: string[], matches: GroupMatchRow[], played: boolean): 
       if ((m.home === USER_TEAM && m.hg > m.ag) || (m.away === USER_TEAM && m.ag > m.hg)) wins++
     }
   }
-  const order = [...rows.values()].sort((x, y) => y.pts - x.pts || y.gf - y.ga - (x.gf - x.ga) || y.gf - x.gf || x.id.localeCompare(y.id))
+  const order = [...rows.values()].sort((x, y) => y.pts - x.pts || y.gf - y.ga - (x.gf - x.ga) || y.gf - x.gf || compareText(x.id, y.id))
   return { topped: order[0]?.id === USER_TEAM, perfect: games > 0 && wins === games }
 }
 

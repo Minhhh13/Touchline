@@ -1,6 +1,6 @@
 /**
  * A perfect draft for the Trophy Room (`CabinetFeats.perfectDrafts`): every pick of a quick-like draft took an A, the
- * best play on its spin (`pickGrades`). Kept apart from `feats.ts`, which `cabinet.ts` imports, so the pick grades never
+ * best play on its spin (`pickGrades`). Kept apart from `feats.ts`, which imports `cabinet.ts`, so the pick grades never
  * reach the cabinet's module graph. Pure, no RNG: it only reads the draft log.
  */
 import type { LoadedUniverse } from '@engine/universe'
