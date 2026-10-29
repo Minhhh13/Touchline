@@ -160,3 +160,47 @@ describe('the Gauntlet bonus spin names itself (r9)', () => {
     expect(seen).toBeGreaterThan(0)
   }, 60_000)
 })
+
+describe('the report waits for the shoot-out reveal (r9)', () => {
+  it('reads "Penalties" and a plain Continue until the last kick shows, then the verdict and the next round', async () => {
+    const { MatchScreen } = await import('../screens/MatchScreen')
+    const { setShootoutRevealed, shootoutKey, shootoutRevealed } = await import('../shootoutReveal')
+    const { arenaContinueLabel } = await import('@game/logic/arena')
+    let checked = 0
+    for (let n = 0; n < 20 && checked < 2; n++) {
+      show({ universe: u, loadedLeagues: ['england'], game: null, parked: {}, screen: 'game', matchView: 'report' })
+      st().startGame(cupGameSettings(u, { ...choices(`r9-report-${n}`), size: 8 }, 'NIN'))
+      st().autoDraftRest()
+      st().finishDraft()
+      for (let i = 0; i < 20 && st().game!.phase !== 'summary'; i++) {
+        const g = st().game!
+        if (g.phase === 'match') {
+          const pens = g.arena!.log.at(-1)?.pens
+          if (pens && !g.arena!.pending) {
+            show({ matchView: 'report' })
+            const key = shootoutKey(g.id, g.arena!.log.length, pens.kicks.length)
+            expect(shootoutRevealed(key)).toBe(false)
+            const held = renderToString(createElement(MatchScreen)).replace(/<!-- -->/g, '')
+            expect(held).toMatch(/data-testid="report-outcome">PENALTIES</)
+            expect(held).toContain('Continue →')
+            setShootoutRevealed(key, true)
+            const after = renderToString(createElement(MatchScreen)).replace(/<!-- -->/g, '')
+            expect(after).toMatch(pens.us > pens.them ? /data-testid="report-outcome">WON ON PENS</ : /data-testid="report-outcome">LOST ON PENS</)
+            expect(after).toContain(arenaContinueLabel(g))
+            checked++
+          }
+          st().closeMatch()
+        } else st().playArenaStep(false)
+      }
+    }
+    expect(checked).toBeGreaterThan(0)
+  }, 120_000)
+})
+
+describe('SeasonName (r9)', () => {
+  it('keeps a club-season\'s season on one line, and a plain name as it is', async () => {
+    const { SeasonName } = await import('../components/SeasonName')
+    expect(renderToString(createElement(SeasonName, { name: 'Manchester United 2026-27' })).replace(/<!-- -->/g, '')).toBe('Manchester United <span style="white-space:nowrap">2026-27</span>')
+    expect(renderToString(createElement(SeasonName, { name: 'Arsenal' }))).toBe('Arsenal')
+  })
+})

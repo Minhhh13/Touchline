@@ -382,6 +382,7 @@ export const match = catalog('match', {
   skipHalfTime: 'Skip to half time',
   skip70: 'Skip to 70 minutes',
   skipFullTime: 'Skip to full time',
+  onPens: 'Penalties',
   statShots: 'Shots',
   statOnTarget: 'On target',
   statXg: 'xG',

@@ -14810,10 +14810,11 @@ table.tbl.hub td.name {
   }
 }
 /* A phone shoot-out: the disabled "Penalties first" leaves the head, and Take the penalties rides at the foot of the
-   window while the eleven takers scroll under it (ShootoutPanel renders it there under 721 px) */
+   window while the eleven takers scroll under it (ShootoutPanel renders it there under 721 px), standing on the dock
+   (r9: it sat behind the dock's tab bar) */
 .shootout-foot {
   position: sticky;
-  bottom: max(var(--space-2), var(--safe-bottom));
+  bottom: calc(var(--space-2) + var(--dock-h) + var(--dock-safe));
   z-index: 2;
   margin-top: var(--space-3);
 }

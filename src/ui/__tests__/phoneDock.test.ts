@@ -30,6 +30,10 @@ describe('the phone dock', () => {
     expect(css).toContain(':root {\n  --dock-h: 0px;\n  --dock-safe: var(--safe-bottom);\n}')
   })
 
+  it("keeps a phone shoot-out's Take the penalties above the dock (r9)", () => {
+    expect(css).toMatch(/\.shootout-foot \{\n {2}position: sticky;\n {2}bottom: calc\(var\(--space-2\) \+ var\(--dock-h\) \+ var\(--dock-safe\)\);/)
+  })
+
   it('stands down for the match day and while the keyboard is up', () => {
     expect(app).toContain("game?.phase === 'match' && !shell ? 'dock-off' : ''")
     expect(css).toMatch(/\.app\.dock-off > \.topbar nav \{\n {4}display: none;/)
