@@ -298,7 +298,7 @@ function PressBox({ game, u, say }: BoxProps) {
               </div>
               <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
                 {Object.keys(PRESS_ANSWERS[q]).map((a) => (
-                  <button key={a} type="button" className={`btn sm ${chosen === a ? 'primary' : ''}`} disabled={!!chosen} data-testid="press-answer" onClick={() => say(act.answerPress(q, a).message)}>
+                  <button key={a} type="button" className={`btn sm press-answer ${chosen === a ? 'primary' : ''}`} disabled={!!chosen} data-testid="press-answer" onClick={() => say(act.answerPress(q, a).message)}>
                     {t(`a_${a}` as 'a_respect')}
                   </button>
                 ))}

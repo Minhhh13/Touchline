@@ -90,6 +90,7 @@ export const draft = catalog('draft', {
   noTable: 'final table not on record',
   byRating: 'By rating',
   byPosition: 'By position',
+  sortPlayers: 'Sort the players',
   reelRunning: 'The reel is running…',
   blindPick: 'Blind pick: ratings stay hidden until you choose.',
   whereDoes: 'Where does <b>{name}</b> play? Tap a slot here or on the pitch.',

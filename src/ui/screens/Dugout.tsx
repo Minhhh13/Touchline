@@ -874,7 +874,7 @@ function NextMatchTab({ boxes }: { boxes: Boxes }) {
               <Info label={t('aboutTalks')}>{t('talksInfo')}</Info>
             </span>
           </div>
-          <Segmented<TeamTalk> value={game.teamTalk} onChange={store.setTeamTalk} options={talkOptions} />
+          <Segmented<TeamTalk> label={t('teamTalk')} value={game.teamTalk} onChange={store.setTeamTalk} options={talkOptions} />
           {talk && <p className="help">{talk.hint}</p>}
         </div>
         )}
@@ -1064,22 +1064,22 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
             <h3>{t('teamInstructions')}</h3>
             <div className="instructions">
             <Instruction label={t('mentality')} help={MENTALITY_HELP[tac.mentality]}>
-              <Segmented value={tac.mentality} onChange={(v) => store.setTactics({ mentality: v })} options={[{ value: 'defensive', label: t('defensive') }, { value: 'balanced', label: t('balancedOpt') }, { value: 'attacking', label: t('attacking') }]} />
+              <Segmented label={t('mentality')} value={tac.mentality} onChange={(v) => store.setTactics({ mentality: v })} options={[{ value: 'defensive', label: t('defensive') }, { value: 'balanced', label: t('balancedOpt') }, { value: 'attacking', label: t('attacking') }]} />
             </Instruction>
             <Instruction label={t('pressing')} help={PRESSING_HELP[tac.pressing]}>
-              <Segmented value={tac.pressing} onChange={(v) => store.setTactics({ pressing: v })} options={[{ value: 'low', label: t('lowBlock') }, { value: 'mid', label: t('mid') }, { value: 'high', label: t('highPress') }]} />
+              <Segmented label={t('pressing')} value={tac.pressing} onChange={(v) => store.setTactics({ pressing: v })} options={[{ value: 'low', label: t('lowBlock') }, { value: 'mid', label: t('mid') }, { value: 'high', label: t('highPress') }]} />
             </Instruction>
             <Instruction label={t('tempo')} help={TEMPO_HELP[tac.tempo]}>
-              <Segmented value={tac.tempo} onChange={(v) => store.setTactics({ tempo: v })} options={[{ value: 'slow', label: t('slow') }, { value: 'standard', label: t('standard') }, { value: 'fast', label: t('fast') }]} />
+              <Segmented label={t('tempo')} value={tac.tempo} onChange={(v) => store.setTactics({ tempo: v })} options={[{ value: 'slow', label: t('slow') }, { value: 'standard', label: t('standard') }, { value: 'fast', label: t('fast') }]} />
             </Instruction>
             <Instruction label={t('width')} help={WIDTH_HELP[tac.width]}>
-              <Segmented value={tac.width} onChange={(v) => store.setTactics({ width: v })} options={[{ value: 'narrow', label: t('narrow') }, { value: 'standard', label: t('standard') }, { value: 'wide', label: t('wide') }]} />
+              <Segmented label={t('width')} value={tac.width} onChange={(v) => store.setTactics({ width: v })} options={[{ value: 'narrow', label: t('narrow') }, { value: 'standard', label: t('standard') }, { value: 'wide', label: t('wide') }]} />
             </Instruction>
             <Instruction label={t('defLine')} help={LINE_HELP[tac.defensiveLine]}>
-              <Segmented value={tac.defensiveLine} onChange={(v) => store.setTactics({ defensiveLine: v })} options={[{ value: 'deep', label: t('deep') }, { value: 'standard', label: t('standard') }, { value: 'high', label: t('high') }]} />
+              <Segmented label={t('defLine')} value={tac.defensiveLine} onChange={(v) => store.setTactics({ defensiveLine: v })} options={[{ value: 'deep', label: t('deep') }, { value: 'standard', label: t('standard') }, { value: 'high', label: t('high') }]} />
             </Instruction>
             <Instruction label={t('passing')} help={PASSING_HELP[tac.passing]}>
-              <Segmented value={tac.passing} onChange={(v) => store.setTactics({ passing: v })} options={[{ value: 'short', label: t('short') }, { value: 'mixed', label: t('mixed') }, { value: 'direct', label: t('direct') }]} />
+              <Segmented label={t('passing')} value={tac.passing} onChange={(v) => store.setTactics({ passing: v })} options={[{ value: 'short', label: t('short') }, { value: 'mixed', label: t('mixed') }, { value: 'direct', label: t('direct') }]} />
             </Instruction>
             </div>
           </div>
@@ -1087,7 +1087,7 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
           {on('training') && (
           <div className="panel">
             <h3>{t('trainingWeek')}</h3>
-            <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: trainingLabel(k) }))} />
+            <Segmented<TrainingFocus> label={t('trainingWeek')} value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: trainingLabel(k) }))} />
             <p className="help">{trainingBlurb(game.training)}</p>
           </div>
           )}

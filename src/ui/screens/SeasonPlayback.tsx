@@ -152,7 +152,7 @@ export function SeasonPlayback() {
               <button className="btn sm" onClick={pb.toggle} data-testid="playback-pause">
                 {t(pb.playing ? 'pause' : 'play')}
               </button>
-              <Segmented<string> value={String(pb.speed)} onChange={(v) => pb.setSpeed(Number(v) as PlaybackSpeed)} options={PLAYBACK_SPEEDS.map((x) => ({ value: String(x), label: t('speed', { x }) }))} />
+              <Segmented<string> label={t('playbackSpeed')} value={String(pb.speed)} onChange={(v) => pb.setSpeed(Number(v) as PlaybackSpeed)} options={PLAYBACK_SPEEDS.map((x) => ({ value: String(x), label: t('speed', { x }) }))} />
               <button className="btn sm ghost" onClick={pb.skip} data-testid="playback-skip">
                 {t(j ? 'skipJanuary' : 'skipEnd')}
               </button>

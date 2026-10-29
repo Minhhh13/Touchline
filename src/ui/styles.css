@@ -2202,6 +2202,10 @@ kbd {
   gap: 2px;
   flex-shrink: 0;
 }
+/* 'No more tips' sits 2 px under Got it: its own box is the 24 px target (WCAG 2.5.8; the ::after area is not counted) */
+.tip .tip-actions .linklike {
+  min-height: 24px;
+}
 
 /* The pitch key: what the disc number and its rings mean */
 .pitch-legend {
@@ -4796,6 +4800,21 @@ dl.kv {
 .kv.ledger dd {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+/* A phone at large text: the ledger's terms wrap, so a figure such as "£118M" keeps room beside them (round 5) */
+@media (max-width: 720px) {
+  .kv.ledger dt {
+    white-space: normal;
+  }
+  .kv.ledger dd {
+    overflow-wrap: anywhere;
+  }
+}
+/* The press conference's answers are sentences: they wrap rather than run past a phone at large text (round 5) */
+.btn.press-answer {
+  white-space: normal;
+  max-width: 100%;
+  text-align: left;
 }
 /* The Dynasty summer's improved and declined men: a label, then one chip a man with his old and new overall */
 .summer-moves {
@@ -7665,6 +7684,8 @@ dl.kv {
 }
 .screen-title h1 {
   margin: 0 0 var(--space-1);
+  /* A long word at 200 % text on a phone ("leaderboard") breaks rather than run past the window (round 5) */
+  overflow-wrap: break-word;
 }
 .screen-meta {
   display: flex;
@@ -11687,6 +11708,11 @@ table.tbl tr.zone-start > td {
 }
 .fit-foot.notice {
   border-top: none;
+}
+/* A foot's button ("Sign in to post to the World board") wraps at large text instead of running past a phone (round 5) */
+.fit-foot .btn {
+  white-space: normal;
+  max-width: 100%;
 }
 .grid.world-grid {
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);

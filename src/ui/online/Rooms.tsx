@@ -158,11 +158,11 @@ export function RoomSetup() {
             <div className="col">
               <div className="field">
                 {t('league')}
-                <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHost(''); void ensureLeagues(roomWheel(u, id, scope)) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
+                <Segmented label={t('league')} value={leagueId} onChange={(id) => { setLeagueId(id); setHost(''); void ensureLeagues(roomWheel(u, id, scope)) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
               </div>
               <div className="field">
                 {t('draftFrom')}
-                <Segmented value={scope} onChange={(sc) => { setScope(sc); void ensureLeagues(roomWheel(u, leagueId, sc)) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {t('thisLeague')}</> }, { value: 'all', label: <><LeagueFlag leagueId="europe" /> {t('allLeagues', { n: u.available.length })}</> }]} />
+                <Segmented label={t('draftFrom')} value={scope} onChange={(sc) => { setScope(sc); void ensureLeagues(roomWheel(u, leagueId, sc)) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {t('thisLeague')}</> }, { value: 'all', label: <><LeagueFlag leagueId="europe" /> {t('allLeagues', { n: u.available.length })}</> }]} />
               </div>
               <label className="field">
                 {t('season')}
@@ -178,7 +178,7 @@ export function RoomSetup() {
                 <span>
                   {t('difficulty')} <Info label={t('aboutDifficulty')}>{t('difficultyInfo')}</Info>
                 </span>
-                <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: t('calibrated') }, { value: 'realistic', label: t('realistic') }]} />
+                <Segmented label={t('difficulty')} value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: t('calibrated') }, { value: 'realistic', label: t('realistic') }]} />
               </div>
               <label className="toggle">
                 <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />

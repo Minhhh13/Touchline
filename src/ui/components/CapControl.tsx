@@ -14,7 +14,7 @@ export function CapControl({ value, onChange, squadSize, note }: { value: CapCho
   return (
     <div className="field" data-testid="cap-control">
       {t('salaryCap')}
-      <Segmented<CapPreset> value={value.preset} onChange={(preset) => onChange({ ...value, preset })} options={CAP_PRESETS.map((p) => ({ value: p.value, label: p.label, hint: p.hint }))} />
+      <Segmented<CapPreset> label={t('salaryCap')} value={value.preset} onChange={(preset) => onChange({ ...value, preset })} options={CAP_PRESETS.map((p) => ({ value: p.value, label: p.label, hint: p.hint }))} />
       {value.preset === 'custom' && (
         <input type="range" min={CAP_CUSTOM_RANGE[0]} max={CAP_CUSTOM_RANGE[1]} step={CAP_CUSTOM_STEP} value={value.custom} onChange={(e) => onChange({ ...value, custom: Number(e.target.value) })} aria-label={t('capCustom')} data-testid="cap-custom" style={{ display: 'block', width: '100%' }} />
       )}
