@@ -16,6 +16,7 @@ import { playSound } from '../sound/synth'
 import { toastTone } from '../sound/cues'
 import { translator } from '../i18n'
 import { common } from '../i18n/en/common'
+import { shellLogicLine } from '../i18n/logicLine'
 
 const t = translator(common)
 // The tab strip's own `t` (a tab) shadows the translator inside it
@@ -200,11 +201,11 @@ export function Toast() {
   return (
     <>
       <div className="sr-only" role="status" data-dialog-keep="" data-testid="toast-live">
-        {toast ?? ''}
+        {toast ? shellLogicLine(toast) : ''}
       </div>
       {toast && (
         <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} aria-hidden="true" data-dialog-keep="">
-          {toast}
+          {shellLogicLine(toast)}
         </div>
       )}
     </>
@@ -318,7 +319,7 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
   // The letters show; a screen reader hears the words ("W" alone reads as "double-u")
   return (
-    <span className="form" role="img" aria-label={resultsLabel(form, 'Form')}>
+    <span className="form" role="img" aria-label={resultsLabel(form, t('formLabel'))}>
       {form.map((f, i) => (
         <span key={i} className={f}>
           {f}

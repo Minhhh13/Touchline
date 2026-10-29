@@ -4,6 +4,10 @@
  */
 import { useEffect, type KeyboardEvent, type RefObject } from 'react'
 import { focusHasFallen, rescuedElement } from './focusRescue'
+import { translator } from './i18n'
+import { common } from './i18n/en/common'
+
+const t = translator(common)
 
 /** Enter or Space: the keys that press a button, so a custom control answers them as a real one does. */
 export function isActivationKey(key: string): boolean {
@@ -76,12 +80,12 @@ export function radioTabIndex(index: number, checkedIndex: number): 0 | -1 {
 
 /** A W/D/L outcome as a word, for a screen reader beside a coloured letter or block ("W" alone reads as "double-u"). */
 export function outcomeWord(o: 'W' | 'D' | 'L'): string {
-  return o === 'W' ? 'won' : o === 'D' ? 'drawn' : 'lost'
+  return t(o === 'W' ? 'outcomeWon' : o === 'D' ? 'outcomeDrawn' : 'outcomeLost')
 }
 
 /** A results run as one short sentence for a screen reader: "Results, oldest first: won, won, drawn, lost". */
-export function resultsLabel(results: ReadonlyArray<'W' | 'D' | 'L'>, lead = 'Results, oldest first'): string {
-  return results.length ? `${lead}: ${results.map(outcomeWord).join(', ')}` : `${lead}: none yet`
+export function resultsLabel(results: ReadonlyArray<'W' | 'D' | 'L'>, lead = t('resultsOldestFirst')): string {
+  return results.length ? t('resultsLine', { lead, results: results.map(outcomeWord).join(t('listSeparator')) }) : t('resultsNone', { lead })
 }
 
 /**

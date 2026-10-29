@@ -17,7 +17,7 @@ import { bidYearChoices, defaultBidYears } from '@game/logic/bidTerms'
 import { SELL_ON_OPTIONS, SQUAD_CAP, closedWindowLine, sellOnValue, suggestedStatus } from '@game/logic/marketOps'
 import { canFullScout, focusActive, maskedView } from '@game/logic/scouting'
 import { recentShare, statusOf } from '@game/logic/week'
-import { EXPECTED_SHARE, RECENT_WEEKS, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
+import { EXPECTED_SHARE, RECENT_WEEKS, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
@@ -83,9 +83,10 @@ import { dugout } from '../i18n/en/dugout'
 import { WeekStrip } from '../components/WeekStrip'
 import '../motionSeason.css'
 import { rich } from '../i18n/rich'
-import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, trainingBlurb, trainingLabel } from '../i18n/engineText'
+import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, statusLabel, statusLower, trainingBlurb, trainingLabel } from '../i18n/engineText'
 import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
 import { onRadioGroupKey, radioTabIndex } from '../a11y'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(dugout)
 const tOffice = translator(officeText)
@@ -117,10 +118,11 @@ function tabPresent(tab: string, game: Game): string[] | undefined {
 /** Whether this viewer keeps the Key on (bar labels and the pitch legend). */
 const KEY_FLAG = 'touchline-squad-key'
 
-export function Dugout() {
+/** `startTab` opens on another tab than the Squad (the pseudo-locale test renders every tab on the server). */
+export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
   const store = useStorePick('universe', 'game', 'autoPick', 'markNewsSeen', 'playFriendly', 'playWeekSoon', 'playingWeek', 'restTired', 'setMatchPlay', 'showToast', 'signYouth', 'simStop', 'simToNextBigMatchSoon', 'simWeeksSoon', 'startPromised')
   const { universe: u, game } = store
-  const [tab, setTab] = useState<Tab>('squad')
+  const [tab, setTab] = useState<Tab>(startTab ?? 'squad')
   // The slot whose picker sheet is open: tapping a slot opens it, on every screen size
   const [sheetSlot, setSheetSlot] = useState<string | null>(null)
   const [playerModal, setPlayerModal] = useState<string | null>(null)
@@ -520,7 +522,7 @@ export function Dugout() {
                         )}
                         {view === 'contract' && (
                           <span className="season-line" data-testid="contract-line">
-                            {contract?.loan ? t('loan') : t('years', { n: contract?.years ?? 1 })} · {wage(p.wage)} · {STATUS_LABEL[statusOf(game, p.id)]} · {money(p.value)}
+                            {contract?.loan ? t('loan') : t('years', { n: contract?.years ?? 1 })} · {wage(p.wage)} · {statusLabel(statusOf(game, p.id))} · {money(p.value)}
                           </span>
                         )}
                       </>
@@ -702,7 +704,7 @@ export function Dugout() {
               <span className="needs-you-label">{t('needsYou')}</span>
               {game.pendingEvent && (
                 <button type="button" className="btn sm" onClick={() => act({ op: 'event', label: t('decide') })}>
-                  {t('decideOn', { title: game.pendingEvent.title })}
+                  {t('decideOn', { title: logicLine(game.pendingEvent.title) })}
                 </button>
               )}
               {openOffers > 0 && (
@@ -722,8 +724,8 @@ export function Dugout() {
                     <NewsIcon kind={n.kind} size={15} />
                   </span>
                   <span>
-                    <div className="t">{n.title}</div>
-                    <div className="b">{newsBody(n)}</div>
+                    <div className="t">{logicLine(n.title)}</div>
+                    <div className="b">{logicLine(newsBody(n))}</div>
                     <InboxActions item={n} game={game} onAction={act} />
                     {isOfficeNews(n) && (
                       <button type="button" className="chip-btn" onClick={() => setTab('office')} data-testid="news-office">
@@ -863,7 +865,7 @@ function NextMatchTab({ boxes }: { boxes: Boxes }) {
             <div className="matchup">
               {rows.map((r) => (
                 <div key={r.label} className="matchup-row">
-                  <span className="matchup-label">{r.label}</span>
+                  <span className="matchup-label">{logicLine(r.label)}</span>
                   <b className="mono">{r.ours.toFixed(1)}</b>
                   <span className="matchup-bar" aria-hidden="true">
                     <span style={{ width: `${Math.max(4, Math.min(96, 50 + (r.ours - r.theirs) * 5))}%` }} />
@@ -1409,7 +1411,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
         {boxes.on('scout-reports') && <ScoutReportsPanel onOpen={setScoutId} />}
         <div className="col">
           <div className="notice">
-            {closedWindowLine(game)}{' '}
+            {logicLine(closedWindowLine(game))}{' '}
             <Info label={t('aboutWindows')}>{t('windowsInfo')}</Info>
           </div>
           {shortlistPanel}
@@ -1509,7 +1511,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     <FitChips game={game} u={u} listing={l} />
                     {l.tags.map((t) => (
                       <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' || t === 'Scouted' ? 'good' : ''}`}>
-                        {t}
+                        {logicLine(t)}
                       </span>
                     ))}
                     {rangeOf(p) && (
@@ -1520,11 +1522,11 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     {scout > 0 &&
                       traitTags(p.traits).map((tag) => (
                         <span key={tag} className="chip" style={{ borderStyle: 'dashed' }} title={t('scoutingReport')}>
-                          {tag}
+                          {logicLine(tag)}
                         </span>
                       ))}
                     {l.suitors > 0 && <span className="chip">{t('rivals', { n: l.suitors })}</span>}
-                    {l.response && <span className="chip">{l.response}</span>}
+                    {l.response && <span className="chip">{logicLine(l.response)}</span>}
                   </div>
                   <div className="bidrow">
                     <input className="input" type="number" min={0.1} step={0.5} value={bid} onChange={(e) => setBids({ ...bids, [l.playerSeasonId]: Number(e.target.value) })} aria-label={t('bidLabel', { name: p.name })} />
@@ -1552,7 +1554,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     <select className="input" data-testid="bid-status" value={offered} onChange={(e) => setStatuses({ ...statuses, [l.playerSeasonId]: e.target.value as SquadStatus })} title={t('statusTip')}>
                       {STATUSES.map((st) => (
                         <option key={st} value={st}>
-                          {STATUS_LABEL[st]} · {wage(Math.round(p.wage * WAGE_MULT[st]))}
+                          {statusLabel(st)} · {wage(Math.round(p.wage * WAGE_MULT[st]))}
                         </option>
                       ))}
                     </select>
@@ -1782,9 +1784,9 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
                         {decided && (ok ? <Check size={12} aria-hidden="true" /> : <X size={12} aria-hidden="true" />)}
                         {t(decided ? (ok ? 'met' : 'missed') : ok ? 'onTrack' : 'notYet')}
                       </span>{' '}
-                      {o.label}
+                      {logicLine(o.label)}
                     </span>
-                    <span className="small muted">{ev.progress}</span>
+                    <span className="small muted">{logicLine(ev.progress)}</span>
                   </div>
                 )
               })}
@@ -1905,12 +1907,12 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
                   <select className="input sm" data-testid="status-select" value={status} onChange={(e) => store.setStatus(x.p.id, e.target.value as SquadStatus)} title={t('statusSelectTip')}>
                     {STATUSES.map((st) => (
                       <option key={st} value={st}>
-                        {STATUS_LABEL[st]}
+                        {statusLabel(st)}
                       </option>
                     ))}
                   </select>
                 </td>
-                <td className="num" title={t('shareTip', { status: STATUS_LABEL[status].toLowerCase(), pct: Math.round(EXPECTED_SHARE[status] * 100) })}>
+                <td className="num" title={t('shareTip', { status: statusLower(status), pct: Math.round(EXPECTED_SHARE[status] * 100) })}>
                   {share === null ? '–' : <span style={share < EXPECTED_SHARE[status] - 0.15 ? { color: 'var(--danger)' } : undefined}>{Math.round(share * 100)}%</span>}
                 </td>
                 <td>{moraleWord(x.s.morale)}</td>
@@ -1978,10 +1980,10 @@ function BoardRequests({ onMessage }: { onMessage: (m: string) => void }) {
         {requestOptions(game, u).map((o) => (
           <div key={o.kind} className="request-row" data-testid={`request-${o.kind}`}>
             <span className="col" style={{ gap: 0, minWidth: 0 }}>
-              <b>{o.label}</b>
-              <span className="small muted">{o.ask}</span>
+              <b>{logicLine(o.label)}</b>
+              <span className="small muted">{logicLine(o.ask)}</span>
               <span className={`small ${o.conditionMet ? 'good-text' : 'muted'}`}>
-                {o.conditionMet ? '✓' : '✗'} {o.condition}
+                {o.conditionMet ? '✓' : '✗'} {logicLine(o.condition)}
               </span>
             </span>
             <button className="btn sm" disabled={wait !== null} onClick={() => onMessage(store.boardRequest(o.kind).message)} title={wait !== null ? t('nextRequest', { week: wait - 1 }) : t(confident && o.conditionMet ? 'willGrant' : 'willRefuse')}>
@@ -2059,19 +2061,19 @@ function EventCard() {
     <div className={`panel event-card${open ? ' open' : ''}`} data-testid="event-card" data-dialog-return="">
       <div className="event-row">
         <h3 className="icon-title event-title">
-          <MessageSquare size={18} aria-hidden="true" /> {ev.title}
+          <MessageSquare size={18} aria-hidden="true" /> {logicLine(ev.title)}
         </h3>
-        <p className="event-body" title={open ? undefined : ev.body}>
-          {ev.body}
+        <p className="event-body" title={open ? undefined : logicLine(ev.body)}>
+          {logicLine(ev.body)}
           {who && <span className="small muted event-who">{who}</span>}
         </p>
         <div className="event-choices">
         {ev.choices.map((c) => (
-          <button key={c.id} className="btn event-choice" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
+          <button key={c.id} className="btn event-choice" title={logicLine(c.hint)} onClick={() => store.resolveEvent(c.id)}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
-              <span>{c.label}</span>
+              <span>{logicLine(c.label)}</span>
               <span className="small muted event-hint" style={{ fontWeight: 400 }}>
-                {c.hint}
+                {logicLine(c.hint)}
               </span>
             </span>
           </button>
@@ -2123,7 +2125,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
           )}
           {s && (
             <span className="chip info" data-testid="player-status" title={share === null ? t('noMinutes') : t('statusTipLong', { pct: Math.round(share * 100), weeks: RECENT_WEEKS, exp: Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100) })}>
-              {STATUS_LABEL[statusOf(game, p.id)]}
+              {statusLabel(statusOf(game, p.id))}
               {share === null ? '' : t('statusLately', { pct: Math.round(share * 100), exp: Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100) })}
             </span>
           )}
@@ -2136,7 +2138,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
           )}
         </>
       }
-      headExtra={<span className="chip" title={personalityOf(p).blurb} data-testid="personality">{personalityOf(p).label}</span>}
+      headExtra={<span className="chip" title={logicLine(personalityOf(p).blurb)} data-testid="personality">{logicLine(personalityOf(p).label)}</span>}
       actions={
         s && (
           <>
@@ -2162,13 +2164,13 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
                   <Info label={t('aboutConversations')}>{t('conversationsInfo')}</Info>
                 </span>
                 {talkMsg ? (
-                  <span className="small pc-talk-msg" role="status">{talkMsg}</span>
+                  <span className="small pc-talk-msg" role="status">{logicLine(talkMsg)}</span>
                 ) : game.talks?.[p.id] === game.season.matchweek ? (
                   <span className="small muted">{t('spokeThisWeek')}</span>
                 ) : (
                   (Object.keys(TALK_LABEL) as TalkKind[]).map((k) => (
-                    <button key={k} className="btn sm" title={TALK_LABEL[k].hint} onClick={() => setTalkMsg(store.talk(p.id, k).message)}>
-                      {TALK_LABEL[k].label}
+                    <button key={k} className="btn sm" title={logicLine(TALK_LABEL[k].hint)} onClick={() => setTalkMsg(store.talk(p.id, k).message)}>
+                      {logicLine(TALK_LABEL[k].label)}
                     </button>
                   ))
                 )}

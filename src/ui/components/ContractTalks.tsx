@@ -3,11 +3,13 @@ import { Handshake } from 'lucide-react'
 import { useStore } from '@game/store'
 import { AGENT_MOOD_HELP, AGENT_MOOD_LABEL, agentView, evaluateOffer, openingOffer, talksClosedUntil, type ContractOffer, type Stance, type TermKey } from '@game/logic/contracts'
 import { playerLookup } from '@game/logic/players'
-import { STATUS_LABEL, STATUSES, type SquadStatus } from '@engine/status'
+import { STATUSES, type SquadStatus } from '@engine/status'
 import { Bar, Info } from './bits'
 import { wage } from '../format'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import { statusLabel, statusLower } from '../i18n/engineText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(dugout)
 const TERMS: TermKey[] = ['wage', 'years', 'signingFee', 'release', 'appearance', 'goal']
@@ -62,7 +64,7 @@ export function ContractTalks({ id, onBack }: { id: string; onBack: () => void }
               <select className="input sm" value={offer.status} onChange={(e) => set({ status: e.target.value as SquadStatus })}>
                 {STATUSES.map((st) => (
                   <option key={st} value={st}>
-                    {STATUS_LABEL[st]}
+                    {statusLabel(st)}
                   </option>
                 ))}
               </select>
@@ -98,7 +100,7 @@ export function ContractTalks({ id, onBack }: { id: string; onBack: () => void }
           <dl className="kv tight" style={{ marginTop: 'var(--space-2)' }}>
             <dt>{t('heAsks')}</dt>
             <dd data-testid="ask-wage">
-              {t('asksAs', { w: wage(d.wage), status: STATUS_LABEL[offer.status].toLowerCase() })}
+              {t('asksAs', { w: wage(d.wage), status: statusLower(offer.status) })}
             </dd>
             {d.wageFloor !== undefined && (
               <>
@@ -178,7 +180,7 @@ export function ContractCard({ id, onTalks }: { id: string; onTalks: () => void 
       <div className="small" style={{ marginTop: 'var(--space-2)' }}>
         {c.loan ? t('onLoan') : t('seasonsLeft', { n: c.years, terms: terms.length ? ` · ${terms.join(' · ')}` : '' })}
       </div>
-      {!c.loan && <div className="small muted">{view.why}</div>}
+      {!c.loan && <div className="small muted">{logicLine(view.why)}</div>}
       {msg && <div className="notice" style={{ marginTop: 'var(--space-2)' }}>{msg}</div>}
       {!c.loan && (
         <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>

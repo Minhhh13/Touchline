@@ -24,6 +24,7 @@ import { isWeeklyRunIn } from '@game/logic/runinWeekly'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 import { marginText, templateText } from '../runInText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(runin)
 
@@ -109,7 +110,7 @@ export function RunInSummary() {
           </div>
         </div>
         <p className="tier-blurb" data-testid="runin-line">
-          {v.line}
+          {logicLine(v.line)}
         </p>
         {margin && (
           <p className="tier-blurb" data-testid="runin-margin">

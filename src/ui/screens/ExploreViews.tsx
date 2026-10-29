@@ -16,6 +16,7 @@ import { clubName, clubShort, fixed, formatLocale, money, nationName, seasonLabe
 import { pressable } from '../a11y'
 import { translator } from '../i18n'
 import { explore } from '../i18n/en/explore'
+import { logicLine } from '../i18n/logicText'
 
 const tx = translator(explore)
 
@@ -330,7 +331,7 @@ export function LeagueView({ leagueId, onClub, onPlayer }: { leagueId: string; o
           <dl className="kv records-kv">
             {book.records.map((r) => (
               <div key={r.key} className="record-line">
-                <dt>{r.label}</dt>
+                <dt>{logicLine(r.label)}</dt>
                 <dd>
                   <strong>{r.key === 'bestGoalDiff' && r.value > 0 ? `+${r.value}` : r.value}</strong> <span className="holders">{r.holders.slice(0, 3).map((h) => holder(h.clubId, h.season))}{r.holders.length > 3 && <span className="small muted"> +{r.holders.length - 3}</span>}</span>
                 </dd>

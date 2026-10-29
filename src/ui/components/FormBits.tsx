@@ -4,6 +4,7 @@ import type { SquadPlayer } from '@engine/types'
 import { formTitle, formTrend, sparkPoints } from '@game/logic/squadDisplay'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(dugout)
 
@@ -13,7 +14,7 @@ const ARROW = { up: '▲', flat: '▶', down: '▼' } as const
 export function FormArrow({ s }: { s: Pick<SquadPlayer, 'recentRatings' | 'seasonStats'> }) {
   const trend = formTrend(s)
   if (!trend) return null
-  const title = formTitle(trend)
+  const title = logicLine(formTitle(trend))
   return (
     <span className={`form-arrow ${trend.dir}`} title={title} role="img" aria-label={title} data-testid="form-arrow" data-dir={trend.dir}>
       {ARROW[trend.dir]}

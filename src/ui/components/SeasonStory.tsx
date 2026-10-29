@@ -3,6 +3,7 @@ import type { QuickGameResult } from '@game/types'
 import { resultsLabel } from '../a11y'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(summary)
 
@@ -19,7 +20,7 @@ export function SeasonStoryPanel({ story, opponentName }: { story: SeasonStory; 
         <span className="small muted">{t('storyGames', { n: story.results.length })}</span>
       </div>
       <div className="notice" data-testid="story-moment">
-        {story.moment}
+        {logicLine(story.moment)}
       </div>
       <div className="blocks" data-testid="story-strip" role="img" aria-label={resultsLabel(story.strip, t('resultsInOrder'))}>
         {story.strip.map((o, i) => (
