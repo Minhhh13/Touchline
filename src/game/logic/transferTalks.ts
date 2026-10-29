@@ -29,11 +29,10 @@ import type { Listing, Offer } from '@engine/market'
 import { acceptsStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { playerLookup } from './players'
 import { squadWages } from './squad'
-import { postNews } from './news'
 import { hashUnit } from './scouting'
 import { agentMood, marketWage, type AgentMood } from './contracts'
 import { acceptOffer, bidFor, ownedHumans, sellOnValue, SQUAD_CAP, squadOveralls, suggestedStatus } from './marketOps'
-import { officeOf, roundM, shiftMorale, weekOf, windowKey } from './officeCore'
+import { officeOf, postOfficeNews, roundM, shiftMorale, weekOf, windowKey } from './officeCore'
 
 export type Instalments = 1 | 2 | 3
 /** What an instalment deal is worth to the selling club, and the share of the fee paid now. */
@@ -277,7 +276,7 @@ export function offerTerms(game: Game, u: LoadedUniverse, listingId: string, off
   const s = game.squad[p.id]
   if (s) shiftMorale(s, weekOf(game), 4, 'Signed on the terms he wanted')
   const terms = [`£${deal.fee}M`, plan.payments ? `£${plan.now}M now and ${plan.payments} × £${plan.later}M at the next window${plan.payments > 1 ? 's' : ''}` : '', deal.sellOn ? `${Math.round(deal.sellOn * 100)}% sell-on` : '', `£${wage}k a week`, `${c?.years ?? offer.years} seasons as ${STATUS_LABEL[offer.status].toLowerCase()}`, signingFee ? `£${signingFee}M to sign` : ''].filter(Boolean).join(', ')
-  if (game.season) postNews(game, { matchweek: weekOf(game), kind: 'transfer', title: `Terms agreed: ${p.name}`, body: `${terms}.`, playerId: p.id })
+  if (game.season) postOfficeNews(game, { matchweek: weekOf(game), kind: 'transfer', title: `Terms agreed: ${p.name}`, body: `${terms}.`, playerId: p.id })
   return { ok: true, signed: true, message: `${p.name} signs: ${terms}.` }
 }
 
@@ -348,7 +347,7 @@ export function payInstalments(game: Game): void {
     game.finances.spent = roundM(game.finances.spent + amount)
     inst.left -= n
     if (key) inst.window = key
-    if (season) postNews(game, { matchweek: weekOf(game), kind: 'transfer', title: `Instalment paid: ${inst.name}`, body: `£${amount}M to his old club.${inst.left ? ` ${inst.left} more to come.` : ' The fee is paid off.'}` })
+    if (season) postOfficeNews(game, { matchweek: weekOf(game), kind: 'transfer', title: `Instalment paid: ${inst.name}`, body: `£${amount}M to his old club.${inst.left ? ` ${inst.left} more to come.` : ' The fee is paid off.'}` })
     if (inst.left <= 0) list.splice(i, 1)
   }
 }

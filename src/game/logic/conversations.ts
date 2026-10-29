@@ -32,7 +32,7 @@ export const TOPIC_TONES: Record<ConversationTopic, ConversationTone[]> = {
 }
 
 /** Thick and thin skins: how a personality takes a hard word (−1 badly, 1 well). */
-const HARD_WORD: Record<PersonalityId, number> = { model: 1, professional: 1, steady: 0.5, driven: 0.5, 'big-game': 0, balanced: 0, mercurial: -0.5, fickle: -0.5, casual: -1, temperamental: -1 }
+export const HARD_WORD: Record<PersonalityId, number> = { model: 1, professional: 1, steady: 0.5, driven: 0.5, 'big-game': 0, balanced: 0, mercurial: -0.5, fickle: -0.5, casual: -1, temperamental: -1 }
 
 export interface ConversationResult {
   ok: boolean

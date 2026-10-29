@@ -12,11 +12,11 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { playerLookup } from './players'
-import { postNews } from './news'
-import { officeOf, shiftMorale, squadIdOf, weekOf } from './officeCore'
+import { officeOf, postOfficeNews, shiftMorale, squadIdOf, weekOf } from './officeCore'
 import { openPromises, settlePromises } from './promises'
 import { expireRequests, openRequests, rollRequests } from './transferRequests'
 import { closeStaleTalks, feeTalkOf, payInstalments } from './transferTalks'
+import { settleBoast } from './pressConference'
 
 /** Morale a man who asked to go loses when he is taken off the list again. */
 export const UNLISTED_COST = -6
@@ -30,6 +30,7 @@ export function officeTick(game: Game, u: LoadedUniverse, sim = false): void {
   if (!season) return
   pruneRequests(game, u)
   settlePromises(game, u)
+  settleBoast(game)
   expireRequests(game, u, sim)
   const key = `${game.year}:${season.matchweek}`
   if (game.office?.tick === key) return
@@ -74,7 +75,7 @@ export function setListed(game: Game, u: LoadedUniverse, id: string, on: boolean
       req.settledAt = week
       shiftMorale(s, week, 5, 'Transfer request accepted')
     } else shiftMorale(s, week, -4, 'Put on the transfer list')
-    if (game.season) postNews(game, { matchweek: week, kind: 'transfer', title: `${p.name} transfer-listed`, body: 'Offers will come in the window.', playerId: id })
+    if (game.season) postOfficeNews(game, { matchweek: week, kind: 'transfer', title: `${p.name} transfer-listed`, body: 'Offers will come in the window.', playerId: id })
     return { ok: true, message: `${p.name} is on the transfer list.` }
   }
   if (!c.listed) return { ok: false, message: `${p.name} is not listed.` }

@@ -140,17 +140,18 @@ export function teamFamiliarity(game: Pick<Game, 'lineup' | 'squad'>): number | 
 
 // ---------------------------------------------------------------- inbox
 
-export type InboxFilter = 'all' | 'matches' | 'squad' | 'market' | 'board'
+export type InboxFilter = 'all' | 'matches' | 'squad' | 'market' | 'board' | 'office'
 export const INBOX_FILTERS: Array<{ id: InboxFilter; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'matches', label: 'Matches' },
   { id: 'squad', label: 'Squad' },
   { id: 'market', label: 'Market' },
   { id: 'board', label: 'Board' },
+  { id: 'office', label: 'Office' },
 ]
 
-/** Which filter an item belongs to, by its kind. */
-export function inboxGroup(kind: NewsItem['kind']): Exclude<InboxFilter, 'all'> {
+/** Which filter an item belongs to, by its kind (the Office filter reads the office's own mark instead, `filterNews`). */
+export function inboxGroup(kind: NewsItem['kind']): Exclude<InboxFilter, 'all' | 'office'> {
   switch (kind) {
     case 'result':
     case 'cup':
@@ -167,7 +168,7 @@ export function inboxGroup(kind: NewsItem['kind']): Exclude<InboxFilter, 'all'> 
 
 /** The feed narrowed to one filter, each item with its index in the full feed (the unread divider counts from the top of it). */
 export function filterNews(news: NewsItem[], f: InboxFilter): Array<{ n: NewsItem; i: number }> {
-  return news.map((n, i) => ({ n, i })).filter(({ n }) => f === 'all' || inboxGroup(n.kind) === f)
+  return news.map((n, i) => ({ n, i })).filter(({ n }) => f === 'all' || (f === 'office' ? n.office === true : inboxGroup(n.kind) === f))
 }
 
 // ---------------------------------------------------------------- the transfer window

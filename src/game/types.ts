@@ -580,6 +580,8 @@ export interface OfficeState {
   sellTalks?: Record<string, SellTalk>
   instalments?: Instalment[]
   press?: PressConference
+  /** "We will win it", said to the press before a big league match: settled once that matchweek is played (`settleBoast`). */
+  boast?: { year: number; week: number; opponentId?: string }
 }
 
 /**

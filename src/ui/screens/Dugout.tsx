@@ -51,7 +51,8 @@ import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 import { RunInBanner } from '../components/RunInBanner'
 import { DressingRoomTab } from './DressingRoomTab'
-import { CounterBidControl, NegotiateButton, OfficeInbox, OfficeTab, officeAlertCount } from './OfficeTab'
+import { CounterBidControl, NegotiateButton, OfficeInbox, OfficeTab, officeAlertCount, PromisesToHim } from './OfficeTab'
+import { isOfficeNews, promisesTo } from '@game/logic/officeView'
 import { office as officeText } from '../i18n/en/office'
 import { PlannerTab } from './PlannerTab'
 import { InboxActions } from '../components/InboxActions'
@@ -685,8 +686,8 @@ export function Dugout() {
             )}
           </div>
           <div className="inbox-filters row wrap" role="radiogroup" aria-label={t('show')} data-testid="inbox-filter" onKeyDown={onRadioGroupKey}>
-            {INBOX_FILTERS.map((f, i) => (
-              <button key={f.id} type="button" role="radio" aria-checked={inboxFilter === f.id} tabIndex={radioTabIndex(i, INBOX_FILTERS.findIndex((x) => x.id === inboxFilter))} className={`chip-btn ${inboxFilter === f.id ? 'active' : ''}`} onClick={() => setInboxFilter(f.id)}>
+            {INBOX_FILTERS.filter((f) => f.id !== 'office' || !!game.office).map((f, i, shown) => (
+              <button key={f.id} type="button" role="radio" aria-checked={inboxFilter === f.id} tabIndex={radioTabIndex(i, shown.findIndex((x) => x.id === inboxFilter))} className={`chip-btn ${inboxFilter === f.id ? 'active' : ''}`} onClick={() => setInboxFilter(f.id)}>
                 {f.label}
                 {f.id !== 'all' && <span className="muted"> {filterNews(season.news, f.id).length}</span>}
               </button>
@@ -721,6 +722,11 @@ export function Dugout() {
                     <div className="t">{n.title}</div>
                     <div className="b">{newsBody(n)}</div>
                     <InboxActions item={n} game={game} onAction={act} />
+                    {isOfficeNews(n) && (
+                      <button type="button" className="chip-btn" onClick={() => setTab('office')} data-testid="news-office">
+                        {tOffice('openOffice')}
+                      </button>
+                    )}
                   </span>
                   <span className="news-mw">{n.matchweek ? t('mwShort', { week: n.matchweek }) : t('pre')}</span>
                 </div>
@@ -2191,7 +2197,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
       panels={
         s
           ? [
-              { id: 'happiness', label: t('happiness'), content: <HappinessCard s={s} /> },
+              { id: 'happiness', label: t('happiness'), content: <HappinessCard s={s} promises={promisesTo(game, u, p.id)} extra={<PromisesToHim id={p.id} />} /> },
               { id: 'contract', label: t('contract'), content: <ContractCard id={p.id} onTalks={() => setTalks(true)} /> },
             ]
           : undefined
