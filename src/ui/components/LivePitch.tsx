@@ -7,7 +7,8 @@
  * Everything that moves is an SVG attribute set from one requestAnimationFrame
  * loop that reads the shared clock (`timeline`), so React renders only when
  * the minute changes or a celebration starts. Every position on screen is
- * eased towards its target (the ball lightly, the players more), so a change
+ * eased towards its target (the ball lightly; the players by a speed-capped
+ * spring, follow.ts, so they gather pace rather than lurch), so a change
  * of possession, a kick-off, a substitution or a skip never makes anyone jump.
  * A caption over the pitch names what the side on the ball is doing (building
  * from the back, a switch of play, a corner being set up), and a faint trail
@@ -32,6 +33,7 @@ import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
 import { GOAL_FLIGHT_MS, skipHold, timeline, useLiveClock, type GoalHold } from '../match/clockStore'
 import { initials, metres, onPitchAt, placeSide, separateSides, type PlacedPlayer, type Side } from '../match/pitchGeometry'
 import { dotPosition, swayPhase } from '../match/movement'
+import { follow, followCap } from '../match/follow'
 import { ballAt, buildBallPath, type BallKeyframe, type BallState, type PlayTag } from '../match/possession'
 import { styleOf } from '../match/playbook'
 import { phaseCaption, sceneAt } from '../match/shape'
@@ -485,6 +487,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     /** The first frame of a brand-new match places everyone; after that a man new to the pitch walks on. */
     let first = shown.size === 0
     const entered = new Map<string, number>()
+    // Each dot's velocity for its follow (follow.ts), pitch units per ms; a snap or a new dot starts at rest
+    const vel = new Map<string, { vx: number; vy: number }>()
     let id = 0
     let caption = ''
     const box = viewBoxOf(portrait)
@@ -619,13 +623,22 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           entered.set(key, now)
         }
         const since = entered.get(key)
-        const tau = since !== undefined && now - since < 1500 ? tauDot * 3 : tauDot
-        const now2 = prev && !snapAll ? { x: approach(prev.x, x, dt, tau), y: approach(prev.y, y, dt, tau) } : { x, y }
+        const walking = since !== undefined && now - since < 1500
+        const tau = walking ? tauDot * 3 : tauDot
+        // A spring, not an ease: he sets off from the pace he has, gathers speed and arrives, never faster than the cap
+        const v = vel.get(key) ?? { vx: 0, vy: 0 }
+        const f = prev && !snapAll ? follow({ x: prev.x, y: prev.y, ...v }, x, y, dt, tau, followCap(s.speed) * (walking ? 0.5 : 1)) : { x, y, vx: 0, vy: 0 }
+        const now2 = { x: f.x, y: f.y }
+        vel.set(key, { vx: f.vx, vy: f.vy })
         put(el, 'transform', at(now2.x, now2.y))
         shown.set(key, now2)
       }
       first = false
-      for (const key of shown.keys()) if (!dots.current.has(key)) shown.delete(key)
+      for (const key of shown.keys())
+        if (!dots.current.has(key)) {
+          shown.delete(key)
+          vel.delete(key)
+        }
 
       const holderKey = !hold && b?.holder ? dotKey(b.side, b.holder) : undefined
       const holder = holderKey ? shown.get(holderKey) : undefined

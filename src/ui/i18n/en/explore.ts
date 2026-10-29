@@ -188,4 +188,5 @@ export const explore = catalog('explore', {
   leaderBold: 'Leader in bold',
   attributesHere: 'The attributes line up here.',
   groupAvgTip: '{group} average: {n}',
+  exploreTip: 'Every real player and club-season the wheel can land on. Search a name, open a club for its seasons and its chance on the wheel, or compare two players side by side.',
 })

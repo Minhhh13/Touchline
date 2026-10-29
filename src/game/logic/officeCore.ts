@@ -12,6 +12,7 @@
 import type { Game, OfficeState, TransferRequest } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { SquadPlayer } from '@engine/types'
+import type { NewsItem } from '@engine/season'
 import { Rng } from '@engine/rng'
 import { playerLookup } from './players'
 import { logMorale } from './happiness'
@@ -60,6 +61,11 @@ export function officeRoll(game: Game, label: string): Rng {
   return Rng.fromState(game.rngState).fork(`office-${label}`)
 }
 
+/** Post an Inbox item from the office, tagged so the Inbox's Office filter and the digest find it. */
+export function postOfficeNews(game: Game, item: NewsItem): void {
+  postNews(game, { ...item, office: true })
+}
+
 /** GBP millions to one decimal. */
 export function roundM(v: number): number {
   return Math.round(v * 10) / 10
@@ -90,31 +96,38 @@ export function lodgeRequest(game: Game, u: LoadedUniverse, playerSeasonId: stri
   const requests = (o.requests ??= {})
   const old = requests[p.playerId]
   const week = weekOf(game)
-  if (old && (old.stage === 'open' || old.stage === 'listed')) return null
+  // One waiting this season blocks a second; one an earlier season left open was let go with that season (r9)
+  if (old && old.year === game.year && (old.stage === 'open' || old.stage === 'listed')) return null
   if (old && old.year === game.year && week - (old.settledAt ?? old.at) < REQUEST_COOLDOWN && reason !== 'promise') return null
   const req: TransferRequest = { playerId: p.playerId, name: p.name, reason, year: game.year, at: week, stage: 'open' }
   requests[p.playerId] = req
   shiftMorale(s, week, -3, 'Handed in a transfer request')
-  postNews(game, { matchweek: week, kind: 'event', title: `${p.name} hands in a transfer request`, body: `He wants to leave: ${REQUEST_WHY[reason]}. Talk him round, list him or refuse, in the Office.`, playerId: playerSeasonId })
+  postOfficeNews(game, { matchweek: week, kind: 'event', title: `${p.name} hands in a transfer request`, body: `He wants to leave: ${REQUEST_WHY[reason]}. Talk him round, list him or refuse, in the Office.`, playerId: playerSeasonId })
   return req
 }
 
 /**
- * The dressing room hears about it: his group's other men move by `delta`, and when he is one of the squad's leaders
- * (the top two tiers of the hierarchy) everyone else by half of it. Returns the men moved.
+ * Who in the dressing room hears about it, and by how much: his group's other men take `delta`, and when he is one
+ * of the squad's leaders (the top two tiers of the hierarchy) everyone else half of it. Pure: the Office previews a
+ * refusal with it before the manager makes one.
  */
-export function dressingRoomRipple(game: Game, u: LoadedUniverse, playerSeasonId: string, delta: number, note: string): string[] {
-  const week = weekOf(game)
+export function rippleTargets(game: Game, u: LoadedUniverse, playerSeasonId: string, delta: number): Array<{ id: string; delta: number }> {
   const group = squadGroups(game, u).find((g) => g.members.includes(playerSeasonId))
   const tier = hierarchy(game, u).find((r) => r.id === playerSeasonId)?.tier
   const big = tier === 'leader' || tier === 'high'
-  const moved: string[] = []
-  for (const [id, s] of Object.entries(game.squad)) {
+  const out: Array<{ id: string; delta: number }> = []
+  for (const id of Object.keys(game.squad)) {
     if (id === playerSeasonId) continue
     const d = group?.members.includes(id) ? delta : big ? delta / 2 : 0
-    if (!d) continue
-    shiftMorale(s, week, d, note)
-    moved.push(id)
+    if (d) out.push({ id, delta: d })
   }
-  return moved
+  return out
+}
+
+/** The dressing room hears about it (`rippleTargets`), and each man's morale moves. Returns the men moved. */
+export function dressingRoomRipple(game: Game, u: LoadedUniverse, playerSeasonId: string, delta: number, note: string): string[] {
+  const week = weekOf(game)
+  const targets = rippleTargets(game, u, playerSeasonId, delta)
+  for (const { id, delta: d } of targets) shiftMorale(game.squad[id], week, d, note)
+  return targets.map((x) => x.id)
 }

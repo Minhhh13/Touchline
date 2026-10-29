@@ -100,6 +100,10 @@ export type SoundRequest =
   | { id: 'fanfare'; treble: boolean; reduced?: boolean; seed?: string }
   | { id: 'grade'; grade: PickGrade; reduced?: boolean; seed?: string }
   | { id: 'click' }
+  /** The reel's own: a card passing the marker (`rate` about 0.9 to 1.2 shifts it), the season drum rolling, the drum stopping. */
+  | { id: 'tick'; rate: number }
+  | { id: 'whoosh' }
+  | { id: 'pop' }
 
 export type SoundId = SoundRequest['id']
 
@@ -124,6 +128,9 @@ export const CATEGORY: Record<SoundId, SoundCategory> = {
   grade: 'draft',
   fanfare: 'reward',
   click: 'ui',
+  tick: 'draft',
+  whoosh: 'draft',
+  pop: 'draft',
 }
 
 /** The envelope's value `t` s into the score: the same ramps `render.ts` schedules (linear up, held, exponential down). */
@@ -228,14 +235,56 @@ export function noise(at: number, o: Omit<NoiseVoice, 'kind' | 'at' | 'colour' |
   return { kind: 'noise', at, colour: o.colour ?? 'white', attack: o.attack ?? 0.002, peak: o.peak ?? 1, ...o } as NoiseVoice
 }
 
-/** A brass note: a sawtooth through a low-pass with a soft attack, doubled an octave down. */
+/** A brass note: a sawtooth through a darker low-pass with a soft attack, doubled an octave down (round 9: warmer, the edge filed off). */
 export function brass(at: number, freq: number, dur: number, peak = 0.3, hold = 0): ToneVoice[] {
-  return [tone(at, freq, { wave: 'sawtooth', attack: 0.03, hold, dur, peak, lowpass: Math.min(3200, freq * 4.5) }), tone(at, freq / 2, { wave: 'triangle', attack: 0.03, hold, dur, peak: peak * 0.45 })]
+  return [tone(at, freq, { wave: 'sawtooth', attack: 0.04, hold, dur, peak, lowpass: Math.min(2200, freq * 3) }), tone(at, freq / 2, { wave: 'triangle', attack: 0.04, hold, dur, peak: peak * 0.5 })]
 }
 
-/** High pings over a reward, scattered by the seed; none with reduced motion. */
-export function shimmer(at: number, freqs: number[], step: number, r: () => number, peak = 0.07): ToneVoice[] {
-  return freqs.map((f, i) => tone(at + i * step + r() * 0.03, f * (0.99 + r() * 0.02), { peak, dur: 0.25 }))
+/** High glints over a reward, scattered by the seed; none with reduced motion. Soft-edged and quiet (round 9): a sparkle, not a row of beeps. */
+export function shimmer(at: number, freqs: number[], step: number, r: () => number, peak = 0.05): ToneVoice[] {
+  return freqs.map((f, i) => tone(at + i * step + r() * 0.03, f * (0.99 + r() * 0.02), { peak: peak * 0.8, attack: 0.012, dur: 0.38 }))
+}
+
+/**
+ * A warm mallet, the round 9 palette's main voice (a marimba's bar rather than `chime`'s glassy bell): a sine
+ * fundamental with a soft attack, a quiet octave, its fourth partial (3.93 times) gone in a blink, and a felt knock of
+ * low-passed noise. `bright` (0 to 1) scales the overtones; `knock: false` leaves the felt out.
+ */
+export function mallet(at: number, freq: number, o: { peak?: number; dur?: number; bright?: number; knock?: boolean } = {}): Voice[] {
+  const peak = o.peak ?? 0.3
+  const dur = o.dur ?? 0.6
+  const b = o.bright ?? 1
+  const v: Voice[] = [tone(at, freq, { attack: 0.006, dur, peak })]
+  if (b > 0) v.push(tone(at, freq * 2, { attack: 0.006, dur: dur * 0.5, peak: peak * 0.16 * b }), tone(at, freq * 3.93, { attack: 0.003, dur: Math.max(0.03, Math.min(0.12, dur * 0.25)), peak: peak * 0.05 * b }))
+  if (o.knock !== false) v.push(noise(at, { filter: 'lowpass', freq: Math.min(1800, freq * 2), q: 0, attack: 0.002, dur: 0.03, peak: peak * 0.35 }))
+  return v
+}
+
+/** A warm bell for a reward's top note: harmonic partials (1, 2, 3) rather than `chime`'s inharmonic 2.76, so it rings round. */
+export function bell(at: number, freq: number, o: { peak?: number; dur?: number } = {}): ToneVoice[] {
+  const peak = o.peak ?? 0.25
+  const dur = o.dur ?? 1.2
+  return [tone(at, freq, { attack: 0.008, dur, peak }), tone(at, freq * 2, { attack: 0.008, dur: dur * 0.55, peak: peak * 0.22 }), tone(at, freq * 3, { attack: 0.006, dur: dur * 0.3, peak: peak * 0.07 })]
+}
+
+/**
+ * A held chord of soft, low-passed triangles under a moment, each note doubled a quarter of a semitone sharp so it
+ * breathes (the first of each pair is in tune, so a test can find the note).
+ */
+export function pad(at: number, freqs: readonly number[], o: { peak?: number; attack?: number; hold?: number; dur?: number; lowpass?: number } = {}): ToneVoice[] {
+  const peak = o.peak ?? 0.1
+  const attack = o.attack ?? 0.05
+  const dur = o.dur ?? 1.2
+  return freqs.flatMap((f) => {
+    const lp = o.lowpass ?? Math.min(2400, f * 3)
+    const s = { wave: 'triangle' as const, attack, hold: o.hold ?? 0, dur, lowpass: lp }
+    return [tone(at, f, { ...s, peak }), tone(at, f * 1.0145, { ...s, peak: peak * 0.6 })]
+  })
+}
+
+/** A soft wooden knock (a card going down, a tie filled in): a short band of noise, low and round, at a mallet's level (its noise counts heavily in the bound, so a louder knock would push the notes down). */
+export function knock(at = 0, freq = 1100, peak = 0.2): NoiseVoice {
+  return noise(at, { filter: 'bandpass', freq, q: 1.3, attack: 0.0015, dur: 0.035, peak })
 }
 
 /** One blast of the referee's pea whistle, `dur` s long. */
@@ -311,7 +360,20 @@ export const LANDING_NOTES: Record<Tier, readonly number[]> = {
 export const LANDING_TOP: Record<Tier, number> = { blue: 659.25, purple: 880, pink: 1046.5, red: 1318.51, gold: 1567.98 }
 
 /** The landing's level, rising with rarity. */
-export const LANDING_LEVEL: Record<Tier, number> = { blue: 0.27, purple: 0.37, pink: 0.52, red: 0.55, gold: 0.9 }
+export const LANDING_LEVEL: Record<Tier, number> = { blue: 0.185, purple: 0.24, pink: 0.29, red: 0.39, gold: 0.82 }
+
+/**
+ * The draft's own levels. Round 9 set every level here, in voices.ts and in seasonScores.ts from offline renders (the
+ * loudest 100 ms of each under the master, docs/DESIGN_SYSTEM.md section 14, "Loudness"), not from the bound alone: a
+ * score's bound counts its noise heavily and its partials in full, so two scores at one level can sound 10 dB apart.
+ */
+export const DRAFT_LEVEL = { tick: 0.14, whoosh: 0.11, pop: 0.15, pick: 0.19, upgradeWon: 0.455, upgradeLost: 0.23 } as const
+/** The grades' levels, A loudest. */
+export const GRADE_LEVEL: Record<PickGrade, number> = { A: 0.69, B: 0.45, C: 0.39, D: 0.43 }
+/** The fanfares: the loudest of the game's own moments after a goal's roar. */
+export const FANFARE_LEVEL = { cup: 0.86, treble: 0.9 } as const
+/** A click: barely there. */
+export const CLICK_LEVEL = 0.11
 
 /** The grades' levels and the notes each lands on. */
 export const GRADE_NOTES: Record<PickGrade, readonly number[]> = { A: [523.25, 659.25, 783.99, 1046.5], B: [783.99, 1046.5], C: [659.25], D: [329.63, 277.18] }
@@ -342,7 +404,9 @@ function build(req: SoundRequest): Score {
       const net: Voice[] = [tone(0, 96, { glideTo: 46, glideTime: 0.16, attack: 0.003, dur: 0.32, peak: 0.6 }), noise(0, { filter: 'lowpass', freq: 520, q: 0, dur: 0.12, peak: 0.6 }), noise(0.01, { filter: 'bandpass', freq: 2600, freqTo: 900, sweep: 0.3, q: 1.2, attack: 0.01, dur: 0.36, peak: 0.35 })]
       if (req.replay) return normalise('goal', 0.42, [...net, ...roar(0.04, 0.6, r, { high: false })])
       if (req.tone === 'theirs') return normalise('goal', 0.38, [...net, ...roar(0.08, 0.55, r, { high: false })])
-      return normalise('goal', req.tone === 'ours' ? 0.9 : 0.75, [...net, ...roar(0.04, req.tone === 'ours' ? 1 : 0.85, r)])
+      // A goal lands big: the stadium's boom under the net, then the roar, longer and fuller for the user's own
+      const boom: Voice[] = [tone(0.02, 58, { glideTo: 41, glideTime: 0.5, attack: 0.006, dur: 0.9, peak: 0.55 }), noise(0.02, { colour: 'pink', filter: 'lowpass', freq: 140, q: 0, attack: 0.01, dur: 0.6, peak: 0.5 })]
+      return normalise('goal', req.tone === 'ours' ? 0.9 : 0.8, [...net, ...boom, ...roar(0.04, req.tone === 'ours' ? 1.15 : 0.9, r)])
     }
     case 'near-miss': {
       const s = Math.min(1, Math.max(0, req.strength))
@@ -367,8 +431,8 @@ function build(req: SoundRequest): Score {
     case 'landing':
       return landingScore(req.tier, !!req.reduced, req.seed)
     case 'pick':
-      // The pick confirmed: a soft thock and a rising two-note blip
-      return normalise('pick', 0.45, [noise(0, { filter: 'bandpass', freq: 1800, q: 1.5, dur: 0.04, peak: 1 }), tone(0.005, 660, { peak: 0.5, dur: 0.14 }), tone(0.065, 990, { peak: 0.5, dur: 0.22 }), tone(0.065, 990 * 2.76, { peak: 0.05, dur: 0.1 })])
+      // The pick confirmed: a wooden knock and two warm mallets rising, E5 then B5
+      return normalise('pick', DRAFT_LEVEL.pick, [knock(0, 900), ...mallet(0.005, 659.25, { dur: 0.18, peak: 0.3, knock: false }), ...mallet(0.06, 987.77, { dur: 0.28, peak: 0.3, knock: false })])
     case 'upgrade':
       return upgradeScore(req.won, !!req.reduced, req.seed)
     case 'fanfare':
@@ -376,15 +440,37 @@ function build(req: SoundRequest): Score {
     case 'grade':
       return gradeScore(req.grade, !!req.reduced, req.seed)
     case 'click':
-      // Very quiet: a short bright tick for a primary button
-      return normalise('click', 0.12, [noise(0, { filter: 'bandpass', freq: 3800, q: 1.5, attack: 0.001, dur: 0.02, peak: 1 }), tone(0, 1400, { attack: 0.001, dur: 0.03, peak: 0.5 })])
+      // Very quiet: a soft round tock for a primary button, low and short (no bright tick)
+      return normalise('click', CLICK_LEVEL, [noise(0, { filter: 'bandpass', freq: 1900, q: 1.1, attack: 0.0015, dur: 0.018, peak: 0.8 }), tone(0, 820, { attack: 0.0015, dur: 0.032, peak: 0.5, glideTo: 620, glideTime: 0.03 })])
+    case 'tick':
+      return reelTick(req.rate)
+    case 'whoosh':
+      // The season drum rolling: a soft breath of pink noise swept up, never a hiss
+      return normalise('whoosh', DRAFT_LEVEL.whoosh, [noise(0, { colour: 'pink', filter: 'bandpass', freq: 280, freqTo: 1700, sweep: 0.42, q: 1.1, attack: 0.18, dur: 0.5, peak: 1, offset: 1.9 })])
+    case 'pop':
+      // The drum stopping: a round wooden pop, a sine falling 420 to 170 Hz over a felt knock
+      return normalise('pop', DRAFT_LEVEL.pop, [tone(0, 420, { glideTo: 170, glideTime: 0.1, attack: 0.003, dur: 0.16, peak: 0.6 }), noise(0, { filter: 'lowpass', freq: 900, q: 0, attack: 0.002, dur: 0.04, peak: 0.4 })])
   }
 }
 
 /**
- * The reveal, rising with rarity: blue a plain chime; purple and pink a brighter two-note chime (pink higher and
- * brighter); red a rising arpeggio to E6; gold an arpeggio into a held G major sting to G6 over a low thump, with a
- * shimmer of high pings (dropped with reduced motion). The Icons card plays gold's.
+ * A card passing the reel's marker: a short knock of band-passed noise near 2 kHz (it was 3.2 kHz, a hard click) over
+ * a tiny falling tock, both shifted by `rate`. The rate is rounded to a hundredth, so a reel's run builds a few dozen
+ * scores at most; the noise is read from a point the rate picks, so neighbouring ticks never share their samples.
+ */
+function reelTick(rate: number): Score {
+  const k = Math.min(1.3, Math.max(0.8, Math.round(rate * 100) / 100))
+  return normalise('tick', DRAFT_LEVEL.tick, [
+    noise(0, { filter: 'bandpass', freq: 2000 * k, q: 1.6, attack: 0.0012, dur: 0.03, peak: 1, offset: (k * 7.31) % 2.9 }),
+    tone(0, 760 * k, { attack: 0.0015, dur: 0.028, peak: 0.45, glideTo: 600 * k, glideTime: 0.025 }),
+  ])
+}
+
+/**
+ * The reveal, rising with rarity, in warm mallets (round 9): blue one mallet; purple and pink two rising (pink higher
+ * and brighter, over a soft pad); red a rising arpeggio to E6 over a held pad; gold an arpeggio into a held G major
+ * pad up to G6 over a low thump, a round bell on top and a shimmer of glints (dropped with reduced motion). The Icons
+ * card plays gold's.
  */
 function landingScore(display: DisplayTier, reduced: boolean, seed = ''): Score {
   const tier: Tier = display === 'icons' ? 'gold' : display
@@ -393,23 +479,25 @@ function landingScore(display: DisplayTier, reduced: boolean, seed = ''): Score 
   const v: Voice[] = []
   switch (tier) {
     case 'blue':
-      v.push(...chime(0, n[0], { dur: 0.8 }))
+      v.push(...mallet(0, n[0], { dur: 0.8 }))
       break
     case 'purple':
-      v.push(...chime(0, n[0], { dur: 0.5 }), ...chime(0.12, n[1], { dur: 0.9 }))
+      v.push(...mallet(0, n[0], { dur: 0.5 }), ...mallet(0.11, n[1], { dur: 0.9 }))
       break
     case 'pink':
-      v.push(...chime(0, n[0], { wave: 'triangle', dur: 0.5 }), ...chime(0.11, n[1], { wave: 'triangle', dur: 1 }), tone(0.11, n[1] * 2, { peak: 0.05, dur: 0.5 }))
+      v.push(...mallet(0, n[0], { dur: 0.5 }), ...mallet(0.1, n[1], { dur: 1 }), ...pad(0.1, [n[0] / 2], { peak: 0.08, attack: 0.06, dur: 0.9 }))
       break
     case 'red':
-      n.forEach((f, i) => v.push(...chime(i * 0.07, f, { wave: 'triangle', peak: 0.26, dur: i === n.length - 1 ? 1.2 : 0.4 })))
+      n.forEach((f, i) => v.push(...mallet(i * 0.07, f, { peak: 0.24, dur: i === n.length - 1 ? 1.2 : 0.4, knock: i === 0 })))
+      v.push(...pad(0.28, [261.63, 329.63, 392], { peak: 0.06, attack: 0.08, hold: 0.2, dur: 1.1 }))
       break
     case 'gold': {
-      n.forEach((f, i) => v.push(...chime(i * 0.06, f, { wave: 'triangle', peak: 0.24, dur: 0.35 })))
+      n.forEach((f, i) => v.push(...mallet(i * 0.06, f, { peak: 0.22, dur: 0.35, knock: i === 0 })))
       const sting = 0.26
-      v.push(tone(sting, 98, { attack: 0.004, dur: 0.6, peak: 0.2 }))
-      for (const f of [783.99, 987.77, 1174.66, 1567.98]) v.push(tone(sting, f, { wave: 'triangle', peak: 0.14, attack: 0.01, dur: 1.5 }))
-      if (!reduced) v.push(...shimmer(sting + 0.08, [2093, 2637, 3136, 2349, 3520, 2794, 3951, 3136], 0.07, r))
+      v.push(tone(sting, 98, { attack: 0.006, dur: 0.6, peak: 0.22, glideTo: 82, glideTime: 0.4 }))
+      v.push(...pad(sting, [392, 493.88, 587.33, 783.99], { peak: 0.07, attack: 0.04, hold: 0.25, dur: 1.5 }))
+      v.push(...bell(sting, 987.77, { peak: 0.12, dur: 1.4 }), ...bell(sting + 0.04, LANDING_TOP.gold, { peak: 0.1, dur: 1.5 }))
+      if (!reduced) v.push(...shimmer(sting + 0.1, [2093, 2637, 3136, 2349, 3520, 2794, 3951, 3136], 0.07, r))
       break
     }
   }
@@ -417,34 +505,36 @@ function landingScore(display: DisplayTier, reduced: boolean, seed = ''): Score 
 }
 
 /**
- * The Upgrader's verdict. A win: a low thump, a rising C major arpeggio into a held chord, and six high pings
- * (dropped with reduced motion). A loss: a falling "wah-wah", two sliding minor notes into a low groan.
+ * The Upgrader's verdict. A win: a low thump, a rising C major arpeggio of mallets into a held pad and a bell, and six
+ * glints (dropped with reduced motion). A loss: a soft falling "wah-wah", two low-passed minor notes sliding into a
+ * low groan.
  */
 function upgradeScore(won: boolean, reduced: boolean, seed = ''): Score {
   const r = seeded(`upgrade:${seed}`)
   if (won) {
-    const v: Voice[] = [tone(0, 110, { attack: 0.004, dur: 0.45, peak: 0.2, glideTo: 70 })]
-    ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => v.push(...chime(i * 0.07, f, { wave: 'triangle', peak: 0.24, dur: i === 3 ? 1.2 : 0.35 })))
-    for (const f of [1046.5, 1318.51, 1567.98]) v.push(tone(0.3, f, { wave: 'triangle', peak: 0.1, attack: 0.02, dur: 1.4 }))
-    if (!reduced) v.push(...shimmer(0.36, [2637, 3136, 3520, 4186, 3136, 3951], 0.06, r, 0.06))
-    return normalise('upgrade', 0.7, v)
+    const v: Voice[] = [tone(0, 110, { attack: 0.006, dur: 0.45, peak: 0.2, glideTo: 70 })]
+    ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => v.push(...mallet(i * 0.07, f, { peak: 0.22, dur: i === 3 ? 1.2 : 0.35, knock: i === 0 })))
+    v.push(...pad(0.3, [523.25, 659.25, 783.99], { peak: 0.06, attack: 0.05, hold: 0.2, dur: 1.3 }), ...bell(0.3, 1567.98, { peak: 0.08, dur: 1.3 }))
+    if (!reduced) v.push(...shimmer(0.36, [2637, 3136, 3520, 4186, 3136, 3951], 0.06, r))
+    return normalise('upgrade', DRAFT_LEVEL.upgradeWon, v)
   }
-  return normalise('upgrade', 0.42, [
-    tone(0, 392, { wave: 'triangle', peak: 0.26, attack: 0.01, dur: 0.32, glideTo: 370 }),
-    tone(0.3, 349.23, { wave: 'triangle', peak: 0.26, attack: 0.01, dur: 0.34, glideTo: 330 }),
-    tone(0.62, 311.13, { wave: 'triangle', peak: 0.28, attack: 0.01, dur: 0.9, glideTo: 185 }),
-    tone(0.62, 77.78, { peak: 0.3, attack: 0.02, dur: 0.8, glideTo: 55 }),
+  const wah = { wave: 'triangle' as const, attack: 0.02, lowpass: 1100 }
+  return normalise('upgrade', DRAFT_LEVEL.upgradeLost, [
+    tone(0, 392, { ...wah, peak: 0.26, dur: 0.32, glideTo: 370 }),
+    tone(0.3, 349.23, { ...wah, peak: 0.26, dur: 0.34, glideTo: 330 }),
+    tone(0.62, 311.13, { ...wah, peak: 0.28, dur: 0.9, glideTo: 185 }),
+    tone(0.62, 77.78, { peak: 0.3, attack: 0.03, dur: 0.8, glideTo: 55 }),
   ])
 }
 
-/** A timpani stroke: a low sine dropping a little, and a thud of low noise. */
+/** A timpani stroke: a low sine dropping a little, and a soft thud of low noise. */
 export function timpani(at: number, freq: number, peak = 0.6): Voice[] {
-  return [tone(at, freq, { glideTo: freq * 0.8, glideTime: 0.3, attack: 0.004, dur: 0.6, peak }), noise(at, { filter: 'lowpass', freq: 220, q: 0, dur: 0.22, peak: peak * 0.9 })]
+  return [tone(at, freq, { glideTo: freq * 0.8, glideTime: 0.3, attack: 0.006, dur: 0.6, peak }), noise(at, { filter: 'lowpass', freq: 200, q: 0, attack: 0.003, dur: 0.2, peak: peak * 0.7 })]
 }
 
-/** A cymbal: bright noise, crashing in or swelling up. */
-export function cymbal(at: number, dur: number, swell = false, peak = 0.35): NoiseVoice {
-  return noise(at, { filter: 'highpass', freq: 5200, q: 0, attack: swell ? dur * 0.85 : 0.004, dur, peak, offset: 0.7 })
+/** A cymbal: bright noise, crashing in or swelling up (round 9: a little lower and quieter, a wash rather than a hiss). */
+export function cymbal(at: number, dur: number, swell = false, peak = 0.28): NoiseVoice {
+  return noise(at, { filter: 'highpass', freq: 4400, q: 0, attack: swell ? dur * 0.85 : 0.006, dur, peak, offset: 0.7 })
 }
 
 /** One fanfare phrase: "ta-ta-ta-taaa, ta-taaa" into a held major chord, with timpani and a cymbal. Returns the voices and when the chord lands. */
@@ -457,16 +547,18 @@ function phrase(at: number, root: number, chordHold: number): { v: Voice[]; chor
   v.push(...brass(at + 0.8, f(4), 0.14, 0.28), ...brass(at + 0.95, f(7), 0.2, 0.28))
   const chord = at + 1.16
   for (const s of [0, 4, 7, 12]) v.push(...brass(chord, f(s), chordHold + 0.9, 0.22, chordHold))
-  v.push(...timpani(at + 0.48, root / 4), ...timpani(chord, root / 4, 0.7), cymbal(chord - 0.5, 0.5, true, 0.2), cymbal(chord, 1.6))
+  // A warm string pad an octave down under the held chord, so it swells instead of buzzing
+  v.push(...pad(chord, [f(-12), f(-8), f(-5)], { peak: 0.08, attack: 0.12, hold: chordHold, dur: chordHold + 1 }))
+  v.push(...timpani(at + 0.48, root / 4), ...timpani(chord, root / 4, 0.7), cymbal(chord - 0.5, 0.5, true, 0.16), cymbal(chord, 1.6))
   return { v, chord }
 }
 
-/** The Cup won: a brass fanfare in C into a held chord, timpani, a cymbal crash and a shimmer (none with reduced motion). */
+/** The Cup won: a brass fanfare in C into a held chord over a warm pad, timpani, a cymbal crash and a shimmer (none with reduced motion). */
 function cupScore(reduced: boolean, seed = ''): Score {
   const r = seeded(`cup:${seed}`)
   const { v, chord } = phrase(0, 523.25, 0.7)
   if (!reduced) v.push(...shimmer(chord + 0.15, [2093, 2637, 3136, 2349, 3520, 2794], 0.08, r))
-  return normalise('fanfare', 0.85, v)
+  return normalise('fanfare', FANFARE_LEVEL.cup, v)
 }
 
 /** The Treble: the Cup's phrase, then the same a tone higher into a longer chord over a timpani roll and a crowd's roar, and a longer shimmer. */
@@ -479,26 +571,28 @@ function trebleScore(reduced: boolean, seed = ''): Score {
   for (let i = 0; i < 6; i++) v.push(...timpani(second.chord - 0.42 + i * 0.07, 146.83 / 2, 0.3 + i * 0.05))
   v.push(...roar(second.chord - 0.1, 0.9, r, { tail: false }).map((x) => ({ ...x, peak: x.peak * 0.45 })))
   if (!reduced) v.push(...shimmer(second.chord + 0.15, [2349, 2960, 3520, 2637, 3951, 3136, 4699, 3520], 0.08, r))
-  return normalise('fanfare', 0.9, v)
+  return normalise('fanfare', FANFARE_LEVEL.treble, v)
 }
 
 /**
- * The draft's grade landing on the recap, with its pop: a stamp (a low thud and a slap), then A a bright arpeggio
- * with a shimmer, B a rising two-note chime, C one plain note, D a falling minor pair.
+ * The draft's grade landing on the recap, with its pop: a stamp (a low thud and a felt slap), then A a bright mallet
+ * arpeggio with a shimmer, B two rising mallets, C one plain mallet, D a soft falling minor pair.
  */
 function gradeScore(grade: PickGrade, reduced: boolean, seed = ''): Score {
   const r = seeded(`grade:${seed}:${grade}`)
   const n = GRADE_NOTES[grade]
-  const v: Voice[] = [tone(0, 120, { glideTo: 70, glideTime: 0.12, attack: 0.003, dur: 0.22, peak: 0.35 }), noise(0, { filter: 'lowpass', freq: 900, q: 0, dur: 0.09, peak: 0.5 })]
+  const v: Voice[] = [tone(0, 120, { glideTo: 70, glideTime: 0.12, attack: 0.004, dur: 0.22, peak: 0.35 }), noise(0, { filter: 'lowpass', freq: 700, q: 0, attack: 0.002, dur: 0.08, peak: 0.45 })]
   if (grade === 'A') {
-    n.forEach((f, i) => v.push(...chime(0.04 + i * 0.055, f, { wave: 'triangle', peak: 0.22, dur: i === n.length - 1 ? 1.1 : 0.35 })))
-    if (!reduced) v.push(...shimmer(0.3, [2093, 2637, 3136, 3951], 0.06, r, 0.06))
+    n.forEach((f, i) => v.push(...mallet(0.04 + i * 0.055, f, { peak: 0.22, dur: i === n.length - 1 ? 1.1 : 0.35, knock: false })))
+    v.push(...pad(0.2, [261.63, 392], { peak: 0.05, attack: 0.05, dur: 1 }))
+    if (!reduced) v.push(...shimmer(0.3, [2093, 2637, 3136, 3951], 0.06, r))
   } else if (grade === 'B') {
-    v.push(...chime(0.04, n[0], { wave: 'triangle', dur: 0.45 }), ...chime(0.15, n[1], { wave: 'triangle', dur: 0.9 }))
+    v.push(...mallet(0.04, n[0], { dur: 0.45, knock: false }), ...mallet(0.15, n[1], { dur: 0.9, knock: false }))
   } else if (grade === 'C') {
-    v.push(...chime(0.04, n[0], { dur: 0.7 }))
+    v.push(...mallet(0.04, n[0], { dur: 0.7, knock: false }))
   } else {
-    v.push(tone(0.04, n[0], { wave: 'triangle', peak: 0.28, attack: 0.01, dur: 0.36, glideTo: n[0] * 0.97 }), tone(0.3, n[1], { wave: 'triangle', peak: 0.28, attack: 0.01, dur: 0.7, glideTo: n[1] * 0.92 }))
+    const soft = { wave: 'triangle' as const, peak: 0.28, attack: 0.012, lowpass: 1000 }
+    v.push(tone(0.04, n[0], { ...soft, dur: 0.36, glideTo: n[0] * 0.97 }), tone(0.3, n[1], { ...soft, dur: 0.7, glideTo: n[1] * 0.92 }))
   }
-  return normalise('grade', grade === 'A' ? 0.7 : grade === 'B' ? 0.62 : grade === 'C' ? 0.55 : 0.58, v)
+  return normalise('grade', GRADE_LEVEL[grade], v)
 }

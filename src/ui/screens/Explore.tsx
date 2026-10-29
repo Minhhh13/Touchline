@@ -4,7 +4,7 @@ import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { EXPLORE } from '../boxSets'
 import { useStore } from '@game/store'
 import { useStorePick } from '../useStorePick'
-import { ClubBadge, EstimatedChip, Info, Rating, Pos, Segmented } from '../components/bits'
+import { ClubBadge, EstimatedChip, Info, Rating, Pos, Segmented, Tip } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { PlayerCardModal } from '../components/PlayerCard'
 import { PlayerRow } from '../components/PlayerRow'
@@ -203,6 +203,8 @@ export function Explore() {
           </button>
         ))}
       </div>
+
+      <Tip id="explore-first">{t('exploreTip')}</Tip>
 
       {view === 'browse' && (
         <div className={`grid two ${browseGrid.className}`} style={browseGrid.style}>

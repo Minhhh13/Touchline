@@ -42,6 +42,8 @@ import { SQUAD_COLUMNS } from '../components/AttributePanel'
 import { PlayerCardModal } from '../components/PlayerCard'
 import { careerSeasons } from '@game/logic/playerCard'
 import { LeagueFlag } from '../components/Flag'
+import { boardLastLabel, boardLastLine, ClubHistory, LegendsTable } from '../components/ClubHistory'
+import { lastVerdict } from '@game/logic/dynastyHistory'
 import { roleCode } from '../match/shirts'
 import { chemistryLinkLabel, clubName, clubShort, signedValue, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
 import type { PlayerSeason, Position, TableRow } from '@engine/types'
@@ -51,7 +53,8 @@ import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 import { RunInBanner } from '../components/RunInBanner'
 import { DressingRoomTab } from './DressingRoomTab'
-import { CounterBidControl, NegotiateButton, OfficeInbox, OfficeTab, officeAlertCount } from './OfficeTab'
+import { CounterBidControl, NegotiateButton, OfficeInbox, OfficeTab, officeAlertCount, PromisesToHim } from './OfficeTab'
+import { isOfficeNews, promisesTo } from '@game/logic/officeView'
 import { office as officeText } from '../i18n/en/office'
 import { PlannerTab } from './PlannerTab'
 import { InboxActions } from '../components/InboxActions'
@@ -107,7 +110,7 @@ const TABLE_COLS = [
 function tabPresent(tab: string, game: Game): string[] | undefined {
   if (tab === 'next') return nextOpponent(game) ? ['preview', 'opposition', 'match-up', 'team-talk'] : [...(upcomingCupTie(game) ? ['preview'] : []), 'team-talk']
   if (tab === 'window' && game.window) return ['recruitment', ...((game.scoutReports ?? []).length > 0 ? ['scout-reports'] : []), 'approach', 'shortlist', ...(doneDeals(game.window).length > 0 ? ['done-deals'] : []), 'log']
-  if (tab === 'club') return ['board', 'requests', 'finances', 'staff', 'contracts', ...(game.careerStats && Object.keys(game.careerStats).length > 0 ? ['legends'] : []), 'achievements']
+  if (tab === 'club') return ['board', 'requests', 'finances', 'staff', 'contracts', ...(game.careerStats && Object.keys(game.careerStats).length > 0 ? ['legends'] : []), ...(game.history.length > 0 ? ['history'] : []), 'achievements']
   return undefined
 }
 
@@ -397,6 +400,7 @@ export function Dugout() {
       {/* The tab's content: on a desktop it scrolls inside itself under the fixed header, briefing and tab bar */}
       <div className="tab-body fill" data-testid="tab-body">
       {tab === 'squad' && <Tip id="dugout-first">{t('firstTip')}</Tip>}
+      {tab === 'office' && <Tip id="office-first">{tOffice('officeTip')}</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
         <div className="panel emphasis youth-intake" style={{ marginBottom: 'var(--space-4)' }} data-testid="youth-intake">
           <div className="panel-head">
@@ -685,8 +689,8 @@ export function Dugout() {
             )}
           </div>
           <div className="inbox-filters row wrap" role="radiogroup" aria-label={t('show')} data-testid="inbox-filter" onKeyDown={onRadioGroupKey}>
-            {INBOX_FILTERS.map((f, i) => (
-              <button key={f.id} type="button" role="radio" aria-checked={inboxFilter === f.id} tabIndex={radioTabIndex(i, INBOX_FILTERS.findIndex((x) => x.id === inboxFilter))} className={`chip-btn ${inboxFilter === f.id ? 'active' : ''}`} onClick={() => setInboxFilter(f.id)}>
+            {INBOX_FILTERS.filter((f) => f.id !== 'office' || !!game.office).map((f, i, shown) => (
+              <button key={f.id} type="button" role="radio" aria-checked={inboxFilter === f.id} tabIndex={radioTabIndex(i, shown.findIndex((x) => x.id === inboxFilter))} className={`chip-btn ${inboxFilter === f.id ? 'active' : ''}`} onClick={() => setInboxFilter(f.id)}>
                 {f.label}
                 {f.id !== 'all' && <span className="muted"> {filterNews(season.news, f.id).length}</span>}
               </button>
@@ -721,6 +725,11 @@ export function Dugout() {
                     <div className="t">{n.title}</div>
                     <div className="b">{newsBody(n)}</div>
                     <InboxActions item={n} game={game} onAction={act} />
+                    {isOfficeNews(n) && (
+                      <button type="button" className="chip-btn" onClick={() => setTab('office')} data-testid="news-office">
+                        {tOffice('openOffice')}
+                      </button>
+                    )}
                   </span>
                   <span className="news-mw">{n.matchweek ? t('mwShort', { week: n.matchweek }) : t('pre')}</span>
                 </div>
@@ -874,7 +883,7 @@ function NextMatchTab({ boxes }: { boxes: Boxes }) {
               <Info label={t('aboutTalks')}>{t('talksInfo')}</Info>
             </span>
           </div>
-          <Segmented<TeamTalk> value={game.teamTalk} onChange={store.setTeamTalk} options={talkOptions} />
+          <Segmented<TeamTalk> label={t('teamTalk')} value={game.teamTalk} onChange={store.setTeamTalk} options={talkOptions} />
           {talk && <p className="help">{talk.hint}</p>}
         </div>
         )}
@@ -1064,22 +1073,22 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
             <h3>{t('teamInstructions')}</h3>
             <div className="instructions">
             <Instruction label={t('mentality')} help={MENTALITY_HELP[tac.mentality]}>
-              <Segmented value={tac.mentality} onChange={(v) => store.setTactics({ mentality: v })} options={[{ value: 'defensive', label: t('defensive') }, { value: 'balanced', label: t('balancedOpt') }, { value: 'attacking', label: t('attacking') }]} />
+              <Segmented label={t('mentality')} value={tac.mentality} onChange={(v) => store.setTactics({ mentality: v })} options={[{ value: 'defensive', label: t('defensive') }, { value: 'balanced', label: t('balancedOpt') }, { value: 'attacking', label: t('attacking') }]} />
             </Instruction>
             <Instruction label={t('pressing')} help={PRESSING_HELP[tac.pressing]}>
-              <Segmented value={tac.pressing} onChange={(v) => store.setTactics({ pressing: v })} options={[{ value: 'low', label: t('lowBlock') }, { value: 'mid', label: t('mid') }, { value: 'high', label: t('highPress') }]} />
+              <Segmented label={t('pressing')} value={tac.pressing} onChange={(v) => store.setTactics({ pressing: v })} options={[{ value: 'low', label: t('lowBlock') }, { value: 'mid', label: t('mid') }, { value: 'high', label: t('highPress') }]} />
             </Instruction>
             <Instruction label={t('tempo')} help={TEMPO_HELP[tac.tempo]}>
-              <Segmented value={tac.tempo} onChange={(v) => store.setTactics({ tempo: v })} options={[{ value: 'slow', label: t('slow') }, { value: 'standard', label: t('standard') }, { value: 'fast', label: t('fast') }]} />
+              <Segmented label={t('tempo')} value={tac.tempo} onChange={(v) => store.setTactics({ tempo: v })} options={[{ value: 'slow', label: t('slow') }, { value: 'standard', label: t('standard') }, { value: 'fast', label: t('fast') }]} />
             </Instruction>
             <Instruction label={t('width')} help={WIDTH_HELP[tac.width]}>
-              <Segmented value={tac.width} onChange={(v) => store.setTactics({ width: v })} options={[{ value: 'narrow', label: t('narrow') }, { value: 'standard', label: t('standard') }, { value: 'wide', label: t('wide') }]} />
+              <Segmented label={t('width')} value={tac.width} onChange={(v) => store.setTactics({ width: v })} options={[{ value: 'narrow', label: t('narrow') }, { value: 'standard', label: t('standard') }, { value: 'wide', label: t('wide') }]} />
             </Instruction>
             <Instruction label={t('defLine')} help={LINE_HELP[tac.defensiveLine]}>
-              <Segmented value={tac.defensiveLine} onChange={(v) => store.setTactics({ defensiveLine: v })} options={[{ value: 'deep', label: t('deep') }, { value: 'standard', label: t('standard') }, { value: 'high', label: t('high') }]} />
+              <Segmented label={t('defLine')} value={tac.defensiveLine} onChange={(v) => store.setTactics({ defensiveLine: v })} options={[{ value: 'deep', label: t('deep') }, { value: 'standard', label: t('standard') }, { value: 'high', label: t('high') }]} />
             </Instruction>
             <Instruction label={t('passing')} help={PASSING_HELP[tac.passing]}>
-              <Segmented value={tac.passing} onChange={(v) => store.setTactics({ passing: v })} options={[{ value: 'short', label: t('short') }, { value: 'mixed', label: t('mixed') }, { value: 'direct', label: t('direct') }]} />
+              <Segmented label={t('passing')} value={tac.passing} onChange={(v) => store.setTactics({ passing: v })} options={[{ value: 'short', label: t('short') }, { value: 'mixed', label: t('mixed') }, { value: 'direct', label: t('direct') }]} />
             </Instruction>
             </div>
           </div>
@@ -1087,7 +1096,7 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
           {on('training') && (
           <div className="panel">
             <h3>{t('trainingWeek')}</h3>
-            <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: trainingLabel(k) }))} />
+            <Segmented<TrainingFocus> label={t('trainingWeek')} value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: trainingLabel(k) }))} />
             <p className="help">{trainingBlurb(game.training)}</p>
           </div>
           )}
@@ -1715,11 +1724,12 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
   const grid = boxes.grid([
     { track: 'minmax(0, 0.85fr)', ids: ['board', 'requests'] },
     { track: 'minmax(0, 0.85fr)', ids: ['finances', 'staff'] },
-    { track: 'minmax(0, 1.5fr)', ids: ['contracts', 'legends', 'achievements'] },
+    { track: 'minmax(0, 1.5fr)', ids: ['contracts', 'legends', 'history', 'achievements'] },
   ])
   const col1 = on('board') || on('requests')
   const col2 = on('finances') || on('staff')
-  const col3 = on('contracts') || (on('legends') && !!game.careerStats && Object.keys(game.careerStats).length > 0) || on('achievements')
+  const col3 = on('contracts') || (on('legends') && !!game.careerStats && Object.keys(game.careerStats).length > 0) || (on('history') && game.history.length > 0) || on('achievements')
+  const verdict = lastVerdict(game.history)
   return (
     <div className={`grid three fill squad-views club-grid3 ${grid.className}`} style={grid.style} data-testid="club-tab">
       {col1 && (
@@ -1736,6 +1746,12 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
           </dd>
           <dt>{t('expectation')}</dt>
           <dd>{t('finishOrBetter', { pos: season.boardTarget })}</dd>
+          {verdict && (
+            <>
+              <dt>{boardLastLabel()}</dt>
+              <dd data-testid="board-last" className={verdict.met ? 'res-w' : 'res-l'}>{boardLastLine(verdict.target, verdict.position, verdict.met)}</dd>
+            </>
+          )}
           <dt>{t('current')}</dt>
           <dd>{season.matchweek ? ordinal(positionOf(table, USER_TEAM)) : t('preseason')}</dd>
           <dt>{t('confidence')}</dt>
@@ -1916,37 +1932,10 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
             <h3>{t('clubLegends')}</h3>
             <span className="small muted">{t('allSeasons')}</span>
           </div>
-          <div className="tbl-wrap"><table className="tbl">
-            <thead>
-              <tr>
-                <th>{t('player')}</th>
-                <th className="num">{t('seasonsCol')}</th>
-                <th className="num">{t('appsCol')}</th>
-                <th className="num">{t('goalsCol')}</th>
-                <th className="num">{t('assistsCol')}</th>
-                <th className="num">{t('motmCol')}</th>
-                <th className="num">{t('titlesCol')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.values(game.careerStats)
-                .sort((a, b) => b.apps - a.apps || b.goals - a.goals)
-                .slice(0, 12)
-                .map((r) => (
-                  <tr key={r.name + r.lastYear}>
-                    <td>{r.name}</td>
-                    <td className="num">{r.seasons}</td>
-                    <td className="num">{r.apps}</td>
-                    <td className="num">{r.goals}</td>
-                    <td className="num">{r.assists}</td>
-                    <td className="num">{r.motm}</td>
-                    <td className="num">{r.titles}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table></div>
+          <LegendsTable game={game} u={u} labels={{ player: t('player'), seasons: t('seasonsCol'), apps: t('appsCol'), goals: t('goalsCol'), assists: t('assistsCol'), motm: t('motmCol'), titles: t('titlesCol') }} />
         </div>
       )}
+      {on('history') && game.history.length > 0 && <ClubHistory game={game} u={u} />}
       {on('achievements') && (
       <div className="panel">
         <h3>{t('achievementsGame')}</h3>
@@ -2191,7 +2180,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
       panels={
         s
           ? [
-              { id: 'happiness', label: t('happiness'), content: <HappinessCard s={s} /> },
+              { id: 'happiness', label: t('happiness'), content: <HappinessCard s={s} promises={promisesTo(game, u, p.id)} extra={<PromisesToHim id={p.id} />} /> },
               { id: 'contract', label: t('contract'), content: <ContractCard id={p.id} onTalks={() => setTalks(true)} /> },
             ]
           : undefined

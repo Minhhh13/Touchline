@@ -7,7 +7,8 @@
  * so does the keyboard (Enter or Space picks up, the arrows move, Enter drops,
  * Escape lets go), with each step announced. Staged changes are listed with
  * Undo, and the team rating and the slot's role rating preview them. Pointer
- * events, not HTML5 drag, so a finger, a pen and a mouse all work.
+ * events, not HTML5 drag, so a finger, a pen and a mouse all work; under a
+ * finger the man in hand rides above it and is the one aimed with (`aimPoint`).
  *
  * The board only stages: the sheet sends the staged list through the hand's
  * `submit`, exactly as the lists before it did.
@@ -21,7 +22,7 @@ import { ConditionIcon } from '../ConditionIcon'
 import { OnArrow } from '../icons'
 import { labelRoom, panelPoints } from '../model'
 import { Shirt } from '../Shirt'
-import { FIT_WORDS, fitGlow, lineupAfter, moveOnBoard, slotRole, slotRoleRating, stageSub, teamRating, type FitGlow, type StageRefusal } from '../subBoard'
+import { FIT_WORDS, aimPoint, fitGlow, lineupAfter, moveOnBoard, slotRole, slotRoleRating, stageSub, teamRating, type FitGlow, type StageRefusal } from '../subBoard'
 import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { VerticalPitch } from '../VerticalPitch'
@@ -114,7 +115,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   const ghostRef = useRef<HTMLDivElement>(null)
   const ghostAt = useRef<{ x: number; y: number } | null>(null)
   const root = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ kind: Kind; id: string; pointerId: number; x0: number; y0: number; started: boolean } | null>(null)
+  const drag = useRef<{ kind: Kind; id: string; pointerId: number; x0: number; y0: number; started: boolean; touch: boolean } | null>(null)
   const swallowClick = useRef(false)
 
   const canTake = (slotId: string) => !disabled && !!original.get(slotId)
@@ -179,7 +180,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   }
   const down = (e: ReactPointerEvent<HTMLElement>, kind: Kind, id: string) => {
     if (disabled || (e.pointerType === 'mouse' && e.button !== 0)) return
-    drag.current = { kind, id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, started: false }
+    drag.current = { kind, id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, started: false, touch: e.pointerType === 'touch' }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -200,7 +201,8 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     ghostAt.current = at
     if (ghostRef.current) ghostRef.current.style.transform = `translate(${at.x}px, ${at.y}px)`
     else if (!ghost) setGhost(at)
-    const t = targetAt(e.clientX, e.clientY, d.kind)
+    const aim = aimPoint(e.clientX, e.clientY, e.pointerType)
+    const t = targetAt(aim.x, aim.y, d.kind)
     setHover((h) => (h === t ? h : t))
   }
   const up = (e: ReactPointerEvent<HTMLElement>) => {
@@ -211,7 +213,8 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     // The click that follows a drag is not a tap
     swallowClick.current = true
     window.setTimeout(() => (swallowClick.current = false), 0)
-    const t = targetAt(e.clientX, e.clientY, d.kind)
+    const aim = aimPoint(e.clientX, e.clientY, e.pointerType)
+    const t = targetAt(aim.x, aim.y, d.kind)
     ghostAt.current = null
     setGhost(null)
     if (t) drop(d, { kind: d.kind === 'bench' ? 'slot' : 'bench', id: t })
@@ -470,7 +473,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
         {say}
       </div>
       {ghost && held?.via === 'drag' && heldMan && (
-        <div className="sub-ghost" ref={ghostRef} style={{ transform: `translate(${(ghostAt.current ?? ghost).x}px, ${(ghostAt.current ?? ghost).y}px)` }} aria-hidden>
+        <div className={`sub-ghost ${drag.current?.touch ? 'lifted' : ''}`} ref={ghostRef} style={{ transform: `translate(${(ghostAt.current ?? ghost).x}px, ${(ghostAt.current ?? ghost).y}px)` }} aria-hidden>
           <Shirt colour={heldMan.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[heldMan.id]} size={26} />
           <span>{surname(heldMan.name)}</span>
         </div>

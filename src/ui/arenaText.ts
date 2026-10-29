@@ -3,6 +3,8 @@
  * `src/ui/__tests__/arenaText.test.ts`. Presentation only: nothing here decides a result.
  */
 import { GAUNTLET_BANDS, rungBandLabel } from '@engine/gauntlet'
+import { clubIdOfKey } from '@engine/knockout'
+import type { LoadedUniverse } from '@engine/universe'
 import type { Outcome } from './format'
 import { translator } from './i18n'
 import { arena } from './i18n/en/arena'
@@ -27,6 +29,14 @@ export function personalBest(runs: readonly RunMark[], run: RunMark): { kind: 'b
   if (same.length === 0 || run.score === 0) return null
   const was = Math.max(...same.map((r) => r.score))
   return run.score > was ? { kind: 'best', was } : run.score === was ? { kind: 'equal', was } : null
+}
+
+/**
+ * True when a summary banner holds a word too long for a phone's line at the banner's size ("Semi-finalists",
+ * "Quarter-finalists"): the banner steps down a size there (`.tier.long-word`) rather than break at the hyphen.
+ */
+export function longWord(banner: string): boolean {
+  return banner.split(/\s+/).some((w) => w.length > 11)
 }
 
 /**
@@ -73,4 +83,10 @@ export function kickLine(k: { us: boolean; scored: boolean }, n: number, taker: 
 /** A taker's place after a move in the penalty order, for the live region: "Kane takes kick 2". */
 export function takerMoved(name: string, at: number): string {
   return t('takerMoved', { name, n: at + 1 })
+}
+
+/** A club-season's code on the shoot-out's board (`chelsea@2012` reads `CHE`): the club's own code, else the first three letters of its id. */
+export function clubCode(u: Pick<LoadedUniverse, 'clubById'>, key: string): string {
+  const id = clubIdOfKey(key)
+  return u.clubById[id]?.code ?? id.slice(0, 3).toUpperCase()
 }

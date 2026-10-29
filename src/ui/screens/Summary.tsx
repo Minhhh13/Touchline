@@ -28,7 +28,7 @@ import { TWIST_INFO } from '../components/TwistCard'
 import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { activeModeCards, modesLine } from '@engine/modes'
 import { TableView } from '../components/TableView'
-import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
+import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge, Tip } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
 import { countPhrase, cupWinsLine, runsSummary, versusReal } from '../screenText'
@@ -57,7 +57,8 @@ import { RankedStatus } from '../online/RankedStatus'
 import { ChaseStatus } from '../online/ChaseStatus'
 import { CasualStatus } from '../online/CasualStatus'
 import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
-import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
+import { finishedRecord, honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
+import { streakStanding } from '@game/logic/casualStreak'
 import { CupRuns } from '../components/CupRuns'
 import { GroupTables } from '../components/GroupTables'
 import { Bracket } from '../components/Bracket'
@@ -342,6 +343,9 @@ export function Summary() {
   // The pundit's verdict on the result (display only, picked by a hash of the season's id); not for a run-in or the arena
   const verdictInput = game.settings.mode === 'runin' || game.settings.mode === 'arena' ? null : verdictInputOf(game, table.length || 20)
   const verdict = verdictInput ? punditVerdict(verdictInput) : null
+  // The Weekly Challenge: the week's counted result and the streak, or that this go was practice after it
+  const weeklyRun = game.settings.mode === 'weekly' ? finishedRecord(game) : null
+  const weeklyStanding = weeklyRun ? streakStanding(profile.weekly, game.settings.seed, { points: weeklyRun.points, tier: weeklyRun.tier }) : null
   const euroRound = (r: ReturnType<typeof continentalRun>) => {
     const round = r ?? 'R16'
     return t(`euroRound_${round}`)
@@ -457,6 +461,11 @@ export function Summary() {
             <Mic size={13} aria-hidden="true" /> {rich(t('pundit', { verdict }), B)}
           </p>
         )}
+        {!replay.playing && weeklyStanding && (
+          <p className="tier-blurb" data-testid="weekly-standing">
+            {weeklyStanding.practice ? t('weeklyPractice', { points: weeklyStanding.counted.points }) : t('weeklyCounted', { streak: weeklyStanding.streak })}
+          </p>
+        )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!q && !replay.playing && (
           <div className="record">
@@ -537,6 +546,8 @@ export function Summary() {
             </span>
           )}
         </div>
+        {/* Sharing to be beaten, said once from the second result: the first one's summary has enough to take in */}
+        {!replay.playing && <Tip id="share-first">{t(canChallenge ? 'shareTipChallenge' : 'shareTipInvite')}</Tip>}
         <div className="banner-actions">
           {/* Challenge a friend leads whenever there is a wheel to send and no cup to play first */}
           {canChallenge && (

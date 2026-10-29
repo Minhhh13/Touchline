@@ -295,6 +295,27 @@ export interface SeasonRecord {
   potsName?: string
   bootName?: string
   bootGoals?: number
+  /**
+   * The season's notes for the club's history (Dynasty and Season, round 9: `src/game/logic/dynastyHistory.ts`), written
+   * once by the store when the season is recorded; display only, no draw. Absent on older saves and before that.
+   */
+  notes?: SeasonNotes
+}
+
+/** What the club's history shows beside a season's line: what the board asked for and who led the side. */
+export interface SeasonNotes {
+  /** The position the board expected (`SeasonState.boardTarget`). */
+  target: number
+  /** Board objectives met, of how many. */
+  objectivesMet: number
+  objectivesTotal: number
+  /** Board confidence at the end, 0 to 100. */
+  confidence: number
+  sacked?: boolean
+  /** The captain's name at the end of the season. */
+  captain?: string
+  /** The young player of the season, when one qualified. */
+  youngName?: string
 }
 
 export interface MatchContext {
@@ -492,6 +513,8 @@ export interface OfficePromise {
   minutesAt?: number
   /** Contract: the seasons left on his contract when it was made. */
   yearsAt?: number
+  /** Contract: the season's news count (`newsTotal`) when it was made; a "signs a new contract" item after it keeps the promise, however long the new deal (r9). */
+  newsAt?: number
   /** Signing: the position to strengthen, the overall a signing must reach, the real ids already in the squad, and whether the window it waits on has opened. */
   position?: Position
   overall?: number
@@ -580,6 +603,8 @@ export interface OfficeState {
   sellTalks?: Record<string, SellTalk>
   instalments?: Instalment[]
   press?: PressConference
+  /** "We will win it", said to the press before a big league match: settled once that matchweek is played (`settleBoast`). */
+  boast?: { year: number; week: number; opponentId?: string }
 }
 
 /**
@@ -687,6 +712,21 @@ export interface CareerRecord {
   titles: number
   /** Last season played, for the display. */
   lastYear: number
+  /**
+   * Round 9 (`src/game/logic/dynastyHistory.ts`, display only): his natural position, his best overall with us, the
+   * game year he first played for us with his age and overall then, his age and overall in his last season, the sum of
+   * his match ratings (an average over `apps`) and the seasons he ended as captain. Absent on older saves; a man who
+   * was already a legend then gets `firstYear` from his seasons and nothing he cannot know.
+   */
+  pos?: Position
+  peak?: number
+  firstYear?: number
+  firstAge?: number
+  firstOverall?: number
+  lastAge?: number
+  lastOverall?: number
+  ratingSum?: number
+  captainSeasons?: number
 }
 
 export interface JobOffer {

@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { USER_TEAM, type ContinentalState } from '@engine/season'
+import { groupTable } from '@engine/continental'
 import type { MatchResult } from '@engine/types'
 import { kickOff, toKickoff } from '../logic/quick'
 import { playQuickCup, quickCupProblem } from '../logic/quickCups'
@@ -297,4 +298,23 @@ describe('feats: the store', () => {
     expect(merged.profile.cabinet!.feats?.classicTitles).toBe(1)
     useStore.setState({ game: null, universe: null, loadedLeagues: [], profile: before })
   }, 60_000)
+})
+
+describe('a group read agrees with the engine on any device (r9 audit)', () => {
+  const original = String.prototype.localeCompare
+  afterEach(() => {
+    String.prototype.localeCompare = original
+  })
+
+  it('a dead-level top two is split as the engine splits it, not in the device language', () => {
+    // User and "yeti" level on points, goal difference and goals: English puts "user" first, Lithuanian puts "y" before "u"
+    const run = { ties: [], reached: 'QF', groups: [{ name: 'A', teams: [USER_TEAM, 'yeti', 'xa', 'xb'], matches: [[1, USER_TEAM, 'xa', 1, 0], [1, 'yeti', 'xb', 1, 0], [2, USER_TEAM, 'yeti', 0, 0], [2, 'xa', 'xb', 0, 0], [3, 'xb', USER_TEAM, 0, 1], [3, 'xa', 'yeti', 0, 1]] }] } as unknown as QuickCupRun
+    const engineTop = groupTable({ teams: run.groups![0].teams, matches: run.groups![0].matches.map(([matchday, home, away, hg, ag]) => ({ id: `${matchday}-${home}`, matchweek: matchday, homeTeamId: home, awayTeamId: away, result: { homeGoals: hg, awayGoals: ag } })) as unknown as Parameters<typeof groupTable>[0]['matches'] })[0].teamId
+    expect(engineTop).toBe(USER_TEAM)
+    String.prototype.localeCompare = function (this: string, that: string, locales?: string | string[], options?: Intl.CollatorOptions) {
+      return original.call(this, that, locales ?? 'lt', options)
+    } as typeof String.prototype.localeCompare
+    expect('yeti'.localeCompare(USER_TEAM)).toBeLessThan(0)
+    expect(quickGroupRead(run)?.topped).toBe(true)
+  })
 })

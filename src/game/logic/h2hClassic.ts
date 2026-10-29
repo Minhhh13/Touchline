@@ -1,6 +1,7 @@
 import { poolClubSeasons, isClassicSeason, type LoadedUniverse } from '@engine/universe'
 import type { DraftRules } from '@engine/draft'
 import { h2hRules } from './h2h'
+export { h2hNeedsClassic } from './h2hNeedsClassic'
 
 /**
  * Classic seasons (1992-93 to 2007-08, estimated ratings) in a hot-seat head-to-head: opt-in, as in Setup. Kept out of
@@ -12,11 +13,6 @@ import { h2hRules } from './h2h'
 export function h2hRulesFor(wheelLeagues: string[], hardMode: boolean, classic: boolean): DraftRules {
   const rules = h2hRules(wheelLeagues, hardMode)
   return classic ? { ...rules, classic: true } : rules
-}
-
-/** Whether a head-to-head needs the classic seasons loaded: its draft opted in (the wheel, and possibly the league season, holds them). */
-export function h2hNeedsClassic(h2h: { draft: { drafts: ReadonlyArray<{ rules: { classic?: boolean } }> } } | null | undefined): boolean {
-  return !!h2h?.draft.drafts[0]?.rules.classic
 }
 
 /** The league seasons a head-to-head can be played in, oldest first, classic ones (flagged) only with the opt-in. */

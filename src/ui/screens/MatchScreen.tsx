@@ -23,6 +23,8 @@ import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { arenaContinueLabel } from '@game/logic/arena'
 import { ShootoutPanel } from '../components/ShootoutPanel'
 import { knockoutOutcome } from '../arenaText'
+import { shootoutKey, useShootoutRevealed } from '../shootoutReveal'
+import { SeasonName } from '../components/SeasonName'
 import { MatchDashboard } from '../matchday/MatchDashboard'
 import { cardSeries, reportFigures } from '../matchday/model'
 import { XgStory } from '../matchday/panels/XgStory'
@@ -74,6 +76,10 @@ export function MatchScreen() {
   const reportBoxes = useBoxes(REPORT)
   // One lookup per game state: the report's stats series is memoised on it
   const get = useMemo(() => (u && game ? playerLookup(game, u) : null), [u, game])
+  // An arena shoot-out revealing kick by kick on the report: the verdict and the Next button wait for its last kick
+  const shootPens = game?.arena && !game.arena.pending ? game.arena.log.at(-1)?.pens : undefined
+  const penKey = game?.arena && shootPens ? shootoutKey(game.id, game.arena.log.length, shootPens.kicks.length) : null
+  const pensShown = useShootoutRevealed(penKey)
   if (!u || !game || !get) return null
   const live = game.live && !holdLive ? game.live : null
 
@@ -114,13 +120,15 @@ export function MatchScreen() {
   const ga = userIsHome ? res.awayGoals : res.homeGoals
   // An arena tie settled on penalties reads by its shoot-out ("Won on pens"), not as a draw
   const arenaPens = game.arena && !game.arena.pending && which === 'league' ? game.arena.log.at(-1)?.pens : undefined
-  const verdict = knockoutOutcome(gf, ga, arenaPens)
+  // Held while the kicks still reveal (the report only: the replay shows no shoot-out to wait for)
+  const holdVerdict = !!arenaPens && !pensShown && matchView !== 'ticker'
+  const verdict = holdVerdict ? { word: t('onPens'), outcome: 'D' as const } : knockoutOutcome(gf, ga, arenaPens)
   const outcome = verdict.word
   const seasonOver = game.phase === 'summary' || !!game.seasonEnding
   const cupNext = !!game.live && holdLive
   // The arena: penalties first, then the run's summary or its next match
   const arena = game.arena
-  const continueLabel = arena ? arenaContinueLabel(game) : seasonOver ? t('seasonSummary') : cupNext ? t('nextTie', { round: game.live!.ctx.roundLabel ?? t('cupTie') }) : t('continue')
+  const continueLabel = arena ? (holdVerdict ? t('continue') : arenaContinueLabel(game)) : seasonOver ? t('seasonSummary') : cupNext ? t('nextTie', { round: game.live!.ctx.roundLabel ?? t('cupTie') }) : t('continue')
   const onContinue = () => {
     if (arena) {
       closeMatch()
@@ -279,7 +287,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
       <div className="scoreboard report-board">
         <div className="team">
           {res.homeTeamId !== USER_TEAM ? <ClubBadge clubId={res.homeTeamId.replace(/^friendly-/, '')} size={34} /> : <TeamBadge code={game?.settings.shortName} size={34} />}
-          {homeName}
+          <SeasonName name={homeName} />
         </div>
         <div className="col" style={{ alignItems: 'center', gap: 2 }}>
           <div className="score">
@@ -290,7 +298,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
           </div>
         </div>
         <div className="team away">
-          {awayName}
+          <SeasonName name={awayName} />
           {res.awayTeamId !== USER_TEAM ? <ClubBadge clubId={res.awayTeamId.replace(/^friendly-/, '')} size={34} /> : <TeamBadge code={game?.settings.shortName} size={34} />}
         </div>
       </div>

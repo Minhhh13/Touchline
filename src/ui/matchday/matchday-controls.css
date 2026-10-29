@@ -110,6 +110,14 @@
   min-width: 112px;
   text-align: left;
 }
+/* A phone at large text: the clock drops under the score rather than push the board past the window (round 5) */
+@media (max-width: 720px) {
+  .matchday .scoreboard {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 2px;
+  }
+}
 
 /* ------------------------------------------------------------------ drawers */
 .matchday .md-drawer-back {
@@ -556,6 +564,8 @@
 .matchday .sub-bench-card.held {
   border-color: var(--primary);
   background: var(--primary-soft);
+  /* Picked up: a ring as well as the fill, so the man in hand reads at a glance in both themes */
+  box-shadow: 0 0 0 2px var(--primary);
 }
 .matchday .sub-bench-card.glow-natural {
   border-color: var(--good);
@@ -606,6 +616,11 @@
   box-shadow: var(--shadow);
   pointer-events: none;
   will-change: transform;
+}
+/* Under a finger the man in hand rides above it, where he can be seen, and he is the one aimed with (`aimPoint`) */
+.matchday .sub-ghost.lifted {
+  margin: -64px 0 0 -40px;
+  padding: 4px 10px 4px 4px;
 }
 
 /* ------------------------------------------------------------------ squad strip */

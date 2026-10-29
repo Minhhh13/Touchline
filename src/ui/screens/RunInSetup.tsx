@@ -7,14 +7,14 @@ import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
 import { randomSeed } from '@engine/rng'
 import { runInWeekSeed } from '@game/logic/runinWeekly'
-import { RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, runInGameSettings, summariseRunIn } from '@game/logic/runin'
+import { RUN_IN_SPINS, runInGameSettings, summariseRunIn } from '@game/logic/runin'
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, formationName, seasonLabel } from '../format'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
-import { jobText, templateText } from '../runInText'
+import { briefShortText, jobText, templateText } from '../runInText'
 
 const t = translator(runin)
 
@@ -80,7 +80,7 @@ export function RunInSetup() {
         </span>
         <span className="small muted">{jobText(j)}</span>
       </span>
-      <span className="chip">{RUN_IN_BRIEF_SHORT[j.template]}</span>
+      <span className="chip">{briefShortText(j.template)}</span>
     </button>
   )
 
@@ -96,7 +96,7 @@ export function RunInSetup() {
               <Info label={t('aboutRunIn')}>{t('runInInfo')}</Info>
             </p>
           </div>
-          <div className="row">
+          <div className="row wrap">
             <button className="btn" onClick={() => void playWeek()} data-testid="runin-week" title={t('weekTip')}>
               {t('weekButton')}
             </button>
@@ -112,6 +112,7 @@ export function RunInSetup() {
               <StepHead n={1} title={t('stepBrief')} />
               <div className="field" data-testid="runin-template">
                 <Segmented
+                  label={t('stepBrief')}
                   value={template}
                   onChange={(v) => {
                     setTemplate(v)
@@ -129,6 +130,7 @@ export function RunInSetup() {
               <StepHead n={2} title={t('stepLeague')} />
               <div className="field setup-league" data-testid="runin-league">
                 <Segmented
+                  label={t('stepLeague')}
                   value={leagueId}
                   onChange={(id) => {
                     setLeagueId(id)

@@ -24,7 +24,8 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Info, Segmented, Stat, Tabs, TeamBadge } from '../components/bits'
 import { OppositionReport } from './OppositionReport'
 import { distinctLabels } from '../screenText'
-import { gauntletBandText, splitSeason } from '../arenaText'
+import { gauntletBandText } from '../arenaText'
+import { SeasonName } from '../components/SeasonName'
 import { TacticsTab } from './Dugout'
 import { askConfirm } from '../confirm'
 import { useAfterPaint } from '../afterPaint'
@@ -79,7 +80,6 @@ export function Arena() {
   const seeded = cup && opp && a.bracket?.seeds.includes(opp.key)
   const rung = a.step + 1
   const billing = gauntlet && opp ? rungLabels(rung, opp.real).billing : undefined
-  const oppName = opp ? splitSeason(opp.club.name) : null
   // A challenge's ghost: the challenger's result on this step, and on every rung or round
   const ghost = game.settings.challenge?.arena ? game.settings.challenge : undefined
   const changeDraw = async () => {
@@ -150,10 +150,7 @@ export function Arena() {
                 <div className="row" style={{ gap: 10 }}>
                   <ClubBadge clubId={clubIdOfKey(opp.key)} size={40} />
                   {/* The season stays on one line: a narrow box broke "2023-24" at its hyphen */}
-                  <div className="arena-opp-name">
-                    {oppName?.club}
-                    {oppName?.season && <> <span style={{ whiteSpace: 'nowrap' }}>{oppName.season}</span></>}
-                  </div>
+                  <div className="arena-opp-name">{opp && <SeasonName name={opp.club.name} />}</div>
                 </div>
                 {gauntlet && (
                   <button className="btn sm arena-lifeline" onClick={changeDraw} disabled={a.lifelineUsed !== undefined || !lifelineChanges(a)} data-testid="arena-lifeline" title={t(a.lifelineUsed === undefined && !lifelineChanges(a) ? 'lifelineSame' : 'lifelineTip')}>
@@ -268,6 +265,7 @@ export function Arena() {
             <div className="field">
               {t('teamTalk')}
               <Segmented<TeamTalk>
+                label={t('teamTalk')}
                 value={game.teamTalk}
                 onChange={store.setTeamTalk}
                 options={[

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gauntletBandText, knockoutOutcome, personalBest, splitSeason, kickLine, takerMoved } from '../arenaText'
+import { gauntletBandText, knockoutOutcome, longWord, personalBest, splitSeason, kickLine, takerMoved } from '../arenaText'
 import { GAUNTLET_RUNGS, rungBandLabel } from '@engine/gauntlet'
 
 describe('arena display text', () => {
@@ -62,5 +62,16 @@ describe('the shoot-out in words (accessibility round 3)', () => {
     // The run itself is not one of the earlier runs; nothing to beat, or nothing won, is no mark
     expect(personalBest([{ id: 'x', format: 'gauntlet', score: 9 }], { id: 'x', format: 'gauntlet', score: 9 })).toBeNull()
     expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 0 })).toBeNull()
+  })
+})
+
+describe('longWord: a summary banner a size down on a phone (r9)', () => {
+  it('marks the knockout words that broke at their hyphen, never a short banner', () => {
+    expect(longWord('Semi-finalists')).toBe(true)
+    expect(longWord('Quarter-finalists')).toBe(true)
+    expect(longWord('Out in the round of 16')).toBe(false)
+    expect(longWord('8 rungs')).toBe(false)
+    expect(longWord('Cup winners')).toBe(false)
+    expect(longWord('Runners-up')).toBe(false)
   })
 })

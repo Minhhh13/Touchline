@@ -62,6 +62,12 @@ describe('components read the store field by field', () => {
       expect(source(`components/${file}.tsx`)).not.toMatch(/useStore\(\)/)
     })
   }
+  // r9 audit: the Office tab (every box and the market's Negotiate dialog) and the unlock card under every summary
+  for (const file of ['components/BadgeUnlocks', 'screens/OfficeTab']) {
+    it(`${file} has no whole-store subscription`, () => {
+      expect(source(`${file}.tsx`)).not.toMatch(/useStore\(\)/)
+    })
+  }
 })
 
 describe('one reduced-motion helper', () => {

@@ -16,7 +16,9 @@ import type { Mode } from '@game/types'
 import { show } from './qaSsr'
 import { Setup } from '../screens/Setup'
 import { ArenaSetup } from '../screens/ArenaSetup'
-import { TEAM_NAME_KEY, rememberTeamName, savedTeamName, startingTeamName, teamShortName } from '../teamName'
+import { TEAM_NAME_KEY, rememberTeamName, savedTeamName, startingTeam, startingTeamName, teamShortName } from '../teamName'
+import { dailyArenaGameSettings } from '@game/logic/arenaDaily'
+import { puzzleOf } from '../../online/server/dailyVerify'
 
 const u = loadTestUniverse(['england'])
 const base = { universe: u, loadedLeagues: ['england'], game: null, parked: {}, toast: null, digest: null, playback: null, offseason: null, h2h: null, pendingChallenge: null }
@@ -83,5 +85,22 @@ describe('the setup screens open with an invented team name', () => {
     expect(teamShortName('Ashvale United')).toBe('ASH')
     expect(teamShortName('St Oswin Town')).toBe('STO')
     for (const typed of ['Touchline XI', 'Dad FC', 'QA XI']) expect(teamShortName(typed)).toBe(shortNameFor(typed))
+  })
+})
+
+describe('the Daily Arena from Home takes the manager\'s team name (r9)', () => {
+  it('an invented name with its own code, or the remembered one, and the same puzzle either way', () => {
+    let k = 0
+    const random = () => ((k = (k * 9301 + 49297) % 233280) / 233280)
+    for (let i = 0; i < 20; i++) {
+      const team = startingTeam(random)
+      expect(team.teamName).not.toBe('Touchline XI')
+      expect(team.shortName).toBe(generatedTeamCode(team.teamName))
+      const s = { ...dailyArenaGameSettings(u, 'arena-2026-10-29', team.teamName), shortName: team.shortName }
+      expect(s.teamName).toBe(team.teamName)
+      expect(puzzleOf(s)).toEqual(puzzleOf(dailyArenaGameSettings(u, 'arena-2026-10-29')))
+    }
+    rememberTeamName('Hackney Wanderers')
+    expect(startingTeam()).toEqual({ teamName: 'Hackney Wanderers', shortName: shortNameFor('Hackney Wanderers') })
   })
 })

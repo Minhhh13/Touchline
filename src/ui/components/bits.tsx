@@ -6,6 +6,7 @@ import { POSITION_GROUP } from '@engine/positions'
 import { inkOn, ratingBand } from '../format'
 import { useStore } from '@game/store'
 import { tipInTurn, type TipId } from '@game/logic/tips'
+import { resultsFinished } from '@game/logic/onboarding'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
@@ -95,7 +96,7 @@ export function Bar({ value, max = 100, colour, thick }: { value: number; max?: 
   )
 }
 
-export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void; label?: string }) {
+export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void; label: string }) {
   const checked = options.findIndex((o) => o.value === value)
   // A named radio group (`label`: what is being chosen), one Tab stop, the arrows move the choice (round 4)
   return (
@@ -408,12 +409,12 @@ const tipsOnScreen = {
 /**
  * A coach mark: a short callout inline in the page flow, shown until its 'Got it'
  * is pressed (remembered on the profile). Never an overlay, never blocks a button.
- * One at a time: a second tip on screen waits until the first is dismissed or leaves.
- * 'No more tips' dismisses all eight at once (Profile's 'Show tips again' brings them back).
+ * One at a time: a second tip on screen waits until the first is dismissed or leaves; a feature tip waits for its
+ * moment (`TIP_AFTER`: results finished). 'No more tips' dismisses them all at once (Profile's 'Show tips again' brings them back).
  */
 export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
   const mounted = useSyncExternalStore(tipsOnScreen.subscribe, tipsOnScreen.get, tipsOnScreen.get)
-  const shown = useStore((s) => tipInTurn(s.profile, mounted) === id)
+  const shown = useStore((s) => tipInTurn(s.profile, mounted, resultsFinished(s.profile)) === id)
   const dismiss = useStore((s) => s.dismissTip)
   const dismissAll = useStore((s) => s.dismissAllTips)
   useEffect(() => {

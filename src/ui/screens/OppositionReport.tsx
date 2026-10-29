@@ -89,7 +89,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
               <>
                 <dt>{t('form')}</dt>
                 <dd>
-                  <FormDots form={row.form} />
+                  {row.form.length ? <FormDots form={row.form} /> : <span className="muted">{t('noFormYet')}</span>}
                 </dd>
               </>
             )}

@@ -43,7 +43,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const on = (id: string) => boxes?.on(id) ?? true
   const switcher = (
     <div className="stats-switch">
-      <Segmented value={view} onChange={setView} options={[{ value: 'overview', label: t('statsOverview'), testId: 'stats-view-overview' }, { value: 'players', label: t('statsPlayers'), testId: 'stats-view-players', hint: t('statsPlayersHint') }, { value: 'team', label: t('statsTeam'), testId: 'stats-view-team', hint: t('statsTeamHint') }]} />
+      <Segmented label={t('statsView')} value={view} onChange={setView} options={[{ value: 'overview', label: t('statsOverview'), testId: 'stats-view-overview' }, { value: 'players', label: t('statsPlayers'), testId: 'stats-view-players', hint: t('statsPlayersHint') }, { value: 'team', label: t('statsTeam'), testId: 'stats-view-team', hint: t('statsTeamHint') }]} />
     </div>
   )
   if (view === 'players')

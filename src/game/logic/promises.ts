@@ -20,8 +20,9 @@ import type { Position } from '@engine/types'
 import { getFormation } from '@engine/formations'
 import { MINUTES_PER_WEEK } from '@engine/status'
 import { playerLookup, squadPlayers } from './players'
-import { postNews } from './news'
-import { dressingRoomRipple, lodgeRequest, officeOf, realIdOf, shiftMorale, squadIdOf, weekOf } from './officeCore'
+import { contractDemand } from './contracts'
+import { newsTotal } from './news'
+import { dressingRoomRipple, lodgeRequest, officeOf, postOfficeNews, realIdOf, shiftMorale, squadIdOf, weekOf } from './officeCore'
 
 /** Open promises the squad can hold at once, and the list's length with the settled ones kept for the record. */
 export const MAX_OPEN_PROMISES = 4
@@ -80,6 +81,12 @@ export function promiseProblem(game: Game, u: LoadedUniverse, playerSeasonId: st
   if (open.length >= MAX_OPEN_PROMISES) return `You already have ${MAX_OPEN_PROMISES} promises running. Keep those first.`
   if (open.some((x) => x.playerId === p.playerId && x.kind === kind)) return `You have already promised ${p.name} ${KIND_WORD[kind]}.`
   if (kind === 'contract' && c.loan) return `${p.name} is on loan: his contract is his parent club's.`
+  if (kind === 'contract') {
+    // Kept by a new contract in talks, a longer deal or a renewal (`verdict`): one he has already agreed, or one already on his longest deal, is no promise
+    if (c.renewed) return `${p.name} has already agreed a new contract this season: his renewal is done.`
+    const longest = contractDemand(game, u, playerSeasonId, c.status ?? 'rotation')?.maxYears
+    if (longest !== undefined && c.years >= longest) return `${p.name} is already on the longest deal he would sign (${longest} seasons).`
+  }
   if (kind === 'signing' && !windowAhead(game)) return 'No transfer window is left this season to keep it in.'
   return null
 }
@@ -105,6 +112,7 @@ export function makePromise(game: Game, u: LoadedUniverse, playerSeasonId: strin
     what = `${Math.round(promise.share * 100)}% of the minutes over the next ${promise.due - week} matchweeks`
   } else if (kind === 'contract') {
     promise.yearsAt = game.contracts[playerSeasonId].years
+    promise.newsAt = newsTotal(game)
     promise.due = Math.min(season.matchweeks, week + CONTRACT_WEEKS)
     what = `a new contract by matchweek ${promise.due}`
   } else {
@@ -169,7 +177,7 @@ function verdict(game: Game, u: LoadedUniverse, promise: OfficePromise, id: stri
   }
   if (promise.kind === 'contract') {
     const c = game.contracts[id]
-    if (c && (c.years > (promise.yearsAt ?? 0) || c.renewed)) return true
+    if (c && (c.years > (promise.yearsAt ?? 0) || c.renewed || signedSince(game, u, promise, id))) return true
     return week >= promise.due || over ? false : null
   }
   const before = new Set(promise.squadAt ?? [])
@@ -182,6 +190,15 @@ function verdict(game: Game, u: LoadedUniverse, promise: OfficePromise, id: stri
   if (game.window) promise.windowSeen = true
   else if (promise.windowSeen) return false
   return over ? false : null
+}
+
+/** Whether he has signed a new contract since the promise (contract talks post one item each), however long it runs. */
+function signedSince(game: Game, u: LoadedUniverse, promise: OfficePromise, id: string): boolean {
+  if (promise.newsAt === undefined || !game.season) return false
+  const fresh = Math.min(game.season.news.length, newsTotal(game) - promise.newsAt)
+  if (fresh <= 0) return false
+  const title = `${playerLookup(game, u)(id)?.name ?? promise.name} signs a new contract`
+  return game.season.news.slice(0, fresh).some((n) => n.playerId === id && n.title === title)
 }
 
 /**
@@ -209,13 +226,13 @@ export function settlePromises(game: Game, u: LoadedUniverse): void {
     if (v) {
       shiftMorale(s, week, KEPT_LIFT, 'kept', 'promise')
       if (o.broken?.[promise.playerId]) o.broken[promise.playerId] -= 1
-      postNews(game, { matchweek: week, kind: 'event', title: `Promise kept: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and delivered. He trusts you more for it.`, playerId: id })
+      postOfficeNews(game, { matchweek: week, kind: 'event', title: `Promise kept: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and delivered. He trusts you more for it.`, playerId: id })
     } else {
       shiftMorale(s, week, BROKEN_COST, 'broken', 'promise')
       const broken = (o.broken ??= {})
       broken[promise.playerId] = (broken[promise.playerId] ?? 0) + 1
       dressingRoomRipple(game, u, id, BROKEN_RIPPLE, `A team-mate's broken promise`)
-      postNews(game, { matchweek: week, kind: 'event', title: `Promise broken: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and did not deliver. His team-mates noticed.`, playerId: id })
+      postOfficeNews(game, { matchweek: week, kind: 'event', title: `Promise broken: ${promise.name}`, body: `You promised him ${KIND_WORD[promise.kind]} and did not deliver. His team-mates noticed.`, playerId: id })
       lodgeRequest(game, u, id, 'promise')
     }
   }

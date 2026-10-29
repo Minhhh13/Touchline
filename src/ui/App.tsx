@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
+import { loadRules, rules } from '@game/rulesHook'
 import { useStorePick } from './useStorePick'
 import { Home } from './screens/Home'
-import { isArenaPayload } from '@engine/challenge'
 import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { SaveBanner } from './components/SaveBanner'
@@ -22,7 +22,7 @@ import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { watchFocusRescue } from './focusRescue'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { Bandage, Banknote, BookOpen, Briefcase, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
@@ -34,34 +34,46 @@ import { app } from './i18n/en/app'
 import { shell } from './i18n/en/shell'
 import { useLanguage } from './i18n/language'
 import { B, rich } from './i18n/rich'
+// The summer's player stories ride in their own chunk, with the history catalogue (the first download stays as it was)
+const SummerStories = lazy(() => import('./components/SummerStories').then((m) => ({ default: m.SummerStories })))
 
 const t = translator(app)
 const tShell = translator(shell)
 
+/**
+ * A screen that plays a game loads the rules chunk (`src/game/rulesHook.ts`) and the game screens' styles
+ * (`gameScreens.css`) with its own: the store's actions it calls find the rules in place and its boxes their styles,
+ * and Home's first download leaves both out.
+ */
+const withRules =
+  <T,>(load: () => Promise<T>) =>
+  (): Promise<T> =>
+    Promise.all([load(), loadRules(), import('./gameStyles')]).then(([m]) => m)
+
 // Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
 // after Home fetches them in this order, the Quick Draft path first
 const SCREENS = {
-  setup: lazyScreen(() => import('./screens/Setup'), 'Setup'),
-  draft: lazyScreen(() => import('./screens/Draft'), 'Draft'),
-  kickOff: lazyScreen(() => import('./screens/KickOff'), 'KickOff'),
-  playback: lazyScreen(() => import('./screens/SeasonPlayback'), 'SeasonPlayback'),
-  summary: lazyScreen(() => import('./screens/Summary'), 'Summary'),
-  dugout: lazyScreen(() => import('./screens/Dugout'), 'Dugout'),
-  match: lazyScreen(() => import('./screens/MatchScreen'), 'MatchScreen'),
-  explore: lazyScreen(() => import('./screens/Explore'), 'Explore'),
-  profile: lazyScreen(() => import('./screens/ProfileScreen'), 'ProfileScreen'),
-  h2h: lazyScreen(() => import('./screens/H2H'), 'H2HScreen'),
+  setup: lazyScreen(withRules(() => import('./screens/Setup')), 'Setup'),
+  draft: lazyScreen(withRules(() => import('./screens/Draft')), 'Draft'),
+  kickOff: lazyScreen(withRules(() => import('./screens/KickOff')), 'KickOff'),
+  playback: lazyScreen(withRules(() => import('./screens/SeasonPlayback')), 'SeasonPlayback'),
+  summary: lazyScreen(withRules(() => import('./screens/Summary')), 'Summary'),
+  dugout: lazyScreen(withRules(() => import('./screens/Dugout')), 'Dugout'),
+  match: lazyScreen(withRules(() => import('./screens/MatchScreen')), 'MatchScreen'),
+  explore: lazyScreen(withRules(() => import('./screens/Explore')), 'Explore'),
+  profile: lazyScreen(withRules(() => import('./screens/ProfileScreen')), 'ProfileScreen'),
+  h2h: lazyScreen(withRules(() => import('./screens/H2H')), 'H2HScreen'),
   howTo: lazyScreen(() => import('./screens/HowTo'), 'HowTo'),
-  arenaSetup: lazyScreen(() => import('./screens/ArenaSetup'), 'ArenaSetup'),
-  arena: lazyScreen(() => import('./screens/Arena'), 'Arena'),
-  arenaSummary: lazyScreen(() => import('./screens/ArenaSummary'), 'ArenaSummary'),
-  arenaChallengeSetup: lazyScreen(() => import('./screens/ArenaChallengeSetup'), 'ArenaChallengeSetup'),
-  runInSetup: lazyScreen(() => import('./screens/RunInSetup'), 'RunInSetup'),
-  runInSummary: lazyScreen(() => import('./screens/RunInSummary'), 'RunInSummary'),
+  arenaSetup: lazyScreen(withRules(() => import('./screens/ArenaSetup')), 'ArenaSetup'),
+  arena: lazyScreen(withRules(() => import('./screens/Arena')), 'Arena'),
+  arenaSummary: lazyScreen(withRules(() => import('./screens/ArenaSummary')), 'ArenaSummary'),
+  arenaChallengeSetup: lazyScreen(withRules(() => import('./screens/ArenaChallengeSetup')), 'ArenaChallengeSetup'),
+  runInSetup: lazyScreen(withRules(() => import('./screens/RunInSetup')), 'RunInSetup'),
+  runInSummary: lazyScreen(withRules(() => import('./screens/RunInSummary')), 'RunInSummary'),
   privacy: lazyScreen(() => import('./screens/Privacy'), 'Privacy'),
-  world: lazyScreen(() => import('./online/WorldBoard'), 'WorldBoard'),
-  account: lazyScreen(() => import('./online/AccountPanel'), 'AccountScreen'),
-  room: lazyScreen(() => import('./online/Rooms'), 'RoomScreen'),
+  world: lazyScreen(withRules(() => import('./online/WorldBoard')), 'WorldBoard'),
+  account: lazyScreen(withRules(() => import('./online/AccountPanel')), 'AccountScreen'),
+  room: lazyScreen(withRules(() => import('./online/Rooms')), 'RoomScreen'),
 }
 const { setup: { Screen: Setup }, draft: { Screen: Draft }, kickOff: { Screen: KickOff }, playback: { Screen: SeasonPlayback }, summary: { Screen: Summary }, dugout: { Screen: Dugout }, match: { Screen: MatchScreen }, explore: { Screen: Explore }, profile: { Screen: ProfileScreen }, h2h: { Screen: H2HScreen }, howTo: { Screen: HowTo }, arenaSetup: { Screen: ArenaSetup }, arena: { Screen: Arena }, arenaSummary: { Screen: ArenaSummary }, arenaChallengeSetup: { Screen: ArenaChallengeSetup }, runInSetup: { Screen: RunInSetup }, runInSummary: { Screen: RunInSummary }, privacy: { Screen: Privacy }, world: { Screen: WorldBoard }, account: { Screen: AccountScreen }, room: { Screen: RoomScreen } } = SCREENS
 
@@ -261,7 +273,7 @@ export function App() {
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
     else body = game.arena ? <Arena /> : <Dugout />
-  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
+  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && rules().isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'room') body = <RoomScreen />
   else if (screen === 'explore') body = <Explore />
@@ -370,6 +382,11 @@ export function App() {
             {offseason.returned.length > 0 && (
               <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
             )}
+            {offseason.stories && (
+              <Suspense fallback={null}>
+                <SummerStories stories={offseason.stories} />
+              </Suspense>
+            )}
             {offseason.improved.length > 0 && (
               <div className="summer-moves" data-testid="summer-improved">
                 <b>{t('summerImproved')}</b>
@@ -421,7 +438,8 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   for (const r of league) tally[r.outcome]++
   // From pre-season nobody has played, so the table's order before the run means nothing: only where you stand now
   const move = d.positionTo < d.positionFrom ? 'up' : d.positionTo > d.positionFrom ? 'down' : 'level'
-  const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length
+  const office = d.office ?? []
+  const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length && !office.length
   return (
     <div className="col digest" data-testid="digest">
       <div className="digest-results" data-testid="digest-results">
@@ -472,6 +490,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
           ))}
         </DigestGroup>
       )}
+      <NewsGroup title={t('digestOffice')} icon={<Briefcase size={14} />} items={office} testId="digest-office" />
       <NewsGroup title={t('injuries')} icon={<Bandage size={14} />} items={d.injuries} />
       <NewsGroup title={t('suspensions')} icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
       <NewsGroup title={t('transfers')} icon={<Banknote size={14} />} items={d.transfers} />
@@ -490,9 +509,9 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   )
 }
 
-function DigestGroup({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
+function DigestGroup({ title, icon, count, children, testId }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode; testId?: string }) {
   return (
-    <div className="digest-group">
+    <div className="digest-group" data-testid={testId}>
       <div className="small muted digest-group-title">
         {icon} {title}
       </div>
@@ -502,10 +521,10 @@ function DigestGroup({ title, icon, count, children }: { title: string; icon: Re
   )
 }
 
-function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNode; items: NewsItem[] }) {
+function NewsGroup({ title, icon, items, testId }: { title: string; icon: React.ReactNode; items: NewsItem[]; testId?: string }) {
   if (!items.length) return null
   return (
-    <DigestGroup title={title} icon={icon} count={items.length}>
+    <DigestGroup title={title} icon={icon} count={items.length} testId={testId}>
       {items.slice(0, DIGEST_GROUP_CAP).map((n, i) => {
         // A development report lists a dozen players: up and down as two short lists, five names each
         const dev = n.kind === 'training' ? developmentLists(n.body) : null

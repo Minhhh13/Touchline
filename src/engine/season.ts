@@ -133,6 +133,8 @@ export interface NewsItem {
   body: string
   /** The player the item is about, when there is one, so the Inbox can offer to act on him. Absent on older saves. */
   playerId?: string
+  /** Posted by the manager's office (`src/game/logic/office.ts`): the Inbox's Office filter and the digest's office group read it. Absent elsewhere. */
+  office?: true
 }
 
 export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer> = {}): SquadPlayer {

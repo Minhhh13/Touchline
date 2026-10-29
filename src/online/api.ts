@@ -3,9 +3,8 @@
  * Supabase code): each call starts the runtime with a dynamic `import()` when the build is configured, and does
  * nothing (or falls back to the offline behaviour) when it is not, so an offline build never loads supabase-js.
  */
-import { cleanName, type ChallengePayload } from '@engine/challenge'
+import type { ChallengePayload } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
-import { challengeLink } from '@game/logic/challenge'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { onlineConfig } from './config'
@@ -15,7 +14,7 @@ import type { Runtime } from './runtime'
 import type { Resolution } from './sync'
 import type { CloudRow, ChallengeRow } from './transport'
 import { OnlineError } from './transport'
-import { checkDisplayName, nameVerdictFrom, sendEmailCode, signInWithGoogle, verifyEmailCode, type AuthResult, type NameVerdict } from './auth'
+import type { AuthResult, NameVerdict } from './auth'
 import { normaliseCountry } from './core/country'
 import { googleEnabledIn, googleForced } from './core/providers'
 import type { AlltimeOrder, CasualKind, ChaseScope, RankedKind } from './boards'
@@ -23,7 +22,12 @@ import type { AlltimeOrder, CasualKind, ChaseScope, RankedKind } from './boards'
 const boards = () => import('./boards')
 import type { ChaseOptions } from './chase'
 import { updateRecord } from './localState'
-import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
+import type { Resolved, ShareLink } from './challengeLinks'
+
+// The account checks and the challenge links load with their first use: they bring the challenge codec (and through
+// it the engine's replay) that Home's first download leaves out (docs/PERFORMANCE.md, round 9)
+const auth = () => import('./auth')
+const links = () => import('./challengeLinks')
 import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
 
 /** Whether this build carries the online layer at all. */
@@ -92,17 +96,17 @@ export function googleSignInAvailable(): Promise<boolean> {
 
 export async function emailCode(email: string): Promise<AuthResult> {
   const r = await rt()
-  return r ? sendEmailCode(r.auth, email) : notAvailable()
+  return r ? (await auth()).sendEmailCode(r.auth, email) : notAvailable()
 }
 
 export async function emailVerify(email: string, code: string): Promise<AuthResult> {
   const r = await rt()
-  return r ? verifyEmailCode(r.auth, email, code) : notAvailable()
+  return r ? (await auth()).verifyEmailCode(r.auth, email, code) : notAvailable()
 }
 
 export async function googleSignIn(): Promise<AuthResult> {
   const r = await rt()
-  return r ? signInWithGoogle(r.auth) : notAvailable()
+  return r ? (await auth()).signInWithGoogle(r.auth) : notAvailable()
 }
 
 export async function signOutOnline(): Promise<void> {
@@ -111,6 +115,7 @@ export async function signOutOnline(): Promise<void> {
 
 /** The live name check of the profile setup step: local rules first, then `display_name_check` when signed in. */
 export async function checkName(name: string): Promise<NameVerdict> {
+  const { nameVerdictFrom } = await auth()
   const local = nameVerdictFrom(name, null)
   if (local.state === 'invalid') return local
   const r = await rt()
@@ -137,7 +142,7 @@ export async function saveAccount(name: string, country: string | null): Promise
   if (!r) return notAvailable()
   const uid = r.userId
   if (!uid) return { ok: false, message: 'Sign in first.' }
-  const check = checkDisplayName(name)
+  const check = (await auth()).checkDisplayName(name)
   if (!check.ok) return { ok: false, message: check.message }
   const account: AccountProfile = { displayName: check.name, country: normaliseCountry(country) }
   try {
@@ -236,15 +241,15 @@ export async function mine(kind: RankedKind) {
 export async function shareLink(payload: ChallengePayload): Promise<ShareLink> {
   const r = await rt()
   if (!r) {
-    const longUrl = challengeLink(payload, location.origin, location.pathname)
+    const longUrl = (await import('@game/logic/challenge')).challengeLink(payload, location.origin, location.pathname)
     return { url: longUrl, code: null, fallback: 'not_configured', longUrl }
   }
-  return createShortLink(r.transport, r.signedIn, payload, location.origin, location.pathname, navigator.onLine !== false)
+  return (await links()).createShortLink(r.transport, r.signedIn, payload, location.origin, location.pathname, navigator.onLine !== false)
 }
 
 export async function resolveShort(code: string): Promise<Resolved> {
   const r = await rt()
-  return resolveShortCode(r ? r.transport : null, code)
+  return (await links()).resolveShortCode(r ? r.transport : null, code)
 }
 
 export async function myChallenges(): Promise<ChallengeRow[]> {
@@ -365,6 +370,7 @@ export async function submitChase(game: Game): Promise<{ ok: boolean; message?: 
   const st = useStore.getState()
   const u = st.universe
   if (!u) return { ok: false, message: 'The game data is still loading.' }
+  const { cleanName } = await import('@engine/challenge')
   const name = cleanName(st.profile.managerName) || cleanName(game.settings.teamName) || 'A friend'
   const [{ chaseUnrankedReason }, { captureChaseEntry, enqueue }] = await Promise.all([import('./chase'), import('./outbox')])
   const entry = captureChaseEntry(game, u, name, new Date(), onlineStore.getState().session?.userId ?? null)

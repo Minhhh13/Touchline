@@ -163,14 +163,15 @@ describe('the Weekly themes', () => {
 
 describe('the Run-in and the arena fields', () => {
   it('say what runin.ts and arena.ts say', async () => {
-    const { gapLine, jobLine, RUN_IN_TEMPLATE_LABEL } = await import('@game/logic/runin')
+    const { gapLine, jobLine, RUN_IN_BRIEF_SHORT, RUN_IN_TEMPLATE_LABEL } = await import('@game/logic/runin')
     const { ARENA_FIELDS } = await import('@game/logic/arena')
-    const { gapText, jobText, templateText } = await import('../runInText')
+    const { briefShortText, gapText, jobText, templateText } = await import('../runInText')
     const { translator } = await import('../i18n')
     const { arena } = await import('../i18n/en/arena')
     const ta = translator(arena)
     for (const k of ['title', 'europe', 'survival'] as const) {
       expect(templateText(k)).toBe(RUN_IN_TEMPLATE_LABEL[k])
+      expect(briefShortText(k)).toBe(RUN_IN_BRIEF_SHORT[k])
       for (const [target, pos] of [[1, 1], [1, 3], [4, 2], [4, 6], [17, 15], [17, 19]])
         for (const gap of pos > target ? [-3, -1, 0] : [0, 1, 4]) {
           expect(gapText(k, target, pos, gap)).toBe(gapLine(k, target, pos, gap))

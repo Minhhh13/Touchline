@@ -324,7 +324,7 @@ export function H2HScreen() {
           </div>
           <div className="toolbar">
             <button className="btn ghost sm" onClick={() => go('home')}>
-              {t('home')}
+              {t('homeBack')}
             </button>
           </div>
         </div>
@@ -396,7 +396,7 @@ export function H2HScreen() {
         <div className="toolbar">
           {manager && !spinning && <span className="chip info">{t('toPick', { name: manager.name })}</span>}
           <button className="btn ghost sm" onClick={() => go('home')}>
-            {t('home')}
+            {t('homeBack')}
           </button>
           <button className="btn ghost sm danger" onClick={() => void askConfirm(t('abandonConfirm'), { ok: t('abandon'), danger: true }).then((ok) => { if (ok) abandonH2H() })}>
             {t('abandon')}

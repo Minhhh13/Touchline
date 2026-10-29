@@ -4,7 +4,7 @@ import { arenaShareText, arenaStepMark } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { clubIdOfKey } from '@engine/knockout'
 import { randomSeed } from '@engine/rng'
-import { arenaAgainSettings } from '@game/logic/arenaDaily'
+import { arenaAgainSettings, dailyArenaResult } from '@game/logic/arenaDaily'
 import { USER_TEAM } from '@engine/season'
 import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark, stepWon } from '@game/logic/arena'
 import { cupRoundCount } from '@engine/cup'
@@ -18,9 +18,10 @@ import { playerLookup } from '@game/logic/players'
 import { aiLookup } from '@engine/reserve'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge, Info, Stat, TeamBadge } from '../components/bits'
-import { Check, Copy, Dices, ImageDown, Plus, RotateCcw, Send } from 'lucide-react'
+import { Check, ChevronDown, Copy, Dices, ImageDown, Plus, RotateCcw, Send } from 'lucide-react'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { Celebrate } from '../components/Celebrate'
+import { ShootoutRows } from '../components/ShootoutRows'
 import { TrophyArt } from '../components/TrophyArt'
 import '../visuals.css'
 import { minuteLabel } from '../format'
@@ -36,7 +37,8 @@ import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { fixed } from '../format'
-import { personalBest } from '../arenaText'
+import { clubCode, longWord, personalBest, splitSeason } from '../arenaText'
+import { streakStanding } from '@game/logic/casualStreak'
 import { resultId } from '@game/logic/cabinet'
 
 const t = translator(arena)
@@ -91,6 +93,7 @@ export function ArenaSummary() {
   const motmName = gauntlet || !inFinal ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
   const motm = motmName && last?.motmId && !game.squad[last.motmId] ? `${motmName} (${u.clubById[clubIdOfKey(last.opponent)]?.shortName ?? arenaClubShortName(u, last.opponent)})` : motmName
   const formation = getFormation(game.tactics.formationId)
+  const seasonOf = (key: string) => splitSeason(arenaClubName(u, key)).season
   const stepLine = (i: number) => {
     const s = a.log[i]
     return `${input?.steps[i]?.code ?? ''} ${arenaStepMark(s)} ${s.gf}-${s.ga} ${arenaClubName(u, s.opponent)}${s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}`
@@ -152,6 +155,8 @@ export function ArenaSummary() {
   // A step won is the logic's rule (a draw settled on penalties counts): the screen never words its own
   const won = stepWon
   // A run that beats (or ties) the manager's best of its kind says so under the banner; a trophy says it already
+  // The Daily Arena: the result that counts for the day and the streak, or that this go was practice after it
+  const standing = game.settings.arena?.daily ? streakStanding(profile.arenaDaily, game.settings.seed, dailyArenaResult(a)) : null
   const best = a.won ? null : personalBest(profile.arenaRuns ?? [], { id: resultId(game), format: a.format, size: a.size, score: a.log.filter(won).length })
   return (
     // Main's summary layout: the result box on the left, everything else in a box beside it that scrolls inside itself
@@ -172,7 +177,7 @@ export function ArenaSummary() {
         )}
         <div className="tier-wrap">
           {a.won && <Celebrate tier="CHAMPIONS" resultKey={`${game.id}:arena`} replayed={false} />}
-          <div className={`tier ${a.won ? 'CHAMPIONS' : ''}`} data-testid="tier">
+          <div className={`tier ${a.won ? 'CHAMPIONS' : ''}${longWord(banner) ? ' long-word' : ''}`} data-testid="tier">
             {banner}
           </div>
         </div>
@@ -180,6 +185,11 @@ export function ArenaSummary() {
           <span className={`chip ${best.kind === 'best' ? 'good' : 'info'} arena-best`} data-testid="arena-best">
             {t(best.kind === 'best' ? 'newBest' : 'equalBest', { gauntlet: gauntlet ? 'yes' : 'no', n: a.log.filter(won).length, was: best.was })}
           </span>
+        )}
+        {standing && (
+          <p className="tier-blurb" data-testid="arena-daily-standing">
+            {standing.practice ? t('dailyPractice', { label: standing.counted.label }) : t('dailyCounted', { streak: standing.streak })}
+          </p>
         )}
         {winner && (
           <p className="tier-blurb" data-testid="cup-winner">
@@ -267,8 +277,10 @@ export function ArenaSummary() {
                     <span className="row" style={{ gap: 8, minWidth: 0 }}>
                       <ClubBadge clubId={clubIdOfKey(s.opponent)} size={26} />
                       <span style={{ minWidth: 0 }}>
+                        {/* The season stays on one line: a narrow box broke "2008-09" at its hyphen */}
                         <div style={{ fontWeight: 600 }}>
-                          {t('stepVs', { label: s.label, club: arenaClubName(u, s.opponent) })}
+                          {t('stepVs', { label: s.label, club: splitSeason(arenaClubName(u, s.opponent)).club })}
+                          {seasonOf(s.opponent) && <> <span style={{ whiteSpace: 'nowrap' }}>{seasonOf(s.opponent)}</span></>}
                         </div>
                         <div className="small muted">
                           {t('stepMeta', { where: s.neutral ? 'neutral' : s.home ? 'home' : 'away', real: fixed(s.realStrength, 1), offset: s.offset > 0 ? 'yes' : 'no', at: fixed(s.realStrength - s.offset, 1), live: s.live ? 'yes' : 'no' })}
@@ -286,14 +298,13 @@ export function ArenaSummary() {
                   </div>
                 ))}
               </div>
+              {/* The last tie's shoot-out, one row a side in kick order, so whose kick was whose reads at a glance */}
               {!gauntlet && last?.pens && (
-                <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
-                  {last.pens.kicks.map((k, i) => (
-                    <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`}>
-                      {k.us ? '' : '⇢ '}
-                      {(k.us ? get(k.takerId)?.name : aiLookup(u)(k.takerId)?.name) ?? k.takerId} {k.scored ? '✓' : '✗'}
-                    </span>
-                  ))}
+                <div className="arena-pens" role="group" aria-label={t('shootout')} data-testid="arena-pens">
+                  <div className="small muted">
+                    {t('shootout')} · {last.pens.us}-{last.pens.them}
+                  </div>
+                  <ShootoutRows kicks={last.pens.kicks} ourCode={game.settings.shortName} theirCode={clubCode(u, last.opponent)} name={(k) => (k.us ? get(k.takerId)?.name : aiLookup(u)(k.takerId)?.name) ?? k.takerId} />
                 </div>
               )}
             </div>
@@ -342,10 +353,11 @@ export function ArenaSummary() {
           </div>
         )}
         <details className="panel fold">
-          <summary className="fold-head">
+          <summary className="panel-head">
             <h3>{t('shareText')}</h3>
+            <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
           </summary>
-          <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="arena-share-text">
+          <pre className="mono small share-text" data-testid="arena-share-text">
             {text}
           </pre>
         </details>
