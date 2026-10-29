@@ -13877,6 +13877,12 @@ table.tbl.hub td.name {
   border-bottom: 0;
   margin-bottom: 0;
 }
+/* The keyboard's Info beside the tabs only where there is a keyboard to speak of (r10) */
+@media (max-width: 720px), (pointer: coarse) {
+  .tabs-row .dugout-keys {
+    display: none;
+  }
+}
 /* On a phone the control beside the tabs is its icon (the word stays for screen readers), so the tab strip keeps the
    room: "Tactics" ran under "Boxes" at 390 px */
 @media (max-width: 720px) {

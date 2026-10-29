@@ -9,7 +9,7 @@ import { dugout } from './i18n/en/dugout'
 
 const t = translator(dugout)
 
-const ACTIONS: Record<string, () => string> = { 'Auto-pick': () => t('brActAutoPick'), Choose: () => t('brActChoose'), Club: () => t('brActClub'), Contracts: () => t('brActContracts'), Decide: () => t('brActDecide'), Market: () => t('brActMarket'), Medical: () => t('brActMedical'), 'Play friendly': () => t('brActFriendly'), Squad: () => t('brActSquad'), Tactics: () => t('brActTactics'), View: () => t('brActView') }
+const ACTIONS: Record<string, () => string> = { 'Auto-pick': () => t('brActAutoPick'), Choose: () => t('brActChoose'), Club: () => t('brActClub'), Contracts: () => t('brActContracts'), Decide: () => t('brActDecide'), Market: () => t('brActMarket'), Medical: () => t('brActMedical'), Office: () => t('brActOffice'), 'Play friendly': () => t('brActFriendly'), Squad: () => t('brActSquad'), Tactics: () => t('brActTactics'), View: () => t('brActView') }
 
 /** A briefing button's words. */
 export function briefingActionText(label: string): string {
