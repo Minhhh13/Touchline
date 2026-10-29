@@ -250,7 +250,7 @@ export function offerTerms(game: Game, u: LoadedUniverse, listingId: string, off
   const { asking, opening } = listing
   listing.asking = plan.now
   listing.opening = roundM((opening * plan.now) / deal.fee)
-  const out = bidFor(game, u, listingId, plan.now, { status: offer.status, years: Math.min(4, offer.years) })
+  const out = bidFor(game, u, listingId, plan.now, { status: offer.status, years: Math.min(4, offer.years), wage })
   listing.opening = opening
   if (!out.accepted) {
     // Refused before any bid was placed (the market's own checks): the listing goes back as it was, its asking price the club's, not the agreed fee (r9)
