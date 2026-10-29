@@ -15,6 +15,7 @@ import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 import { briefShortText, jobText, templateText } from '../runInText'
+import { logicList } from '../i18n/logicText'
 
 const t = translator(runin)
 
@@ -197,7 +198,7 @@ export function RunInSetup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={5} title={t('stepTake')} />
               <div className="small muted" data-testid="runin-summary">
-                {settings ? summariseRunIn(u, settings) : ready ? t('pickJob') : <LeagueWait needs={[leagueId]} />}
+                {settings ? logicList(summariseRunIn(u, settings), ' · ') : ready ? t('pickJob') : <LeagueWait needs={[leagueId]} />}
               </div>
               <LeagueRetry needs={[leagueId]} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !job} data-testid="runin-start">

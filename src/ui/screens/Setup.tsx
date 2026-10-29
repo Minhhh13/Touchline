@@ -52,6 +52,7 @@ import { setup } from '../i18n/en/setup'
 import { B, rich } from '../i18n/rich'
 import { formationBlurb, modeCardInfo, modeCardLine, modeCardTitle, powerUpTitle, ruleChipsText } from '../i18n/engineText'
 import { weeklyThemeLineText, weeklyThemeText } from '../i18n/weeklyThemeText'
+import { logicLine, logicList } from '../i18n/logicText'
 
 const t = translator(setup)
 
@@ -398,7 +399,7 @@ export function Setup() {
   }
   const preview = buildSettings(true)
   // Until the week's league is in, the week has no season or host to state
-  const summary = (fixed?.kind === 'weekly' && !week) || (fixed?.kind === 'daily' && !dailyHere) ? t('loadingLeague', { article: leagueArticle(leagueNameOf(fixed.leagueId)), league: leagueNameOf(fixed.leagueId) }) : tidyLeagueArticles(summariseSetup(u, preview))
+  const summary = (fixed?.kind === 'weekly' && !week) || (fixed?.kind === 'daily' && !dailyHere) ? t('loadingLeague', { article: leagueArticle(leagueNameOf(fixed.leagueId)), league: leagueNameOf(fixed.leagueId) }) : logicList(tidyLeagueArticles(summariseSetup(u, preview)), ', ')
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
@@ -489,7 +490,7 @@ export function Setup() {
                 <div className="step-head-row">
                   <StepHead n={3} title={t('leagueSeason')} />
                   {superLeague ? (
-                    <span className="chip super season-pick" data-testid="super-season" title={SUPER_LEAGUE_LINE}>
+                    <span className="chip super season-pick" data-testid="super-season" title={logicLine(SUPER_LEAGUE_LINE)}>
                       <SuperLeagueMark /> {t('superSeason')}
                     </span>
                   ) : (
@@ -504,8 +505,8 @@ export function Setup() {
                 </div>
                 <div className="field setup-league">
                   {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
-                  <Segmented label={t('leagueChoice')} value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
-                  {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: SUPER_LEAGUE_LINE }) : t('europeWheel')}</span>}
+                  <Segmented label={t('leagueChoice')} value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: logicLine(SUPER_LEAGUE_LINE), testId: 'league-super' }] : [])]} />
+                  {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: logicLine(SUPER_LEAGUE_LINE) }) : t('europeWheel')}</span>}
                 </div>
                 {isManage && (
                   <div className="setup-replace" data-testid="you-replace">
@@ -671,7 +672,7 @@ export function Setup() {
                   <div className="setup-opt setup-wide-opt" data-testid="era">
                     <div className="setup-era-head">
                       <h3>{t('era')}</h3>
-                      <Segmented label={t('era')} value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: t('custom') }] : [])]} />
+                      <Segmented label={t('era')} value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: logicLine(p.label) })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: t('custom') }] : [])]} />
                       {classicFrom !== undefined && (
                         <label className="toggle era-classic" title={t('classicTip')}>
                           <input
@@ -696,8 +697,8 @@ export function Setup() {
                           {t('classicRange', { from: seasonLabel(classicFrom), to: seasonLabel(u.firstSeason - 1) })} <EstimatedChip compact />
                         </label>
                       )}
-                      <span className="chip" data-testid="era-count" title={eraLine && eraLine.n > 0 ? eraLine.caption : undefined}>
-                        {eraLine?.label}
+                      <span className="chip" data-testid="era-count" title={eraLine && eraLine.n > 0 ? logicLine(eraLine.caption) : undefined}>
+                        {logicLine(eraLine?.label)}
                       </span>
                     </div>
                     <SeasonRange
@@ -880,7 +881,7 @@ export function Setup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={fixed ? 4 : 5} title={t('spin')} />
               <div className="small muted" data-testid="setup-summary" title={isQuickLine ? summary : undefined}>
-                {isQuickLine ? quickSetupLineFull(u, preview) : summary}
+                {isQuickLine ? logicList(quickSetupLineFull(u, preview), ' · ') : summary}
                 {!fixed && (
                   <>
                     {' · '}

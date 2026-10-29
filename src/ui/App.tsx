@@ -36,6 +36,7 @@ import { app } from './i18n/en/app'
 import { shell } from './i18n/en/shell'
 import { useLanguage } from './i18n/language'
 import { B, rich } from './i18n/rich'
+import { shellLogicLine } from './i18n/logicLine'
 // The summer's player stories ride in their own chunk, with the history catalogue (the first download stays as it was)
 const SummerStories = lazy(() => import('./components/SummerStories').then((m) => ({ default: m.SummerStories })))
 
@@ -500,8 +501,8 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         <DigestGroup title={t('decidedForYou')} icon={<MessageSquare size={14} />} count={d.decisions.length}>
           {d.decisions.slice(0, DIGEST_GROUP_CAP).map((x, i) => (
             <li key={i}>
-              <b>{x.title}</b>{x.count ? t('decidedTimes', { n: x.count }) : ''}: {x.choice}
-              {x.outcome && <span className="muted"> · {x.outcome}</span>}
+              <b>{shellLogicLine(x.title)}</b>{x.count ? t('decidedTimes', { n: x.count }) : ''}: {shellLogicLine(x.choice)}
+              {x.outcome && <span className="muted"> · {shellLogicLine(x.outcome)}</span>}
             </li>
           ))}
         </DigestGroup>
@@ -567,13 +568,13 @@ function NewsGroup({ title, icon, items, testId }: { title: string; icon: React.
         if (!dev) {
           return (
             <li key={i}>
-              <b>{n.title}</b> <span className="muted">{newsBody(n)}</span>
+              <b>{shellLogicLine(n.title)}</b> <span className="muted">{shellLogicLine(newsBody(n))}</span>
             </li>
           )
         }
         return (
           <li key={i} className="dev-report">
-            <b>{n.title}</b>
+            <b>{shellLogicLine(n.title)}</b>
             {(
               [
                 [t('improving'), dev.improving, 'res-w'],

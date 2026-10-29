@@ -12,6 +12,7 @@ import { LeagueFlag } from '../components/Flag'
 import { clubName, money, seasonLabel, wage } from '../format'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(dugout)
 
@@ -108,7 +109,7 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
             {t('clear')}
           </button>
         )}
-        <span className="small muted one-line" title={focusLabel(focus)}>{focusLabel(focus)}</span>
+        <span className="small muted one-line" title={logicLine(focusLabel(focus))}>{logicLine(focusLabel(focus))}</span>
       </div>
       <div className="eyebrow" style={{ marginTop: 'var(--space-3)' }}>
         {t('knowledge', { n: assigned.length, max: maxAssignments(game) })}
@@ -219,7 +220,7 @@ function ScoutReport({ id, onClose }: { id: string | null; onClose: () => void }
         </span>
         <span className="chip">{money(p.value)}</span>
         <span className="chip">{wage(p.wage)}</span>
-        {view.scouted && <span className="chip" title={personalityOf(p).blurb}>{personalityOf(p).label}</span>}
+        {view.scouted && <span className="chip" title={logicLine(personalityOf(p).blurb)}>{logicLine(personalityOf(p).label)}</span>}
       </div>
       <div className="row between wrap" style={{ gap: 'var(--space-2)', margin: 'var(--space-2) 0' }}>
         <span className="small">

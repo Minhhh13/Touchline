@@ -26,6 +26,7 @@ import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { B, rich } from '../i18n/rich'
 import { edgeHintText, edgeText, styleHelp } from '../i18n/engineText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(season)
 
@@ -86,7 +87,7 @@ export function KickOff() {
               </button>
               <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
                 {t(s.january ? 'pausesJanuary' : 'noJanuary')}
-                {isSuperLeague(s) ? t('superCups', { line: SUPER_LEAGUE_LINE, n: QUICK_CONTINENTAL_PLACES }) : s.mode === 'quick' ? t('afterLeagueCups', { n: QUICK_CONTINENTAL_PLACES }) : ''}
+                {isSuperLeague(s) ? t('superCups', { line: logicLine(SUPER_LEAGUE_LINE), n: QUICK_CONTINENTAL_PLACES }) : s.mode === 'quick' ? t('afterLeagueCups', { n: QUICK_CONTINENTAL_PLACES }) : ''}
               </p>
             </div>
           </SquadComplete>

@@ -38,6 +38,7 @@ import { onTabListKey } from '../a11y'
 import { translator } from '../i18n'
 import { B, rich } from '../i18n/rich'
 import { season } from '../i18n/en/season'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(season)
 
@@ -148,8 +149,8 @@ export function SeasonPlayback() {
           </QuickTeamLine>
         </div>
         <div className={`chase ${line.tone} ${line.justBroke ? 'broke' : ''}`} key={line.justBroke ? `b${pb.revealed}` : line.tone} data-testid="chase" data-tone={line.tone}>
-          <b data-testid="chase-headline">{line.headline}</b>
-          {line.detail && <span className="small" data-testid="chase-detail">{line.detail}</span>}
+          <b data-testid="chase-headline">{logicLine(line.headline)}</b>
+          {line.detail && <span className="small" data-testid="chase-detail">{logicLine(line.detail)}</span>}
         </div>
         <div className="col fit-head-side" style={{ gap: 6 }}>
           <div className="row wrap pb-head-row pb-head-meta">

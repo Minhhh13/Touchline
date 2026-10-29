@@ -10,6 +10,7 @@ import { POWER_UP_INFO, type PowerUp } from '@engine/powerups'
 import { MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL, type ManagerStyle } from '@engine/managers'
 import { TRAINING, TRAINING_LABEL } from '@engine/training'
 import { STAFF, type StaffRole } from '@engine/staff'
+import { STATUS_LABEL, type SquadStatus } from '@engine/status'
 import type { TrainingFocus } from '@engine/training'
 import { YOUTH_AGE } from '@engine/managers'
 import type { CaseRarity } from '@engine/endCase'
@@ -38,6 +39,9 @@ export const styleLabel = (k: ManagerStyle) => read(`style_${k}`, MANAGER_STYLE_
 export const styleHelp = (k: ManagerStyle) => read(`styleHelp_${k}`, MANAGER_STYLE_HELP[k])
 export const trainingLabel = (k: TrainingFocus) => read(`training_${k}`, TRAINING_LABEL[k])
 export const trainingBlurb = (k: TrainingFocus) => read(`trainingBlurb_${k}`, TRAINING[k].blurb)
+/** A squad status as a label ('Key player'), and as it reads inside a sentence ('key player'). */
+export const statusLabel = (k: SquadStatus) => read(`status_${k}`, STATUS_LABEL[k])
+export const statusLower = (k: SquadStatus) => read(`statusLower_${k}`, STATUS_LABEL[k].toLowerCase())
 export const staffLabel = (k: StaffRole) => read(`staff_${k}`, STAFF[k].label)
 export const staffHelp = (k: StaffRole) => read(`staffHelp_${k}`, STAFF[k].help)
 export const staffTierTitle = (k: StaffRole, tier: number) => read(`staffTier_${k}_${tier}`, STAFF[k].tiers[tier]?.title ?? '')

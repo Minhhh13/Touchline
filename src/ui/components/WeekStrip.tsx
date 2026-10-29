@@ -5,6 +5,7 @@ import { weekChanges } from '@game/logic/seasonPlay'
 import { clubShort, ordinal, outcomeClass, outcomeOf } from '../format'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(dugout)
 
@@ -31,7 +32,7 @@ export function WeekStrip({ game, u, onInbox }: { game: Game; u: LoadedUniverse;
       {w.injuries > 0 && <span className="chip warn">{t('weekInjuries', { n: w.injuries })}</span>}
       {w.suspensions > 0 && <span className="chip warn">{t('weekBans', { n: w.suspensions })}</span>}
       {w.cup.slice(-2).map((line) => (
-        <span key={line} className="chip">{line}</span>
+        <span key={line} className="chip">{logicLine(line)}</span>
       ))}
       {w.posted > 0 && (
         <button type="button" className="chip-btn" onClick={onInbox} data-testid="week-inbox">

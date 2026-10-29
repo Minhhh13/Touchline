@@ -9,6 +9,7 @@ import { playSound } from '../sound/synth'
 import { prefersReducedMotion } from '../motion'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(season)
 /** The trial seasons as a grouped number in the viewer's language ("2,000"). */
@@ -172,7 +173,7 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
         </div>
       </div>
       <p className="help" style={{ margin: 0 }}>
-        {t('punditsCall', { n: trialSeasons(), against: superLeague ? t('againstSuper', { line: SUPER_LEAGUE_LINE.toLowerCase() }) : game.settings.mode === 'quick' ? t('againstThis') : t('againstSeason', { season: seasonLabel(game.settings.leagueSeason) }) })}
+        {t('punditsCall', { n: trialSeasons(), against: superLeague ? t('againstSuper', { line: logicLine(SUPER_LEAGUE_LINE).toLowerCase() }) : game.settings.mode === 'quick' ? t('againstThis') : t('againstSeason', { season: seasonLabel(game.settings.leagueSeason) }) })}
       </p>
       {children}
     </div>
