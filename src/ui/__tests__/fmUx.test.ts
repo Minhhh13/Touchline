@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { statsAt, statsSeries } from '@engine/matchStats'
 import { sinceMinute } from '../matchday/model'
-import { dugoutKey, isControlTarget, type DugoutKeyContext } from '../dugoutKeys'
+import { clickedTabAfter, DUGOUT_TAB_ORDER, dugoutKey, isControlTarget, TAB_KEYS, tabShortcuts, type DugoutKeyContext } from '../dugoutKeys'
 import { resultFeed, u } from './feeds'
 import { timeline, type LiveClockState } from '../match/clockStore'
 import { AFTER, boostAt, BUILD_UP, isMoment, levelAt, marginAt, parseLevel, QUIET_BOOST, watchedMinutes } from '../match/highlights'
@@ -162,5 +162,45 @@ describe("the assistant's live line", () => {
         if (first.text.includes('xG')) expect(first.text).toContain(at.home.xg.toFixed(2))
       }
     }
+  })
+})
+
+describe('the Dugout keyboard, round 10', () => {
+  const ctx = (over: Partial<DugoutKeyContext> = {}): DugoutKeyContext => ({ onControl: false, modalOpen: false, modifier: false, canPlay: true, tabs: 14, tabIds: DUGOUT_TAB_ORDER, ...over })
+  it('orders the tabs as a manager works: team, match, Inbox and Office before the rest', () => {
+    expect(DUGOUT_TAB_ORDER.slice(0, 5)).toEqual(['squad', 'next', 'tactics', 'inbox', 'office'])
+    expect(DUGOUT_TAB_ORDER.at(-1)).toBe('club')
+    expect(new Set(DUGOUT_TAB_ORDER).size).toBe(DUGOUT_TAB_ORDER.length)
+  })
+  it('gives every tab its own letter, never A or R (the assistant keeps them)', () => {
+    const letters = DUGOUT_TAB_ORDER.map((id) => TAB_KEYS[id])
+    expect(new Set(letters).size).toBe(letters.length)
+    expect(letters).not.toContain('A')
+    expect(letters).not.toContain('R')
+    for (const id of DUGOUT_TAB_ORDER) expect(dugoutKey(TAB_KEYS[id].toLowerCase(), ctx())).toEqual({ kind: 'tabId', id })
+    expect(dugoutKey('i', ctx({ tabIds: ['squad', 'tactics'] }))).toBeNull()
+    expect(dugoutKey('i', ctx({ onControl: true }))).toBeNull()
+    expect(dugoutKey('I', ctx({ modifier: true }))).toBeNull()
+  })
+  it('lets digits and letters through on a tab of the strip, and Space only on the tab a click focused', () => {
+    expect(dugoutKey('3', ctx({ onControl: true, onTab: true }))).toEqual({ kind: 'tab', index: 2 })
+    expect(dugoutKey('m', ctx({ onControl: true, onTab: true }))).toEqual({ kind: 'tabId', id: 'market' })
+    expect(dugoutKey(' ', ctx({ onControl: true, onTab: true, tabByPointer: true }))).toEqual({ kind: 'play' })
+    expect(dugoutKey(' ', ctx({ onControl: true, onTab: true }))).toBeNull()
+    expect(dugoutKey(' ', ctx({ onControl: true, onTab: true, tabByPointer: true, canPlay: false }))).toBeNull()
+  })
+  it('shows each tab its digit while among the first ten, and its letter always', () => {
+    const keys = tabShortcuts(DUGOUT_TAB_ORDER)
+    expect(keys[0]).toEqual({ digit: '1', letter: 'S' })
+    expect(keys[9]).toEqual({ digit: '0', letter: 'L' })
+    expect(keys[10]).toEqual({ letter: 'C' })
+  })
+  it('remembers the tab a click focused until a key moves the focus', () => {
+    let at = clickedTabAfter<string>(null, { pointer: 'tactics' })
+    expect(at).toBe('tactics')
+    for (const key of ['i', '3', ' ', 'a']) expect((at = clickedTabAfter(at, { key }))).toBe('tactics')
+    expect(clickedTabAfter(at, { key: 'ArrowRight' })).toBeNull()
+    expect(clickedTabAfter(at, { key: 'Tab' })).toBeNull()
+    expect(clickedTabAfter(at, { pointer: null })).toBeNull()
   })
 })
