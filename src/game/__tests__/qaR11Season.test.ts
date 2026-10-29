@@ -42,6 +42,8 @@ interface Seen {
   matchweek: number
   out: Set<string>
   apps: Map<string, number>
+  /** The last cup match at the read: a tie played after the league match is a new one. */
+  cup: Game['lastCupMatch']
 }
 
 /** The checks on one step's game; `seen` is the last step's read, for the match it promised. */
@@ -68,7 +70,9 @@ function stepProblems(g: Game, seen: Seen | null): { problems: string[]; next: S
     if (seen.out.size) met.matchChecked++
     for (const id of seen.out) {
       const apps = g.squad[id]?.seasonStats.apps
-      if (apps !== undefined && apps > (seen.apps.get(id) ?? 0)) problems.push(`${label}: ${id} was named out of matchweek ${s.matchweek} but played`)
+      // A ban or injury named is for the league match; a cup tie played after it that week may take him (a ban is served)
+      const cupApp = g.lastCupMatch && g.lastCupMatch !== seen.cup && id in g.lastCupMatch.conditionLoss ? 1 : 0
+      if (apps !== undefined && apps > (seen.apps.get(id) ?? 0) + cupApp) problems.push(`${label}: ${id} was named out of matchweek ${s.matchweek} but played`)
     }
   }
   // The Office's line: there exactly while the Office waits on the manager
@@ -82,7 +86,7 @@ function stepProblems(g: Game, seen: Seen | null): { problems: string[]; next: S
     if (line) problems.push(...badValues(line, `${label} office line`))
     if (line && /undefined|NaN|Infinity/.test(line.text)) problems.push(`${label}: office line "${line.text}"`)
   }
-  const next: Seen | null = ahead ? { year: g.year, matchweek: s.matchweek, out: new Set(ahead.out.map((m) => m.id)), apps: new Map(Object.entries(g.squad).map(([id, sp]) => [id, sp.seasonStats.apps])) } : null
+  const next: Seen | null = ahead ? { year: g.year, matchweek: s.matchweek, out: new Set(ahead.out.map((m) => m.id)), apps: new Map(Object.entries(g.squad).map(([id, sp]) => [id, sp.seasonStats.apps])), cup: g.lastCupMatch } : null
   return { problems, next }
 }
 
