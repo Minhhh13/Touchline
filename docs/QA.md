@@ -274,3 +274,18 @@ Also: the Office tab's components read the store through `useStorePick` (a bare 
 
 - Round 8's systems held up in their arithmetic: no NaN, broken window, stuck phase or lost save in the office, cup or sync sweeps; every reload and cloud trip played on to the same game. The bugs were at the seams again: a promise rule written before contract talks could shorten a deal (R9-1), a request outliving its season (R9-5), a market check the office cannot pass its wage to (R9-2, R9-O2), words wrapped twice (R9-8, R9-10) and a load path that trusted an imported file (R9-7).
 - Not covered: online play against the real project, real iOS, the share card's canvas in a browser, and sound.
+
+## R10 (setup and draft). Setup and the Draft played as a returning player would (`claude/r10-setup-draft`, 2026-10-29)
+
+Quick Draft's Setup and Draft at 1280x800 and 390x844 (and 360x740), Floodlit and Daylight, Playwright on the built site; display and UI only, no draw, no save field, the edge bundle unchanged (`verifier-ecc269657e48639b.js`).
+
+| Id | Severity | What happened | Fixed by | Test |
+| --- | --- | --- | --- | --- |
+| R10-1 | Medium (friction) | Setup forgot every choice: a returning player with a favourite shape, modes or cap set them again each time | `src/ui/setupMemory.ts`: the last choices started with, per mode and viewer, and a **defaults** link above Start | `setupMemory.test.ts`, Playwright (start, Home, Setup: the choices back; defaults: the key cleared) |
+| R10-2 | Low (display) | On a phone the mode cards broke their names mid-word ("Underdo g", "Speedru n", "Upgrade r") and said nothing of what they do; the four switches were cards of other sizes | Under 1000 px one grid of cards, each icon, whole name and one line | Playwright (390, 360) |
+| R10-3 | Low | The Modes count said "1 on" with End case, Moneyball and a mode lit | The count includes the four switches | Playwright |
+| R10-4 | Low (friction) | Tapping a player low in the landed squad opened "Where does he play?" above the list, off screen on a phone and above the scrolled list on a desktop | It scrolls into view on a selection | Playwright (390, 1280: in view after tapping the tenth row) |
+| R10-5 | Low (friction) | On a phone the landed squad stopped with its first player at the screen's foot: the focus moved to the club's name cut the smooth scroll short | The scroll waits a frame, club name at the top | Playwright (390) |
+| R10-6 | Low (wording) | "Re-spin (1)" did not say the number is what is left, or what a re-spin costs; slot chips read "left CM" | "Re-spin · 1 left" with a tooltip (swaps the club-season, costs no pick); "Left CM" (`slotLabelText`) | `setupMemory.test.ts`, `draftFit.test.ts` |
+
+Looked at and left: the reel's timing (`reelCurve.ts`, untouched), the recap and Hindsight XI (clear, with the grade tip above them), the desktop Modes row (hover, focus or a tap shows each card's line), and an invented team name, which is invented again on the next setup by design (`teamName.ts`; a typed name is kept).

@@ -16,7 +16,7 @@ import { HoverTips } from '../components/PowerUpButton'
 import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
-import { fitGroups, fitsFirst } from '../draftFit'
+import { fitGroups, fitsFirst, slotLabelText } from '../draftFit'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
 import { SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
@@ -166,8 +166,17 @@ export function Draft() {
   const squadRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!revealed || typeof window === 'undefined' || !window.matchMedia?.('(max-width: 720px)').matches) return
-    squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    // The club's head at the top of the screen (under the top bar, `scroll-margin-top`), so the best players are in view;
+    // a frame later, so the focus moved to the club's name below (an instant scroll of its own) does not cut it short
+    const frame = requestAnimationFrame(() => squadRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' }))
+    return () => cancelAnimationFrame(frame)
   }, [revealed])
+  // "Where does he play?" sits above the squad list: a player tapped further down brings it into view, so the slot
+  // choice is never off screen (on a phone the page scrolls, on a desktop the squad box)
+  const slotChoicesRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (selectedPlayer) slotChoicesRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' })
+  }, [selectedPlayer])
   // The landing moves the focus to the club's name (the Spin button under it is disabled), so the squad is the next Tab
   const clubHeadRef = useRef<HTMLHeadingElement>(null)
   useFocusOnLanding(revealed, clubHeadRef)
@@ -444,7 +453,7 @@ export function Draft() {
                   </button>
                 )}
                 <div className="row between wrap">
-                  <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
+                  <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()} title={t('respinTip', { n: d.respinsLeft })} data-testid="respin">
                     {t('respin', { n: d.respinsLeft })}
                   </button>
                   <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
@@ -624,7 +633,7 @@ export function Draft() {
               {!revealed && spinning && <div className="notice">{t('reelRunning')}</div>}
               {revealed && twist === 'blind' && <div className="notice">{t('blindPick')}</div>}
               {revealed && selected && (
-                <div className="notice slot-choices" data-testid="slot-choices">
+                <div className="notice slot-choices" data-testid="slot-choices" ref={slotChoicesRef}>
                   <div>
                     {rich(t('whereDoes', { name: selected.name }), B)}
                   </div>
@@ -633,8 +642,8 @@ export function Draft() {
                       // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
                       const r = slotRating(selected, c.position)
                       return (
-                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingText(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${fitText(c.fit)}` : `${slotRatingText(r, c.label)}, ${fitText(c.fit)}`}>
-                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {fitText(c.fit)}
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingText(r, slotLabelText(c.label), { attributes: true })} aria-label={hide ? `${slotLabelText(c.label)}, ${fitText(c.fit)}` : `${slotRatingText(r, slotLabelText(c.label))}, ${fitText(c.fit)}`}>
+                          <b>{slotLabelText(c.label)}</b> {hide ? '?' : r.inSlot} · {fitText(c.fit)}
                           {!hide && r.cost > 0 && (
                             <span className="slot-cost" data-testid="slot-cost">
                               {' '}{t('slotCost', { n: r.overall, cost: costText(r) })}
