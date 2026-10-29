@@ -6819,8 +6819,10 @@ dl.kv {
 .live-flash {
   animation: fadein var(--dur-3) var(--ease-out);
 }
+/* Wraps when it must: a long side name ran the away swatch 12 px past a 390 px phone on a Gauntlet report (a11y round 7) */
 .live-legend {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
@@ -13538,6 +13540,7 @@ table.tbl.contracts-overview .link-btn.name {
 /* The shot map's key: drawn markers, at the legend's own size */
 .shot-key {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   font-size: var(--fs-xs);
