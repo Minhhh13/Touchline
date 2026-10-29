@@ -16,6 +16,7 @@ import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 import { briefShortText, jobText, templateText } from '../runInText'
 import { logicList } from '../i18n/logicText'
+import { useTallBar } from '../tallBar'
 
 const t = translator(runin)
 
@@ -31,6 +32,8 @@ export function RunInSetup() {
   const [formation, setFormation] = useState<string>('club')
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
+  // A bar taller than a third of the window (large text on a small phone) sits at the page's foot instead
+  const tallBar = useTallBar(barHeight)
   useEffect(() => {
     const el = barRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -87,7 +90,7 @@ export function RunInSetup() {
 
   return (
     // Main's setup layout: numbered steps in two boxes, one screen on a desktop (the job list scrolls inside its box)
-    <div className="page setup-page runin-setup has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page setup-page runin-setup has-bottom-bar${tallBar ? ' bar-static' : ''}`} style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">
         <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
           <div>

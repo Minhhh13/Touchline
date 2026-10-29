@@ -494,3 +494,53 @@ Branch `claude/r13-h2h-look`, from `main` at #96 with round 12's integration bra
 
 - The hot-seat setup still scrolls its body at 1280x800 (as the room's setup does): Manager 1's and Manager 2's formation tiles are the long part. Start stays in view at the foot.
 
+
+# Round 12: phones (r14, 2026-10-29)
+
+Branch `claude/r14-phones`, from `main` at #98 (round 13). The owner plays on phones: a layout pass on real phone sizes. Display only: CSS, two small presentation hooks (`src/ui/useSheetDrag.ts`, moved out of `bits.tsx`, and `src/ui/tallBar.ts`), no draw, no save field, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.
+
+## R12P-1. How it was checked
+
+- **Devices.** iPhone SE 375x667 (insets 20/0, a status bar and no home indicator), iPhone 15 393x852 (59/34), iPhone 15 Pro Max 430x932 (59/34), Pixel 8 412x915 (24/0) and a small Android 360x800 (24/0), each upright and on its side (the iPhones 59 px each side and a 21 px home indicator; the SE and the Androids none), with Playwright's touch (`hasTouch`, `isMobile`, a 2x screen) and the insets through the safe-area tokens (the override `safeAreaOverride` makes; the round's phones are now in `DEVICE_INSETS`). Both themes; then upright at `html { font-size: 200% }` (iOS Dynamic Type's largest step).
+- **States, 74 in all,** saved once by driving every flow through the UI on an online build pointed at `scripts/online/room-mock.mjs` (docs/ONLINE.md 5e), then loaded fresh on each device: Home new and returning; Setup for Quick Draft, the Daily, the Weekly, Season, Dynasty, the Gauntlet, the Cup and the Run-in; the Draft (start, a landed spin, complete) for Quick, Season, Cup and Run-in; the manager spin, the end case before and after, Squad complete, the playback, January, its end; the quick Summary and its cup night; the Season summary; the Dugout before the season and at matchweek 6 on all 13 of its tabs (the Office included; Europe has no tab that season), the digest, a player card; the match day at half time, live, at 70' and its report, the half-time substitution board and a drawer; the Gauntlet's and the Cup's hub, report, after a round and summary; the Run-in's dugout and summary; head-to-head setup (this device and online), draft, complete and result; Explore (Clubs, League, Search, Compare, Records), Profile, World, Account, How it works, Privacy. The online room separately, host and guest in two contexts (waiting, join, draft, result) on every phone, both orientations and themes: 120 shots.
+- **What each shot was probed for, by script:** a page wider than the window; a field under 16 px (iOS zooms the page into it); a control whose target (an invisible `::after` counted) is under 44 px; each control scrolled to the middle of its scroller and checked to be on top at its centre (the dock, a fixed bar, a sticky foot or a neighbour's target over it); a control in the status bar's or the notch's strip; at 200 %, text cut by its box with no ellipsis, and text past the window. Each sheet pulled down from its grip or header by pointer. The before run is `main` at #98, the after run this branch; about sixty shots (every flagged state, every screen at least once) were also looked at by eye on contact sheets. The 200 % pass (370 shots, upright) ran on this branch once its first commit was in, then after the large-text fixes: text cut by its box with nothing to show it (a call's label, a heading, a chip, a record), or past the window, went from 19 kinds of finding to 6; the fixture list, the record and a call holding one long word ("Take over Middlesbrough" on a Pixel 8) were fixed after that run and checked by eye, and the 2 kinds left are the probe's false positives (a contract name's 12 px tap padding counted as cut). O-3's open half (a phone on its side's page content) is closed by #1.
+
+## R12P-2. Before and after
+
+Probe counts over the 740 dark-theme shots (5 phones, upright and on their side, 74 states; the light theme's shots differ only in colour and were checked by eye on the iPhone 15 and the small Android):
+
+| Probe | Before (`main`) | After |
+| --- | --- | --- |
+| Fields under 16 px | 258 in 96 shots (every phone on its side) | 0 |
+| A control in the notch's strip | 148 in 134 shots | 0 (the 3 left are the half-time board's own pitch scrolled inside the sheet) |
+| A control covered at its centre | 81 in 11 shots | 2 in 1 (two of the half-time board's shirts on a 225 px pitch) |
+| Targets under 44 px | 2,956 in 201 shots | 2,710 in 153 shots, every one listed in R12P-3 |
+| A page wider than the window | 0 | 0 |
+| Page errors | 0 | 0 |
+
+| # | Screen, device, theme | Before | After |
+| --- | --- | --- | --- |
+| 1 | Every screen, every iPhone on its side, both | A page's content ran under the notch and the rounded corners (16 px from the edge with a 59 px inset; the half of O-3 left open in round 3) | The page takes the side insets as a transparent border (`.app > .page`), 0 px upright, on a tablet and in a browser tab |
+| 2 | Every field, every phone on its side, both | Fields at 12 to 14 px (the setup's team name and season, Explore's search and filters, the market's focus, the Tactics tab's roles, the arena's captain and training, the match day's pickers, the room's boxes, Account's email): iOS zoomed the page into each | 16 px on a short touch screen too, as upright |
+| 3 | Every screen, iPhones, both | The skip links (Skip to content, Setup's Skip to Start) showed under the status bar and, on its side, under the notch | Below the status bar and clear of the notch; hidden above the inset |
+| 4 | The match day, every phone, both | The drawers (Tactics, Instructions, Shouts, Set pieces, Substitutions) are bottom sheets on a phone but could not be pulled down to close (Modal's sheets could); their ✕ was 28 px | A grip and the same pull-down close (`useSheetDrag`, now one hook for both); the ✕ takes 44 px |
+| 5 | Arena hub, team talk, 360 px Android, both | Equal quarters ran "Encourage" into "Demand" | Each choice takes its word's width plus a share; wraps at 200 % |
+| 6 | The dock, 360 to 412 px, both | The game's cell read "Summ…" (equal sevenths) | Cells sized by caption: "Summary" whole at 360 px |
+| 7 | Explore, League, every phone | The record holders wrapped 24 px apart with 48 px targets, so a tap on "Man City 2017-18" opened "Man City 2018-19" or "Liverpool 2019-20" | Each holder a 44 px row with its own target |
+| 8 | Explore League's top-rated rows, text links ("How it works", "change"), switch rows (Classic, player power, head-to-head's Classic), the player card's tabs and star, a bench card on the substitution board, the shortlist star on its side | 28, 43, 29 to 42, 26, 24, 40 px | 44 px |
+| 9 | Arena hub, iPhone SE on its side, both | The fixed calls took 157 of 375 px; controls behind them | Back at the foot of their box, as the Dugout's call bar on a small phone on its side |
+| 10 | Half-time substitution board, iPhone SE on its side, both | The pitch stacked over the bench in 375 px and scrolled away once a bench card had the focus; the two calls stacked (113 px) | The pitch beside the bench, the calls on one row (63 px) |
+| 11 | Dugout, Setup (every mode), the arena's setup and hub, Run-in setup; 200 % text on an iPhone SE and iPhone 15 | The fixed bottom bar took 330 of 667 px (the Dugout) and left a strip of the tab | A bar over a third of the window sits at the foot of the page (`tallBar.ts`, `.bar-static`); untouched at 100 % (163 of 667 on the SE) |
+| 12 | 200 % text, every phone | Setup's Start cut to "…rt drafting your squ…", the Gauntlet's Draft, Squad complete's Simulate season, Play your first draft, the spin and Run-in calls cut the same way; the stop panel's "Let the assistant decide" and "Finish the match" ran off a 360 px screen; the Dugout's "Elderbridge United" and "£119M" ran past the strip into the board's 55; the Daily card's "Challenge" and the player card's "Rotation · 65% of minutes lately" chip past the card | Wide calls, a bar's and a stop panel's buttons wrap their words (a word longer than the call breaks); a heading's long word breaks (hyphenated where the browser can); the club strip takes one figure a row when two no longer fit; the card's chips wrap |
+| 13 | 200 % text: the Dugout's Fixtures tab, head-to-head's result, every phone, both | The fixture list's 38 px matchweek column ran "MW15" into the opponent's place; "23W 7D 8L" ran past the result card | The matchweek column grows with its text; a record wraps |
+| 14 | A bar put back in the page (#9, #11), every phone | As a flex item it kept its z-index and painted over the sticky top bar while the page scrolled | No z-index in the flow |
+
+## R12P-3. Checked and left as is
+
+- **Dense chips at 35 px:** the Dugout's depth chart, the planner's need chips, the Key toggle, the draft log's pick grades (29 px, a tooltip). They wrap in rows 28 px apart; 44 px targets would overlap the next row's (the holders' bug, #7). Above WCAG 2.5.8's 24 px.
+- **Pitch discs at 36 px** on a narrow pitch: the slot (disc and name) is the target, 50 px or more.
+- **The match day on its side** keeps its tools, panel tabs and highlights picker at 31 to 32 px (round 8's decision, so the pitch keeps its height in 393 px), and a bench card at 30 px.
+- **The setup cards' "i"** stays 32 px: it sits on a card's corner, and a larger target would take the card's own taps.
+- **The Dugout's call bar on an upright phone at 100 %** (Match, Play, To big match, Sim 5, Sim to end) takes 163 of an iPhone SE's 667 px with the dock's 58 under it: nothing is covered (the page pads for it) but a third of the screen is controls. A compact bar (the play mode as a menu on Play) is a design change for the owner.
+- **Hyphens:** Chromium on Linux has no hyphenation dictionary, so at 200 % a long heading breaks without one there; Safari on iOS hyphenates.
+- No page scroll sideways, no page error, the online room flows to its result on every phone in both orientations and themes.
