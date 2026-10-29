@@ -11,6 +11,7 @@ import { sentence } from '../../online/postText'
 import { translator } from '../i18n'
 import { rich } from '../i18n/rich'
 import { online } from '../i18n/en/online'
+import { formatLocale } from '../format'
 
 const t = translator(online)
 
@@ -51,7 +52,7 @@ export function CasualStatus({ game }: { game: Game }) {
     // The country's rank carries its drawn flag (a `<flag></flag>` tag in the message, `rich` below)
     const country = post.country && post.countryPosition ? t('casualCountryRank', { pos: post.countryPosition, total: post.countryTotal ?? 0, country: countryName(post.country) }) : ''
     const result = post.detail && !/^[A-Z_ ]+$/.test(post.detail) ? post.detail : t('casualPts', { n: post.points })
-    const total = post.total.toLocaleString()
+    const total = post.total.toLocaleString(formatLocale())
     share = t('shareRank', { pos: post.position, total, where, app: APP_NAME }) + ` (${result})`
     const code = post.country
     line = <>{rich(t(post.already ? 'casualFirst' : post.claimMatched ? 'casualPosted' : 'casualPostedOfficial', { where, pos: post.position, total, result, country }), { flag: () => (code ? <CountryFlag code={code} size={16} /> : null) })}</>

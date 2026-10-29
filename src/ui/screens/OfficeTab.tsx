@@ -3,7 +3,7 @@ import { Briefcase, Handshake, MessageCircle, Mic, Newspaper, ScrollText, Users 
 import { officeActions as act } from '@game/officeActions'
 import type { Game, OfficePromise, TransferRequest } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, type SquadStatus } from '@engine/status'
+import { EXPECTED_SHARE, STATUSES, type SquadStatus } from '@engine/status'
 import type { Boxes } from '../components/Boxes'
 import { playerLookup } from '@game/logic/players'
 import { officeItems } from '@game/logic/office'
@@ -26,6 +26,8 @@ import { rich } from '../i18n/rich'
 import { translator } from '../i18n'
 import { office } from '../i18n/en/office'
 import { useStorePick } from '../useStorePick'
+import { statusLabel } from '../i18n/engineText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(office)
 const B = (c: ReactNode) => <b>{c}</b>
@@ -218,7 +220,7 @@ function RequestCard({ game, u, id, req, week, onPlayer, say }: BoxProps & { id:
               {answerLabel(r.answer)}
             </button>
             <span className="small muted" data-testid={`risk-${r.answer}`}>
-              {r.problem ?? riskLine(game, r)}
+              {r.problem ? logicLine(r.problem) : riskLine(game, r)}
             </span>
           </li>
         ))}
@@ -240,7 +242,7 @@ function PlayerView({ game, u, id }: BoxProps & { id: string }) {
       <span className="eyebrow">{t('hisView')}</span>
       <span className="row wrap" style={{ gap: 4 }}>
         <span className={`chip ${moraleClass(read.morale)}`}>{t('viewMorale', { word: moraleWord(read.morale) })}</span>
-        <span className="chip" title={persona.blurb}>{persona.label}</span>
+        <span className="chip" title={logicLine(persona.blurb)}>{logicLine(persona.label)}</span>
         <span className="chip muted">{skin}</span>
         <span className={`chip ${read.agent === 'greedy' ? 'warn' : read.agent === 'loyal' ? 'good' : ''}`} title={t(`agentHelp_${read.agent}`)} data-testid="view-agent">
           {t('viewAgent', { mood: t(`mood_${read.agent}`) })}
@@ -551,7 +553,7 @@ function StatusBox({ game, u, onPlayer }: BoxProps & { onPlayer: (id: string) =>
               <button type="button" className="who link-btn" onClick={() => onPlayer(id)}>
                 <b>{p!.name}</b>
                 <span className="small muted one-line" style={{ fontWeight: 'normal' }}>
-                  {STATUS_LABEL[status]} · {t('expects', { pct: Math.round(EXPECTED_SHARE[status] * 100) })}
+                  {statusLabel(status)} · {t('expects', { pct: Math.round(EXPECTED_SHARE[status] * 100) })}
                   {share !== null ? ` · ${t('played', { pct: Math.round(share * 100) })}` : ''}
                 </span>
               </button>
@@ -710,7 +712,7 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
             <select className="input" value={st} onChange={(e) => setStatus(e.target.value as SquadStatus)} aria-label={t('status')} title={t('status')} data-testid="terms-status">
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
+                  {statusLabel(s)}
                 </option>
               ))}
             </select>

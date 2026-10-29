@@ -11,6 +11,7 @@ import { moraleClass, signed } from '../components/Happiness'
 import { meterValue } from '../format'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(dugout)
 
@@ -51,14 +52,14 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
           if (!list.length) return null
           return (
             <div key={tier} className="room-tier">
-              <div className="eyebrow">{TIER_LABEL[tier]}</div>
+              <div className="eyebrow">{logicLine(TIER_LABEL[tier])}</div>
               {list.map((r) => {
                 const p = get(r.id)
                 return (
                   <button key={r.id} type="button" className="room-row" onClick={() => onPlayer(r.id)}>
                     <span className="who">
                       <b>{r.name}</b>
-                      <span className="small muted">{[...r.reasons, p ? personalityOf(p).label : ''].filter(Boolean).join(' · ')}</span>
+                      <span className="small muted">{[...r.reasons, p ? personalityOf(p).label : ''].filter(Boolean).map(logicLine).join(' · ')}</span>
                     </span>
                     <span className={`chip ${moraleClass(r.morale)}`} title={t('morale')}>
                       {meterValue(r.morale)}
@@ -80,7 +81,7 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
             </h3>
             <Info label={t('aboutAtmosphere')}>{t('atmosphereInfo')}</Info>
           </span>
-          <span className="chip">{atmos.label}</span>
+          <span className="chip">{logicLine(atmos.label)}</span>
         </div>
         <div className="atmos" data-testid="atmosphere">
           <span className="atmos-value">{atmos.value}</span>
@@ -88,7 +89,7 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
         </div>
         <ul className="atmos-lines small muted">
           {atmos.lines.map((l) => (
-            <li key={l}>{l}</li>
+            <li key={l}>{logicLine(l)}</li>
           ))}
         </ul>
         <h4 className="head-title room-sub">
@@ -98,7 +99,7 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
           {groups.map((g) => (
             <div key={g.id} className="room-group">
               <div className="row between" style={{ gap: 'var(--space-2)' }}>
-                <b className="one-line">{g.label}</b>
+                <b className="one-line">{logicLine(g.label)}</b>
                 <span className={`chip ${moraleClass(g.morale)}`} title={t('avgMorale')}>
                   {meterValue(g.morale)}
                 </span>
@@ -133,7 +134,7 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
             <button key={r.id} type="button" className="room-row" onClick={() => onPlayer(r.id)} data-testid="mood-row">
               <span className="who">
                 <b>{r.name}</b>
-                <span className="small muted one-line">{h.main ? `${h.main.text} ${signed(h.main.delta)}` : t('nothingRecorded')}</span>
+                <span className="small muted one-line">{h.main ? `${logicLine(h.main.text)} ${signed(h.main.delta)}` : t('nothingRecorded')}</span>
               </span>
               <span className={`chip ${moraleClass(h.morale)}`}>{meterValue(h.morale)}</span>
             </button>

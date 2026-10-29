@@ -40,6 +40,7 @@ import { fixed } from '../format'
 import { clubCode, longWord, personalBest, splitSeason } from '../arenaText'
 import { streakStanding } from '@game/logic/casualStreak'
 import { resultId } from '@game/logic/cabinet'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(arena)
 
@@ -188,7 +189,7 @@ export function ArenaSummary() {
         )}
         {standing && (
           <p className="tier-blurb" data-testid="arena-daily-standing">
-            {standing.practice ? t('dailyPractice', { label: standing.counted.label }) : t('dailyCounted', { streak: standing.streak })}
+            {standing.practice ? t('dailyPractice', { label: logicLine(standing.counted.label) }) : t('dailyCounted', { streak: standing.streak })}
           </p>
         )}
         {winner && (
@@ -279,7 +280,7 @@ export function ArenaSummary() {
                       <span style={{ minWidth: 0 }}>
                         {/* The season stays on one line: a narrow box broke "2008-09" at its hyphen */}
                         <div style={{ fontWeight: 600 }}>
-                          {t('stepVs', { label: s.label, club: splitSeason(arenaClubName(u, s.opponent)).club })}
+                          {t('stepVs', { label: logicLine(s.label), club: splitSeason(arenaClubName(u, s.opponent)).club })}
                           {seasonOf(s.opponent) && <> <span style={{ whiteSpace: 'nowrap' }}>{seasonOf(s.opponent)}</span></>}
                         </div>
                         <div className="small muted">

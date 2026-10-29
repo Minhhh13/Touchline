@@ -30,8 +30,8 @@ describe('the device pass', () => {
 
   it('gives a phone on its side a one-row bar and the phone targets', () => {
     expect(css).toContain('@media (max-height: 500px) and (max-width: 1100px) and (pointer: coarse) {\n  .app > .topbar {\n    flex-wrap: nowrap;')
-    // The accessibility pass's two phone target blocks reach a short touch screen too
-    expect(css.split('@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {').length - 1).toBe(2)
+    // The accessibility pass's two phone target blocks, and r10's for the account flag list, menu and chip, reach a short touch screen too
+    expect(css.split('@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {').length - 1).toBe(3)
   })
 
   it('caps a pitch below the desktop shell, never a formation picture', () => {

@@ -6,7 +6,6 @@ import * as api from '../../online/api'
 import { EMAIL_RE, maskEmail, type NameVerdict } from '../../online/auth'
 import { restorable } from '../../online/sync'
 import type { CloudRow } from '../../online/transport'
-import { savedLine } from '../../online/core/status'
 import { SLOT_IDS, slotContents } from '../../online/core/slots'
 import { authOutcomeNote, type AuthMode } from '../../online/core/authCopy'
 import { authModes, authNoteText, authText } from './authText'
@@ -14,12 +13,14 @@ import { ClubBadge, Segmented } from '../components/bits'
 import { COUNTRY_OPTIONS, countryName } from './countries'
 import { ConflictCards, whereText } from './ConflictCard'
 import { OnlineRecord } from './OnlineRecord'
-import { onlineErrorText } from '../../online/postText'
+import { onlineErrorUi as onlineErrorText, savedLineText } from './statusText'
 import { askConfirm } from '../confirm'
 import { activeLocale, translator } from '../i18n'
 import { PSEUDO_LOCALE } from '../i18n/pseudo'
 import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
+import { logicLine } from '../i18n/logicText'
+import { formatDate } from '../format'
 
 const tr = translator(online)
 
@@ -240,7 +241,7 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
         >
           <label className="field">
             {tr('email')}
-            <input className="input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched(true)} placeholder="you@example.com" aria-invalid={emailWrong || undefined} aria-describedby={emailWrong ? 'signin-email-check' : undefined} data-testid="signin-email" />
+            <input className="input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched(true)} placeholder={tr('emailPlaceholder')} aria-invalid={emailWrong || undefined} aria-describedby={emailWrong ? 'signin-email-check' : undefined} data-testid="signin-email" />
           </label>
           {emailWrong && (
             <span id="signin-email-check" className="small bad-text" data-testid="signin-email-check">
@@ -394,11 +395,11 @@ export function SavedStatus({ testId = 'sync-status' }: { testId?: string }) {
     const t = setInterval(() => setNow(Date.now()), 20_000)
     return () => clearInterval(t)
   }, [])
-  const line = savedLine(status, last, now)
+  const line = savedLineText(status, last, now)
   return (
     <span className={`saved-line ${line.tone}`} data-testid={testId}>
       {line.text}
-      {message && line.tone === 'warn' && status !== 'offline' && <span className="muted"> · {message}</span>}
+      {message && line.tone === 'warn' && status !== 'offline' && <span className="muted"> · {logicLine(message)}</span>}
     </span>
   )
 }
@@ -428,7 +429,7 @@ function CloudHistory() {
           {r.prevMeta && (
             <div className="row wrap" style={{ gap: 6 }}>
               <span className="muted">
-                {tr('previousCopy', { team: r.prevMeta.teamName ?? '', phase: r.prevMeta.phase ?? '' })} {r.prevSavedAt ? `· ${r.prevSavedAt.slice(0, 10)}` : ''}
+                {tr('previousCopy', { team: r.prevMeta.teamName ?? '', phase: whereText({ phase: r.prevMeta.phase ?? '', matchweek: r.prevMeta.matchweek ?? 0, mode: r.prevMeta.mode, arena: r.prevMeta.arena }) })} {r.prevSavedAt ? `· ${formatDate(r.prevSavedAt)}` : ''}
               </span>
               {restorable(r) && (
                 <button

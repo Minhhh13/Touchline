@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import { TIER_LABEL } from '@engine/season'
+import { tierText } from '../i18n/tierText'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
@@ -8,11 +9,12 @@ import type { CasualMine, MyEntry } from '../../online/boards'
 import type { ChallengeRow } from '../../online/transport'
 import { formatCode } from '../../online/core/codes'
 import { shortLinkUrl } from '../../online/challengeLinks'
-import { devicePosts } from '../../online/postText'
+import { devicePostsText } from './statusText'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
+import { formatDate } from '../format'
 
 const t = translator(online)
 
@@ -53,7 +55,7 @@ export function OnlineRecord() {
       live = false
     }
   }, [session, attempt])
-  const fromDevice = devicePosts(posts, !!session)
+  const fromDevice = devicePostsText(posts, !!session)
   const deviceList = fromDevice.length > 0 && (
     <div className="col" data-testid="device-posts">
       <b>{t('fromDevice')}</b>
@@ -98,7 +100,7 @@ export function OnlineRecord() {
             {e.key} · {e.team}
           </span>
           <span>
-            {rich(t('entryLine', { n: e.points, record: `${e.won}-${e.drawn}-${e.lost}`, tier: TIER_LABEL[e.tier as SeasonTier] ?? e.tier, pos: e.position, total: e.total }), B)}
+            {rich(t('entryLine', { n: e.points, record: `${e.won}-${e.drawn}-${e.lost}`, tier: e.tier in TIER_LABEL ? tierText(e.tier as SeasonTier) : e.tier, pos: e.position, total: e.total }), B)}
           </span>
         </div>
       ))}
@@ -136,7 +138,7 @@ export function OnlineRecord() {
         {codes?.map((c) => (
           <div key={c.code} className="row between wrap small">
             <span>
-              {rich(t('linkLine', { code: formatCode(c.code), name: c.payload?.name ?? '', pts: c.payload?.c?.pts ?? '?', until: c.expiresAt.slice(0, 10) }), B)}
+              {rich(t('linkLine', { code: formatCode(c.code), name: c.payload?.name ?? '', pts: c.payload?.c?.pts ?? '?', until: formatDate(c.expiresAt) }), B)}
             </span>
             <span className="row">
               <button

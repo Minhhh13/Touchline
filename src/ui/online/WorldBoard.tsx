@@ -21,10 +21,10 @@ import { arenaDailySeed, weeklySeed } from '@engine/rng'
 import { levelRows, podiumOf, signedGd } from '../boardRows'
 import { isWeeklyRunIn, runInWeekSeed, weeklyRunInJob, weeklyRunInPlan } from '@game/logic/runinWeekly'
 import { Info, Segmented } from '../components/bits'
-import { formationName, seasonLabel } from '../format'
+import { formationName, formatLocale, seasonLabel } from '../format'
 import { CountryFlag, CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
-import { onlineErrorText } from '../../online/postText'
+import { onlineErrorUi as onlineErrorText } from './statusText'
 import { askConfirm } from '../confirm'
 import { onTabListKey } from '../a11y'
 import { translator } from '../i18n'
@@ -237,7 +237,7 @@ function RankedTable({ kind, boardKey, country, title, current }: { kind: Ranked
       <div className="panel-head">
         <h3>{title}</h3>
         <span className="small muted" data-testid="board-summary">
-          {summary ? `${tr('played', { n: summary.played.toLocaleString() })}${summary.top !== null ? tr('topScore', { n: summary.top }) : ''}${tr(summary.open ? 'postsOpen' : 'closed')}${summary.revealed ? tr('picksRevealed') : ''}` : ''}
+          {summary ? `${tr('played', { n: summary.played.toLocaleString(formatLocale()) })}${summary.top !== null ? tr('topScore', { n: summary.top }) : ''}${tr(summary.open ? 'postsOpen' : 'closed')}${summary.revealed ? tr('picksRevealed') : ''}` : ''}
         </span>
       </div>
       <div className="fit-scroll">
@@ -326,7 +326,7 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
                 <tr key={`${r.position}-${r.name}`} className={rowClass(r)} aria-current={r.isMe || undefined}>
                   <RankCell position={r.position} level={level[i]} />
                   <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
-                  <td className={`num${order === 'points' ? ' board-score' : ''}`}>{r.totalPoints.toLocaleString()}</td>
+                  <td className={`num${order === 'points' ? ' board-score' : ''}`}>{r.totalPoints.toLocaleString(formatLocale())}</td>
                   <td className="num">{r.played}</td>
                   <td className="num">{r.average}</td>
                   <td className={`num${order === 'streak' ? ' board-score' : ''}`}>{r.bestStreak}</td>
@@ -340,8 +340,8 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
       </div>
       {mine && !rows?.some((r) => r.isMe) && (
         <MineFoot>
-          <b>{tr('youOf', { pos: mine.position, total: mine.players.toLocaleString() })}</b>
-          <span>{tr('mineLine', { pts: mine.totalPoints.toLocaleString(), n: mine.played, streak: mine.bestStreak })}</span>
+          <b>{tr('youOf', { pos: mine.position, total: mine.players.toLocaleString(formatLocale()) })}</b>
+          <span>{tr('mineLine', { pts: mine.totalPoints.toLocaleString(formatLocale()), n: mine.played, streak: mine.bestStreak })}</span>
         </MineFoot>
       )}
       {!session && <div className="fit-foot small muted">{tr('signInAlltime')}</div>}
@@ -400,7 +400,7 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
       <div className="panel-head">
         <h3>{tr(scope === 'week' ? 'chaseWeek' : 'chaseAlltime')}</h3>
         <span className="small muted" data-testid="chase-summary">
-          {summary ? `${tr('chaseCounts', { players: summary.players, playersText: summary.players.toLocaleString(), runs: summary.runs, runsText: summary.runs.toLocaleString() })}${summary.flawless ? tr('flawlessCount', { n: summary.flawless }) : ''}` : ''}
+          {summary ? `${tr('chaseCounts', { players: summary.players, playersText: summary.players.toLocaleString(formatLocale()), runs: summary.runs, runsText: summary.runs.toLocaleString(formatLocale()) })}${summary.flawless ? tr('flawlessCount', { n: summary.flawless }) : ''}` : ''}
         </span>
       </div>
       {rec && (
@@ -589,7 +589,7 @@ function CasualTable({ board, boardKey, country, title, current }: { board: Casu
       <div className="panel-head">
         <h3>{title}</h3>
         <span className="small muted" data-testid="board-summary">
-          {summary ? `${tr('played', { n: summary.played.toLocaleString() })}${summary.trophies ? tr('casualTrophies', { n: summary.trophies, board }) : ''}${tr(summary.open ? 'postsOpen' : 'closed')}${summary.revealed && board !== 'runin' ? tr('picksRevealed') : ''}` : ''}
+          {summary ? `${tr('played', { n: summary.played.toLocaleString(formatLocale()) })}${summary.trophies ? tr('casualTrophies', { n: summary.trophies, board }) : ''}${tr(summary.open ? 'postsOpen' : 'closed')}${summary.revealed && board !== 'runin' ? tr('picksRevealed') : ''}` : ''}
         </span>
       </div>
       <div className="fit-scroll">
