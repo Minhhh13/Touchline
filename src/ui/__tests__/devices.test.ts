@@ -62,7 +62,7 @@ describe('the phones pass (round 12)', () => {
   })
 
   it('shows the skip links below the status bar and clear of the notch', () => {
-    expect(r12).toMatch(/\.skip-link \{\n {2}top: calc\(var\(--space-2\) \+ var\(--safe-top\)\);\n {2}left: calc\(var\(--space-2\) \+ var\(--safe-left\)\);/)
+    expect(r12).toMatch(/\.skip-link \{\n {2}top: calc\(var\(--space-2\) \+ var\(--safe-top\)\);\n {2}left: calc\(var\(--space-2\) \+ var\(--safe-left\)\);\n {2}transform: translateY\(calc\(-100% - var\(--space-4\) - var\(--safe-top\)\)\);\n\}\n\.skip-link:focus \{\n {2}transform: none;/)
   })
 
   it('keeps every field at 16 px on a phone on its side, so iOS never zooms into one', () => {
@@ -75,12 +75,20 @@ describe('the phones pass (round 12)', () => {
     expect(r12).toMatch(/\.linklike::after \{\n {4}inset: -13px -4px;/)
     expect(r12).toMatch(/\.link-btn\.holder \{\n {4}min-height: 44px;\n {2}\}\n {2}\.link-btn\.holder::after \{\n {4}inset: 0 -2px;/)
     expect(r12).toMatch(/\.top-line \{\n {4}min-height: 44px;/)
+    expect(r12).toMatch(/ {2}\.toggle,\n {2}\.toggle\.era-classic \{\n {4}min-height: 44px;/)
     expect(r12).toMatch(/button\.star::after \{\n {4}content: '';\n {4}position: absolute;\n {4}inset: -10px;/)
     expect(phoneCss).toMatch(/\.matchday \.md-x::after \{\n {4}content: '';\n {4}position: absolute;\n {4}inset: -8px;/)
   })
 
   it("lets the arena's team talk take each word's width, wrapping rather than overlapping", () => {
     expect(game).toMatch(/\.arena-prep \.segmented \{\n {4}display: flex;\n {4}width: 100%;\n {4}flex-wrap: wrap;\n {2}\}\n {2}\.arena-prep \.segmented button \{\n {4}flex: 1 1 auto;/)
+  })
+
+  it('lets a call, a mode card and the player card wrap at 200 % text rather than cut their words', () => {
+    expect(r12).toMatch(/ {2}\.btn\.big,\n {2}\.btn\.block,\n {2}\.decision-sheet \.btn,\n {2}\.bottom-bar \.btn,\n {2}\.cta-bar \.btn \{\n {4}white-space: normal;/)
+    expect(r12).toMatch(/ {2}h1,\n {2}h2,\n {2}h3,\n {2}\.mode-card p \{\n {4}overflow-wrap: anywhere;\n {4}hyphens: auto;/)
+    expect(r12).toMatch(/\.stat-strip \{\n {4}grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 7\.5rem\), 1fr\)\);/)
+    expect(r12).toMatch(/\.pc-head \.chip \{\n {4}max-width: 100%;\n {4}white-space: normal;/)
   })
 
   it("closes the match day's drawers when pulled down, as every other phone sheet", () => {

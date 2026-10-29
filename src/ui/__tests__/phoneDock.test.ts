@@ -60,3 +60,11 @@ describe('the dock on a narrow phone (round 12)', () => {
     expect(r12).toMatch(/@media \(max-width: 720px\) and \(min-height: 501px\) \{\n {2}\.app:not\(\.dock-off\) > \.topbar nav button \{\n {4}flex: 1 1 auto;/)
   })
 })
+
+describe("a small phone on its side's arena hub (round 12)", () => {
+  it("puts the calls back at the foot of their box, as the Dugout's call bar", () => {
+    const r12 = css.slice(css.indexOf('/* Phones, round 12'))
+    expect(r12).toMatch(/@media \(max-width: 720px\) and \(max-height: 500px\) \{\n {2}\.arena-actions\.bottom-bar \{\n {4}position: static;/)
+    expect(r12).toMatch(/\.page\.arena-hub\.has-bottom-bar \{\n {4}padding-bottom: calc\(80px \+ var\(--safe-bottom\)\);/)
+  })
+})

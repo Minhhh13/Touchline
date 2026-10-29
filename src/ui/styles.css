@@ -16352,10 +16352,15 @@ button.home-nudge.linklike:hover {
   border-left-width: var(--safe-left);
   border-right-width: var(--safe-right);
 }
-/* The skip links show on focus at the top left: below the status bar, clear of the notch */
+/* The skip links show on focus at the top left: below the status bar, clear of the notch; off the screen they rise by
+   the inset too */
 .skip-link {
   top: calc(var(--space-2) + var(--safe-top));
   left: calc(var(--space-2) + var(--safe-left));
+  transform: translateY(calc(-100% - var(--space-4) - var(--safe-top)));
+}
+.skip-link:focus {
+  transform: none;
 }
 /* A phone on its side zooms into a field under 16 px as an upright one does */
 @media (max-height: 500px) and (pointer: coarse) {
@@ -16393,11 +16398,69 @@ button.home-nudge.linklike:hover {
   .top-line {
     min-height: 44px;
   }
+  /* A switch row (Classic seasons, player power, head-to-head's Classic) is the target of its box: 42 px, and the
+     era slider's Classic chip 29 px */
+  .toggle,
+  .toggle.era-classic {
+    min-height: 44px;
+  }
 }
 /* The dock's captions: a cell takes its word's width plus a share of the rest, so "Summary" is whole at 360 px (equal
    sevenths cut it to "Summ…") */
 @media (max-width: 720px) and (min-height: 501px) {
   .app:not(.dock-off) > .topbar nav button {
     flex: 1 1 auto;
+  }
+}
+/* A small phone on its side (iPhone SE, 667 x 375): the arena hub's calls took 157 of its 375 px over the page; like
+   the Dugout's call bar they go back to the foot of their box there */
+@media (max-width: 720px) and (max-height: 500px) {
+  .arena-actions.bottom-bar {
+    position: static;
+    padding: var(--space-3) var(--panel-pad);
+    box-shadow: none;
+  }
+  .page.arena-hub.has-bottom-bar {
+    padding-bottom: calc(80px + var(--safe-bottom));
+  }
+}
+/* A fixed bottom bar that would take more than a third of the window (src/ui/tallBar.ts: 200 % text on a small
+   phone) sits at the foot of the page instead, so the screen above it stays readable */
+@media (max-width: 1099.98px) {
+  .page.bar-static .bottom-bar,
+  .page.bar-static .cta-bar {
+    position: static;
+    box-shadow: none;
+  }
+  .page.bar-static.has-bottom-bar {
+    padding-bottom: calc(80px + var(--dock-h));
+  }
+}
+/* 200 % text on a phone: a wide call wraps its words rather than cut them at its edge ("…rt drafting your squ…"), a
+   heading's long word breaks (with a hyphen where the browser can), and the player card's chips wrap inside the card */
+@media (max-width: 720px) {
+  .btn.big,
+  .btn.block,
+  .decision-sheet .btn,
+  .bottom-bar .btn,
+  .cta-bar .btn {
+    white-space: normal;
+    text-wrap: balance;
+  }
+  h1,
+  h2,
+  h3,
+  .mode-card p {
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+  /* The Dugout's club strip: two figures a row while two fit, one under 200 % text ("£119M" ran into the board's 55) */
+  .stat-strip {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  }
+  .mode-card .daily-today,
+  .pc-head .chip {
+    max-width: 100%;
+    white-space: normal;
   }
 }

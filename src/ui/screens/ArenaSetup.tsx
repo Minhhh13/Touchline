@@ -28,6 +28,7 @@ import { CapControl } from '../components/CapControl'
 import { capXI, DEFAULT_CAP_CHOICE, type CapChoice } from '@game/logic/cap'
 import { askConfirm } from '../confirm'
 import { logicList } from '../i18n/logicText'
+import { useTallBar } from '../tallBar'
 
 type Era = 'all' | 'early' | 'mid' | 'modern'
 
@@ -82,6 +83,8 @@ export function ArenaSetup() {
   const moreRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
+  // A bar taller than a third of the window (large text on a small phone) sits at the page's foot instead
+  const tallBar = useTallBar(barHeight)
   useEffect(() => {
     const el = barRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -124,7 +127,7 @@ export function ArenaSetup() {
   const shown = getFormation(formationId)
   return (
     // Main's setup layout (DESIGN_SYSTEM.md, Setup): numbered steps in two boxes, one screen on a desktop
-    <div className="page setup-page arena-setup has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page setup-page arena-setup has-bottom-bar${tallBar ? ' bar-static' : ''}`} style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">
         <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
           <div>
