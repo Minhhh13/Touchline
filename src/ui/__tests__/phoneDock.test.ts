@@ -38,7 +38,7 @@ describe('the phone dock', () => {
   it('stands down for the match day and while the keyboard is up', () => {
     expect(app).toContain("game?.phase === 'match' && !shell ? 'dock-off' : ''")
     expect(css).toMatch(/\.app\.dock-off > \.topbar nav \{\n {4}display: none;/)
-    expect(css).toMatch(/\.app:has\(input:not\([^)]*\):focus, textarea:focus\) \{\n {4}--dock-h: 0px;/)
+    expect(css).toMatch(/\.app:has\(input:not\([^)]*\):focus, textarea:focus\),\n {2}\.app:not\(\.bar-hidden\):not\(\.dock-off\)\[data-typing-hold\] \{\n {4}--dock-h: 0px;/)
     expect(phoneCss).toMatch(/@media \(max-width: 720px\) and \(min-height: 501px\) \{\n {2}\.matchday \.md-tool,[^}]*min-height: 44px;/)
   })
 
