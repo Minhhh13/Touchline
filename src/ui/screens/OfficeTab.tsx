@@ -397,7 +397,7 @@ function StatusBox({ game, u, onPlayer, say }: BoxProps & { onPlayer: (id: strin
 
 /** Fee talks and then personal terms for one listing; in the Office and in the market's Negotiate dialog. */
 export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: string) => void }) {
-  const { universe: u, game } = useStorePick('universe', 'game')
+  const { universe: u, game, showToast } = useStorePick('universe', 'game', 'showToast')
   const listing = game?.window?.listings.find((l) => l.playerSeasonId === listingId)
   const talk = game ? feeTalkOf(game, listingId) : undefined
   const [fee, setFee] = useState<number | null>(null)
@@ -502,7 +502,17 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
           </div>
           <div className="small muted">{wage(wageNow)}</div>
           <div className="row wrap" style={{ gap: 4 }}>
-            <button type="button" className="btn sm primary" data-testid="terms-offer" onClick={() => tell(act.offerTerms(listingId, { wage: wageNow, years: yearsNow, status: st, signingFee: signNow }).message)}>
+            <button
+              type="button"
+              className="btn sm primary"
+              data-testid="terms-offer"
+              onClick={() => {
+                const out = act.offerTerms(listingId, { wage: wageNow, years: yearsNow, status: st, signingFee: signNow })
+                tell(out.message)
+                // Signed, the listing leaves the market and the Negotiate dialog with it: the toast says so (r9)
+                if (out.signed && !say) showToast(out.message)
+              }}
+            >
               {t('offerTerms')}
             </button>
             {demand && (
