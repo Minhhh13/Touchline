@@ -94,6 +94,35 @@ describe('the Gauntlet: the ladder', () => {
     }
   }, 30_000)
 
+  it('over 200 seeds: an alternate is a club already on the ladder only when its band has no other (engine 8, R8-O1)', () => {
+    const all = loadTestUniverse(['england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'portugal'])
+    const count = (uu: typeof u, p: typeof pool) => {
+      const b = gauntletBands(uu, p)
+      let repeats = 0
+      for (let i = 0; i < 200; i++) {
+        const l = buildLadder(uu, new Rng(`m-${i}`), p)
+        const clubs = new Set(l.mains.map(clubIdOfKey))
+        l.alternates.forEach((k, j) => {
+          const band = j < 10 ? b.bands[j] : b.top
+          // Every alternate stays in its band, and is never the rung's own main
+          expect(band.some((cs) => keyOf(cs) === k)).toBe(true)
+          expect(k).not.toBe(l.mains[j])
+          if (clubs.has(clubIdOfKey(k))) {
+            repeats++
+            // A repeat only when no club of the band was still off the ladder
+            expect(band.every((cs) => clubs.has(cs.clubId))).toBe(true)
+          }
+          clubs.add(clubIdOfKey(k))
+        })
+      }
+      return repeats
+    }
+    // Seven leagues: thirty different clubs on every ladder (engine 7 repeated 821 over these ladders)
+    expect(count(all, arenaPool(all, { leagues: all.leagues.map((l) => l.id) }))).toBe(0)
+    // One league has fewer clubs per band: repeats remain, fewer than engine 7's 2,190 in 3,000
+    expect(count(u, pool)).toBeLessThan(1700)
+  }, 120_000)
+
   it('over 200 seeds in each era: fifteen different clubs, each main from its band or, once the band has no new club, the nearest bands (engine 7)', () => {
     for (const [from, to] of [
       [2020, 2026],

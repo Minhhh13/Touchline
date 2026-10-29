@@ -54,15 +54,15 @@ describe('R8-2: the January window never lists a man who retired from a Dynasty 
 })
 
 describe('R8-3: the Gauntlet lifeline is never spent on the same side', () => {
-  it('a one-season wheel runs out of alternates: some rungs would bring their own main back', () => {
+  it('a one-season wheel runs out of alternates, yet no rung brings its own main back (engine 8, R8-O1)', () => {
     const pool = arenaPool(u, { leagues: ['england'], fromSeason: 2019, toSeason: 2019 })
     let same = 0
     for (let s = 0; s < 60; s++) {
       const ladder = buildLadder(u, new Rng(`r8-ladder-${s}`), pool)
       for (let step = 0; step < 15; step++) if (!lifelineChanges({ ladder, step })) same++
     }
-    // The engine's draw is unchanged (an engine fix is R8-O1); the guard has cases to catch
-    expect(same).toBeGreaterThan(0)
+    // Engine 7 drew such rungs on these ladders; engine 8's alternates never repeat their main, and the guard stays
+    expect(same).toBe(0)
     expect(lifelineChanges({ ladder: undefined, step: 0 })).toBe(false)
   })
 

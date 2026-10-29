@@ -117,8 +117,14 @@ function nearestFresh(bands: ClubSeason[][], rung: number, ok: (cs: ClubSeason) 
  *   nearest bands' new clubs (`nearestFresh`, engine 7), and only when the
  *   whole pool has none left, any unused club-season of the band.
  * Then the alternates, rung 1 to 15: uniform over the same band (the strongest
- * 5% for rungs 11 to 15) less every main and earlier alternate (the pool's
- * unused club-seasons when that is empty). The user's draft never enters it.
+ * 5% for rungs 11 to 15) less every club on a main or an earlier alternate;
+ * when the band has no such club, its club-seasons less every main and
+ * earlier alternate, then the pool's, then the band (or the pool) less the
+ * rung's own main. An alternate never leaves its band to find a new club: the
+ * rung's strength comes first (engine 8; engine 7 kept only the club-season
+ * unique, so an alternate was often a club already on the ladder, and on a
+ * small wheel the rung's own main).
+ * The user's draft never enters it.
  */
 export function buildLadder(u: LoadedUniverse, rng: Rng, pool: ClubSeason[]): GauntletLadder {
   if (!pool.length) throw new Error('No club-seasons for the Gauntlet')
@@ -143,11 +149,18 @@ export function buildLadder(u: LoadedUniverse, rng: Rng, pool: ClubSeason[]): Ga
   const alternates: string[] = []
   for (let r = 1; r <= GAUNTLET_RUNGS; r++) {
     const band = rungBand(b, r)
-    const unused = band.filter(unusedKey)
-    const from = unused.length ? unused : pool.filter(unusedKey)
+    // A club already on the ladder is its alternate only when its band has no other (engine 8)
+    let from = band.filter(fresh)
+    if (!from.length) from = band.filter(unusedKey)
+    if (!from.length) from = pool.filter(unusedKey)
+    // A wheel too small for thirty club-seasons: the band again, but never the rung's own main
+    const notOwn = (cs: ClubSeason) => clubSeasonKey(cs) !== mains[r - 1]
+    if (!from.length) from = band.filter(notOwn)
+    if (!from.length) from = pool.filter(notOwn)
     const cs = rng.pick(from.length ? from : band)
     alternates.push(clubSeasonKey(cs))
     usedKeys.add(clubSeasonKey(cs))
+    usedClubs.add(cs.clubId)
   }
   return { mains, alternates }
 }
