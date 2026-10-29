@@ -431,8 +431,8 @@ describe('a contract promise is only made when it can be kept (r9 audit)', () =>
   }, 60_000)
 })
 
-describe('personal terms the market refuses leave the listing as it was (r9 audit)', () => {
-  it('a bid refused on the market\'s own wage rule puts the asking price back', () => {
+describe('personal terms and the market\'s wage rule (r9 audit, r10)', () => {
+  it('a token wage with a big signing-on fee signs (the market reads the agreed wage, r10); a wage over the cap leaves the listing as it was', () => {
     const g = seasonGame(u, 'r9-office-terms-refused', 19)
     expect(g.window).not.toBeNull()
     g.finances.budget = 500
@@ -449,16 +449,20 @@ describe('personal terms the market refuses leave the listing as it was (r9 audi
     const asking = l.asking
     const status = openingStatus(g, u, listingId)
     const d = termsDemand(g, u, listingId, status)!
-    // A token wage made up by a big signing-on fee: inside our cap check, over the market's (which reads his own wage)
+    // A token wage made up by a big signing-on fee: one over the cap is refused before any bid, the listing untouched
     const years = 2
     const signingFee = Math.ceil((d.agentFee + (d.wage * 52 * years) / 1000 + 1) * 10) / 10
-    g.finances.wageCap = squadWages(g, u) + 1
-    const out = offerTerms(g, u, listingId, { wage: 1, years, status, signingFee })
-    expect(out.ok).toBe(false)
-    expect(out.message).toMatch(/wage cap/)
-    // Before, the asking price was left at the agreed fee, not the club's own price
+    g.finances.wageCap = squadWages(g, u)
+    const over = offerTerms(g, u, listingId, { wage: 1, years, status, signingFee })
+    expect(over.ok).toBe(false)
+    expect(over.message).toMatch(/wage cap/)
     expect(l.asking).toBe(asking)
     expect(l.status).toBe('available')
+    // Inside the cap it signs: the market's check reads the agreed wage, not his own (r9 refused it with its words)
+    g.finances.wageCap = squadWages(g, u) + 1
+    const out = offerTerms(g, u, listingId, { wage: 1, years, status, signingFee })
+    expect(out.signed).toBe(true)
+    expect(playerLookup(g, u)(listingId)?.wage).toBe(1)
   }, 60_000)
 })
 

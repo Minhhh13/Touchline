@@ -193,8 +193,8 @@ Grass stays green in both themes; everything on it is fixed too.
 | `--pitch-line` | white 50 % | Pitch markings |
 | `--pitch-disc`, `--pitch-disc-empty` | navy 86 %, navy 50 % | Player discs on the pitch |
 | `--pitch-highlight` | `#5ee3fb` | Eligible slot ring and pulse |
-| `--pitch-bad` | `#f87171` | Injured or suspended, awkward fit; on the substitution board, a held man out of position |
-| `--pitch-fit`, `--pitch-cover` | `#34d399`, `#f5c542` | The substitution board's glows on the grass: a held man in his natural position, and one who can cover |
+| `--pitch-bad` | `#ffb3b3` (3:1 on both grass stripes) | Injured or suspended, awkward fit; on the substitution board, a held man out of position |
+| `--pitch-fit`, `--pitch-cover` | `#6ee7b7`, `#f5c542` (each 3:1 on both grass stripes) | The substitution board's glows on the grass: a held man in his natural position, and one who can cover |
 | `--heat-warm`, `--heat-hot` | `#f5c542`; `#f87171` (Daylight `#b91c1c`) | The match day's heat map: warm cells and the hottest overlaid, and its Low to High scale (never `--gold`, which is for trophies and records) |
 
 The pitch sits on a neutral mat: a 5 px `--bg-3` border with a 1 px `--line` ring outside it, so the grass reads as a picture inside the panel in both themes. Labels are white with a dark text shadow.
