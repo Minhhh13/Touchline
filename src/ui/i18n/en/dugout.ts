@@ -574,6 +574,7 @@ export const dugout = catalog('dugout', {
   gkDef: 'GK / DEF',
   midAtt: 'MID / ATT',
   form: 'Form',
+  noFormYet: 'No games yet',
   dangerMen: 'Danger men',
   manMarkTip: 'Man-mark him: his influence drops, your attack loses a little',
   marked: 'Marked',

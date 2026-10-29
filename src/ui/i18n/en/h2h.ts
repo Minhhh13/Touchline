@@ -46,6 +46,7 @@ export const h2h = catalog('h2h', {
   seedValue: 'Seed {seed}',
   toPick: '{name} to pick',
   home: 'Home',
+  homeBack: '← Home',
   abandon: 'Abandon',
   abandonConfirm: 'Abandon this head-to-head?',
   nextSpin: 'Next spin',

@@ -5094,6 +5094,15 @@ dl.kv {
   align-items: center;
   gap: var(--space-2);
 }
+/* A phone stacks the checklist one item a line: the buttons line up at the right edge instead of after each label */
+@media (max-width: 720px) {
+  .briefing.checklist .brief {
+    flex: 1 1 100%;
+  }
+  .briefing.checklist .brief > .btn {
+    margin-left: auto;
+  }
+}
 /*
  * A short desktop window's pre-season: the title, the match-play chips and the buttons share one row and the checklist
  * runs the full width under them, one line instead of three in a 440 px column (the panel 174 to about 120 px tall at
@@ -5901,6 +5910,9 @@ dl.kv {
   border-radius: var(--radius-m);
   font-size: calc(var(--fs-h2) - 2px);
   font-weight: 700;
+  /* a long label (Head-to-head's "Spin (Manager 1 first)" in a narrow column) wraps inside the padding, never past it */
+  white-space: normal;
+  text-wrap: balance;
 }
 .conf {
   display: flex;
@@ -6880,6 +6892,11 @@ dl.kv {
     transform: none;
   }
 }
+/* The unlock's live region stays mounted (it announces once); empty, it is out of the flow, so a summary's column of
+   boxes takes no gap for it and starts level with the result box */
+.unlock-live:empty {
+  position: absolute;
+}
 .unlock-card {
   border-color: color-mix(in srgb, var(--medal-gold) 45%, var(--line));
 }
@@ -7591,7 +7608,7 @@ dl.kv {
   font-size: var(--fs-sm);
   color: var(--text-3);
 }
-.club-sub > span:not(.chip) + span:not(.chip)::before {
+.club-sub > span:not(.chip, .tier-chip) + span:not(.chip, .tier-chip)::before {
   content: '·';
   margin-right: var(--space-2);
 }
@@ -8262,6 +8279,12 @@ dl.kv {
 @media (max-width: 720px) {
   .screen-head {
     margin-bottom: var(--space-3);
+    row-gap: var(--space-1);
+  }
+  /* A phone puts Back or Home on a line of its own under the title: its words line up with the title, not 16 px in */
+  .screen-head > .btn.ghost:last-child,
+  .setup-top > .setup-back {
+    margin-inline-start: calc(var(--space-4) * -1);
   }
   .club-header {
     gap: var(--space-3);
@@ -9276,9 +9299,9 @@ table.tbl.match-stats th {
   .tier-banner .tier {
     font-size: min(calc(var(--fs-h1) * 1.25), 12vw);
   }
+  /* The team, its flag and Boxes stay on one line (a quick season's rest is only the flag); a long rest wraps under them */
   .banner-meta {
-    flex-direction: column;
-    gap: 2px;
+    gap: 2px var(--space-2);
   }
   .bm-rest::before {
     content: none;
@@ -9730,6 +9753,8 @@ table.tbl.match-stats th {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    /* centred while it fits; taller than the window it starts at the top, so its team line and last button are never cut off */
+    justify-content: safe center;
   }
   .app.shell .page.summary > .summary-body,
   .app.shell .page.summary > .screen-body {
@@ -9924,6 +9949,10 @@ table.tbl.match-stats th {
   .app.shell .page.home .mode-go,
   .app.shell .page.home .mode-card.daily > .btn {
     min-height: 36px;
+  }
+  /* The Daily's button sits outside its text, so it takes the text's tighter inset too: lined up with the other cards' Start */
+  .app.shell .page.home .mode-card.daily > .btn {
+    margin: 0 var(--space-3) var(--space-3);
   }
 }
 /* A short window: the hero's figures and flags move beside the lockup and the line, so the hero is half as tall */
@@ -10125,8 +10154,9 @@ table.tbl.match-stats th {
 .sc-chance,
 .sc-unit {
   display: grid;
-  /* rem: 112 px and 52 px at the default size, and the figure's column grows with larger text instead of spilling */
-  grid-template-columns: minmax(0, 7rem) minmax(3rem, 1fr) minmax(3.25rem, auto);
+  /* rem: 128 px and 52 px at the default size (the longest label, "Win every game", on one line), and the figure's
+     column grows with larger text instead of spilling */
+  grid-template-columns: minmax(0, 8rem) minmax(3rem, 1fr) minmax(3.25rem, auto);
   align-items: center;
   gap: 10px;
   font-size: var(--fs-sm);
@@ -10208,8 +10238,8 @@ table.tbl.match-stats th {
   }
   .sc-chance,
   .sc-unit {
-    /* 100 px and 48 px at the default size (6.25rem, 3rem); the figure's column grows with larger text */
-    grid-template-columns: minmax(0, 6.25rem) minmax(3rem, 1fr) minmax(3rem, auto);
+    /* 128 px and 48 px at the default size (8rem, 3rem): "Win every game" on one line at 390 px; the figure's column grows with larger text */
+    grid-template-columns: minmax(0, 8rem) minmax(3rem, 1fr) minmax(3rem, auto);
   }
   .sc-big-num {
     font-size: calc(var(--fs-h1) + 2px);
@@ -11151,7 +11181,8 @@ table.tbl tr.zone-start > td {
 }
 .runin-games li {
   display: grid;
-  grid-template-columns: auto 3.6em minmax(0, 1fr) auto 3em;
+  /* every row its own grid: fixed columns, so the W, D and L chips (of different widths) never shift a row's text */
+  grid-template-columns: 2.4em 3.6em minmax(0, 1fr) 3em 3em;
   align-items: center;
   gap: var(--space-2);
   padding: 5px 0;
@@ -11164,6 +11195,10 @@ table.tbl tr.zone-start > td {
 .runin-games .chip {
   justify-content: center;
   min-width: 2em;
+  padding-inline: 0;
+}
+.runin-games .rg-score {
+  text-align: center;
 }
 .runin-games .rg-opp {
   display: flex;
@@ -12827,6 +12862,13 @@ table.tbl.board-table tr.chase-perfect td:first-child {
     display: contents;
   }
   .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:first-child > * {
+    grid-column: 1 / -1;
+  }
+  /* The Classic toggle takes a row of its own (its range wrapped to four lines in a half cell); Difficulty fills in beside Season */
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two {
+    grid-auto-flow: row dense;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child > .toggle:has([data-testid='h2h-classic']) {
     grid-column: 1 / -1;
   }
   /* Difficulty's two choices on one row in its half-width cell (they stacked at 1280x720, out of line with Season) */

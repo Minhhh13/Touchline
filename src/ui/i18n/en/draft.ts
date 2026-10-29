@@ -33,7 +33,7 @@ export const draft = catalog('draft', {
   speedrunTip: 'Speedrun: the assistant picks when the clock runs out',
   clock: '⏱️ {n}s',
   bonus: '+{n} bonus',
-  home: 'Home',
+  home: '← Home',
   squadReady: 'Squad ready',
   picksMade: '{n, plural, one {# pick} other {# picks}} made',
   ghostTitle: "{name}'s spin {n}",
