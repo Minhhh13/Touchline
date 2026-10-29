@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, RefreshCw, Repeat, RotateCcw, Share2, Swords, Trophy, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { ENGINE_VERSION } from '@engine/version'
 import { getFormation } from '@engine/formations'
 import { fillingXI, isComplete, picksMade, suggestSlot } from '@engine/draft'
@@ -74,7 +75,7 @@ async function rematch(u: LoadedUniverse, view: RoomView, seat: 0 | 1, showToast
 
 /** Head-to-head setup's online half: make a room, or open one by its code. */
 export function RoomSetup() {
-  const { universe: u, ensureLeagues, loadingLeagues, loadedLeagues, go, showToast } = useStore()
+  const { universe: u, ensureLeagues, loadingLeagues, loadedLeagues, go, showToast } = useStorePick('universe', 'ensureLeagues', 'loadingLeagues', 'loadedLeagues', 'go', 'showToast')
   const [leagueId, setLeagueId] = useState('england')
   const [scope, setScope] = useState<'league' | 'all'>('league')
   const [season, setSeason] = useState(0)
@@ -233,7 +234,7 @@ export function RoomSetup() {
 /** The screen of an online room (screen `room`): the join step, the waiting room, the draft and the result. */
 export function RoomScreen() {
   const ui = useOnline((s) => s.room)
-  const { universe: u, go, ensureLeagues, loadedLeagues } = useStore()
+  const { universe: u, go, ensureLeagues, loadedLeagues } = useStorePick('universe', 'go', 'ensureLeagues', 'loadedLeagues')
   const view = ui?.view ?? null
   const code = ui?.code ?? null
   // The room's code stays in the address, so a reload or a shared tab opens the same room; it goes when the screen does
@@ -349,7 +350,7 @@ function RoomStatusLine({ ui }: { ui: RoomUi }) {
 
 /** A room that ended without a result: why, and a way on (the same room again for a manager who held a seat). */
 function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
-  const { universe: u, go, showToast } = useStore()
+  const { universe: u, go, showToast } = useStorePick('universe', 'go', 'showToast')
   const [busy, setBusy] = useState(false)
   if (!u) return null
   const other = seat === null ? null : view.managers[seat === 0 ? 1 : 0]
@@ -423,7 +424,7 @@ function settingsLine(u: NonNullable<ReturnType<typeof useStore.getState>['unive
 
 /** Seat 0, waiting: the code, the link to share and the deadline. */
 function RoomWaiting({ view }: { view: RoomView }) {
-  const { universe: u } = useStore()
+  const { universe: u } = useStorePick('universe')
   const now = useNow(1000)
   if (!u) return null
   const clock = waitClock(view, now)
@@ -466,7 +467,7 @@ function RoomWaiting({ view }: { view: RoomView }) {
 }
 
 function ManagerCard({ m, you, turn }: { m: H2HManager | null; you?: boolean; turn?: boolean }) {
-  const { universe: u } = useStore()
+  const { universe: u } = useStorePick('universe')
   if (!u) return null
   if (!m)
     return (
@@ -491,7 +492,7 @@ function ManagerCard({ m, you, turn }: { m: H2HManager | null; you?: boolean; tu
 
 /** A device without a seat, on a waiting room: take the other seat. */
 function RoomJoin({ view }: { view: RoomView }) {
-  const { universe: u } = useStore()
+  const { universe: u } = useStorePick('universe')
   const signedIn = useOnline((s) => !!s.session)
   const busy = useOnline((s) => s.room?.busy ?? false)
   const now = useNow()
@@ -550,7 +551,7 @@ function RoomJoin({ view }: { view: RoomView }) {
 
 /** The draft: the reel and whose turn, the squad on the wheel, both pitches. Picks go to the server. */
 function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
-  const { universe: u, showToast } = useStore()
+  const { universe: u, showToast } = useStorePick('universe', 'showToast')
   const busy = useOnline((s) => s.room?.busy ?? false)
   const signedIn = useOnline((s) => !!s.session)
   const managers = view.managers as [H2HManager, H2HManager]
@@ -778,7 +779,7 @@ function TurnPill({ view, mine, line }: { view: RoomView; mine: boolean; line: s
 
 /** The room's season, as the server played it (the hot-seat's result screen), with a rematch for a manager who held a seat. */
 function RoomResult({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
-  const { universe: u, go, showToast } = useStore()
+  const { universe: u, go, showToast } = useStorePick('universe', 'go', 'showToast')
   const managers = view.managers as [H2HManager, H2HManager]
   const d = useMemo(() => (u ? draftFromEvents(u, view.settings, managers, view.events) : null), [u, view.code, view.version]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!u || !d || !view.result) return null

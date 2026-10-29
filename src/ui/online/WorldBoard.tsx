@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useStore, slotOf, todaysDailySeed } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
@@ -324,7 +325,7 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
 }
 
 function WeeklyPlay({ weekKey }: { weekKey: string }) {
-  const { universe: u, game, startGame, go, profile, loadedLeagues } = useStore()
+  const { universe: u, game, startGame, go, profile, loadedLeagues } = useStorePick('universe', 'game', 'startGame', 'go', 'profile', 'loadedLeagues')
   const pin = useOnline((s) => (s.pins.week === weekKey ? s.pins.weekly : null))
   if (!u || !loadedLeagues.includes('england')) return null
   const decision = weeklyStartSettings(u, weekKey, profile.managerName.trim() || 'Touchline XI', pin)
@@ -450,7 +451,7 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
 
 /** The side panel's "Start a chase run": the league and shape, today's attempts left, and the button. */
 function ChasePlay() {
-  const { universe: u, game, go, profile } = useStore()
+  const { universe: u, game, go, profile } = useStorePick('universe', 'game', 'go', 'profile')
   const session = useOnline((s) => s.session)
   const [league, setLeague] = useState('england')
   const [formation, setFormation] = useState('4-3-3')
@@ -639,7 +640,7 @@ function PlayCard({ title, line, done, action, onClick, disabled, testId }: { ti
 
 /** Today's Daily from its board: it continues where it was left, else opens the Daily's setup (as Home's card does). */
 function DailyPlay() {
-  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues } = useStore()
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile', 'loadedLeagues')
   const pin = useOnline((st) => (st.pins.day === new Date().toISOString().slice(0, 10) ? st.pins.daily : null))
   if (!u || !loadedLeagues.includes('england')) return null
   const seed = todaysDailySeed()
@@ -663,7 +664,7 @@ function DailyPlay() {
 
 /** Today's Daily Arena from its board: the run continues wherever it is; another unfinished arena run is only dropped on a yes. */
 function ArenaDailyPlay() {
-  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues, startGame } = useStore()
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues, startGame } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile', 'loadedLeagues', 'startGame')
   if (!u || !loadedLeagues.includes('england')) return null
   const seed = arenaDailySeed()
   const today = dailyArenaSettings(seed)
@@ -692,7 +693,7 @@ function ArenaDailyPlay() {
 
 /** This week's Weekly Challenge from its board: under way it continues, else its setup opens (the week's packs load there). */
 function ThemedWeekPlay() {
-  const { universe: u, game, parked, go, resumeGame, profile } = useStore()
+  const { universe: u, game, parked, go, resumeGame, profile } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile')
   if (!u) return null
   const seed = weeklySeed()
   const plan = weeklyPlan(u, seed)
@@ -714,7 +715,7 @@ function ThemedWeekPlay() {
 
 /** The side panel's card for the Run-in of the week: the week's job, and Play (its league loads first). */
 function RunInWeekPlay() {
-  const { universe: u, game, go, startRunInWeek, loadedLeagues, ensureLeagues, parked } = useStore()
+  const { universe: u, game, go, startRunInWeek, loadedLeagues, ensureLeagues, parked } = useStorePick('universe', 'game', 'go', 'startRunInWeek', 'loadedLeagues', 'ensureLeagues', 'parked')
   const seed = runInWeekSeed()
   const plan = weeklyRunInPlan(seed)
   const [busy, setBusy] = useState(false)
