@@ -1729,7 +1729,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
           <div className="col small market-log">
             {w.log.map((l, i) => (
               <div key={i} className="muted">
-                {l}
+                {logicLine(l)}
               </div>
             ))}
           </div>

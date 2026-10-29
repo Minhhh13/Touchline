@@ -68,6 +68,7 @@ export const common = catalog('common', {
   tier_RELEGATION_BATTLE: 'Relegation battle',
   tier_RELEGATED: 'Relegated',
   tierTop4: 'Top 4',
+  ratingRangeTip: 'Somewhere from {lo} to {hi}: scout him to know',
   superTier_PERFECT: 'Perfect {name} season',
   superTier_INVINCIBLE: '{name} invincibles',
   superTier_CHAMPIONS: '{name} champions',

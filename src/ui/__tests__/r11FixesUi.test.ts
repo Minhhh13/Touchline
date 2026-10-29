@@ -148,3 +148,22 @@ describe('R11-10: the arena’s banner, the Gauntlet’s ladder ends and a club�
     for (const f of ['screens/Dugout.tsx', 'screens/OppositionReport.tsx']) expect(src(f)).not.toContain('STYLE_LABEL[')
   })
 })
+
+describe('R11-11: the market’s log and a scouting range’s tip in the viewer’s language', () => {
+  it('every line the window’s log is opened or grown with is a logicText message, read back as written', () => {
+    const lines = ['The January window is open. 36 players are available.', 'The summer window is open. 1 players are available.', '1 new player listed: Harry Kane.', '3 new players listed: A. B, C. D, E. F.']
+    for (const line of lines) {
+      const hit = matchLogicLine(line)
+      expect(hit, line).not.toBeNull()
+      expect(formatText(logicText.messages[hit!.key as keyof typeof logicText.messages], hit!.vars)).toBe(line)
+    }
+    expect(src('../engine/market.ts')).toContain("log: [`The ${kind === 'summer' ? 'summer' : 'January'} window is open. ${listings.length} players are available.`]")
+    expect(src('../engine/market.ts')).toContain("`${extra.length} new player${extra.length > 1 ? 's' : ''} listed: ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(', ')}.`")
+    expect(src('screens/Dugout.tsx')).toMatch(/\{w\.log\.map\(\(l, i\) => \(\s+<div key=\{i\} className="muted">\s+\{logicLine\(l\)\}/)
+  })
+
+  it('the rating range’s tip goes through the catalogue', () => {
+    expect(src('components/bits.tsx')).not.toContain('scout him to know')
+    expect(src('components/bits.tsx')).toContain("t('ratingRangeTip', { lo: range.lo, hi: range.hi })")
+  })
+})

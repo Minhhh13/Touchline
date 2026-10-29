@@ -1707,4 +1707,7 @@ export const logicText = catalog('logicText', {
   gameByGame_paceTopFour: 'On course for {pos, ordinal}, inside the top four, at {article} {pace, number}-point pace.',
   gameByGame_paceDrop: 'On course for {pos, ordinal}, in the bottom three, at {article} {pace, number}-point pace: the drop if nothing changes.',
   gameByGame_pace: 'On course for {pos, ordinal}, at {article} {pace, number}-point pace.',
+  // engine/market.ts: the window's log lines the news never carries (QA r11)
+  market_windowOpen: 'The {kind, select, summer {summer} other {January}} window is open. {n, number} players are available.',
+  market_newPlayersListed: '{n, plural, one {# new player} other {# new players}} listed: {names}.',
 })
