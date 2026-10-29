@@ -15,7 +15,7 @@ import { pressAnswers, pressProblem, pressQuestions, pressSubject, PRESS_ANSWERS
 import { feeTalkOf, MAX_FEE_ROUNDS, openingStatus, paymentPlan, sellTalkOf, termsDemand, type Instalments } from '@game/logic/transferTalks'
 import { squadIdOf } from '@game/logic/officeCore'
 import { nextOpponent, recentShare } from '@game/logic/week'
-import { Bar, Info, Modal, Rating } from '../components/bits'
+import { Bar, Info, Modal, Rating, Tip } from '../components/bits'
 import { moraleClass } from '../components/Happiness'
 import { clubName, meterValue, money, wage } from '../format'
 import { rich } from '../i18n/rich'
@@ -37,6 +37,9 @@ export function OfficeInbox({ onOpen }: { onOpen: () => void }) {
   const items = officeItems(game, u)
   if (!items.length) return null
   return (
+    <>
+    {/* The Office's tip where its first item lands, in the Inbox, as well as on its own tab */}
+    <Tip id="office-first">{t('officeTip')}</Tip>
     <div className="needs-you" data-testid="office-inbox">
       <span className="needs-you-label">{t('inboxNeeds')}</span>
       {items.slice(0, 3).map((it, i) => (
@@ -45,6 +48,7 @@ export function OfficeInbox({ onOpen }: { onOpen: () => void }) {
         </button>
       ))}
     </div>
+    </>
   )
 }
 

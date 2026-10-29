@@ -4,7 +4,7 @@ import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { createGame, defaultHostClub, quickSetupLine, summariseSetup } from '../logic/setup'
 import { closeJanuary, kickOff, toKickoff } from '../logic/quick'
-import { FIRST_RUN_STEPS, NEXT_UP_UNTIL, firstDraftSettings, firstResultNext, isNewcomer, nextUpFor, resultsFinished } from '../logic/onboarding'
+import { FIRST_RUN_STEPS, NEXT_UP_UNTIL, dailyRotation, firstDraftSettings, firstResultNext, isNewcomer, nextUpFor, resultsFinished } from '../logic/onboarding'
 import type { LeaderboardEntry, Profile } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -145,4 +145,35 @@ describe('what Home points to next', () => {
     expect(nextUpFor(many, on)).toBeNull()
     expect(nextUpFor({ ...many, leaderboard: many.leaderboard.slice(1), seasonsSimulated: NEXT_UP_UNTIL }, on)).toBe('daily')
   })
+
+  it('never points to Season while a Season or Dynasty is already waiting on the resume strip', () => {
+    const two = { ...fresh, leaderboard: [quick, quick], seasonsSimulated: 2, dailyResults: daily }
+    expect(nextUpFor(two, off)).toBe('season')
+    expect(nextUpFor(two, { ...off, seasonWaiting: true })).toBeNull()
+    // The earlier steps are not held back by it
+    expect(nextUpFor({ ...fresh, leaderboard: [quick], seasonsSimulated: 1 }, { ...on, seasonWaiting: true })).toBe('daily')
+    expect(nextUpFor(two, { ...on, seasonWaiting: true })).toBe('boards')
+  })
 })
+
+describe("the Daily's rotation, as its setup's tip tells it", () => {
+  it('names today and tomorrow only on a day whose league tomorrow differs', () => {
+    // Before the rotation's first day every Daily was the Premier League, and so is its first day
+    expect(dailyRotation('daily-2026-10-28', 'daily-2026-10-29')).toBeNull()
+    expect(dailyRotation('daily-2026-10-29', 'daily-2026-10-30')).toBeNull()
+    expect(dailyRotation('daily-2026-10-30', 'daily-2026-10-31')).toEqual({ today: 'england', tomorrow: 'spain' })
+    expect(dailyRotation('daily-2026-11-05', 'daily-2026-11-06')).toEqual({ today: 'portugal', tomorrow: 'england' })
+  })
+
+  it('follows the rotation day after day: seven leagues, each once a week', () => {
+    const seen = new Set<string>()
+    for (let d = 0; d < 7; d++) {
+      const day = (n: number) => `daily-${new Date(Date.UTC(2026, 10, 1 + n)).toISOString().slice(0, 10)}`
+      const r = dailyRotation(day(d), day(d + 1))
+      expect(r).not.toBeNull()
+      seen.add(r!.today)
+    }
+    expect(seen.size).toBe(7)
+  })
+})
+

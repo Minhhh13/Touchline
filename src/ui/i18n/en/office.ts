@@ -139,4 +139,5 @@ export const office = catalog('office', {
   inboxRequest: '{name} wants to leave',
   inboxTerms: 'Personal terms: {name}',
   inboxPromise: '{weeks, plural, =0 {Promise due now: {name}} one {Promise due in # week: {name}} other {Promise due in # weeks: {name}}}',
+  officeTip: 'The Office is where your players come to you: requests to leave, promises you made, one-to-one talks, the press conference before each match and fee talks in a window. Nothing here changes a result until you use it.',
 })

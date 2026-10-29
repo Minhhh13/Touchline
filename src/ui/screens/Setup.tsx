@@ -19,11 +19,12 @@ import { ruleChipNote } from '../ruleNotes'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
-import { randomSeed } from '@engine/rng'
+import { dailySeed, randomSeed } from '@engine/rng'
+import { dailyRotation } from '@game/logic/onboarding'
 import { poolClubSeasons } from '@engine/universe'
 import { classicFromFor, classicFromIndex, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
 import { formationName, seasonLabel, tierName, formatLocale } from '../format'
-import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
+import { ClubBadge, EstimatedChip, Segmented, Tip } from '../components/bits'
 import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_ID, SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
@@ -290,6 +291,7 @@ export function Setup() {
     return { kind: 'daily', season: d.leagueSeason, host: d.hostClubId, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty ?? 'calibrated', rules: d.rules, seed: d.seed }
   })()
   const challenge = pendingChallenge?.challenge ?? null
+  const rotation = isDaily ? dailyRotation(todaysDailySeed(), dailySeed(new Date(Date.now() + 86400000))) : null
   // A fixed puzzle in an 18-club league (a rotated Daily in the Bundesliga, a Weekly) is 34 games, so its perfect season is 34-0
   const fixedClubs = fixed && fixed.season && !fixed.rules?.superLeague ? u.clubSeasons.filter((cs) => cs.leagueId === fixed.leagueId && cs.season === fixed.season).length : 0
   const fixedGames = fixedClubs > 1 ? 2 * (fixedClubs - 1) : 0
@@ -394,6 +396,8 @@ export function Setup() {
           </button>
         </div>
 
+        {/* The Daily's league rotates (engine 7's `DAILY_EPOCHS`): said once, on a day whose league tomorrow differs, above the steps so a phone sees it before Start */}
+        {fixed?.kind === 'daily' && rotation && <Tip id="daily-rotation">{t('dailyRotationTip', { today: `${leagueArticle(leagueNameOf(rotation.today))}${leagueNameOf(rotation.today)}`, tomorrow: `${leagueArticle(leagueNameOf(rotation.tomorrow))}${leagueNameOf(rotation.tomorrow)}` })}</Tip>}
         {/* Numbered steps in two boxes, as 38-0 reads: formation, name and league on the left; the rules and Spin on the right */}
         <div className="setup-grid">
           <div className="panel setup-box">

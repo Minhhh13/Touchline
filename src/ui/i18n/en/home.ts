@@ -29,7 +29,6 @@ export const home = catalog('home', {
   nudgePlayed: "Today's Daily: {points} pts{n, plural, =0 {} other {, streak #}}. A new one at midnight UTC",
   nudgeAtRisk: 'Your {n}-day Daily streak ends at midnight UTC: play today',
   nudgeFresh: "Today's Daily is waiting: one wheel for everyone",
-  nudgeBadge: 'Next badge: {badge}, {progress}',
   streakFallback: 'Streak {n} · {fallback}',
   tagline: 'Spin the wheel. Draft the XI. Manage the season.',
   playerSeasons: 'Player-seasons',
@@ -89,4 +88,6 @@ export const home = catalog('home', {
   privacy: 'Privacy and fair play',
   arenaDayGauntlet: 'The Gauntlet on the {wheel} wheel',
   arenaDayCup: 'The Cup of {size} on the {wheel} wheel',
+  dockTip: 'Head-to-head, Explore, your Profile and the guide are in the bar along the bottom.',
+  nudgeBadge: 'Next badge: {badge}, {left} to go',
 })

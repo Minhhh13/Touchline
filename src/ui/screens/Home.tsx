@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, type ReactNode } from 'react'
+import { lazy, Suspense, useMemo, useSyncExternalStore, type ReactNode } from 'react'
 import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Dices, Flame, Globe, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
@@ -18,7 +18,7 @@ import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/e
 import { useOnline } from '../../online/state'
 import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel, formationName } from '../format'
-import { TeamBadge } from '../components/bits'
+import { TeamBadge, Tip } from '../components/bits'
 import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
 import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
@@ -88,6 +88,19 @@ function NextUpChip() {
       {t('tryNext')}
     </span>
   )
+}
+
+/** The phone held upright, where the nav is the dock along the bottom (styles.css, "The dock"). */
+const DOCK_QUERY = '(max-width: 720px) and (min-height: 501px)'
+function subscribeDock(onChange: () => void) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => undefined
+  const mq = window.matchMedia(DOCK_QUERY)
+  mq.addEventListener('change', onChange)
+  return () => mq.removeEventListener('change', onChange)
+}
+const dockedNow = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(DOCK_QUERY).matches
+function useDocked(): boolean {
+  return useSyncExternalStore(subscribeDock, dockedNow, () => false)
 }
 
 const STEP_ICON: Record<(typeof FIRST_RUN_STEPS)[number]['id'], LucideIcon> = { spin: Dices, draft: UserPlus, play: Trophy }
@@ -197,7 +210,10 @@ export function Home() {
   // A manager with nothing finished and nothing waiting gets the game in three steps and one button into a Quick Draft
   const newcomer = isNewcomer(profile, !!game || Object.keys(parked).length > 0)
   // An early player (a first result in, a handful at most): the one card worth trying next is marked
-  const nextUp = newcomer ? null : nextUpFor(profile, { dailyPlayedToday: dailyDone, online: onlineAvailable() })
+  const seasonWaiting = [game, ...Object.values(parked)].some((g) => !!g && (g.settings.mode === 'season' || g.settings.mode === 'dynasty'))
+  const nextUp = newcomer ? null : nextUpFor(profile, { dailyPlayedToday: dailyDone, online: onlineAvailable(), seasonWaiting })
+  // The phone's nav is the dock along the bottom: its tip shows only there, once a first result is in (`TIP_AFTER`)
+  const docked = useDocked()
   // A finished game on the resume strip (a Dynasty's summary goes on to next year, so it is never finished here)
   const finishedHere = !!game && game.phase === 'summary' && game.settings.mode !== 'dynasty'
   // Today's Daily as the current game shows on the Daily card itself (See the result, Continue), not twice on Home
@@ -271,10 +287,13 @@ export function Home() {
           </dl>
           {/* Why come back today: the Daily (a streak that ends tonight first) and the badge nearest its next tier */}
           <div className="home-nudges" data-testid="home-nudges">
-            <span className={`home-nudge${nudge.kind === 'atRisk' ? ' hot' : ''}`} data-testid="daily-nudge" data-kind={nudge.kind}>
-              <Flame size={14} aria-hidden="true" />
-              {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
-            </span>
+            {/* While the Daily card carries Try next, a fresh Daily's nudge would point at it a second time */}
+            {!(nudge.kind === 'fresh' && nextUp === 'daily') && (
+              <span className={`home-nudge${nudge.kind === 'atRisk' ? ' hot' : ''}`} data-testid="daily-nudge" data-kind={nudge.kind}>
+                <Flame size={14} aria-hidden="true" />
+                {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
+              </span>
+            )}
             <Suspense fallback={null}>
               <HomeBadgeNudge onOpen={() => go('profile')} />
             </Suspense>
@@ -339,6 +358,8 @@ export function Home() {
           ))}
         </div>
       )}
+
+      {docked && !newcomer && <Tip id="dock-first">{t('dockTip')}</Tip>}
 
       <div className="modes">
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
@@ -435,7 +456,10 @@ export function Home() {
         </button>
       </div>
 
-      {/* The casual modes: one sitting each, beside the four ways to play above */}
+      {/* The casual modes: one sitting each, beside the four ways to play above. A newcomer's Home keeps to the first
+          draft and the four modes; the five more come in with the first result */}
+      {!newcomer && (
+      <>
       <h2 className="home-more eyebrow" id="home-more">{t('moreModes')}</h2>
       <div className="home-tiles casual" data-testid="casual-row" role="group" aria-labelledby="home-more">
         <Tile icon={Zap} testId="arena-daily-card" title={t('arenaDaily')} meta={streakMeta(arenaDone ? t('playedLabel', { label: arenaDone.label }) : null, profile.arenaDaily?.streak, u ? t(arenaToday.format === 'gauntlet' ? 'arenaDayGauntlet' : 'arenaDayCup', { size: arenaToday.size ?? 16, wheel: u.available.find((l) => l.id === arenaToday.leagueId)?.name ?? arenaToday.leagueId }) : t('sameDraw'))} onClick={playArenaDaily} disabled={!dailyReady} />
@@ -444,6 +468,8 @@ export function Home() {
         <Tile icon={ChevronsUp} testId="arena-gauntlet-card" title={t('gauntletTitle')} meta={t('gauntletMeta')} onClick={() => openArenaSetup('gauntlet')} />
         <Tile icon={Timer} testId="runin-card" title={t('runinTitle')} meta={t('runinMeta')} onClick={() => go('setup', 'runin')} />
       </div>
+      </>
+      )}
 
       {/* The other screens live in the nav; the World board shows here only while it is an early player's next step */}
       {onlineAvailable() && nextUp === 'boards' && (
