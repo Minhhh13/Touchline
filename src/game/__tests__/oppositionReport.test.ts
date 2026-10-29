@@ -4,6 +4,8 @@ import { buildAiClubs } from '@engine/season'
 import { reserveKeeperId } from '@engine/reserve'
 import { createGame } from '../logic/setup'
 import { scoutOpposition, SCOUT_NOTES } from '../logic/oppositionReport'
+import { opponentInput } from '../logic/squadDisplay'
+import { getFormation } from '@engine/formations'
 import { SEASON_RULES } from '@engine/draft'
 import type { Game } from '../types'
 
@@ -50,5 +52,25 @@ describe('the opposition report (r8 audit: worked out in logic, the reserve keep
     const before = JSON.stringify(game)
     for (const club of Object.values(buildAiClubs(u, 'portugal', 2025, 'benfica'))) scoutOpposition(game, u, club, 2)
     expect(JSON.stringify(game)).toBe(before)
+  })
+
+  it('reads the centre-backs from the CB slots: a side with every natural CB injured is not "slow at the back" by default (r9 audit)', () => {
+    const game = aGame('r9-scout-cbs')
+    let checked = 0
+    for (const club of Object.values(buildAiClubs(u, 'portugal', 2025, 'benfica'))) {
+      const cbs = club.squad.filter((id) => u.index[id]?.positions[0] === 'CB')
+      if (!cbs.length) continue
+      const state = { ...club.state }
+      for (const id of cbs) state[id] = { ...state[id], injury: { description: 'Knock', weeksOut: 4 } }
+      const hurt = { ...club, state }
+      const scout = scoutOpposition(game, u, hurt, 0)
+      // The men covering at centre-back are who the note reads; before, a mean over nobody was 0 and every such side was "slow"
+      const atCb = getFormation(hurt.tactics.formationId).slots.filter((sl) => sl.position === 'CB').map((sl) => scout.xi.find((p) => p.id === opponentInput(game, u, hurt, 0).lineup[sl.id])!)
+      expect(atCb.length).toBeGreaterThan(0)
+      const pace = atCb.reduce((a, p) => a + p.attributes.pace, 0) / atCb.length
+      expect(scout.tips.includes('slowCbs')).toBe(pace < SCOUT_NOTES.slowCbs)
+      if (pace >= SCOUT_NOTES.slowCbs) checked++
+    }
+    expect(checked).toBeGreaterThan(0)
   })
 })

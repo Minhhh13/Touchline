@@ -1,5 +1,6 @@
 import type { AiClub } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
+import { getFormation } from '@engine/formations'
 import { staffTier } from '@engine/staff'
 import type { LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason, Position, TeamStrength } from '@engine/types'
@@ -25,7 +26,8 @@ export interface OppositionScout {
 export const SCOUT_NOTES = { slowCbs: 72, nervy: 72, composed: 80, technical: 80, unitGap: 4, weakLinkTier: 2 } as const
 
 const MIDFIELD: Position[] = ['DM', 'CM', 'AM']
-const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / Math.max(1, xs.length)
+/** The mean, or null for none (no note is drawn from nobody: a mean of 0 read as "slow centre-backs"). */
+const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null)
 
 /**
  * The opposition report's facts on an AI side (pure, no draws): its strength, danger men and the assistant's notes.
@@ -41,14 +43,22 @@ export function scoutOpposition(game: Game, u: LoadedUniverse, club: AiClub, off
   const stars = [...xi].sort((a, b) => b.overall - a.overall).slice(0, 3)
   const weak = staffTier(game.staff, 'scout') >= SCOUT_NOTES.weakLinkTier ? [...xi].filter((p) => p.positions[0] !== 'GK').sort((a, b) => a.overall - b.overall)[0] : undefined
   const injured = club.squad.filter((id) => club.state[id]?.injury).length
-  const cbPace = mean(xi.filter((p) => p.positions[0] === 'CB').map((p) => p.attributes.pace))
-  const midPassing = mean(xi.filter((p) => MIDFIELD.includes(p.positions[0])).map((p) => p.attributes.passing))
+  // The men in the centre-back and midfield slots, whatever their natural position (an injured CB's cover counts)
+  const slotPos = new Map(getFormation(club.tactics.formationId).slots.map((s) => [s.id, s.position]))
+  const inSlots = (positions: readonly Position[]) =>
+    Object.entries(input.lineup).flatMap(([slot, id]) => {
+      const pos = slotPos.get(slot)
+      const p = pos && positions.includes(pos) ? input.getPlayer(id) : undefined
+      return p ? [p] : []
+    })
+  const cbPace = mean(inSlots(['CB']).map((p) => p.attributes.pace))
+  const midPassing = mean(inSlots(MIDFIELD).map((p) => p.attributes.passing))
   const composure = mean(xi.map((p) => p.attributes.mentality))
   const tips: OppositionTip[] = []
-  if (cbPace < SCOUT_NOTES.slowCbs) tips.push('slowCbs')
-  if (composure < SCOUT_NOTES.nervy) tips.push('nervy')
-  else if (composure > SCOUT_NOTES.composed) tips.push('composed')
-  if (midPassing > SCOUT_NOTES.technical) tips.push('technical')
+  if (cbPace !== null && cbPace < SCOUT_NOTES.slowCbs) tips.push('slowCbs')
+  if (composure !== null && composure < SCOUT_NOTES.nervy) tips.push('nervy')
+  else if (composure !== null && composure > SCOUT_NOTES.composed) tips.push('composed')
+  if (midPassing !== null && midPassing > SCOUT_NOTES.technical) tips.push('technical')
   if (club.tactics.passing === 'direct' && club.tactics.tempo === 'fast') tips.push('counter')
   if (club.tactics.mentality === 'defensive') tips.push('deep')
   if (strength.attack > strength.defence + SCOUT_NOTES.unitGap) tips.push('frontHeavy')
