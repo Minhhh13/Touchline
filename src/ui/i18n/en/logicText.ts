@@ -1701,4 +1701,8 @@ export const logicText = catalog('logicText', {
   events_knockedOnYourDoor: '{name} has knocked on your door. {missed, plural, =0 {He feels} one {He has not played in # match and feels} other {He has not played in # matches and feels}} he deserves a place in the side.',
   events_knockedOnYourDoorStatus: '{name} has knocked on your door. {missed, plural, =0 {He feels} one {He has not played in # match and feels} other {He has not played in # matches and feels}} he deserves a place in the side. He signed as {status} and has had {had}% of the minutes; he expected {expected}%.',
   events_renewAs: 'Renew as {status, select, key {a key player} other {first team}} (£{fee}M, +10% wages)',
+  briefing_officeWaiting: '{count} things wait in the Office: {names}',
+  briefing_officeRequest: '{name} has asked to leave: answer him in the Office ({weeks, plural, =0 {this matchweek} one {# matchweek left} other {# matchweeks left}})',
+  briefing_officeTerms: 'Fee agreed for {name}: his personal terms wait in the Office',
+  briefing_officePromise: 'Your promise to {name} falls due: {weeks, plural, =0 {this matchweek} one {# matchweek left} other {# matchweeks left}}',
 })
