@@ -461,3 +461,22 @@ describe('personal terms the market refuses leave the listing as it was (r9 audi
     expect(l.status).toBe('available')
   }, 60_000)
 })
+
+describe('the transfer list reads only this season\'s request (r9 audit)', () => {
+  it('listing a man whose request was refused last season is a listing he did not ask for', () => {
+    const g = seasonGame(u, 'r9-office-stale-request', 6)
+    const id = Object.values(g.lineup)[4]
+    const pid = playerLookup(g, u)(id)!.playerId
+    expect(lodgeRequest(g, u, id, 'morale')).not.toBeNull()
+    expect(answerRequest(g, u, id, 'refuse').ok).toBe(true)
+    // A Dynasty's next season: last year's refused request is still on file
+    g.office!.requests![pid].year = g.year - 1
+    g.squad[id].morale = 60
+    expect(setListed(g, u, id, true).ok).toBe(true)
+    // Before, it counted as accepting his request: +5 and the old request turned "listed"
+    expect(g.squad[id].morale).toBe(56)
+    expect(g.office!.requests![pid].stage).toBe('refused')
+    expect(setListed(g, u, id, false).ok).toBe(true)
+    expect(g.squad[id].morale).toBe(56)
+  }, 60_000)
+})
