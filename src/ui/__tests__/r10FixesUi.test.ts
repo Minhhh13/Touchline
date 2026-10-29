@@ -53,3 +53,13 @@ describe('R9-O3: no component reads the whole store', () => {
     expect(bare).toEqual([])
   })
 })
+
+describe('R9-O4: the Office\'s conversation topics wrap in their box', () => {
+  it('the topics are a wrapping segmented row, never a sideways scroller', () => {
+    const office = src('screens/OfficeTab.tsx')
+    const row = /<div className="([^"]*)"[^>]*role="radiogroup" aria-label=\{t\('talks'\)\}/.exec(office)
+    expect(row).not.toBeNull()
+    expect(row![1].split(' ')).toEqual(['segmented'])
+    expect(src('styles.css')).toMatch(/\n\.segmented \{\n {2}display: inline-flex;\n {2}flex-wrap: wrap;/)
+  })
+})
