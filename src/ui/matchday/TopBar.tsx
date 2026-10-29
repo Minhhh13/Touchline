@@ -23,6 +23,7 @@ import type { TopBarProps } from './types'
 import type { ManagerHand } from './useManagerHand'
 import { SPEEDS } from './useMatchClock'
 import { useMediaQuery } from '../components/LivePitch'
+import { useSayOnce } from '../liveOnce'
 import { translator } from '../i18n'
 import { match } from '../i18n/en/match'
 
@@ -134,6 +135,7 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
   // The minute the panels show: a goal counts once the ball is over the line
   const t = minute ?? clock.clock
   const score = scoreAt(feed.events, t)
+  const scoreSaid = useSayOnce(score.home + score.away > 0 ? `${score.home}-${score.away}` : null, `${home.name} ${score.home}, ${away.name} ${score.away}`)
   const celebrating = useLiveClock((s) => s.celebrating >= 0)
   // The board lights up for the minute after a goal, and while one is celebrated
   const flash = celebrating || feed.events.some((e) => GOALS.has(e.type) && e.minute <= t && e.minute >= t - 1)
@@ -170,9 +172,10 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           {away.code}
         </span>
         <ClockFace minute={clock.clock} state={state} />
-        {/* Said once each time the score changes (the GOAL! banner mounts with its text, which a screen reader may miss) */}
+        {/* Said once each time the score changes (the GOAL! banner mounts with its text, which a screen reader may miss);
+            the board mounts afresh after each stop, and the score it mounts with is not news (round 7) */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="score-live">
-          {score.home + score.away > 0 ? `${home.name} ${score.home}, ${away.name} ${score.away}` : ''}
+          {scoreSaid}
         </span>
       </div>
       <div className="md-playback">

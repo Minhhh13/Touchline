@@ -386,8 +386,12 @@ pre.mono,
   letter-spacing: 0.08em;
   color: var(--text-3);
 }
+/* Pinned to its containing block's corner: left where it falls, a word inside a scrolling box (the Continental Cup's
+   groups on the Dugout) escaped the box's clip and hung below the window, so the page scrolled (a11y round 7) */
 .sr-only {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -1040,6 +1044,12 @@ pre.mono,
   text-decoration: none;
   white-space: nowrap;
 }
+/* A long label that may wrap rather than run past a phone's edge at 200 % text (Kick-off's "Simulate with the default
+   tactics" ran 140 px past a 390 px window, a11y round 7) */
+.btn.wraps {
+  white-space: normal;
+  max-width: 100%;
+}
 /* A decision's choice carries its hint under the label, so it wraps rather than running past a phone's edge */
 .btn.event-choice {
   white-space: normal;
@@ -1444,6 +1454,10 @@ label.field,
   color: var(--text-2);
   border: var(--border);
   white-space: nowrap;
+}
+/* A chip that holds a sentence wraps rather than run past a phone at 200 % text (the Office's board view, a11y round 7) */
+.chip.wraps {
+  white-space: normal;
 }
 .chip.good {
   color: var(--good);
@@ -1959,8 +1973,10 @@ label.field,
 .ss-cell.band-bottom {
   background: color-mix(in srgb, var(--good) 9%, var(--panel-2));
 }
+/* A week with no match: a dashed edge and no fill, no opacity (it took the week's number under AA; a11y round 7) */
 .ss-cell.free {
-  opacity: 0.6;
+  background: transparent;
+  border-style: dashed;
 }
 .ss-cell.next {
   border-color: var(--primary);
@@ -1983,6 +1999,8 @@ label.field,
 }
 .ss-chips {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 2px;
   min-height: 18px;
 }
@@ -2001,8 +2019,10 @@ label.field,
   font-size: 0.85em;
 }
 @media (max-width: 720px) {
+  /* Columns of at least 3.6rem: five at the default size on a 390 px phone, three at 200 % text, where five ran the
+     last week's "1-1 D" past the window (a11y round 7) */
   .season-strip {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr));
   }
 }
 /* Deadline day on the Market tab: the latest market news running along one line */
@@ -6813,8 +6833,10 @@ dl.kv {
 .live-flash {
   animation: fadein var(--dur-3) var(--ease-out);
 }
+/* Wraps when it must: a long side name ran the away swatch 12 px past a 390 px phone on a Gauntlet report (a11y round 7) */
 .live-legend {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
@@ -7031,13 +7053,19 @@ dl.kv {
   display: grid;
   gap: 8px;
 }
+/* Wraps when it must: at 200 % text on a 390 px phone the Share button ran 14 px past the window (a11y round 7) */
 .unlock-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
   border-radius: 10px;
   background: var(--panel-2);
+}
+.unlock-item > .milestone-text {
+  flex: 1 1 8em;
+  min-width: 0;
 }
 .unlock-card.animate .unlock-item {
   animation: unlock-rise var(--dur-3) var(--ease-out) backwards;
@@ -7770,6 +7798,21 @@ dl.kv {
 .plist.lined > .prow.dim:hover {
   background: transparent;
 }
+/* A tinted chip on a hovered row or on the Office's tinted "his view" box keeps its tint over the panel, not over the
+   fill behind it: in Daylight "fits ST" read 4.3:1 and "can cover" 3.95:1 on a hovered row, in Floodlit "Agent: greedy"
+   4.31:1 on --primary-soft (a11y round 7) */
+.prow:hover .chip.good,
+.office-view .chip.good {
+  background: linear-gradient(var(--good-soft), var(--good-soft)) var(--panel);
+}
+.prow:hover .chip.warn,
+.office-view .chip.warn {
+  background: linear-gradient(var(--warn-soft), var(--warn-soft)) var(--panel);
+}
+.prow:hover .chip.bad,
+.office-view .chip.bad {
+  background: linear-gradient(var(--bad-soft), var(--bad-soft)) var(--panel);
+}
 .scroll-list {
   max-height: 280px;
   overflow: auto;
@@ -8416,13 +8459,16 @@ dl.kv {
   .club-header {
     gap: var(--space-3);
   }
+  /* minmax(0, 1fr): at 200 % text "£152M" widened a 1fr column 3 px past a 390 px window (a11y round 7) */
   .stat-strip {
     width: 100%;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3) var(--space-4);
   }
   .stat-strip .stat .value {
     font-size: var(--fs-h2);
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .stat-strip .stat .bar {
     width: 100%;
@@ -9550,6 +9596,15 @@ table.tbl.match-stats th {
   /* Three short columns: the phone's sideways-scrolling table (display: block) left it in two thirds of its box */
   table.tbl.match-stats {
     display: table;
+  }
+  /* At 200 % text the labels ("Expected before kick-off") wrap, or the table ran 145 px past a 390 px phone; the
+     report head's Boxes and Next wrap too (a11y round 7) */
+  table.tbl.match-stats th {
+    white-space: normal;
+  }
+  .match-head > .row {
+    flex-wrap: wrap;
+    max-width: 100%;
   }
   /* A long word ("Lost on pens") takes its own line over the half-time score, so the names keep their width */
   .report-board .clock .outcome-word {
@@ -10792,6 +10847,10 @@ table.tbl.match-stats th {
 .case-odds-table td.mono {
   white-space: nowrap;
   font-weight: 700;
+}
+/* The items column gives way at 200 % text on a phone (it ran 6 px past the window): a word breaks only when it must */
+.case-odds-table td.small {
+  overflow-wrap: anywhere;
 }
 /* Beside the reel, the locker's counts; under the odds, what each item does. Each takes its tier's colour */
 .case-left {
@@ -13458,6 +13517,7 @@ table.tbl.contracts-overview .link-btn.name {
 /* The shot map's key: drawn markers, at the legend's own size */
 .shot-key {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   font-size: var(--fs-xs);
@@ -13627,6 +13687,18 @@ table.tbl.contracts-overview .link-btn.name {
 .arena-opp-name {
   font-weight: 700;
   font-size: calc(var(--fs-h3) - 1px);
+}
+/* At 200 % text on a phone the opponent's name and the Gauntlet's lifeline share no line: the lifeline wraps under it
+   (it ran up to 109 px past a 390 px window, a11y round 7) */
+.arena-opp-row {
+  flex-wrap: wrap;
+}
+.arena-opp-row > .row {
+  min-width: 0;
+}
+.arena-opp-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 @media (min-width: 1100px) and (min-height: 600px) {
   .fit-grid.arena-grid {
@@ -15533,12 +15605,16 @@ table.tbl td.strong {
 .group-card tr.zone td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
-/* A side out once the group is complete steps back */
+/* A side out once the group is complete steps back: grey ink and a grey badge, no opacity, which took a small badge's
+   code under AA (Sporting CP's 3.3:1 on the Season summary, a11y round 7); your own row keeps its ink */
 .group-card tr.out td {
-  opacity: 0.6;
+  color: var(--text-2);
+}
+.group-card tr.out .badge {
+  filter: grayscale(1);
 }
 .group-card tr.me.out td {
-  opacity: 0.85;
+  color: var(--text);
 }
 .group-card {
   container-type: inline-size;
@@ -16261,6 +16337,10 @@ button.home-nudge.linklike:hover {
 }
 .office-fx.down {
   background: var(--bad-soft);
+}
+/* Its chips are sentences ("Takes a hard word as it comes"): they wrap at 200 % text on a phone (a11y round 7) */
+.office-view .chip {
+  white-space: normal;
 }
 .office-view {
   display: flex;
