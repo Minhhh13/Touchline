@@ -188,7 +188,7 @@ export function ArenaSummary() {
         )}
         {standing && (
           <p className="tier-blurb" data-testid="arena-daily-standing">
-            {standing.practice ? t('dailyPractice', { label: standing.counted.label }) : t('dailyCounted', { label: standing.counted.label, streak: standing.streak })}
+            {standing.practice ? t('dailyPractice', { label: standing.counted.label }) : t('dailyCounted', { streak: standing.streak })}
           </p>
         )}
         {winner && (

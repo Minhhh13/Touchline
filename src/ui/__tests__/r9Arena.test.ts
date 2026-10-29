@@ -72,7 +72,7 @@ describe('the arena summary (r9)', () => {
     const book = st().profile.arenaDaily!
     expect(book.results[seed]).toBeDefined()
     expect(first).toContain('data-testid="arena-daily-standing"')
-    expect(first).toContain('Today&#x27;s Daily Arena is in')
+    expect(first).toContain('Today&#x27;s Daily Arena counts · 1 day in a row')
     // A second go filed over a different counted result reads as practice
     show({ profile: { ...st().profile, arenaDaily: { ...book, results: { ...book.results, [seed]: { ...book.results[seed], score: book.results[seed].score + 3, label: 'something else' } } } } })
     const again = renderToString(createElement(ArenaSummary))

@@ -463,7 +463,7 @@ export function Summary() {
         )}
         {!replay.playing && weeklyStanding && (
           <p className="tier-blurb" data-testid="weekly-standing">
-            {weeklyStanding.practice ? t('weeklyPractice', { points: weeklyStanding.counted.points }) : t('weeklyCounted', { points: weeklyStanding.counted.points, streak: weeklyStanding.streak })}
+            {weeklyStanding.practice ? t('weeklyPractice', { points: weeklyStanding.counted.points }) : t('weeklyCounted', { streak: weeklyStanding.streak })}
           </p>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
