@@ -74,15 +74,15 @@ export function gauntletBandText(rung: number): string {
 }
 
 const TIER_KEY = {
-  WINNERS: 'tierWinners',
-  'RUNNERS-UP': 'tierRunnersUp',
-  'GAUNTLET COMPLETE': 'tierGauntletComplete',
-  'CUP WINNERS': 'tierCupWinners',
-  FINALISTS: 'tierFinalists',
-  'SEMI-FINALISTS': 'tierSemiFinalists',
-  'QUARTER-FINALISTS': 'tierQuarterFinalists',
-  'OUT IN THE ROUND OF 16': 'tierOutRound16',
-  'OUT IN THE FIRST ROUND': 'tierOutFirstRound',
+  WINNERS: 'winners',
+  'RUNNERS-UP': 'runnersUp',
+  'GAUNTLET COMPLETE': 'gauntletComplete',
+  'CUP WINNERS': 'cupWinners',
+  FINALISTS: 'finalists',
+  'SEMI-FINALISTS': 'semiFinalists',
+  'QUARTER-FINALISTS': 'quarterFinalists',
+  'OUT IN THE ROUND OF 16': 'outRound16',
+  'OUT IN THE FIRST ROUND': 'outFirstRound',
 } as const satisfies Record<Exclude<ArenaTier, 'RUNGS'>, string>
 
 /**
@@ -90,7 +90,7 @@ const TIER_KEY = {
  * engine's `arenaTierLabel` keeps the English the share text and card use, held equal in English by a test (QA r11).
  */
 export function arenaTierText(tier: ArenaTier, score: number): string {
-  return tier === 'RUNGS' ? t('tierRungs', { n: score }) : t(TIER_KEY[tier])
+  return t(`arenaTier_${tier === 'RUNGS' ? 'rungs' : TIER_KEY[tier]}`, { n: score })
 }
 
 /**
