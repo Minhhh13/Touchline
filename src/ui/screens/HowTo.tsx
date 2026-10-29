@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Activity, ArrowLeftRight, Armchair, Award, Banknote, Cloud, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Handshake, Landmark, Layers, Lock, MessageSquare, Mountain, Package, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, Zap, type LucideIcon } from 'lucide-react'
+import { Activity, ArrowLeftRight, Armchair, Award, Banknote, Briefcase, Cloud, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Handshake, Landmark, Layers, Lock, MessageSquare, Mountain, Package, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, Zap, type LucideIcon } from 'lucide-react'
 import { useStorePick } from '../useStorePick'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
@@ -64,6 +64,7 @@ const seasonFacts = (): Array<[LucideIcon, string, string]> => [
   [Armchair, t('fStaffTitle'), t('fStaff')],
   [Target, t('fMarkingTitle'), t('fMarking')],
   [TrendingUp, t('fDevelopmentTitle'), t('fDevelopment')],
+  [Briefcase, t('fOfficeTitle'), t('fOffice')],
   [Landmark, t('fBoardTitle'), t('fBoard')],
 ]
 
