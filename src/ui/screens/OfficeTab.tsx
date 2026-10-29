@@ -425,7 +425,7 @@ function PressBox({ game, u }: BoxProps) {
           <Info label={t('press')}>{t('pressInfo')}</Info>
         </span>
         {game.season && (
-          <span className={`chip ${confidence < 25 ? 'bad' : confidence < 45 ? 'warn' : 'muted'}`} data-testid="board-view">
+          <span className={`chip wraps ${confidence < 25 ? 'bad' : confidence < 45 ? 'warn' : 'muted'}`} data-testid="board-view">
             {t('boardView', { mood: t(`boardMood_${boardMood(confidence)}`) })} · {t('boardConfidence', { n: confidence })}
           </span>
         )}

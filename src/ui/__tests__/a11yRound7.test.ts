@@ -115,6 +115,12 @@ describe('contrast and larger text on the game screens', () => {
     expect(kick).toMatch(/className="btn primary wraps".*data-testid="kickoff-go-tactics"/)
     expect(kick).toMatch(/className="btn ghost wraps".*data-testid="kickoff-skip"/)
     expect(rule('.case-odds-table td.small')).toMatch(/overflow-wrap: anywhere/)
+    // The Office: the board's view and his-view chips are sentences
+    expect(rule('.chip.wraps')).toMatch(/white-space: normal/)
+    expect(read('../screens/OfficeTab.tsx')).toMatch(/className=\{`chip wraps .*data-testid="board-view"/)
+    expect(rule('.office-view .chip')).toMatch(/white-space: normal/)
+    // The match report's stats labels on a phone
+    expect(css).toMatch(/table\.tbl\.match-stats th \{\s*white-space: normal;/)
     // The Trophy Room's unlock rows on a summary
     expect(rule('.unlock-item')).toMatch(/flex-wrap: wrap/)
     expect(rule('.unlock-item > .milestone-text')).toMatch(/min-width: 0/)

@@ -1455,6 +1455,10 @@ label.field,
   border: var(--border);
   white-space: nowrap;
 }
+/* A chip that holds a sentence wraps rather than run past a phone at 200 % text (the Office's board view, a11y round 7) */
+.chip.wraps {
+  white-space: normal;
+}
 .chip.good {
   color: var(--good);
   background: var(--good-soft);
@@ -9577,6 +9581,15 @@ table.tbl.match-stats th {
   table.tbl.match-stats {
     display: table;
   }
+  /* At 200 % text the labels ("Expected before kick-off") wrap, or the table ran 145 px past a 390 px phone; the
+     report head's Boxes and Next wrap too (a11y round 7) */
+  table.tbl.match-stats th {
+    white-space: normal;
+  }
+  .match-head > .row {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
   /* A long word ("Lost on pens") takes its own line over the half-time score, so the names keep their width */
   .report-board .clock .outcome-word {
     display: block;
@@ -16354,6 +16367,10 @@ button.home-nudge.linklike:hover {
 }
 .office-fx.down {
   background: var(--bad-soft);
+}
+/* Its chips are sentences ("Takes a hard word as it comes"): they wrap at 200 % text on a phone (a11y round 7) */
+.office-view .chip {
+  white-space: normal;
 }
 .office-view {
   display: flex;
