@@ -2266,3 +2266,16 @@ details.opposition {
     padding-inline: 4px;
   }
 }
+/* The player card on a phone (phones, round 12): its tabs were 26 px tall and its shortlist star 28 x 24. The strip
+   scrolls sideways (overflow), which would clip an invisible target, so the tabs grow by padding; the star by size */
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
+  .pc-tabs button {
+    min-height: 44px;
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+  .pc-star {
+    width: 44px;
+    height: 44px;
+  }
+}

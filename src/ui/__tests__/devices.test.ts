@@ -77,6 +77,8 @@ describe('the phones pass (round 12)', () => {
     expect(r12).toMatch(/\.top-line \{\n {4}min-height: 44px;/)
     expect(r12).toMatch(/ {2}\.toggle,\n {2}\.toggle\.era-classic \{\n {4}min-height: 44px;/)
     expect(r12).toMatch(/button\.star::after \{\n {4}content: '';\n {4}position: absolute;\n {4}inset: -10px;/)
+    expect(game).toMatch(/\.pc-tabs button \{\n {4}min-height: 44px;/)
+    expect(game).toMatch(/\.pc-star \{\n {4}width: 44px;\n {4}height: 44px;/)
     expect(phoneCss).toMatch(/\.matchday \.md-x::after \{\n {4}content: '';\n {4}position: absolute;\n {4}inset: -8px;/)
   })
 
@@ -89,6 +91,12 @@ describe('the phones pass (round 12)', () => {
     expect(r12).toMatch(/ {2}h1,\n {2}h2,\n {2}h3,\n {2}\.mode-card p \{\n {4}overflow-wrap: anywhere;\n {4}hyphens: auto;/)
     expect(r12).toMatch(/\.stat-strip \{\n {4}grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 7\.5rem\), 1fr\)\);/)
     expect(r12).toMatch(/\.pc-head \.chip \{\n {4}max-width: 100%;\n {4}white-space: normal;/)
+  })
+
+  it("lays a small phone on its side's substitution board beside the bench, its calls on one row", () => {
+    const side = phoneCss.slice(phoneCss.lastIndexOf('@media (max-width: 720px) and (max-height: 500px) {'))
+    expect(side).toMatch(/\.matchday \.md-stop-board \.sub-board \{\n {4}--sb-pitch-h: max\(150px, calc\(100dvh - 150px\)\);\n {4}grid-template-columns: auto minmax\(0, 1fr\);/)
+    expect(side).toContain('.matchday .decision-sheet:has(.md-stop-board) .decision-actions .btn {\n    flex: 1 1 0;')
   })
 
   it("closes the match day's drawers when pulled down, as every other phone sheet", () => {
