@@ -28,5 +28,6 @@ import { engineText } from './engineText'
 import { story } from './story'
 import { playerCard } from './playerCard'
 import { office } from './office'
+import { history } from './history'
 
-export const CATALOGS = { app, boxes, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online, saving, shell, trophies, engineText, story, playerCard, office } as const
+export const CATALOGS = { app, boxes, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online, saving, shell, trophies, engineText, story, playerCard, office, history } as const
