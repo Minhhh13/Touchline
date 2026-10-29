@@ -375,7 +375,6 @@ export function* playMatchweekSteps(game: Game, u: LoadedUniverse, autoManage = 
     finishSeason(game, u)
   }
   if (game.phase === 'summary') return
-  const rng = Rng.fromState(game.rngState)
 
   if (game.pendingEvent && autoManage) {
     // The assistant takes the second option; the choice goes on record before the event's own item follows it
@@ -385,6 +384,8 @@ export function* playMatchweekSteps(game: Game, u: LoadedUniverse, autoManage = 
     applyEventChoice(game, u, choice.id)
   }
   if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
+  // The week's stream starts after the event's answer, which draws from game.rngState and writes it back (engine 8)
+  const rng = Rng.fromState(game.rngState)
 
   const mw = season.matchweek + 1
   const table = seasonTable(season)
