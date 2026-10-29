@@ -147,7 +147,7 @@ export function Arena() {
                 {t(info.neutral ? 'neutralGround' : info.home ? 'home' : 'away')}
                 {billing ? ` · ${billing}` : ''}
               </div>
-              <div className="row between" style={{ gap: 8 }}>
+              <div className="row between arena-opp-row" style={{ gap: 8 }}>
                 <div className="row" style={{ gap: 10 }}>
                   <ClubBadge clubId={clubIdOfKey(opp.key)} size={40} />
                   {/* The season stays on one line: a narrow box broke "2023-24" at its hyphen */}

@@ -56,8 +56,10 @@ describe('the commentary in English', () => {
       const ctx: CommentaryContext = i % 2 ? { userSide: 'home', positions: { home: 1, away: 19, clubs: 20 }, seasonGoals: {}, form: {} } : {}
       for (const l of commentaryUpTo(feed, matchPath(feed), feed.lastMinute, names, getName, elsewhere, ctx)) h.update(`${l.minute}|${l.kind}|${l.side ?? ''}|${l.weight}|${l.text}\n`)
     }
-    // From `main` with claude/r11-qa merged, before the catalogue: no line, order or pick moved
-    expect(h.digest('hex')).toBe('1bb02088f264270fbb217877e3bd40c5fefd0c423e34ed59a5020e1e734951eb')
+    // From `main` with claude/r11-qa merged, before the catalogue: no line, order or pick moved. Re-baselined once by
+    // content round 2 (r13): the mood banks' new wordings and the two new moods (a two-goal cushion, an open game) move
+    // which quiet-minute word is said, only in the minutes `commentaryUpTo` already gave to the mood
+    expect(h.digest('hex')).toBe('4b61ad3a34dc3ab22d6d416e74ab9a69fc040eac8337cf5e74329d02ffbb05ee')
   })
 
   it('is said exactly as written, and a line’s pieces join to its text', () => {

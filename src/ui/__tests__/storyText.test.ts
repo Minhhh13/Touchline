@@ -63,19 +63,26 @@ describe('storyline words', () => {
   })
 
   it('reads the numbers right', () => {
-    const say = (s: Storyline) => storylineText(s, u, 'Story XI', 'k').text
-    expect(say(STORIES[0])).toMatch(/^3 points clear of Arsenal with 9 to play\. /)
-    expect(say(STORIES[1])).toMatch(/^Level on points with Arsenal at the top, one game to play\./)
-    expect(say(STORIES[2])).toMatch(/^4 points behind Liverpool/)
-    expect(say(STORIES[3])).toMatch(/^1 point behind Story XI/)
-    expect(say(STORIES[4])).toMatch(/^In the bottom three, 2 points from safety/)
-    expect(say(STORIES[7])).toBe('A. Striker leads the scoring charts with 14, 2 goals ahead of B. Rival (Chelsea).')
-    expect(say(STORIES[9])).toBe('A. Striker has 11 goals, 3rd in the charts, 2 goals behind B. Rival (Chelsea).')
-    expect(say(STORIES[15])).toBe('C. Keeper is one game from 50 appearances for the club.')
-    expect(say(STORIES[17])).toBe('D. Nine needs 1 more goal for 50 for the club.')
-    expect(say(STORIES[18])).toBe('D. Nine needs 2 more goals for 50 for the club.')
-    expect(say(STORIES[22])).toBe('Board confidence is down to 18. The board want 8th; you are 16th. The job is on the line.')
-    expect(say(STORIES[25])).toBe('The last day. 2nd, 2 points off the top.')
+    // Every wording a story can take (content round 2 gave most several): the old wording is among them, and each one
+    // carries the same numbers and names
+    const told = (s: Storyline) => Array.from({ length: 80 }, (_, i) => storylineText(s, u, 'Story XI', `k${i}`).text)
+    const reads = (s: Storyline, old: RegExp | string, facts: string[]) => {
+      const all = told(s)
+      expect(all.some((x) => (typeof old === 'string' ? x === old : old.test(x))), String(old)).toBe(true)
+      for (const x of all) for (const f of facts) expect(x, f).toContain(f)
+    }
+    reads(STORIES[0], /^3 points clear of Arsenal with 9 to play\. /, ['3 points', 'Arsenal', '9'])
+    reads(STORIES[1], /^Level on points with Arsenal at the top, one game to play\./, ['Arsenal', 'one game to play'])
+    reads(STORIES[2], /^4 points behind Liverpool/, ['4 points', 'Liverpool'])
+    reads(STORIES[3], /^1 point behind Story XI/, ['1 point', 'Story XI'])
+    reads(STORIES[4], /^In the bottom three, 2 points from safety/, ['2 points'])
+    reads(STORIES[7], 'A. Striker leads the scoring charts with 14, 2 goals ahead of B. Rival (Chelsea).', ['A. Striker', '14', '2 goals', 'B. Rival (Chelsea)'])
+    reads(STORIES[9], 'A. Striker has 11 goals, 3rd in the charts, 2 goals behind B. Rival (Chelsea).', ['A. Striker', '11 goals', '3rd', '2 goals', 'B. Rival (Chelsea)'])
+    reads(STORIES[15], 'C. Keeper is one game from 50 appearances for the club.', ['C. Keeper', '50 appearances'])
+    reads(STORIES[17], 'D. Nine needs 1 more goal for 50 for the club.', ['D. Nine', '1 more goal ', '50'])
+    reads(STORIES[18], 'D. Nine needs 2 more goals for 50 for the club.', ['D. Nine', '2 more goals', '50'])
+    reads(STORIES[22], 'Board confidence is down to 18. The board want 8th; you are 16th. The job is on the line.', ['18', 'The board want 8th; you are 16th.'])
+    reads(STORIES[25], 'The last day. 2nd, 2 points off the top.', [' 2nd, 2 points off the top.'])
   })
 
   it('varies a story by the week it is told in', () => {
@@ -89,8 +96,10 @@ describe('storyline words', () => {
 describe('preview words', () => {
   it('reads form, meetings and every stake', () => {
     expect(formLine([], [], 'Arsenal', 'k')).toBe('No league form to go on yet.')
-    expect(formLine(['W', 'D'], ['W', 'W', 'W', 'W', 'L'], 'Arsenal', 'k')).toMatch(/Arsenal .*4 wins/)
-    expect(formLine(['L', 'L', 'L', 'D', 'W'], ['D', 'D', 'W', 'L', 'D'], 'Arsenal', 'k')).toMatch(/3 defeats/)
+    for (let i = 0; i < 40; i++) {
+      expect(formLine(['W', 'D'], ['W', 'W', 'W', 'W', 'L'], 'Arsenal', `k${i}`)).toMatch(/Arsenal.*4 wins/)
+      expect(formLine(['L', 'L', 'L', 'D', 'W'], ['D', 'D', 'W', 'L', 'D'], 'Arsenal', `k${i}`)).toMatch(/3 defeats/)
+    }
     expect(meetingLabel({ comp: 'league', matchweek: 4, home: true, gf: 2, ga: 0 })).toBe('2-0 at home, MW 4')
     expect(meetingLabel({ comp: 'cup', matchweek: 9, home: false, gf: 1, ga: 1, pens: { ours: 4, theirs: 3 } })).toBe('1-1 away (4-3 on penalties), in the Cup')
     const stakes: Stake[] = [
@@ -114,7 +123,9 @@ describe('preview words', () => {
       { kind: 'knockout', round: 'R16' },
     ]
     for (const s of stakes) sound(stakeLine(s, 'Arsenal', 'k', u, 'Story XI'))
-    expect(stakeLine({ kind: 'knockout', round: 'QF' }, 'Arsenal', 'k', u, 'Story XI')).toBe('Quarter-final: lose and you are out.')
+    const ko = new Set(Array.from({ length: 40 }, (_, i) => stakeLine({ kind: 'knockout', round: 'QF' }, 'Arsenal', `k${i}`, u, 'Story XI')))
+    expect(ko.has('Quarter-final: lose and you are out.')).toBe(true)
+    for (const x of ko) expect(x).toMatch(/^Quarter-final: /)
   })
 
   it('writes a sound preview for every match of a played season, the cups included', () => {

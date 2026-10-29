@@ -45,7 +45,7 @@ export function MomentumBar({ momentum, clock, events, home, away, strip = false
   const htX = x0 + 9 * step - (step - bw) / 2
   return (
     <div className={`mchart ${strip ? 'momentum-strip' : ''}`} data-testid="momentum-bar">
-      <div className="row between small">
+      <div className="row between wrap small">
         <span className="row" style={{ gap: 6 }}>
           <span className="swatch" style={{ background: home.colour }} />
           {home.shortName}
@@ -201,7 +201,7 @@ export function TacticsOverlay({ side, attack, getPlayer }: { side: PitchSide & 
   const label = tx('overlayLabel', { mentality: setting(t.mentality), pressing: setting(t.pressing), tempo: setting(t.tempo), width: setting(t.width), line: setting(t.defensiveLine), passing: setting(t.passing) })
   return (
     <div className="tactics-overlay" data-testid="tactics-overlay">
-      <div className="row between small" style={{ marginBottom: 4 }}>
+      <div className="row between wrap small" style={{ marginBottom: 4 }}>
         <span className="row" style={{ gap: 6 }}>
           <span className="swatch" style={{ background: side.colour }} />
           <b>{side.shortName}</b> {formationName(t.formationId)}

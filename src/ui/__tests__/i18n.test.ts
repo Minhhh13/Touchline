@@ -236,6 +236,8 @@ describe('the catalogues', () => {
       const literals = new Set(users.flatMap(({ code }) => translatorsOf(code).filter((x) => x.ns === c.ns).flatMap((x) => firstArgs(code, x.name))).flatMap(keysIn))
       // A key built from a template (`t(\`tier_${x}\`)`) counts as used through its prefix
       const prefixes = users.flatMap(({ code }) => [...code.matchAll(/\(`(\w+)\$\{/g)].map((m) => m[1]))
+      // A line's wordings (`stem_0`, `stem_1`…) count as used through the stem a `vary('stem', …)` call names (`storyText.ts`)
+      prefixes.push(...users.flatMap(({ code }) => [...code.matchAll(/\bvary\(([^,)]*)/g)].flatMap((m) => [...m[1].matchAll(/'([\w-]+)'/g)].map((x) => `${x[1]}_`))))
       for (const k of Object.keys(c.messages)) if (!literals.has(k) && !prefixes.some((pre) => k.startsWith(pre))) unused.push(`${c.ns}.${k}`)
     }
     expect(unused).toEqual([])

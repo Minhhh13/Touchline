@@ -69,6 +69,14 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
   // Escape or the close button: back from the board to the pop-up first, then minimise (one stable callback, so the sheet keeps its focus)
   const minimise = useCallback(() => (boardingRef.current ? closeBoard() : setOpen(false)), [closeBoard])
   const sheetFocus = useRef<'board' | 'back' | null>(null)
+  // Minimised (Escape, the ✕ or a click outside): the focus goes to the pill that brings the pop-up back, not to the
+  // page (a11y round 7: it fell to the match day's page)
+  const pillRef = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(open)
+  useEffect(() => {
+    if (wasOpen.current && !open) pillRef.current?.focus({ preventScroll: true })
+    wasOpen.current = open
+  }, [open])
   useEffect(() => {
     const want = sheetFocus.current
     if (!want) return
@@ -106,7 +114,7 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
   const stopName = tx(atBreak ? 'stopHalfTime' : 'stop70')
   if (!open)
     return (
-      <button className="btn primary decisions-pill" onClick={() => setOpen(true)} data-testid="decisions-pill">
+      <button ref={pillRef} className="btn primary decisions-pill" onClick={() => setOpen(true)} data-testid="decisions-pill">
         {tx('decisionsPill', { stop: stopName })}
       </button>
     )

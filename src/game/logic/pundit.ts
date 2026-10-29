@@ -32,30 +32,31 @@ export interface VerdictInput {
 }
 
 export const VERDICT_LINES = {
-  sacked: ['The board had seen enough. Hard to argue.', 'Results like that cost managers their jobs.', 'A short reign, and not a happy one.'],
-  treble: ['League, Cup and Continental Cup. Words fail me.', 'The Treble. Put it in the history books.', 'Three trophies. Greatness, simple as that.'],
-  perfect: ['Every game won. I have never seen anything like it.', 'Perfection. There is nothing more to say.', 'Not a point dropped all season. Unrepeatable. Probably.', 'Played them all, beat them all.'],
-  invincible: ['Unbeaten all season. That is a special group.', 'Champions without a defeat. Invincible is the only word.', 'Nobody could lay a glove on them.'],
-  double: ['League and cup. A season to remember.', 'The Double. Greedy, and rightly so.', 'Two trophies, and they looked hungry for more.'],
-  champions: ['Worthy champions. The best side over the season.', 'Champions, and nobody can argue.', 'They kept their nerve when it mattered. Champions.', 'The title is theirs, and it was earned.', 'Top of the pile when it counted.'],
-  titleRace: ['So close. They will learn from that run-in.', 'Pushed it all the way, but second is the first loser.', 'A title challenge to be proud of, even without the trophy.', 'Nearly. The gap is small, but it is there.'],
-  european: ['A good season. Europe beckons.', 'Solid, and a European place to show for it.', 'They belong in the top half, no question.', 'Plenty to build on.'],
-  midTable: ['Mid-table. Neither here nor there.', 'Safe, steady, unspectacular.', 'A season that will be forgotten by the summer.', 'Comfortable, but nothing to get excited about.'],
-  survived: ['They survived, and that is all that matters.', 'Too close for comfort, but they stayed up.', 'Lived dangerously and got away with it.', 'Safe. Just. Lessons to learn.'],
-  relegated: ['Relegated. A long summer of questions ahead.', 'Not good enough, and the table does not lie.', 'Down they go. Painful to watch.', 'The drop. They never got going.'],
+  sacked: ['The board had seen enough. Hard to argue.', 'Results like that cost managers their jobs.', 'A short reign, and not a happy one.', 'The axe fell, and nobody was surprised.', 'The board ran out of patience, and the results gave them every reason.'],
+  treble: ['League, Cup and Continental Cup. Words fail me.', 'The Treble. Put it in the history books.', 'Three trophies. Greatness, simple as that.', 'A clean sweep of the silverware. Remarkable.', 'They will be talking about this side for decades.'],
+  perfect: ['Every game won. I have never seen anything like it.', 'Perfection. There is nothing more to say.', 'Not a point dropped all season. Unrepeatable. Probably.', 'Played them all, beat them all.', 'Won the lot, every single week. Ridiculous.', 'Perfect. The other clubs were just making up the numbers.'],
+  invincible: ['Unbeaten all season. That is a special group.', 'Champions without a defeat. Invincible is the only word.', 'Nobody could lay a glove on them.', 'Not beaten once. That takes some doing.', 'A whole league season without a defeat: remember the name.'],
+  double: ['League and cup. A season to remember.', 'The Double. Greedy, and rightly so.', 'Two trophies, and they looked hungry for more.', 'A league title and a cup to go with it. Superb.', 'Two pieces of silverware. The cabinet needs a bigger shelf.'],
+  champions: ['Worthy champions. The best side over the season.', 'Champions, and nobody can argue.', 'They kept their nerve when it mattered. Champions.', 'The title is theirs, and it was earned.', 'Top of the pile when it counted.', 'The best side won the league. Simple as that.', 'Consistent, ruthless and deserving champions.', 'A title built on week-in, week-out reliability.'],
+  titleRace: ['So close. They will learn from that run-in.', 'Pushed it all the way, but second is the first loser.', 'A title challenge to be proud of, even without the trophy.', 'Nearly. The gap is small, but it is there.', 'The title was there for the taking. Next year, maybe.', 'They gave the champions a real fright.', 'Runners-up, and they will hate every minute of the summer.'],
+  european: ['A good season. Europe beckons.', 'Solid, and a European place to show for it.', 'They belong in the top half, no question.', 'Plenty to build on.', 'Europe next season, and they will have earned it.', 'A strong season, if not quite a great one.'],
+  midTable: ['Mid-table. Neither here nor there.', 'Safe, steady, unspectacular.', 'A season that will be forgotten by the summer.', 'Comfortable, but nothing to get excited about.', 'Never in danger, never in the hunt.', 'Somewhere in the middle, and a summer to think about it.'],
+  survived: ['They survived, and that is all that matters.', 'Too close for comfort, but they stayed up.', 'Lived dangerously and got away with it.', 'Safe. Just. Lessons to learn.', 'Survival, and they will take it gladly.', 'They went to the brink and stepped back from it.'],
+  relegated: ['Relegated. A long summer of questions ahead.', 'Not good enough, and the table does not lie.', 'Down they go. Painful to watch.', 'The drop. They never got going.', 'A season of struggle ends in the worst way.', 'Relegation. A rebuild starts now.'],
 } as const
 
 export const STAT_LINES = {
-  attack: ['The goals flowed all season.', 'Frightening going forward.', 'Nobody could live with that attack.'],
-  defence: ['The defence was a brick wall.', 'Built on a miserly back line.', 'Goals against them were rare as hen’s teeth.'],
-  leaky: ['That defence needs work, though.', 'Too many goals conceded, mind.', 'They have to tighten up at the back.'],
-  draws: ['Too many draws to be truly great.', 'Points left on the table in all those draws.'],
+  attack: ['The goals flowed all season.', 'Frightening going forward.', 'Nobody could live with that attack.', 'Goals from everywhere, all season long.', 'Opponents simply could not keep them quiet.'],
+  defence: ['The defence was a brick wall.', 'Built on a miserly back line.', 'Goals against them were rare as hen’s teeth.', 'Scoring against them was a job in itself.', 'The back line was the bedrock of everything.'],
+  leaky: ['That defence needs work, though.', 'Too many goals conceded, mind.', 'They have to tighten up at the back.', 'The goals against will worry them.', 'Keep that back door shut and they could go further.'],
+  centurion: ['A hundred points. That is a number for the record books.', 'Three figures on the points tally. Astonishing.', '{points} points. Few sides in history have done that.'],
+  draws: ['Too many draws to be truly great.', 'Points left on the table in all those draws.', 'Too many afternoons ended all square.', 'Turn a few of those draws into wins and it is a different story.'],
 } as const
 
 export const DYNASTY_LINES = {
-  decade: ['A decade in charge. Some going.', 'Ten years and counting: an era, not a spell.'],
-  dominant: ['{titles} titles in {seasons} seasons. This is a dynasty.', 'Title after title: {titles} from {seasons}.', 'They own this league now: {titles} titles in {seasons} years.'],
-  building: ['Season {seasons} of the project, and it is taking shape.', '{seasons} seasons in, the foundations are there.', 'Year {seasons}. Patience is running out for some.'],
+  decade: ['A decade in charge. Some going.', 'Ten years and counting: an era, not a spell.', 'Ten seasons and more: the club is built in their image.'],
+  dominant: ['{titles} titles in {seasons} seasons. This is a dynasty.', 'Title after title: {titles} from {seasons}.', 'They own this league now: {titles} titles in {seasons} years.', '{titles} league titles from {seasons} seasons. Relentless.'],
+  building: ['Season {seasons} of the project, and it is taking shape.', '{seasons} seasons in, the foundations are there.', 'Year {seasons}. Patience is running out for some.', '{seasons} seasons in, and the work goes on.'],
 } as const
 
 /** The verdict's tier line. */
@@ -84,10 +85,11 @@ function tierBank(i: VerdictInput): readonly string[] {
   }
 }
 
-/** A second sentence when a number stands out: the attack, the defence, the draws; null otherwise. */
+/** A second sentence when a number stands out: a hundred points, the attack, the defence, the draws; null otherwise. */
 function statBank(i: VerdictInput): readonly string[] | null {
   const games = i.won + i.drawn + i.lost
   if (!games || i.tier === 'PERFECT') return null
+  if (i.points >= 100) return STAT_LINES.centurion
   if (i.goalsFor / games >= 2.4) return STAT_LINES.attack
   if (i.goalsAgainst / games <= 0.6) return STAT_LINES.defence
   if (i.goalsAgainst / games >= 1.7 && i.position <= Math.ceil(i.clubs / 2)) return STAT_LINES.leaky
@@ -104,7 +106,7 @@ export function punditVerdict(i: VerdictInput): string {
     return `${first} ${fillTemplate(pickVariant(bank, `${i.key}|dynasty`), { seasons: d.seasons, titles: d.titles })}`
   }
   const stat = statBank(i)
-  return stat && flavourChance(`${i.key}|stat`, 2, 3) ? `${first} ${pickVariant(stat, `${i.key}|stat`)}` : first
+  return stat && flavourChance(`${i.key}|stat`, 2, 3) ? `${first} ${fillTemplate(pickVariant(stat, `${i.key}|stat`), { points: i.points })}` : first
 }
 
 /** The verdict's input from a finished game: the quick result, or the last season of the history. Null without one. */

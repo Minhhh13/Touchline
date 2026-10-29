@@ -149,13 +149,15 @@ export const PRE_MATCH_LINES = {
 
 // Quiet minutes: the mood of the match
 export const MOOD_LINES = {
-  early: ['A cagey start.', 'Both sides feeling each other out.', 'Nobody wants to make the first mistake.', 'Plenty of caution in these opening minutes.', 'A tentative opening.'],
-  goalless: ['Still goalless, and it is tight.', 'The goal will not come.', 'Chess more than football right now.', 'Plenty of midfield scrapping, very little goalmouth action.', 'Somebody needs to take a risk.', 'Neither keeper has been worked much lately.'],
-  secondHalf: ['{team} have come out with purpose.', 'A brighter start to the half from {team}.', '{team} look sharper after the break.'],
-  nervy: ['Nervy now for {lead}.', '{trail} throw bodies forward.', 'One goal in it, and the clock is ticking.', '{lead} sitting deeper and deeper.', 'Every clearance gets a cheer.', 'The fans of {lead} are whistling for the end.', '{trail} are camped in the other half.'],
-  lateLevel: ['Both sides sense a winner is there.', 'Who blinks first?', 'Legs are going now.', 'Settle for a point, or go for it?', 'Gaps are opening up all over the pitch.'],
-  cruising: ['{lead} are cruising.', 'Comfortable for {lead}.', '{trail} are out on their feet.', '{lead} are playing keep-ball now.', 'The contest is over, and everyone knows it.'],
-  tenMen: ['{short} are digging in with ten.', 'Ten men, and {short} running twice as hard.', 'A man short, {short} are sitting deep.'],
+  early: ['A cagey start.', 'Both sides feeling each other out.', 'Nobody wants to make the first mistake.', 'Plenty of caution in these opening minutes.', 'A tentative opening.', 'Early days, and both sides are careful.', 'Nobody has settled yet.', 'A slow start from both sides.'],
+  goalless: ['Still goalless, and it is tight.', 'The goal will not come.', 'Chess more than football right now.', 'Plenty of midfield scrapping, very little goalmouth action.', 'Somebody needs to take a risk.', 'Neither keeper has been worked much lately.', 'Still waiting for the breakthrough.', 'Few clear chances so far.', 'Tight and tense, and still no goal.'],
+  secondHalf: ['{team} have come out with purpose.', 'A brighter start to the half from {team}.', '{team} look sharper after the break.', 'A lively start to the second half from {team}.', 'The second half is under way, and {team} are pressing.'],
+  nervy: ['Nervy now for {lead}.', '{trail} throw bodies forward.', 'One goal in it, and the clock is ticking.', '{lead} sitting deeper and deeper.', 'Every clearance gets a cheer.', 'The fans of {lead} are whistling for the end.', '{trail} are camped in the other half.', 'Long minutes for the side in front.', 'Can {lead} see it out?', 'One more goal would settle the nerves for {lead}.'],
+  lateLevel: ['Both sides sense a winner is there.', 'Who blinks first?', 'Legs are going now.', 'Settle for a point, or go for it?', 'Gaps are opening up all over the pitch.', 'Still level, and the clock is running down.', 'One goal would surely win it now.', 'Nobody wants to lose it now.'],
+  cruising: ['{lead} are cruising.', 'Comfortable for {lead}.', '{trail} are out on their feet.', '{lead} are playing keep-ball now.', 'The contest is over, and everyone knows it.', 'This one is over as a contest.', 'The points look safe for {lead}.', 'Exhibition stuff now from {lead}.'],
+  comfortable: ['Two goals to the good, {lead} can manage this.', 'A two-goal cushion for {lead}.', 'Breathing room for {lead} now.', 'A goal back would make things interesting for {trail}.'],
+  openGame: ['Goals at both ends, and it is wide open.', 'End to end, and anyone could win it.', 'Neither side can keep the other out.', 'An open game, and nobody is sitting back.'],
+  tenMen: ['{short} are digging in with ten.', 'Ten men, and {short} running twice as hard.', 'A man short, {short} are sitting deep.', 'With ten men, {short} have no choice but to defend.', 'The numbers are against {short}.'],
 } as const
 
 /** The goal's type from the engine's words for it. */
@@ -385,6 +387,8 @@ export function moodLine(feedKey: string, minute: number, score: { home: number;
   if (minute >= 46 && minute <= 52) return say(MOOD_LINES.secondHalf)
   if (minute <= 10 && score.home + score.away === 0) return say(MOOD_LINES.early)
   if (minute >= 30 && minute <= 70 && score.home + score.away === 0) return say(MOOD_LINES.goalless)
+  if (minute >= 55 && lead && Math.abs(diff) === 2) return say(MOOD_LINES.comfortable)
+  if (minute >= 20 && minute < 80 && !lead && score.home + score.away >= 2) return say(MOOD_LINES.openGame)
   return null
 }
 
