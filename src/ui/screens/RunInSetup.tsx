@@ -7,14 +7,14 @@ import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
 import { randomSeed } from '@engine/rng'
 import { runInWeekSeed } from '@game/logic/runinWeekly'
-import { RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, runInGameSettings, summariseRunIn } from '@game/logic/runin'
+import { RUN_IN_SPINS, runInGameSettings, summariseRunIn } from '@game/logic/runin'
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, formationName, seasonLabel } from '../format'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
-import { jobText, templateText } from '../runInText'
+import { briefShortText, jobText, templateText } from '../runInText'
 
 const t = translator(runin)
 
@@ -80,7 +80,7 @@ export function RunInSetup() {
         </span>
         <span className="small muted">{jobText(j)}</span>
       </span>
-      <span className="chip">{RUN_IN_BRIEF_SHORT[j.template]}</span>
+      <span className="chip">{briefShortText(j.template)}</span>
     </button>
   )
 

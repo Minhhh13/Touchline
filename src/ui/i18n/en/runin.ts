@@ -74,6 +74,9 @@ export const runin = catalog('runin', {
   template_title: 'Title race',
   template_europe: 'Chase for Europe',
   template_survival: 'Survival',
+  briefShort_title: 'Win the title',
+  briefShort_europe: 'Top four',
+  briefShort_survival: 'Stay up',
   jobLine: '{pos, ordinal}, {points} points after matchweek {week} (projected), {gap}',
   gapPts: '{n, plural, one {# point} other {# points}}',
   gapLevelSafety: 'level on points with safety',
@@ -90,4 +93,8 @@ export const runin = catalog('runin', {
   mwShort: 'MW {n}',
   versus: '{home, select, home {v} other {at}} {club}',
   placeAfter: '{pos} in the table after it',
+  marginClear: '{n, plural, one {# point} other {# points}} clear of {club} in {pos, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}',
+  marginShort: '{n, plural, one {# point} other {# points}} short of {club} in {pos, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}',
+  marginGdMet: 'Level on points with {club} in {pos, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}: through on goal difference',
+  marginGdMissed: 'Level on points with {club} in {pos, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}: out on goal difference',
 })

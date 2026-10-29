@@ -131,3 +131,32 @@ describe('ShootoutRows: the shoot-out as a scoreboard (r9)', () => {
     expect(clubCode(u, 'nowhere-fc@2012')).toBe('NOW')
   })
 })
+
+describe('the Gauntlet bonus spin names itself (r9)', () => {
+  it('the draft heading says a bonus spin and the rungs climbed, never "The draft"', async () => {
+    const { Draft } = await import('../screens/Draft')
+    let seen = 0
+    for (let n = 0; n < 6 && seen < 2; n++) {
+      show({ universe: u, loadedLeagues: ['england'], game: null, parked: {}, screen: 'game' })
+      st().startGame(gauntletGameSettings(u, choices(`r9-bonus-${n}`), 'NIN'))
+      for (let i = 0; i < 200 && st().game!.phase !== 'summary'; i++) {
+        const g = st().game!
+        if (g.phase === 'draft') {
+          if (g.arena!.step > 0) {
+            show({})
+            const html = renderToString(createElement(Draft)).replace(/<!-- -->/g, '')
+            expect(html).toContain(`<h1>Bonus spin: ${g.arena!.step} rungs climbed</h1>`)
+            seen++
+          }
+          st().autoDraftRest()
+          st().finishDraft()
+        } else if (g.phase === 'match') {
+          if (g.live) st().completeLive()
+          else if (g.arena?.pending) st().takePenalties(g.arena.pending.shootout.defaultOrder, g.arena.pending.shootout.keepers[0])
+          else st().closeMatch()
+        } else st().playArenaStep(false)
+      }
+    }
+    expect(seen).toBeGreaterThan(0)
+  }, 60_000)
+})

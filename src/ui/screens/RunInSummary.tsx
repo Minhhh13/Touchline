@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStorePick } from '../useStorePick'
-import { seasonTable } from '@engine/season'
+import { seasonTable, USER_TEAM } from '@engine/season'
 import { RUN_IN_TEMPLATE_LABEL, runInShare, runInVerdict } from '@game/logic/runin'
 import { gameLabel, storyForGame } from '@game/logic/story'
 import { TableView } from '../components/TableView'
@@ -22,7 +22,7 @@ import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
-import { templateText } from '../runInText'
+import { marginText, templateText } from '../runInText'
 
 const t = translator(runin)
 
@@ -52,6 +52,8 @@ export function RunInSummary() {
   const invite = inviteFor('runin', { position: v.position })
   const text = shareWithInvite(raw, invite)
   const host = game.settings.hostClubId
+  // How close it came, against the club across the brief's line (goal difference named when the points are level)
+  const margin = marginText(table, USER_TEAM, game.season.boardTarget, { sacked: !!game.season.sacked, playOff: game.season.playOff?.tie.winnerId !== undefined, name: (id) => clubName(u, id) })
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text)
@@ -108,6 +110,11 @@ export function RunInSummary() {
         <p className="tier-blurb" data-testid="runin-line">
           {v.line}
         </p>
+        {margin && (
+          <p className="tier-blurb" data-testid="runin-margin">
+            {margin}
+          </p>
+        )}
         <div className="banner-stats">
           <Stat label={t('tookOver')} value={ordinal(v.from.position)} sub={t('tookOverSub', { week: v.from.matchweek, pts: v.from.points })} />
           <Stat label={t('finished')} value={ordinal(v.position)} sub={t('pts', { n: v.points })} />
