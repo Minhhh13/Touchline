@@ -28,7 +28,7 @@ import type { Resolved, ShareLink } from './challengeLinks'
 // it the engine's replay) that Home's first download leaves out (docs/PERFORMANCE.md, round 9)
 const auth = () => import('./auth')
 const links = () => import('./challengeLinks')
-import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
+import type { RoomManagerInput, RoomSettings, RoomView } from '@game/logic/h2hRoom'
 
 /** Whether this build carries the online layer at all. */
 export const onlineAvailable = (): boolean => onlineConfig() !== null
@@ -283,6 +283,12 @@ export function closeRoom(): void {
 export async function createRoom(settings: RoomSettings, manager: RoomManagerInput, engine: string, data: string): Promise<{ ok: true; code: string } | { ok: false; message: string }> {
   const r = await rt()
   return r ? r.rooms.create(settings, manager, engine, data) : { ok: false, message: noRooms }
+}
+
+/** A rematch of the room on screen from this seat (the same settings and manager); a second press opens the one already made. */
+export async function rematchRoom(view: RoomView, seat: 0 | 1, engine: string, data: string): Promise<{ ok: true; code: string; reused: boolean } | { ok: false; message: string }> {
+  const r = await rt()
+  return r ? r.rooms.rematch(view, seat, engine, data) : { ok: false, message: noRooms }
 }
 
 export async function joinRoom(manager: RoomManagerInput, engine: string, data: string): Promise<boolean> {
