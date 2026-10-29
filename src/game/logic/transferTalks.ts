@@ -248,13 +248,14 @@ export function offerTerms(game: Game, u: LoadedUniverse, listingId: string, off
   }
   const listing = listingOf(game, listingId)!
   // The market's own bid at the price now due: an amount at the asking price is accepted with no draw
-  const opening = listing.opening
+  const { asking, opening } = listing
   listing.asking = plan.now
   listing.opening = roundM((opening * plan.now) / deal.fee)
   const out = bidFor(game, u, listingId, plan.now, { status: offer.status, years: Math.min(4, offer.years) })
   listing.opening = opening
   if (!out.accepted) {
-    listing.asking = Math.max(listing.asking, deal.fee)
+    // Refused before any bid was placed (the market's own checks): the listing's price is its own again
+    listing.asking = asking
     return { ok: false, message: out.message }
   }
   listing.asking = deal.fee

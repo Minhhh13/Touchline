@@ -16,6 +16,7 @@ import { converse } from '../logic/conversations'
 import { answerPress, pressQuestions, PRESS_ANSWERS } from '../logic/pressConference'
 import { clubCeiling, clubValuation, counterBid, offerTerms, openingStatus, paymentPlan, proposeFee, termsDemand, walkAway } from '../logic/transferTalks'
 import { contractDemand, proposeContract, openingOffer } from '../logic/contracts'
+import { squadWages } from '../logic/squad'
 import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
 import { advanceToNextSeason } from '../logic/dynasty'
@@ -427,5 +428,36 @@ describe('a contract promise is only made when it can be kept (r9 audit)', () =>
     expect(promiseProblem(g, u, id, 'contract')).toMatch(/already agreed/)
     delete g.contracts[id].renewed
     expect(promiseProblem(g, u, id, 'contract')).toBeNull()
+  }, 60_000)
+})
+
+describe('personal terms the market refuses leave the listing as it was (r9 audit)', () => {
+  it('a bid refused on the market\'s own wage rule puts the asking price back', () => {
+    const g = seasonGame(u, 'r9-office-terms-refused', 19)
+    expect(g.window).not.toBeNull()
+    g.finances.budget = 500
+    const ids = Object.keys(g.squad)
+    while (Object.keys(g.squad).length > 21) {
+      const id = ids.pop()!
+      delete g.squad[id]
+      delete g.contracts[id]
+    }
+    const l = g.window!.listings.find((x) => x.status === 'available' && u.index[x.playerSeasonId].age < 30 && u.index[x.playerSeasonId].wage > 10)!
+    const listingId = l.playerSeasonId
+    const fee = Math.round((clubValuation(g, l) / 0.9) * 10) / 10 + 0.1
+    expect(proposeFee(g, u, listingId, { fee, sellOn: 0, instalments: 2 }).outcome).toBe('agreed')
+    const asking = l.asking
+    const status = openingStatus(g, u, listingId)
+    const d = termsDemand(g, u, listingId, status)!
+    // A token wage made up by a big signing-on fee: inside our cap check, over the market's (which reads his own wage)
+    const years = 2
+    const signingFee = Math.ceil((d.agentFee + (d.wage * 52 * years) / 1000 + 1) * 10) / 10
+    g.finances.wageCap = squadWages(g, u) + 1
+    const out = offerTerms(g, u, listingId, { wage: 1, years, status, signingFee })
+    expect(out.ok).toBe(false)
+    expect(out.message).toMatch(/wage cap/)
+    // Before, the asking price was left at the agreed fee, not the club's own price
+    expect(l.asking).toBe(asking)
+    expect(l.status).toBe('available')
   }, 60_000)
 })
