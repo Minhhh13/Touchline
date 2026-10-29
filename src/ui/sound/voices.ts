@@ -32,10 +32,10 @@ export const CUE_LEVEL = {
   rung: 0.34,
   bracketTie: { user: 0.22, other: 0.1 },
   badge: 0.5,
-  /** The ball: a touch barely there, a strike as loud as a near miss's start, the woodwork the loudest of them. */
-  ball: { touch: 0.07, pass: 0.1, long: 0.14, header: 0.12, throw: 0.06, goalkick: 0.15, strike: 0.24, keeper: 0.22, woodwork: 0.34 },
-  /** The crowd under the match: the bed low, a swell up to a near miss's. */
-  crowdBed: 0.12,
+  /** The ball: a touch barely there, kept under the crowd's bed at its loudest; a strike under a near miss's start, the woodwork the loudest of them. */
+  ball: { touch: 0.05, pass: 0.07, long: 0.1, header: 0.09, throw: 0.045, goalkick: 0.11, strike: 0.2, keeper: 0.18, woodwork: 0.3 },
+  /** The crowd under the match: the bed at its most roused (its `level` is the mood, mix.ts), a swell up to a near miss's. */
+  crowdBed: 0.15,
   crowdSwell: { min: 0.12, max: 0.3 },
 } as const
 

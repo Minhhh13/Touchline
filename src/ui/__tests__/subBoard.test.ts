@@ -7,7 +7,7 @@ import { DEFAULT_ROLE, getRole } from '@engine/roles'
 import { Rng } from '@engine/rng'
 import type { Sub } from '../matchday/controls'
 import { panelPoints } from '../matchday/model'
-import { boardRoom, countersAfter, fitGlow, lineupAfter, moveOnBoard, slotRoleRating, stageSub, teamRating, undoSub } from '../matchday/subBoard'
+import { TOUCH_LIFT, aimPoint, boardRoom, countersAfter, fitGlow, lineupAfter, moveOnBoard, slotRoleRating, stageSub, teamRating, undoSub } from '../matchday/subBoard'
 import { sides, u } from './feeds'
 
 /** A live match at minute `k` for the home side: who can come off, who can come on, and the room the sheet has. */
@@ -200,5 +200,13 @@ describe('substitution board: keyboard moves', () => {
       frontier = nextF
     }
     expect(reached.size).toBe(f.slots.length)
+  })
+})
+
+describe('the board under a finger', () => {
+  it('aims a touch drag at the lifted man, a mouse or a pen at the pointer', () => {
+    expect(aimPoint(100, 300, 'touch')).toEqual({ x: 100, y: 300 - TOUCH_LIFT })
+    expect(aimPoint(100, 300, 'mouse')).toEqual({ x: 100, y: 300 })
+    expect(aimPoint(100, 300, 'pen')).toEqual({ x: 100, y: 300 })
   })
 })

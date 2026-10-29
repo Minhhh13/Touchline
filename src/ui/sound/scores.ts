@@ -342,7 +342,9 @@ function build(req: SoundRequest): Score {
       const net: Voice[] = [tone(0, 96, { glideTo: 46, glideTime: 0.16, attack: 0.003, dur: 0.32, peak: 0.6 }), noise(0, { filter: 'lowpass', freq: 520, q: 0, dur: 0.12, peak: 0.6 }), noise(0.01, { filter: 'bandpass', freq: 2600, freqTo: 900, sweep: 0.3, q: 1.2, attack: 0.01, dur: 0.36, peak: 0.35 })]
       if (req.replay) return normalise('goal', 0.42, [...net, ...roar(0.04, 0.6, r, { high: false })])
       if (req.tone === 'theirs') return normalise('goal', 0.38, [...net, ...roar(0.08, 0.55, r, { high: false })])
-      return normalise('goal', req.tone === 'ours' ? 0.9 : 0.75, [...net, ...roar(0.04, req.tone === 'ours' ? 1 : 0.85, r)])
+      // A goal lands big: the stadium's boom under the net, then the roar, longer and fuller for the user's own
+      const boom: Voice[] = [tone(0.02, 58, { glideTo: 41, glideTime: 0.5, attack: 0.006, dur: 0.9, peak: 0.55 }), noise(0.02, { colour: 'pink', filter: 'lowpass', freq: 140, q: 0, attack: 0.01, dur: 0.6, peak: 0.5 })]
+      return normalise('goal', req.tone === 'ours' ? 0.9 : 0.8, [...net, ...boom, ...roar(0.04, req.tone === 'ours' ? 1.15 : 0.9, r)])
     }
     case 'near-miss': {
       const s = Math.min(1, Math.max(0, req.strength))

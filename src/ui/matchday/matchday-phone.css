@@ -338,6 +338,11 @@
   .matchday .sub-bench-card .pos {
     grid-column: 2;
     grid-row: 2;
+    /* Every position he plays, on two lines if need be, never cut to "AM C…" */
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+    line-height: 1.2;
   }
   .matchday .sub-bench-card .ovr,
   .matchday .sub-bench-card .sub-fit-num {

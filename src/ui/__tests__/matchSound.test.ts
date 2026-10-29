@@ -4,7 +4,8 @@ import { shotXg } from '@engine/matchStats'
 import { goalHolds } from '../match/possession'
 import { GOAL_FLIGHT_MS, timeline, type GoalHold, type TimelinePoint } from '../match/clockStore'
 import { REPLAY, replayFrame } from '../match/keyMoments'
-import { CROWD_GAP_MS, FULL_OOH_XG, OOH_XG, dueMatchSounds, goalMoments, matchSoundCues, replayNetAt, throttleCrowd } from '../sound/match'
+import { FULL_OOH_XG, OOH_XG, dueMatchSounds, goalMoments, matchSoundCues, mixKindOf, replayNetAt } from '../sound/match'
+import { MIX, admit, createMix } from '../sound/mix'
 import type { SoundRequest } from '../sound/scores'
 
 const ev = (minute: number, type: MatchEvent['type'], side: 'home' | 'away', position?: { x: number; y: number }): MatchEvent => ({ minute, type, side, text: '', ...(position ? { position } : {}) })
@@ -106,11 +107,17 @@ describe('the match’s sounds', () => {
   })
 
   it('keeps the crowd from piling up in a fast-forward', () => {
-    const last: Partial<Record<string, number>> = {}
+    const mix = createMix()
     const ooh: SoundRequest = { id: 'near-miss', strength: 1 }
     const whistle: SoundRequest = { id: 'whistle', call: 'half' }
-    expect(throttleCrowd([ooh, whistle], last, 1000)).toEqual([ooh, whistle])
-    expect(throttleCrowd([{ id: 'save', strength: 1 }, whistle], last, 1000 + CROWD_GAP_MS - 1)).toEqual([whistle])
-    expect(throttleCrowd([ooh], last, 1000 + CROWD_GAP_MS)).toEqual([ooh])
+    const pass = (reqs: SoundRequest[], now: number, speed = 1) => reqs.filter((r) => admit(mix, mixKindOf(r), now, speed))
+    expect(pass([ooh, whistle], 1000)).toEqual([ooh, whistle])
+    expect(pass([{ id: 'save', strength: 1 }, whistle], 1000 + MIX.crowdGap - 1)).toEqual([whistle])
+    expect(pass([ooh], 1000 + MIX.crowdGap)).toEqual([ooh])
+    // At 4x the gap is wider
+    expect(pass([ooh], 1000 + 2 * MIX.crowdGap, 4)).toEqual([])
+    expect(pass([ooh], 1000 + MIX.crowdGap + MIX.crowdGapFast, 4)).toEqual([ooh])
+    expect(mixKindOf({ id: 'card', red: false })).toBe('chime')
+    expect(mixKindOf({ id: 'goal', tone: 'ours' })).toBe('goal')
   })
 })

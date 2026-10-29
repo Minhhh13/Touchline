@@ -150,3 +150,11 @@ export function moveOnBoard(points: BoardPoint[], current: string | null, key: s
   }
   return best ? best.id : from.id
 }
+
+/** How far above a finger the dragged man rides (px): the ghost's centre, and the point a touch drag drops on. */
+export const TOUCH_LIFT = 48
+
+/** Where a drag aims: the pointer itself for a mouse or a pen, the lifted man for a finger, so a slot is hit where it is seen. */
+export function aimPoint(x: number, y: number, pointerType: string): { x: number; y: number } {
+  return pointerType === 'touch' ? { x, y: y - TOUCH_LIFT } : { x, y }
+}

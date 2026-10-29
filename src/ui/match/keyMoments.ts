@@ -42,6 +42,15 @@ export function replayWindow(total: number): number {
   return (REPLAY.window * Math.max(0, total - REPLAY.flight - REPLAY.rest)) / full
 }
 
+/** How much the replay slows into the strike: the build-up opens a little quicker than its average pace and reaches the strike at about two thirds of it, so the eye settles on the shot. */
+export const REPLAY_RAMP = 0.35
+
+/** The replay's build-up, 0..1 of the way to the strike at `u` of its time (monotone, fixed at both ends). */
+export function replayEase(u: number): number {
+  const x = Math.min(1, Math.max(0, u))
+  return x + REPLAY_RAMP * x * (1 - x)
+}
+
 /** The replay's share of a hold, or 0 when it has none. */
 export function replayMs(hold: Pick<GoalHold, 'replay'> | undefined): number {
   return hold?.replay ?? 0
@@ -74,7 +83,7 @@ export function replayFrame(hold: Pick<GoalHold, 'ms' | 'replay'>, elapsed: numb
   if (r < 0 || r > total) return null
   const pre = Math.max(1, total - REPLAY.flight - REPLAY.rest)
   // On the strike exactly once the build-up has played (the ball path's shot keyframe is there)
-  const T = r >= pre ? strike : strike - replayWindow(total) * (1 - r / pre)
+  const T = r >= pre ? strike : strike - replayWindow(total) * (1 - replayEase(r / pre))
   const flight = r <= pre ? 0 : Math.min(1, (r - pre) / REPLAY.flight)
   const cut = r < REPLAY.cut ? 1 - r / REPLAY.cut : r > total - REPLAY.cut ? (r - (total - REPLAY.cut)) / REPLAY.cut : 0
   return { T, flight, landed: r - pre - REPLAY.flight, cut: Math.min(1, Math.max(0, cut)), f: r / total }
