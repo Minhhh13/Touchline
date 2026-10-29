@@ -437,7 +437,7 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
             <select className="input" value={sellOn} onChange={(e) => setSellOn(Number(e.target.value))} aria-label={t('sellOn')} title={t('sellOn')} data-testid="fee-sellon">
               {[0, 0.1, 0.2].map((x) => (
                 <option key={x} value={x}>
-                  {x ? `${t('sellOn')} ${Math.round(x * 100)}%` : `${t('sellOn')}: ${t('noSellOn')}`}
+                  {x ? t('sellOnPct', { pct: Math.round(x * 100) }) : t('sellOnNone')}
                 </option>
               ))}
             </select>
@@ -486,7 +486,7 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
             <select className="input" value={yearsNow} onChange={(e) => setTerms({ ...terms, years: Number(e.target.value) })} aria-label={t('years')} title={t('years')}>
               {[1, 2, 3, 4, 5].filter((y) => y <= (demand?.maxYears ?? 5)).map((y) => (
                 <option key={y} value={y}>
-                  {y} · {t('years')}
+                  {t('yearsN', { n: y })}
                 </option>
               ))}
             </select>

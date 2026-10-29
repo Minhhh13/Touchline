@@ -17,7 +17,7 @@ import { surnameOf } from './talks'
 import { recentShare } from './week'
 import { squadOveralls } from './marketOps'
 import { setSquadStatus } from './squad'
-import { makePromise, promiseProblem } from './promises'
+import { makePromise } from './promises'
 import { shiftMorale, weekOf } from './officeCore'
 
 export type ConversationTopic = 'form' | 'minutes' | 'role' | 'future'
@@ -140,8 +140,6 @@ export function converse(game: Game, u: LoadedUniverse, id: string, topic: Conve
         if (good) [delta, message] = [personality === 'driven' || personality === 'big-game' ? 6 : 4, `${name} buys into the project. He wants to win things here.`]
         else [delta, message] = [personality === 'driven' ? -4 : -1, `${name} looks at the table and is not sold.`]
       } else {
-        const problem = promiseProblem(game, u, id, 'signing')
-        if (problem) return { ok: false, message: problem }
         const made = makePromise(game, u, id, 'signing')
         if (!made.ok) return made
         message = `${made.message} He wants to see ambition.`
