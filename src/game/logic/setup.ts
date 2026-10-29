@@ -398,22 +398,6 @@ export function moveDraftToSquad(game: Game, rng: Rng): void {
   game.bonusSpins = 0
 }
 
-
-/** How far below last season's finish a Dynasty's board will still accept (round 9). */
-export const AMBITION_SLACK = 2
-
-/**
- * A Dynasty's board target (round 9): the squad's strength sets it, as in a first season, but success raises the bar.
- * After a season in the same league, finished without the sack, the board accepts no worse than that finish plus
- * `AMBITION_SLACK` (champions are then asked for the top three). Any other mode, a first season, a new league or a
- * relegation keep the strength target. No draw.
- */
-export function dynastyBoardTarget(game: Game, leagueId: string, strengthTarget: number): number {
-  if (game.settings.mode !== 'dynasty') return strengthTarget
-  const last = game.history[game.history.length - 1]
-  if (!last || last.leagueId !== leagueId || last.tier === 'RELEGATED' || last.notes?.sacked) return strengthTarget
-  return Math.max(1, Math.min(strengthTarget, last.position + AMBITION_SLACK))
-}
 /** Move the drafted players into the squad and prepare the season. */
 export function beginSeason(game: Game, u: LoadedUniverse): void {
   const rng = Rng.fromState(game.rngState)
@@ -437,8 +421,7 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     const inp = aiTeamInput(u, c)
     return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall - aiOffset
   })
-  const strengthTarget = boardTargetFor(userStrength, aiStrengths)
-  const boardTarget = dynastyBoardTarget(game, s.leagueId, strengthTarget)
+  const boardTarget = boardTargetFor(userStrength, aiStrengths)
   // Continental Cup: by choice in the first season, by right afterwards
   let continental: ContinentalState | undefined
   const wantsEurope = game.year === 1 ? !!s.continental : !!game.qualifiedContinental
@@ -462,7 +445,7 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     ai,
     aiOffset,
     news: [
-      { matchweek: 0, kind: 'board', title: 'Welcome to the hot seat', body: `The board expects a ${ordinal(boardTarget)}-place finish or better in the ${s.leagueSeason}-${String((s.leagueSeason + 1) % 100).padStart(2, '0')} season.${boardTarget < strengthTarget ? ` Last season's ${ordinal(game.history[game.history.length - 1].position)} place raised the bar.` : ''} Three friendlies are available before the opener.` },
+      { matchweek: 0, kind: 'board', title: 'Welcome to the hot seat', body: `The board expects a ${ordinal(boardTarget)}-place finish or better in the ${s.leagueSeason}-${String((s.leagueSeason + 1) % 100).padStart(2, '0')} season. Three friendlies are available before the opener.` },
     ],
     confidence: 60,
     boardTarget,

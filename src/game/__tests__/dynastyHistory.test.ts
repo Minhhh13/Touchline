@@ -9,7 +9,7 @@ vi.hoisted(() => {
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
-import { AMBITION_SLACK, beginSeason, createGame, dynastyBoardTarget } from '../logic/setup'
+import { beginSeason, createGame } from '../logic/setup'
 import { playMatchweek, startSeasonProper } from '../logic/week'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { bestXI, BEST_XI_MIN_APPS, honoursOf, legendsOf, noteSeasonEnd, summerSnapshot, summerStories, targetMet } from '../logic/dynastyHistory'
@@ -137,28 +137,4 @@ describe('the club history (round 9)', () => {
     const h = honoursOf([line(1), line(1, true), line(3, true), line(1, true, true), line(1), line(1)])
     expect(h).toMatchObject({ seasons: 6, titles: 5, cups: 3, continental: 1, doubles: 2, trebles: 1, titleRun: 3, bestFinish: 1, targetsSet: 0 })
   })
-})
-
-describe('the Dynasty board raises the bar (round 9, moves draws)', () => {
-  it('asks a champion for the top three, keeps the squad target otherwise', () => {
-    const g = play('ambition-1', 1, true)
-    const line = g.history[0]
-    const target = (pos: number, extra: Partial<SeasonRecord> = {}, mode: Game['settings']['mode'] = 'dynasty') => dynastyBoardTarget({ ...g, settings: { ...g.settings, mode }, history: [{ ...line, position: pos, tier: 'CHAMPIONS', ...extra }] }, line.leagueId, 12)
-    expect(target(1)).toBe(1 + AMBITION_SLACK)
-    expect(target(6)).toBe(6 + AMBITION_SLACK)
-    expect(target(15)).toBe(12)
-    expect(target(1, {}, 'season')).toBe(12)
-    expect(target(1, { leagueId: 'spain' })).toBe(12)
-    expect(target(17, { tier: 'RELEGATED' })).toBe(12)
-    expect(target(2, { notes: { ...line.notes!, sacked: true } })).toBe(12)
-    expect(dynastyBoardTarget({ ...g, history: [] }, line.leagueId, 12)).toBe(12)
-  }, 60_000)
-
-  it("a Dynasty's second season is asked for no worse than the first finish plus the slack", () => {
-    for (const seed of ['ambition-2', 'ambition-3', 'ambition-4']) {
-      const g = play(seed, 2, true)
-      const [first, second] = g.history
-      expect(second.notes!.target, seed).toBeLessThanOrEqual(first.position + AMBITION_SLACK)
-    }
-  }, 120_000)
 })
