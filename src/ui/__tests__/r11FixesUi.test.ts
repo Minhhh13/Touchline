@@ -8,7 +8,12 @@ import { formatText, setLocaleMessages } from '../i18n'
 import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
 import { logicText } from '../i18n/en/logicText'
 import { logicLine, matchLogicLine } from '../i18n/logicText'
-import { caseRowTitle } from '../i18n/engineText'
+import { caseRowTitle, playStyleLabel } from '../i18n/engineText'
+import { arenaTierText, gauntletBandText } from '../arenaText'
+import { arenaTierLabel, ARENA_TIER_LABEL, type ArenaTier } from '@engine/knockout'
+import { GAUNTLET_RUNGS, rungBandLabel } from '@engine/gauntlet'
+import { STYLE_LABEL } from '@engine/tactics'
+import type { PlayStyle } from '@engine/types'
 
 /** QA round 6 (r11, docs/QA.md): the screen fixes. The browser checks are in docs/QA.md; these hold the code to them. */
 const src = (p: string): string => readFileSync(join(__dirname, '..', p), 'utf8')
@@ -116,5 +121,30 @@ describe('R11-9: “Where does he play?” takes the focus from the row that ope
     const effect = draft.split('const slotChoicesRef = useRef<HTMLDivElement>(null)')[1].split('}, [selectedPlayer])')[0]
     expect(effect).toMatch(/document\.activeElement\?\.closest\('\.prow'\)/)
     expect(effect).toMatch(/querySelector<HTMLElement>\('\[data-testid="slot-chip"\], \[data-testid="to-bench"\]'\)\?\.focus\(\{ preventScroll: true \}\)/)
+  })
+})
+
+describe('R11-10: the arena’s banner, the Gauntlet’s ladder ends and a club’s way of playing in the viewer’s language', () => {
+  const tiers = Object.keys(ARENA_TIER_LABEL) as ArenaTier[]
+  const styles = Object.keys(STYLE_LABEL) as PlayStyle[]
+
+  it('say the engine’s English word for word in English', () => {
+    for (const tier of tiers) for (const score of [0, 1, 2, 7, 15]) expect(arenaTierText(tier, score)).toBe(arenaTierLabel(tier, score))
+    for (let rung = 1; rung <= GAUNTLET_RUNGS; rung++) if (rung === 1 || !/^top /.test(rungBandLabel(rung))) expect(gauntletBandText(rung)).toBe(rungBandLabel(rung))
+    for (const k of styles) expect(playStyleLabel(k)).toBe(STYLE_LABEL[k])
+  })
+
+  it('are translated in the pseudo-locale, and the screens read them', () => {
+    setLocaleMessages({ id: PSEUDO_LOCALE, messages: {} })
+    try {
+      for (const tier of tiers) expect(isPseudo(arenaTierText(tier, 3)), tier).toBe(true)
+      for (let rung = 1; rung <= GAUNTLET_RUNGS; rung++) expect(isPseudo(gauntletBandText(rung)), `rung ${rung}`).toBe(true)
+      for (const k of styles) expect(isPseudo(playStyleLabel(k)), k).toBe(true)
+    } finally {
+      setLocaleMessages({ id: 'en', messages: {} })
+    }
+    expect(src('screens/ArenaSummary.tsx')).toMatch(/\{bannerText\}/)
+    expect(src('screens/ProfileScreen.tsx')).not.toContain('arenaTierLabel(')
+    for (const f of ['screens/Dugout.tsx', 'screens/OppositionReport.tsx']) expect(src(f)).not.toContain('STYLE_LABEL[')
   })
 })

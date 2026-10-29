@@ -6,7 +6,7 @@ import { useStorePick } from '../useStorePick'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation } from '@engine/formations'
 import { getRole, DEFAULT_ROLE } from '@engine/roles'
-import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
+import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP } from '@engine/tactics'
 import { TRAINING, type TrainingFocus } from '@engine/training'
 import { nextOpponent, upcomingCupTie } from '@game/logic/week'
 import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
@@ -83,7 +83,7 @@ import { dugout } from '../i18n/en/dugout'
 import { WeekStrip } from '../components/WeekStrip'
 import '../motionSeason.css'
 import { rich } from '../i18n/rich'
-import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, statusLabel, statusLower, trainingBlurb, trainingLabel } from '../i18n/engineText'
+import { playStyleLabel, roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, statusLabel, statusLower, trainingBlurb, trainingLabel } from '../i18n/engineText'
 import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
 import { onRadioGroupKey, radioTabIndex } from '../a11y'
 import { logicLine } from '../i18n/logicText'
@@ -325,7 +325,7 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
                     {t('vsClub', { home: next.home ? 'home' : 'away', club: clubName(u, next.clubId) })}
                   </div>
                   <div className="club-sub">
-                    <span>{t('styleSide', { style: STYLE_LABEL[u.clubById[next.clubId]?.style ?? 'balanced'] })}</span>
+                    <span>{t('styleSide', { style: playStyleLabel(u.clubById[next.clubId]?.style ?? 'balanced') })}</span>
                     <span>{ordinal(positionOf(table, next.clubId))}</span>
                     {u.clubById[season.hostClubId]?.rivals.includes(next.clubId) && <span className="chip warn">{t('derby')}</span>}
                     <StoryChip game={game} u={u} />

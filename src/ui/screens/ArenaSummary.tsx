@@ -6,7 +6,7 @@ import { clubIdOfKey } from '@engine/knockout'
 import { randomSeed } from '@engine/rng'
 import { arenaAgainSettings, dailyArenaResult } from '@game/logic/arenaDaily'
 import { USER_TEAM } from '@engine/season'
-import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark, stepWon } from '@game/logic/arena'
+import { arenaBanner, arenaTier, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark, stepWon } from '@game/logic/arena'
 import { cupRoundCount } from '@engine/cup'
 import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
@@ -37,7 +37,7 @@ import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { fixed } from '../format'
-import { clubCode, longWord, personalBest, splitSeason } from '../arenaText'
+import { arenaTierText, clubCode, longWord, personalBest, splitSeason } from '../arenaText'
 import { streakStanding } from '@game/logic/casualStreak'
 import { resultId } from '@game/logic/cabinet'
 import { logicLine } from '../i18n/logicText'
@@ -78,6 +78,8 @@ export function ArenaSummary() {
   // The Gauntlet and the Cup list the run's scorers; a final its own
   const runLong = gauntlet || cup
   const banner = arenaBanner(a)
+  // The banner on screen in the viewer's language; the share text and card keep the English `banner`
+  const bannerText = arenaTierText(arenaTier(a), a.log.filter(stepWon).length)
   const input = arenaShareInput(game, u)
   // Emoji-light, and the last line asks a friend in: the challenge link once made, else where to play
   const invite = inviteFor(inviteKindOf(game), { won: a.won, rungs: a.log.length - (a.won ? 0 : 1) })
@@ -178,8 +180,8 @@ export function ArenaSummary() {
         )}
         <div className="tier-wrap">
           {a.won && <Celebrate tier="CHAMPIONS" resultKey={`${game.id}:arena`} replayed={false} />}
-          <div className={`tier ${a.won ? 'CHAMPIONS' : ''}${longWord(banner) ? ' long-word' : ''}`} data-testid="tier">
-            {banner}
+          <div className={`tier ${a.won ? 'CHAMPIONS' : ''}${longWord(bannerText) ? ' long-word' : ''}`} data-testid="tier">
+            {bannerText}
           </div>
         </div>
         {best && (
