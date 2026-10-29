@@ -388,3 +388,59 @@
     height: 44px;
   }
 }
+/* A phone on its side: the same pickers at 16 px, so iOS does not zoom into them either (phones, round 12) */
+@media (max-height: 500px) and (pointer: coarse) {
+  .matchday .md-select,
+  .matchday .md-ment .md-select,
+  .matchday .md-heat-side .md-select,
+  .matchday select.md-highlights {
+    font-size: 16px; /* px: 16 px so iOS does not zoom */
+  }
+}
+/* A drawer's bottom sheet on a phone carries the grip the other sheets have, and follows a finger pulled down from it
+   or from its header (useSheetDrag in Drawer.tsx); its close button takes a 44 px target (phones, round 12) */
+@media (max-width: 720px) {
+  .matchday .md-drawer > .sheet-grip {
+    display: block;
+    position: relative;
+    flex: none;
+    height: 18px;
+    touch-action: none;
+    cursor: grab;
+  }
+  .matchday .md-drawer > .sheet-grip::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 7px;
+    width: 40px;
+    height: 5px;
+    margin-left: -20px;
+    border-radius: var(--radius-pill);
+    background: var(--line-2);
+  }
+  .matchday .md-drawer-head {
+    padding-top: 2px;
+    touch-action: pan-x;
+  }
+  .matchday .md-drawer.dragging {
+    transition: none;
+    user-select: none;
+  }
+  .matchday .md-drawer:not(.dragging) {
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+  .matchday .md-x {
+    position: relative;
+  }
+  .matchday .md-x::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .matchday .md-drawer:not(.dragging) {
+    transition: none;
+  }
+}

@@ -53,3 +53,10 @@ describe('a small phone on its side', () => {
     expect(at).toBeGreaterThan(css.indexOf('  .cta-bar {\n    position: fixed;'))
   })
 })
+
+describe('the dock on a narrow phone (round 12)', () => {
+  it("sizes each cell by its caption, so the longest (Summary) is whole at 360 px", () => {
+    const r12 = css.slice(css.indexOf('/* Phones, round 12'))
+    expect(r12).toMatch(/@media \(max-width: 720px\) and \(min-height: 501px\) \{\n {2}\.app:not\(\.dock-off\) > \.topbar nav button \{\n {4}flex: 1 1 auto;/)
+  })
+})

@@ -2251,14 +2251,17 @@ details.opposition {
     padding-inline: 7px;
   }
 }
-/* The arena's team talk on a phone: the four choices share the row's width instead of wrapping Fire up alone onto a second line (visual audit, QA round 8) */
+/* The arena's team talk on a phone: the four choices share the row's width instead of wrapping Fire up alone onto a second line (visual audit, QA round 8).
+   Each takes its word's width plus a share of the rest (phones, round 12: equal quarters ran "Encourage" into "Demand"
+   at 360 px); at 200 % text the row wraps rather than overlap */
 @media (max-width: 520px) {
   .arena-prep .segmented {
     display: flex;
-    flex-wrap: nowrap;
+    width: 100%;
+    flex-wrap: wrap;
   }
   .arena-prep .segmented button {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
     padding-inline: 4px;
   }
