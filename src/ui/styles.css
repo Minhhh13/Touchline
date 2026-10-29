@@ -15281,6 +15281,20 @@ table.tbl td.strong {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   }
 }
+/* Explore's search lists up to 200 rows: those out of view skip layout and paint until scrolled to (r10 perf) */
+.explore-search .plist > .prow-shell {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
+}
+/* The containment clips what a row draws outside itself: the row's focus ring goes inside */
+.explore-search .plist > .prow-shell > .prow:focus-visible {
+  outline-offset: -2px;
+}
+@media (max-width: 720px) {
+  .explore-search .plist > .prow-shell {
+    contain-intrinsic-size: auto 125px;
+  }
+}
 @media (max-width: 720px) {
   .filter-grid {
     grid-template-columns: minmax(0, 1fr);

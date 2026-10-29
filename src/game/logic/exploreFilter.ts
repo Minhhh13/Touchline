@@ -1,6 +1,6 @@
 import type { PlayerSeason, Position } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { foldName, playerIndex } from './exploreIndex'
+import { foldName, nameMatchesOf, nameStarts, playerIndex, queryWords } from './exploreIndex'
 import { classicFromFor } from './era'
 
 /**
@@ -75,17 +75,19 @@ function seasonMatches(u: LoadedUniverse, f: PlayerFilter, p: PlayerSeason): boo
 /** Every player (or player-season) the filter admits, sorted, the first `limit` of them. */
 export function filterPlayers(u: LoadedUniverse, f: PlayerFilter): FilterResult {
   if (!filterActive(f)) return { rows: [], total: 0 }
-  const words = foldName(f.query ?? '').trim().split(/\s+/).filter(Boolean)
+  const words = queryWords(f.query ?? '')
   const hits: Array<FilterHit & { rank: number }> = []
-  for (const e of playerIndex(u)) {
-    if (words.length && !e.folded.some((n) => words.every((w) => n.includes(w)))) continue
-    const matching = e.seasons.filter((p) => seasonMatches(u, f, p))
+  const byName = [f.nation, f.leagueId, f.position, f.minAge, f.maxAge, f.minRating, f.maxRating, f.fromSeason, f.toSeason].every((x) => x === undefined || x === '')
+  // Only the players the name admits (every player without one), narrowed from the last query when this one narrows it
+  for (const e of nameMatchesOf(u, words)) {
+    // A name alone admits every season: his best is the one the index already holds
+    const matching = byName ? e.seasons : e.seasons.filter((p) => seasonMatches(u, f, p))
     if (!matching.length) continue
     // A word that starts a part of his name ranks first for relevance ("Kane" finds Harry Kane before Kanté)
-    const rank = words.length && e.parts.some((parts) => words.every((w) => parts.some((part) => part.startsWith(w)))) ? 0 : 1
+    const rank = words.length && nameStarts(e, words) ? 0 : 1
     const base = { name: e.name, from: e.from, to: e.to, seasons: e.seasonCount, clubs: e.clubs, rank }
     if (f.onePerPlayer ?? true) {
-      const best = matching.reduce((m, p) => (p.overall > m.overall ? p : m), matching[0])
+      const best = byName ? e.best : matching.reduce((m, p) => (p.overall > m.overall ? p : m), matching[0])
       hits.push({ ...base, p: best, matching: matching.length })
     } else for (const p of matching) hits.push({ ...base, p, matching: 1 })
   }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, Columns3, Landmark, ListOrdered, Search, Shield, Star as StarIcon, Trophy } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { EXPLORE } from '../boxSets'
@@ -84,6 +84,19 @@ function CareerModal({ playerId, onClose, compare, onCompare, onPlayer }: { play
   return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} actions={actions} onPlayer={onPlayer} attrCaption={t('atPeak', { club: clubName(u, best.clubId), season: seasonLabel(best.season) })} />
 }
 
+/** The search form's state, kept in Explore's `kept` across views, so typing renders only the search view. */
+function SearchState({ kept, onPlayer, compare, toggleCompare }: { kept: { current: SearchForm }; onPlayer: (playerId: string) => void; compare: string[]; toggleCompare: (playerId: string) => void }) {
+  const [form, setForm] = useState(kept.current)
+  const change = useCallback(
+    (f: SearchForm) => {
+      kept.current = f
+      setForm(f)
+    },
+    [kept],
+  )
+  return <SearchView form={form} setForm={change} onPlayer={onPlayer} compare={compare} toggleCompare={toggleCompare} />
+}
+
 export function Explore() {
   const { universe: u, go, ensureLeagues, ensureClassic, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStorePick('universe', 'go', 'ensureLeagues', 'ensureClassic', 'loadingLeagues', 'loadedLeagues', 'shortlist', 'toggleShortlist')
   // The database shows the classic seasons too: their pack loads on the first visit here, not at the game's start
@@ -96,7 +109,8 @@ export function Explore() {
   const [careerId, setCareerId] = useState<string | null>(null)
   const [view, setView] = useState<ExploreView>('browse')
   const [clubPage, setClubPage] = useState('')
-  const [form, setForm] = useState<SearchForm>(BLANK_SEARCH)
+  // The search form outlives a switch of view, but a keystroke renders only the search, not this whole screen
+  const searchForm = useRef<SearchForm>(BLANK_SEARCH)
   const [compare, setCompareState] = useState<string[]>(readCompare)
   const setCompare = (ids: string[]) => {
     setCompareState(ids)
@@ -394,7 +408,7 @@ export function Explore() {
       {view === 'clubs' && <ClubView leagueId={leagueId} clubId={clubPage} onClub={openClub} onPlayer={setCareerId} />}
       {view === 'league' && <LeagueView leagueId={leagueId} onClub={openClub} onPlayer={setCareerId} />}
       {view === 'records' && <RecordsView leagueId={leagueId} onClub={openClub} onPlayer={setCareerId} />}
-      {view === 'search' && <SearchView form={form} setForm={setForm} onPlayer={setCareerId} compare={compare} toggleCompare={flipCompare} />}
+      {view === 'search' && <SearchState kept={searchForm} onPlayer={setCareerId} compare={compare} toggleCompare={flipCompare} />}
       {view === 'compare' && <CompareView ids={compare} setIds={setCompare} onPlayer={setCareerId} />}
       </div>
       <CareerModal playerId={careerId} onClose={() => setCareerId(null)} compare={compare} onCompare={flipCompare} onPlayer={setCareerId} />

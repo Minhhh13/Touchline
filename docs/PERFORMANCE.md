@@ -452,6 +452,58 @@ Measured and left:
   stays synchronous, so the focus never lands anywhere else first.
 
 No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` pass untouched, ENGINE_VERSION is `'7'`.
+## Round 10 (`r10-perf`)
+
+Two items round 9 left: Explore's search per keystroke, and whether splitting `setup.ts` would shrink the first
+download. Measured on `main` at 869c434 (before) and this branch (after), both `vite preview` builds, Playwright's
+Chromium at 390x844 (DPR 3, touch), 4x CPU throttle, network unthrottled, every league loaded first (the first search
+loads them). The script types four names one key at a time, 1.7 s apart, and records from each keydown the time until
+the first rows of the new list are painted (a frame and a task after the results box first changes) and the longest
+task; then it types three names at a phone's pace (180 ms a key) and records the longest task. Two runs each.
+
+| Phone, 4x CPU, Explore search | Before (`main` 869c434) | After |
+| --- | --- | --- |
+| Keydown to the new rows painted, median of the keystrokes with 2 letters or more | 245 to 253 ms | 83 to 89 ms |
+| The same, worst keystroke | 763 to 834 ms (two-letter queries: 200 rows at once) | 144 to 165 ms (narrowing a 200-row list after a pause) |
+| Longest task while a key's results arrive | 333 to 435 ms | 0 to 100 ms (most keys under 50) |
+| Typing at a phone's pace, longest task | 179 to 289 ms | none over 50 ms |
+| Rows drawn in the end | the first 200 | the first 200, the same rows in the same order (about 1.1 s after the last key) |
+
+What changed (display only, no draw, nothing bundled):
+
+1. **The name narrows the index** (`src/game/logic/exploreIndex.ts`): `nameMatchesOf(u, words)` returns the players
+   whose names hold every word, in index order. A query whose earlier words each lie inside one of its words ("haa"
+   after "ha", "de br" after "de b") filters the earlier answer, kept for the last eight queries per universe; without
+   one, `String.indexOf` over one string of every folded name (built once beside the index, `warmExplore`) finds the
+   players holding the longest word, and only those are checked. Each entry also holds its best season (`best`).
+   `searchPlayers` and `filterPlayers` read it; a filter with only a name skips the per-season check (every season
+   matches). The old search and filter are kept verbatim in `src/game/__tests__/exploreSearchSame.test.ts`, which
+   compares them row for row over more than a thousand queries typed letter by letter (with slips and backspaces,
+   from a warm and a cold cache) and 600 filters with every sort and random filters beside the name. In Node the
+   two-letter queries went from 7 to 10 ms to 4 to 6 ms and a narrowing one to under 1 ms.
+2. **Typing renders only the search** (`src/ui/screens/Explore.tsx`, `ExploreViews.tsx`): the form's state moved from
+   Explore into a small `SearchState` (kept in a ref across views), so a keystroke no longer renders the whole screen;
+   the results box is its own component (`SearchOut`) with the deferred value inside it, so the deferred render draws
+   the results alone and not the form, and the rows (`SearchRows`, memoised) are left alone by the keystroke's own
+   render. The nation list's options are built once per universe.
+3. **The rows come a slice at a time** (`src/ui/progressiveRows.ts`): the first 12 rows with the list, the rest 24 at
+   a time after each paint once the list has stood for 250 ms, so typing never meets a step; each new list gets a
+   new box (`listKey`), one removal instead of 200.
+4. **Rows out of view skip layout and paint**: `content-visibility: auto` on the search's rows (`styles.css`, with the
+   rows' height as the intrinsic size, 60 px and 125 px on a phone); the row's focus ring is drawn inside it, since the
+   containment clips what a row draws outside itself.
+
+Where a keystroke's 85 ms go now (4x): the input's own render and frame (about 25 to 40 ms), the filter (5 to 30 ms,
+the most for a two-letter query), React's render of 12 rows (about 20 ms) and their style, layout and paint (about 30
+ms). A keystroke that narrows a list that grew to 200 rows during a pause also removes it (about 20 ms more).
+
+**The `setup.ts` split: not done, it saves nothing.** Tried on `main` at 869c434: Home's Daily read from `daily.ts`,
+the rule chips and `shortNameFor` moved to their own module, and the store's `createGame` and `beginSeason` went
+through the rules chunk. The entry measured 243.7 KB gzip against 243.1 KB before: `setup.ts` stays in the entry
+through `onboarding.ts`, `weekly.ts`, `arenaDaily.ts` and `arena.ts`, and what it imports (the match engine, the
+season engine, the arena) is in the entry anyway through the store's static `arena.ts` import (the store sends an
+arena live match there). A split would only pay with the arena's live-match path moved to the rules chunk as well,
+and `arena.ts` is in the edge verifier's graph too. The edge bundle keeps its name (`verifier-ecc269657e48639b.js`).
 
 ## Next
 
@@ -477,7 +529,8 @@ In order of what a phone would gain:
    digest), each checked for later rules of equal weight first.
 8. **Flags for offline**: the drawn flags are cached only once seen; the precache list could take the ones the packs
    name.
-9. **What Home still carries of the game**: `setup.ts` (in the verifier's graph) imports the arena, youth and market
-   logic, and with them the match engine, because Home builds the Daily's, the Weekly's and the first draft's settings.
-   A Home that read only `daily.ts`, `weekly.ts`'s plan and `onboarding.ts`'s settings without `setup.ts` would leave
-   them out, but `weekly.ts` and `onboarding.ts` import `setup.ts`: an engine release that splits `setup.ts` could do it.
+9. **What Home still carries of the game**: the match engine, the season engine and the arena (about 60 KB minified)
+   ride in the entry through the store's static import of `arena.ts` (its live-match path) as well as through
+   `setup.ts`. Round 10 measured splitting `setup.ts` alone: no gain (243.1 to 243.7 KB). Moving the arena's actions
+   behind the rules chunk first, then the split, could; both files are in the edge verifier's graph, so that waits for
+   an engine release.
