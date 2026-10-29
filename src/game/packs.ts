@@ -35,7 +35,7 @@ function getJson<T>(path: string): Promise<T> {
 }
 
 /** A break between the parse of a pack and its build, so the two run as two tasks and the page can paint between them. */
-const yieldToMain = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+export const yieldToMain = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
 
 /** Keep a promise in `cache` under `key` unless it fails, so the next call retries the network. */
 function cached<T>(cache: Map<string, Promise<T>>, key: string, make: () => Promise<T>): Promise<T> {
@@ -106,6 +106,8 @@ export function loadLeague(id: string, classic: boolean): Promise<LoadedUniverse
 export async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUniverse> {
   const unique = [...new Set(ids)]
   const [index, ...parts] = await Promise.all([fetchLeaguesIndex(), ...unique.map((id) => loadLeague(id, classic))])
+  // The merge in a task of its own, apart from the last league's build (and the store's tidy and render after it)
+  await yieldToMain()
   return mergeUniverses(parts, index.leagues, index.generatedAt)
 }
 

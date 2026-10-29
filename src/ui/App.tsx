@@ -111,8 +111,9 @@ export function App() {
       return
     }
     const set = () => root.style.setProperty('--topbar-h', `${Math.ceil(topbar.getBoundingClientRect().height)}px`)
-    set()
-    if (typeof ResizeObserver === 'undefined') return
+    // Measured by the observer's first report, after the frame's own layout: read here, it forced the whole first screen's
+    // style and layout inside the commit (about 100 ms at 4x on Home's first render). Only the scroll padding reads it.
+    if (typeof ResizeObserver === 'undefined') return set()
     const ro = new ResizeObserver(set)
     ro.observe(topbar)
     return () => ro.disconnect()
