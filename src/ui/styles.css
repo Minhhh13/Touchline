@@ -8759,6 +8759,29 @@ dl.kv {
 .room-share .btn {
   flex: none;
 }
+/* A room's message (ended, closed, not found) in the middle of its box, not at its top */
+.room-message {
+  justify-content: center;
+}
+/* An ended room's way on: the two buttons, then the other manager's rematch under a rule, one column */
+.room-ended-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 460px;
+  margin-top: var(--space-3);
+}
+.room-ended-buttons {
+  justify-content: center;
+}
+.room-ended-actions .room-join-rematch {
+  margin: 0;
+  max-width: none;
+  padding-top: var(--space-4);
+  border-top: var(--border);
+}
 .room-turn {
   display: flex;
   align-items: center;

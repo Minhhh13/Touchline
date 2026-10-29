@@ -111,8 +111,10 @@ describe('the mark', () => {
 describe('the lockup', () => {
   it('stands the flag and the ball on a short line, the ball clear of the pole and the pennant, left of the name', () => {
     const { ball, pole, pennant, name, rule, roll } = LOCKUP
-    // the pole's round foot ends at the line's top edge
-    expect(pole.y2 + pole.w / 2).toBeCloseTo(rule.y, 6)
+    // the pole runs into the line: its straight part reaches the line's top edge and its round foot ends inside the line,
+    // so no anti-aliased sliver of background shows between them at any size
+    expect(pole.y2).toBeCloseTo(rule.y, 6)
+    expect(pole.y2 + pole.w / 2).toBeLessThanOrEqual(rule.y + rule.w)
     expect(ball.cx - ball.r - (pole.x + pole.w / 2)).toBeGreaterThanOrEqual(5)
     const cy = rule.y - ball.r
     for (const [x, y] of points(pennantPath(pennant))) expect(Math.hypot(x - ball.cx, y - cy)).toBeGreaterThan(ball.r + 2.5)
