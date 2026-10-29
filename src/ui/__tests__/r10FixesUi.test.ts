@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from '../i18n/en/app'
+import { contrastRatio } from '../format'
 
 const src = (p: string): string => readFileSync(join(__dirname, '..', p), 'utf8')
 const word = (key: string): string => (app.messages as Record<string, string>)[key]
@@ -61,5 +62,15 @@ describe('R9-O4: the Office\'s conversation topics wrap in their box', () => {
     expect(row).not.toBeNull()
     expect(row![1].split(' ')).toEqual(['segmented'])
     expect(src('styles.css')).toMatch(/\n\.segmented \{\n {2}display: inline-flex;\n {2}flex-wrap: wrap;/)
+  })
+})
+
+describe('r9 visual leftover: what sits on the grass clears 3:1 on both stripes (WCAG 1.4.11)', () => {
+  const css = src('styles.css')
+  const token = (name: string): string => new RegExp(`--${name}: (#[0-9a-f]{6});`).exec(css)![1]
+  it('the out-of-position, fit and cover glows and the flagged disc', () => {
+    for (const glow of ['pitch-bad', 'pitch-fit', 'pitch-cover']) {
+      for (const grass of ['pitch', 'pitch-2']) expect(contrastRatio(token(glow), token(grass)), `${glow} on ${grass}`).toBeGreaterThanOrEqual(3)
+    }
   })
 })

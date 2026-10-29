@@ -125,9 +125,10 @@
   --pitch-disc: rgba(7, 16, 46, 0.86);
   --pitch-disc-empty: rgba(7, 16, 46, 0.5);
   --pitch-highlight: #5ee3fb;
-  --pitch-bad: #f87171;
-  /* The substitution board's fit glows on the grass: natural, can cover (out of position is --pitch-bad) */
-  --pitch-fit: #34d399;
+  /* On the grass (a flagged disc, the high xG trail, a held man out of position): 3:1 on both stripes (r10; #f87171 was 1.9:1) */
+  --pitch-bad: #ffb3b3;
+  /* The substitution board's fit glows on the grass: natural, can cover (out of position is --pitch-bad); 3:1 on both stripes (r10; #34d399 was 2.8:1) */
+  --pitch-fit: #6ee7b7;
   /* The match day's heat map on the grass: warm cells, and the hottest overlaid (gold stays for trophies and records) */
   --heat-warm: #f5c542;
   --heat-hot: #f87171;
