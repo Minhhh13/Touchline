@@ -74,7 +74,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository as generated league packs in `public/data/`, one folder per league (1.1 to 1.5 MB each), loaded on demand. The online layer stays off unless `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set, so a plain checkout is the complete offline game.
+The player database ships in the repository as generated league packs in `public/data/`, one folder per league (1.1 to 1.4 MB each), loaded on demand. The online layer stays off unless `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set, so a plain checkout is the complete offline game.
 
 To rebuild the data from the public datasets, run `node scripts/import/build.mjs`. It downloads several large archives on the first run and needs `unzip` and Node's `node:sqlite`. [docs/DATA.md](docs/DATA.md) covers the method, the cache location and the optional enrichment steps.
 
