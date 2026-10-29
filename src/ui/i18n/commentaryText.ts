@@ -27,12 +27,15 @@ let parts: Map<string, string> | null = null
 function allPatterns(): Pattern[] {
   if (patterns) return patterns
   const pieces: Record<string, string> = {}
+  const zones: string[] = []
   parts = new Map()
   for (const [key, msg] of Object.entries(commentaryText.messages)) {
     if (key.startsWith('part_')) parts.set(msg, key)
     else if (!BY_KEY.test(key)) pieces[key] = msg
+    if (key.startsWith('part_zone_')) zones.push(msg)
   }
-  return (patterns = compilePatterns(pieces))
+  // A zone is always one of the five (`ZONES`): matched as such, a name of several words before it stays whole (QA r13, R13-1)
+  return (patterns = compilePatterns(pieces, { zone: zones }))
 }
 
 /** The message a piece of the commentary's English came from, with what its holes held (for the tests; English only). */

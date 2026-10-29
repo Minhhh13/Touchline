@@ -30,6 +30,7 @@ import { cardSeries, reportFigures } from '../matchday/model'
 import { XgStory } from '../matchday/panels/XgStory'
 import { translator } from '../i18n'
 import { match } from '../i18n/en/match'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(match)
 
@@ -128,7 +129,7 @@ export function MatchScreen() {
   const cupNext = !!game.live && holdLive
   // The arena: penalties first, then the run's summary or its next match
   const arena = game.arena
-  const continueLabel = arena ? (holdVerdict ? t('continue') : arenaContinueLabel(game)) : seasonOver ? t('seasonSummary') : cupNext ? t('nextTie', { round: game.live!.ctx.roundLabel ?? t('cupTie') }) : t('continue')
+  const continueLabel = arena ? (holdVerdict ? t('continue') : arenaContinueLabel(game)) : seasonOver ? t('seasonSummary') : cupNext ? t('nextTie', { round: game.live!.ctx.roundLabel ? logicLine(game.live!.ctx.roundLabel) : t('cupTie') }) : t('continue')
   const onContinue = () => {
     if (arena) {
       closeMatch()
@@ -159,7 +160,7 @@ export function MatchScreen() {
           <div>
             <h2>
               <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
-              {ctx.roundLabel ?? t('penalties')}
+              {ctx.roundLabel ? logicLine(ctx.roundLabel) : t('penalties')}
             </h2>
             <div className="small muted">
               {t('levelAt90', { home: homeName, away: awayName, score: `${res.homeGoals}-${res.awayGoals}` })}
@@ -203,8 +204,8 @@ export function MatchScreen() {
           <div className="match-title">
             <h2>
               <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
-              {ctx.roundLabel ?? (ctx.competition === 'cup' ? t('cup') : t('matchweek', { n: ctx.matchweek }))}
-              {ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}
+              {ctx.roundLabel ? logicLine(ctx.roundLabel) : ctx.competition === 'cup' ? t('cup') : t('matchweek', { n: ctx.matchweek })}
+              {ctx.importanceLabel ? ` · ${logicLine(ctx.importanceLabel)}` : ''}
             </h2>
             <div className="small muted">
               {t('versus', { home: homeName, away: awayName })}

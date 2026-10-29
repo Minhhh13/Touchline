@@ -10,7 +10,7 @@ import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine
 import type { H2HManager } from '@game/logic/h2h'
 import type { LoadedUniverse } from '@engine/universe'
 import { draftFromEvents, roomClubs, roomEndLine, roomLeagues, roomLogLine, roomSeasons, roomWheel, ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS, ROOM_WAIT_MINUTES, type RoomSettings, type RoomView } from '@game/logic/h2hRoom'
-import { clockText, pollDelay, roomCodeFrom, roomInviteText, turnClock, waitClock, type RematchNote, type RoomUi } from '../../online/rooms'
+import { clockText, pollDelay, ROOM_CODE_INPUT_MAX, roomCodeFrom, roomInviteText, turnClock, waitClock, type RematchNote, type RoomUi } from '../../online/rooms'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { ratingHidden } from '@game/logic/ratingVisibility'
@@ -102,7 +102,7 @@ function JoinRematch({ name, own }: { name: string | null; own?: string }) {
       <div className="field">
         <span className="small muted" id="room-rematch-help">{t('joinRematchHelp', { name: name ?? 'none' })}</span>
         <span className="row">
-          <input className="input mono grow" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={200} autoCapitalize="characters" autoComplete="off" spellCheck={false} aria-label={t('joinRematch')} aria-describedby="room-rematch-help" data-testid="room-rematch-code" onKeyDown={(e) => e.key === 'Enter' && open()} />
+          <input className="input mono grow" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={ROOM_CODE_INPUT_MAX} autoCapitalize="characters" autoComplete="off" spellCheck={false} aria-label={t('joinRematch')} aria-describedby="room-rematch-help" data-testid="room-rematch-code" onKeyDown={(e) => e.key === 'Enter' && open()} />
           <button className="btn" disabled={!typed} onClick={open} data-testid="room-rematch-join">
             <DoorOpen size={16} aria-hidden="true" /> {t('joinRematchOpen')}
           </button>
@@ -244,7 +244,7 @@ export function RoomSetup() {
           </p>
           <label className="field">
             {t('roomCode')}
-            <input className="input mono room-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={200} autoCapitalize="characters" autoComplete="off" spellCheck={false} aria-invalid={codeProblem || undefined} aria-describedby="room-code-help" data-testid="room-code-input" onKeyDown={(e) => e.key === 'Enter' && typed && void open(typed)} />
+            <input className="input mono room-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={ROOM_CODE_INPUT_MAX} autoCapitalize="characters" autoComplete="off" spellCheck={false} aria-invalid={codeProblem || undefined} aria-describedby="room-code-help" data-testid="room-code-input" onKeyDown={(e) => e.key === 'Enter' && typed && void open(typed)} />
           </label>
           <span id="room-code-help" className={`small ${codeProblem ? 'bad-text' : 'muted'}`} aria-live="polite" data-testid="room-code-help">
             {codeProblem ? t('codeNotValid') : typed ? t('codeReady', { code: formatCode(typed) }) : t('codePasteLink')}

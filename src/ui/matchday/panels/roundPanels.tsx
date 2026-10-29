@@ -11,6 +11,7 @@ import type { PanelProps } from '../types'
 import { Empty } from './bits'
 import { translator } from '../../i18n'
 import { match } from '../../i18n/en/match'
+import { logicLine } from '../../i18n/logicText'
 import { rich } from '../../i18n/rich'
 
 const tx = translator(match)
@@ -107,7 +108,7 @@ export function LiveTable({ d }: PanelProps) {
 
 export function MatchdayInfo({ d }: PanelProps) {
   const { feed, ctx, game, u } = d
-  const competition = ctx.roundLabel ?? (ctx.competition === 'cup' ? tx('cup') : ctx.competition === 'league' ? tx('matchweek', { n: ctx.matchweek }) : tx('continentalCup'))
+  const competition = ctx.roundLabel ? logicLine(ctx.roundLabel) : ctx.competition === 'cup' ? tx('cup') : ctx.competition === 'league' ? tx('matchweek', { n: ctx.matchweek }) : tx('continentalCup')
   const clubOf = (teamId: string) => u.clubById[teamId === USER_TEAM ? game.settings.hostClubId : teamId.replace(/^friendly-/, '')]
   const venue = feed.neutral ? tx('neutralVenue') : (clubOf(feed.home.teamId)?.city ?? '–')
   const before = d.ref && !d.ref.friendly ? roundTable(game, d.ref) : []
@@ -140,7 +141,7 @@ export function MatchdayInfo({ d }: PanelProps) {
     <div className="md-info small">
       <div>
         <b>{competition}</b>
-        {feed.importanceLabel || ctx.importanceLabel ? <span className="muted"> · {feed.importanceLabel ?? ctx.importanceLabel}</span> : null}
+        {feed.importanceLabel || ctx.importanceLabel ? <span className="muted"> · {logicLine(feed.importanceLabel ?? ctx.importanceLabel ?? '')}</span> : null}
       </div>
       <div className="muted">{tx('venue', { venue })}</div>
       <div>

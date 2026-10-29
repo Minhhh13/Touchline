@@ -61,6 +61,7 @@ import './matchday-motion.css'
 import { PeriodCard } from './PeriodCard'
 import { translator } from '../i18n'
 import { match } from '../i18n/en/match'
+import { logicLine } from '../i18n/logicText'
 
 const tx = translator(match)
 /** The ball's sounds and the crowd's full bed on the match day (its goals come from the holds, useMatchSounds) */
@@ -277,7 +278,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
       watch?.disconnect()
     }
   }, [compact])
-  const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? tx('cup') : ctx.competition === 'league' ? tx('matchweek', { n: ctx.matchweek }) : tx('continentalCup'))}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
+  const label = `${ctx.roundLabel ? logicLine(ctx.roundLabel) : ctx.competition === 'cup' ? tx('cup') : ctx.competition === 'league' ? tx('matchweek', { n: ctx.matchweek }) : tx('continentalCup')}${ctx.importanceLabel ? ` · ${logicLine(ctx.importanceLabel)}` : ''}`
   const crumb = (
     <div className={`md-crumb ${crumbEnd ? 'has-end' : ''}`}>
       <b>
