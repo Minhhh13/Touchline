@@ -58,6 +58,7 @@ export const app = catalog('app', {
   digestPlaced: '{pos, ordinal} in the table',
   digestStill: 'Still {pos, ordinal}',
   digestMoved: '{from, ordinal} to {to, ordinal}',
+  digestWinRun: '{n} wins in a row',
   digestPoints: '{place}, {n, plural, one {# point} other {# points}}',
   digestFrom: ' from {n, plural, one {# league match} other {# league matches}}',
   boardConfidence: 'Board confidence',

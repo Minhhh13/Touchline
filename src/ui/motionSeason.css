@@ -339,6 +339,336 @@
   }
 }
 
+/*
+ * ---- Round 9: more drama in the playback (seasonDrama.ts). Each result card slams in from above and the cards under it
+ * are pushed down by its height (two equal keyframes, swapped each step, restart the push; only the first six rows,
+ * the ones a box shows); the score flashes once a goal; streaks and milestones flare; the title race's last weeks wait
+ * longer, with the next fixture's card beating at the top and a heartbeat on the race chip
+ */
+.pb-page .gbg[data-order='newest'] .gbg-game {
+  animation: gbg-slam calc(var(--dur-4) * 1.25) var(--ease-spring) backwards;
+}
+.pb-page .gbg-list.push-a > .gbg-game:not(.newest):nth-child(-n + 6) {
+  animation: gbg-slam calc(var(--dur-4) * 1.25) var(--ease-spring) backwards, gbg-push-a var(--dur-4) var(--ease-out);
+}
+.pb-page .gbg-list.push-b > .gbg-game:not(.newest):nth-child(-n + 6) {
+  animation: gbg-slam calc(var(--dur-4) * 1.25) var(--ease-spring) backwards, gbg-push-b var(--dur-4) var(--ease-out);
+}
+/* In a race the card lands harder and slower (the same animation, so nothing restarts when the race class goes) */
+.pb-page .gbg .gbg-game.landing.race {
+  --slam-k: 2.4;
+  animation-duration: calc(var(--dur-4) * 1.8);
+}
+.gbg-game.landing.race::after {
+  animation-duration: calc(var(--dur-4) * 3.5);
+}
+@keyframes gbg-slam {
+  0% {
+    transform: translateY(calc(-0.6 * var(--gbg-push, 44px))) scale(calc(1 + 0.04 * var(--slam-k, 1)));
+    opacity: 0;
+  }
+  55% {
+    transform: translateY(2px) scale(0.99);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes gbg-push-a {
+  from {
+    transform: translateY(calc(-1 * var(--gbg-push, 44px)));
+  }
+}
+@keyframes gbg-push-b {
+  from {
+    transform: translateY(calc(-1 * var(--gbg-push, 44px)));
+  }
+}
+/* A goal flash behind the score, once a goal, after the count-up lands */
+.gbg-score.flash {
+  position: relative;
+}
+.gbg-score.flash::after {
+  content: '';
+  position: absolute;
+  inset: -6px -12px;
+  z-index: -1;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--flash, var(--good)) 60%, transparent), transparent);
+  animation: gbg-goal var(--dur-3) var(--ease-out) var(--dur-3) var(--goals, 1);
+}
+.gbg-game.D .gbg-score.flash {
+  --flash: var(--draw);
+}
+.gbg-game.L .gbg-score.flash {
+  --flash: var(--text-3);
+}
+@keyframes gbg-goal {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  35% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+/* The next fixture, waiting at the top in a race: a dashed card that beats until its result replaces it */
+.pb-page .gbg .gbg-list > .gbg-next {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--race-ink, var(--accent)) 60%, var(--line));
+  background: color-mix(in srgb, var(--race-ink, var(--accent)) 8%, var(--panel));
+  animation: gbg-next-in var(--dur-4) var(--ease-out) backwards;
+}
+/* Only the small stake line beats: a whole card fading for seconds cost a throttled desktop its frames */
+.gbg-next .gbg-next-stake {
+  animation: gbg-next-beat calc(var(--dur-4) * 2.75) var(--ease-in-out) var(--dur-4) infinite;
+}
+.gbg-next .gbg-score {
+  color: var(--text-2);
+}
+.pb-page.racing .gbg-next .gbg-badge {
+  color: var(--text-2);
+  background: var(--panel-2);
+}
+.gbg-next-stake {
+  grid-column: 3 / -1;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--race-ink, var(--accent)) 75%, var(--text));
+  white-space: nowrap;
+}
+@keyframes gbg-next-in {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+}
+@keyframes gbg-next-beat {
+  50% {
+    opacity: 0.62;
+  }
+}
+/* The race: its ink, and a chip with a heartbeat that quickens as the games run out (a full-screen vignette was tried: a
+   layer the size of the screen cost a throttled desktop two frames in fifty) */
+.pb-page.racing {
+  --race-ink: var(--accent);
+}
+.pb-page.racing.drop {
+  --race-ink: var(--danger);
+}
+.pb-race {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--race-ink, var(--accent)) 55%, var(--line));
+  background: color-mix(in srgb, var(--race-ink, var(--accent)) 16%, var(--panel-2));
+  color: color-mix(in srgb, var(--race-ink, var(--accent)) 72%, var(--text));
+  animation: pb-chip-in var(--dur-4) var(--ease-spring) backwards;
+}
+.pb-race.final {
+  border-color: var(--race-ink, var(--accent));
+}
+.pb-race-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  will-change: transform, opacity;
+  animation: pb-race-beat calc(var(--dur-4) * (1 + var(--race-k, 4) * 0.5)) var(--ease-in-out) infinite;
+}
+@keyframes pb-race-beat {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  18% {
+    transform: scale(1.6);
+    opacity: 1;
+  }
+  36% {
+    transform: scale(1);
+  }
+  52% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+}
+/* A streak or milestone flares: the chip springs in with a ring going out from it, holds, and fades */
+.pb-flare {
+  --flare-ink: var(--good);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--flare-ink) 55%, var(--line));
+  background: color-mix(in srgb, var(--flare-ink) 18%, var(--panel-2));
+  color: color-mix(in srgb, var(--flare-ink) 72%, var(--text));
+  animation: pb-chip-in var(--dur-4) var(--ease-spring) backwards, pb-flare-out var(--dur-4) var(--ease-in-out) calc(var(--dur-4) * 7) forwards;
+}
+.pb-flare.unbeaten,
+.pb-flare.clean {
+  --flare-ink: var(--accent);
+}
+.pb-flare.points,
+.pb-flare.goals {
+  --flare-ink: var(--primary);
+}
+.pb-flare::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--flare-ink);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: pb-flare-ring calc(var(--dur-4) * 2) var(--ease-out) var(--dur-2);
+}
+.pb-flare svg {
+  animation: pb-flare-icon calc(var(--dur-4) * 1.5) var(--ease-spring) var(--dur-2) backwards;
+}
+@keyframes pb-chip-in {
+  from {
+    transform: translateY(6px) scale(0.6);
+    opacity: 0;
+  }
+}
+@keyframes pb-flare-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes pb-flare-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.35, 1.8);
+    opacity: 0;
+  }
+}
+@keyframes pb-flare-icon {
+  0% {
+    transform: scale(0) rotate(-30deg);
+  }
+  60% {
+    transform: scale(1.35) rotate(8deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+/* The tally box a flare belongs to (Won for a run, Points for a milestone) glows once */
+.pb-tally-row .tally-box {
+  position: relative;
+  isolation: isolate;
+}
+.tally-flare {
+  --flare-ink: var(--good);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: color-mix(in srgb, var(--flare-ink) 26%, transparent);
+  box-shadow: inset 0 0 0 2px var(--flare-ink);
+  will-change: transform, opacity;
+  animation: tally-flare calc(var(--dur-4) * 3) var(--ease-out);
+}
+.tally-box.pts .tally-flare {
+  --flare-ink: var(--primary);
+}
+@keyframes tally-flare {
+  0% {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+}
+/* The live table: your row's big jump floats its "+3" away and your points tick */
+.lt-jump {
+  position: absolute;
+  right: 100px;
+  top: 50%;
+  margin-top: -0.7em;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  line-height: 1.4;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: lt-jump calc(var(--dur-4) * 3) var(--ease-out) both;
+}
+.lt-jump.up {
+  color: color-mix(in srgb, var(--good) 72%, var(--text));
+  background: color-mix(in srgb, var(--good) 20%, var(--panel));
+}
+.lt-jump.down {
+  color: color-mix(in srgb, var(--danger) 72%, var(--text));
+  background: color-mix(in srgb, var(--danger) 18%, var(--panel));
+}
+@keyframes lt-jump {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-16px);
+    opacity: 0;
+  }
+}
+.lt-pts {
+  display: inline-block;
+  animation: lt-pts var(--dur-3) var(--ease-spring) backwards;
+}
+@keyframes lt-pts {
+  from {
+    transform: scale(1.5);
+    opacity: 0.4;
+  }
+}
+/* The rivals' lines draw in with yours on the chart's first picture */
+.pc-rival.whole {
+  --pc-from: 1;
+  stroke-dasharray: 1;
+  animation: pc-draw calc(var(--dur-4) * 3) var(--ease-out);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gbg-game.landing::after,
   .lt-flash,
@@ -355,8 +685,29 @@
   .cta .cta-fixture,
   .ss-cell.just,
   .ss-cell.next,
-  .summer-card {
+  .summer-card,
+  .pb-page .gbg[data-order='newest'] .gbg-game,
+  .pb-page .gbg-list.push-a > .gbg-game:not(.newest):nth-child(-n + 6),
+  .pb-page .gbg-list.push-b > .gbg-game:not(.newest):nth-child(-n + 6),
+  .pb-page .gbg .gbg-game.landing.race,
+  .pb-page .gbg .gbg-list > .gbg-next,
+  .gbg-next .gbg-next-stake,
+  .gbg-score.flash::after,
+  .pb-race,
+  .pb-race-dot,
+  .pb-flare,
+  .pb-flare::after,
+  .pb-flare svg,
+  .tally-flare,
+  .lt-jump,
+  .lt-pts,
+  .pc-rival.whole {
     animation: none;
+  }
+  .gbg-score.flash::after,
+  .tally-flare,
+  .lt-jump {
+    display: none;
   }
   .lt-flash,
   .gbg-game.landing::after,

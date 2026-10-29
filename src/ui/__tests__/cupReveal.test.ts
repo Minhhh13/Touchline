@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildBracket, revealSteps, type BracketTie } from '@game/logic/bracket'
-import { CUP_REVEAL, revealDelay, revealLength, userInPlay, userOutBy } from '../cupReveal'
+import { CUP_REVEAL, revealDelay, revealLength, userFinalInPlay, userInPlay, userOutBy } from '../cupReveal'
 
 const t = (home: string, away: string, hg: number, ag: number): BracketTie => ({ home, away, hg, ag, winner: hg > ag ? home : away })
 
@@ -17,9 +17,12 @@ describe('the cup reveal’s pace', () => {
     expect(userInPlay(won, steps, 1)).toBe(false)
     expect(revealDelay(won, steps, 0)).toBe(CUP_REVEAL.live)
     expect(revealDelay(won, steps, 1)).toBe(CUP_REVEAL.hold)
-    expect(revealDelay(won, steps, 2)).toBe(CUP_REVEAL.live + CUP_REVEAL.round)
+    // His final waits longest of all
+    expect(revealDelay(won, steps, 2)).toBe(CUP_REVEAL.final + CUP_REVEAL.round)
+    expect(CUP_REVEAL.final).toBeGreaterThan(CUP_REVEAL.live)
+    expect([0, 1, 2].map((n) => userFinalInPlay(won, steps, n))).toEqual([false, false, true])
     expect(revealDelay(won, steps, 3)).toBe(0)
-    expect(revealLength(won, steps)).toBe(CUP_REVEAL.live * 2 + CUP_REVEAL.hold + CUP_REVEAL.round)
+    expect(revealLength(won, steps)).toBe(CUP_REVEAL.live + CUP_REVEAL.final + CUP_REVEAL.hold + CUP_REVEAL.round)
   })
 
   it('runs through the rest of the cup quickly once the user is out', () => {

@@ -4294,8 +4294,48 @@ table.tbl.contracts .btn.sm {
 .summer-review > :nth-child(n + 4) {
   animation-delay: calc(var(--dur-3) * 2.2);
 }
+/* Round 9: a win bumps once as it lands, the table move's arrow springs in after the line and a run of wins flares */
+.digest-results .chip.res-w {
+  animation: digest-deal var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--i, 0) * 40ms) backwards, digest-win var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--dur-3) + var(--i, 0) * 40ms);
+}
+@keyframes digest-win {
+  50% {
+    transform: scale(1.08);
+  }
+}
+.digest-move {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-left: 4px;
+  --mv: 8px;
+  animation: digest-pop var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 2) backwards;
+}
+.digest-move.up {
+  color: var(--good);
+}
+.digest-move.down {
+  color: var(--danger);
+  --mv: -8px;
+}
+.chip.digest-flare {
+  margin-left: 8px;
+  vertical-align: 1px;
+  color: color-mix(in srgb, var(--good) 72%, var(--text));
+  border-color: color-mix(in srgb, var(--good) 55%, var(--line));
+  background: color-mix(in srgb, var(--good) 14%, var(--panel-2));
+  animation: digest-pop var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 2.6) backwards;
+}
+@keyframes digest-pop {
+  from {
+    transform: translateY(var(--mv, 6px)) scale(0.4);
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .digest-results .chip,
+  .digest-results .chip.res-w,
+  .digest-move,
+  .chip.digest-flare,
   .digest > *,
   .summer-review > * {
     animation: none;
@@ -15878,6 +15918,33 @@ table.tbl.tv-compact .tv-name {
 }
 .cup-night-line.live {
   color: var(--accent);
+}
+/* Round 9: the user's tie in play beats like a heart, faster in the final (transform only; still under reduced motion) */
+.cup-night-line.live svg {
+  animation: cup-live-beat calc(var(--dur-4) * 2.5) var(--ease-in-out) infinite;
+}
+.cup-night-line.final svg {
+  animation-duration: calc(var(--dur-4) * 1.5);
+}
+@keyframes cup-live-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.3);
+  }
+  40% {
+    transform: scale(1);
+  }
+  55% {
+    transform: scale(1.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cup-night-line.live svg {
+    animation: none;
+  }
 }
 .cup-night-body {
   position: relative;
