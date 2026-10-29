@@ -3,6 +3,7 @@ import { catalog } from '../index'
 /** Setup (every mode's setup screen) and its components: SetupBits, CapControl, ChainControl, FormationPicker, TwistCard, WeeklyRecordBox, LeagueRetry. */
 export const setup = catalog('setup', {
   teamName: 'Team name',
+  skipToStart: 'Skip to Start',
   clearField: 'Clear {label}',
   clear: 'Clear',
   randomiseField: 'Shuffle {label}: another invented club name',

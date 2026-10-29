@@ -10,6 +10,7 @@ import { MOMENTUM_BINS } from '@engine/matchDetail'
 import { statsAt, type StatsSeries, type TeamStatLine, type XgStep } from '@engine/matchStats'
 import type { Formation, MatchEvent, Position, Tactics } from '@engine/types'
 import type { LatestScore } from '@game/logic/matchday'
+import type { ElsewhereScore } from '../match/commentary'
 import { minuteLabel } from '../format'
 import { slotPoint } from '../match/pitchGeometry'
 import { upright } from './VerticalPitch'
@@ -263,15 +264,17 @@ export function keyItems(feed: Pick<MatchFeed, 'events' | 'timeline'>, minute: n
 }
 
 /** A line for every goal elsewhere, with the score it made: "Elsewhere: ARS 1-0 TOT, Saka 23'." */
-export function elsewhereLines(scores: LatestScore[]): Array<{ minute: number; text: string }> {
-  const out: Array<{ minute: number; text: string }> = []
+export function elsewhereLines(scores: LatestScore[]): Array<{ minute: number; text: string; score: ElsewhereScore }> {
+  const out: Array<{ minute: number; text: string; score: ElsewhereScore }> = []
   for (const s of scores) {
     let h = 0
     let a = 0
     for (const g of s.goals) {
       if (g.side === 'home') h++
       else a++
-      out.push({ minute: g.minute, text: `Elsewhere: ${s.homeName} ${h}-${a} ${s.awayName}${g.scorer ? `, ${g.scorer} ${minuteLabel(g.minute)}` : ''}.` })
+      // The score as data too, for the line's words in another language (`commentaryText.ts`)
+      const score: ElsewhereScore = { home: s.homeName, away: s.awayName, homeGoals: h, awayGoals: a, minute: g.minute, ...(g.scorer ? { scorer: g.scorer } : {}) }
+      out.push({ minute: g.minute, text: `Elsewhere: ${s.homeName} ${h}-${a} ${s.awayName}${g.scorer ? `, ${g.scorer} ${minuteLabel(g.minute)}` : ''}.`, score })
     }
   }
   return out.sort((x, y) => x.minute - y.minute)
