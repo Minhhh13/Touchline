@@ -33,6 +33,8 @@ export interface PlayerEntry {
   seasonCount: number
   /** Every club he played for, in the order he first did. */
   clubs: string[]
+  /** His highest-rated season, the earliest of equals. */
+  best: PlayerSeason
 }
 
 interface Built {
@@ -68,6 +70,7 @@ function built(u: LoadedUniverse): Built {
       to: seasons[seasons.length - 1].season,
       seasonCount: new Set(seasons.map((p) => p.season)).size,
       clubs,
+      best: seasons.reduce((m, p) => (p.overall > m.overall ? p : m), seasons[0]),
     })
   }
   list.sort((a, b) => a.playerId.localeCompare(b.playerId))
@@ -97,8 +100,109 @@ export function byRating(u: LoadedUniverse): PlayerSeason[] {
   return all
 }
 
+/** A typed query as Explore matches it: folded, split on spaces, empty words dropped. */
+export function queryWords(query: string): string[] {
+  return foldName(query).trim().split(/\s+/).filter(Boolean)
+}
+
+/** Whether one of his spellings holds every word. */
+export function nameMatches(e: PlayerEntry, words: string[]): boolean {
+  return e.folded.some((n) => words.every((w) => n.includes(w)))
+}
+
+/** Whether every word starts a part of one of his spellings ("Kane" starts Harry Kane, not Kanté). */
+export function nameStarts(e: PlayerEntry, words: string[]): boolean {
+  return e.parts.some((parts) => words.every((w) => parts.some((part) => part.startsWith(w))))
+}
+
+interface NameText {
+  /** Every player's folded spellings, in index order, each ended by a line break (never inside a word). */
+  text: string
+  /** Where each player's spellings start in `text`. */
+  starts: Int32Array
+}
+
+const textCache = new WeakMap<LoadedUniverse, NameText>()
+
+function nameText(u: LoadedUniverse): NameText {
+  const hit = textCache.get(u)
+  if (hit) return hit
+  const list = playerIndex(u)
+  const starts = new Int32Array(list.length)
+  const chunks: string[] = []
+  let at = 0
+  list.forEach((e, i) => {
+    starts[i] = at
+    for (const n of e.folded) {
+      chunks.push(n, '\n')
+      at += n.length + 1
+    }
+  })
+  const out = { text: chunks.join(''), starts }
+  textCache.set(u, out)
+  return out
+}
+
+/** Every player one of whose spellings holds `word` (a word has no spaces, so no match spans two names), in index order. */
+function holding(u: LoadedUniverse, word: string): PlayerEntry[] {
+  const list = playerIndex(u)
+  const { text, starts } = nameText(u)
+  const out: PlayerEntry[] = []
+  let last = -1
+  for (let at = text.indexOf(word); at >= 0; at = text.indexOf(word, at + 1)) {
+    // The player whose block holds this offset: the last start at or before it
+    let lo = last < 0 ? 0 : last
+    let hi = starts.length - 1
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1
+      if (starts[mid] <= at) lo = mid
+      else hi = mid - 1
+    }
+    if (lo !== last) {
+      out.push(list[lo])
+      last = lo
+    }
+  }
+  return out
+}
+
+/** How many earlier queries each universe keeps: typing one name, and the compare box beside the search. */
+const MATCH_KEEP = 8
+
+const matchCache = new WeakMap<LoadedUniverse, Array<{ words: string[]; entries: PlayerEntry[] }>>()
+
+/**
+ * Every player whose name holds each word, in index order: the same list a pass over the whole index gives, but a
+ * query that narrows an earlier one ("haa" after "ha": each earlier word inside one of the new ones) filters that
+ * earlier answer instead, so a keystroke reads a few hundred names rather than 21,000.
+ */
+export function nameMatchesOf(u: LoadedUniverse, words: string[]): PlayerEntry[] {
+  if (!words.length) return playerIndex(u)
+  let kept = matchCache.get(u)
+  if (!kept) {
+    kept = []
+    matchCache.set(u, kept)
+  }
+  const key = words.join(' ')
+  const same = kept.findIndex((k) => k.words.join(' ') === key)
+  if (same >= 0) {
+    const [hit] = kept.splice(same, 1)
+    kept.unshift(hit)
+    return hit.entries
+  }
+  // Any earlier query whose every word lies inside a new word admits a superset: the smallest one is the base;
+  // without one, the players whose names hold the longest word, found by the engine's own string search
+  let base: PlayerEntry[] | null = null
+  for (const k of kept) if ((!base || k.entries.length < base.length) && k.words.every((w) => words.some((n) => n.includes(w)))) base = k.entries
+  const entries = (base ?? holding(u, words.reduce((m, w) => (w.length > m.length ? w : m), words[0]))).filter((e) => nameMatches(e, words))
+  kept.unshift({ words, entries })
+  if (kept.length > MATCH_KEEP) kept.length = MATCH_KEEP
+  return entries
+}
+
 /** Builds the indexes ahead of need (Explore calls it in an idle moment); a second call per universe is free. */
 export function warmExplore(u: LoadedUniverse): void {
   playerIndex(u)
+  nameText(u)
   byRating(u)
 }
