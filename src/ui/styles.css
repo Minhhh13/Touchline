@@ -16451,6 +16451,7 @@ button.home-nudge.linklike:hover {
   .bottom-bar .btn,
   .cta-bar .btn {
     white-space: normal;
+    overflow-wrap: anywhere;
     text-wrap: balance;
   }
   h1,
