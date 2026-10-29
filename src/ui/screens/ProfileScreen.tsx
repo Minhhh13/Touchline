@@ -17,7 +17,7 @@ import { fetchClubLeagues } from '@engine/universe'
 import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
 import { MODE_TITLE, isQuickLike } from '@game/logic/modes'
 import { arenaClubName, groupRunsByLadder } from '@game/logic/arena'
-import { arenaTierLabel } from '@engine/knockout'
+import { arenaTierText } from '../arenaText'
 import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, honourDetail, honourLabel, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
@@ -184,7 +184,7 @@ export function ProfileScreen() {
         </div>
       </td>
       <td style={{ whiteSpace: 'normal' }}>{arenaFormatText(e)}</td>
-      <td style={{ whiteSpace: 'normal' }}>{arenaTierLabel(e.tier, e.score)}</td>
+      <td style={{ whiteSpace: 'normal' }}>{arenaTierText(e.tier, e.score)}</td>
       <td className="num">
         {e.goalsFor}-{e.goalsAgainst}
       </td>
@@ -742,7 +742,7 @@ export function ProfileScreen() {
                       : ladders.flatMap((g) => [
                           <tr key={`h-${g.key}`} data-testid="ladder-group">
                             <td colSpan={4} className="small muted" style={{ whiteSpace: 'normal' }}>
-                              <b>{t('ladderSeed', { seed: g.seed })}</b> · {t('ladderLine', { format: arenaFormatText(g), n: g.runs.length, tier: arenaTierLabel(g.runs[0].tier, g.runs[0].score).toLowerCase() })}
+                              <b>{t('ladderSeed', { seed: g.seed })}</b> · {t('ladderLine', { format: arenaFormatText(g), n: g.runs.length, tier: arenaTierText(g.runs[0].tier, g.runs[0].score).toLowerCase() })}
                             </td>
                           </tr>,
                           ...g.runs.map(runRow),

@@ -8010,6 +8010,10 @@ dl.kv {
   gap: var(--space-3);
   min-width: 0;
 }
+/* The fixture's facts may shrink, so the midweek tie's line ends in an ellipsis inside the box (QA r11: a long translation ran past it) */
+.cta-fixture > div {
+  min-width: 0;
+}
 .cta-title {
   font-family: var(--font-display);
   font-weight: 700;

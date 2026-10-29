@@ -34,6 +34,7 @@ import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
 import { formationBlurb } from '../i18n/engineText'
 import { rich } from '../i18n/rich'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(h2hText)
 
@@ -84,10 +85,18 @@ async function rematch(u: LoadedUniverse, view: RoomView, seat: 0 | 1, showToast
 }
 
 /** The other manager's way into a rematch they did not make: their code or link, opened here instead of a second room. */
-function JoinRematch({ name }: { name: string | null }) {
+function JoinRematch({ name, own }: { name: string | null; own?: string }) {
   const [code, setCode] = useState('')
   const typed = roomCodeFrom(code)
-  const open = () => typed && void openRoom(typed)
+  // From your own rematch's waiting room (both pressed Rematch at once, QA r11): the friend's room opens and yours, still
+  // empty, closes, so neither of you waits in a room nobody will join
+  const open = () => {
+    if (!typed || typed === own) return
+    void (async () => {
+      if (own) await leaveRoom()
+      await openRoom(typed)
+    })()
+  }
   return (
     <div className="room-join-rematch col" data-testid="room-join-rematch">
       <div className="field">
@@ -492,6 +501,7 @@ function RoomWaiting({ view, rematch }: { view: RoomView; rematch: RematchNote |
             {again ? t('rematchHelp', { name: again }) : t('shareHelp')}
           </p>
           <ShareRoom view={view} primary rematch={rematch} />
+          {again && <JoinRematch name={again} own={view.code} />}
           <div className="notice icon-notice room-clock" data-testid="room-wait-clock">
             <Hourglass size={16} aria-hidden="true" />
             <span>
@@ -696,7 +706,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
             <div className="eyebrow">{t('draftLog')}</div>
             <ol className="h2h-log">
               {[...d.log].reverse().slice(0, 30).map((l, i) => (
-                <li key={i}>{roomLogLine(l, view.managers)}</li>
+                <li key={i}>{logicLine(roomLogLine(l, view.managers))}</li>
               ))}
             </ol>
           </div>

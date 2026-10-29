@@ -27,6 +27,7 @@ import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { reelSkipKey } from '../reelKeys'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(season)
 
@@ -85,7 +86,7 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
             ))}
           </div>
           <p className="jw-pace" data-testid="january-pace">
-            {paceLine(f, totalGames, teams)}
+            {logicLine(paceLine(f, totalGames, teams))}
           </p>
           {gamble ? (
             <div className="jw-options" data-testid="january-options">
