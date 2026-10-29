@@ -855,8 +855,9 @@ pre.mono,
   .topbar .tl-lockup {
     --h: 32px;
   }
-  /* On a phone the nav's row is icons over a one-word caption (`.nav-tiny`, hidden from screen readers, which hear
-     the full label): five bare icons left a new player guessing */
+  /* On a phone the nav's row is icons over a one-word caption (`.nav-tiny`): five bare icons left a new player guessing.
+     A caption that is the full label is hidden from screen readers; one that differs (H2H, Explore, Guide) starts the
+     button's name, so voice control finds the word on screen (WCAG 2.5.3, r10) */
   .topbar nav button {
     padding: 5px 6px 4px;
     flex-direction: column;
