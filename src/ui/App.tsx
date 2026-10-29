@@ -14,6 +14,7 @@ import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
+import { digestWinRun } from './seasonDrama'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
@@ -22,7 +23,7 @@ import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { watchFocusRescue } from './focusRescue'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { Bandage, Banknote, BookOpen, Briefcase, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
@@ -439,6 +440,8 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   // From pre-season nobody has played, so the table's order before the run means nothing: only where you stand now
   const move = d.positionTo < d.positionFrom ? 'up' : d.positionTo > d.positionFrom ? 'down' : 'level'
   const office = d.office ?? []
+  // A run of three wins or more in the stretch flares beside the table line (seasonDrama.ts)
+  const winRun = digestWinRun(league.map((r) => r.outcome))
   const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length && !office.length
   return (
     <div className="col digest" data-testid="digest">
@@ -465,7 +468,17 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         <b>
           {league.length ? <><span className="res-w">{t('tallyW', { n: tally.W })}</span> <span className="res-d">{t('tallyD', { n: tally.D })}</span> <span className="res-l">{t('tallyL', { n: tally.L })}</span> · </> : ''}
           {t('digestPoints', { n: d.points, place: d.fromMatchweek === 0 ? t('digestPlaced', { pos: d.positionTo }) : move === 'level' ? t('digestStill', { pos: d.positionTo }) : t('digestMoved', { from: d.positionFrom, to: d.positionTo }) })}
+          {d.fromMatchweek !== 0 && move !== 'level' && (
+            <span className={`digest-move ${move}`} aria-hidden="true" data-testid="digest-move">
+              {move === 'up' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+            </span>
+          )}
         </b>
+        {winRun > 0 && (
+          <span className="chip digest-flare" data-testid="digest-flare">
+            <Flame size={14} aria-hidden="true" /> {t('digestWinRun', { n: winRun })}
+          </span>
+        )}
         <span className="muted">{t('digestFrom', { n: league.length })}</span>
       </div>
       <div className="digest-conf" data-testid="digest-confidence">

@@ -4298,8 +4298,48 @@ table.tbl.contracts .btn.sm {
 .summer-review > :nth-child(n + 4) {
   animation-delay: calc(var(--dur-3) * 2.2);
 }
+/* Round 9: a win bumps once as it lands, the table move's arrow springs in after the line and a run of wins flares */
+.digest-results .chip.res-w {
+  animation: digest-deal var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--i, 0) * 40ms) backwards, digest-win var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--dur-3) + var(--i, 0) * 40ms);
+}
+@keyframes digest-win {
+  50% {
+    transform: scale(1.08);
+  }
+}
+.digest-move {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-left: 4px;
+  --mv: 8px;
+  animation: digest-pop var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 2) backwards;
+}
+.digest-move.up {
+  color: var(--good);
+}
+.digest-move.down {
+  color: var(--danger);
+  --mv: -8px;
+}
+.chip.digest-flare {
+  margin-left: 8px;
+  vertical-align: 1px;
+  color: color-mix(in srgb, var(--good) 72%, var(--text));
+  border-color: color-mix(in srgb, var(--good) 55%, var(--line));
+  background: color-mix(in srgb, var(--good) 14%, var(--panel-2));
+  animation: digest-pop var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 2.6) backwards;
+}
+@keyframes digest-pop {
+  from {
+    transform: translateY(var(--mv, 6px)) scale(0.4);
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .digest-results .chip,
+  .digest-results .chip.res-w,
+  .digest-move,
+  .chip.digest-flare,
   .digest > *,
   .summer-review > * {
     animation: none;
