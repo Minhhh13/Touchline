@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { FOCUSABLE } from '../focusRescue'
-import { useAfterPaint } from '../afterPaint'
+import { runAfterPaint, useAfterPaint } from '../afterPaint'
 import { Check, ChevronDown, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStorePick } from '../useStorePick'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
@@ -175,7 +175,12 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
       if (out.kind === 'play') k.play?.()
       else if (out.kind === 'autoPick') k.manage?.autoPick()
       else if (out.kind === 'rest') k.manage?.rest()
-      else setTab(out.kind === 'tabId' ? out.id : k.tabs[out.index])
+      else {
+        setTab(out.kind === 'tabId' ? out.id : k.tabs[out.index])
+        // Pressed on a focused tab of the strip: the focus follows to the tab it opened, the one the roving tabIndex holds (QA r11)
+        const strip = stripTab?.closest('.tabs-row')
+        if (strip) runAfterPaint(() => strip.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus())
+      }
     }
     window.addEventListener('pointerdown', onPointer, true)
     window.addEventListener('keydown', onKey)
