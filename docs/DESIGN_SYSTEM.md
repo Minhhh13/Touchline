@@ -960,7 +960,21 @@ translations. English stays the source; nothing on screen changes in English.
   engine's id (`i18n/engineText.ts`, `i18n/tierText.ts`, `i18n/weeklyThemeText.ts`, `slotRatingText.ts`,
   `runInText.ts`). `src/ui/__tests__/copyMirror.test.ts` holds each mirror equal to its source in English, so a change
   on either side fails until both agree; the one deliberate difference is a mode card's Hard with no re-spins, which
-  reads "No re-spins" on screen. News bodies, verdicts, the commentary and the logic's toasts still come in English.
+  reads "No re-spins" on screen.
+- **Lines the logic writes (r10).** A sentence the engine or `src/game/logic` builds from facts (an Inbox item, a
+  briefing line, a dressing-room reason, a morale reason, an Office answer or toast, a round name, the pundit's verdict,
+  a setup summary) reads through `logicLine(text)` (`src/ui/i18n/logicText.ts`; `shellLogicLine` from `logicLine.ts` in
+  App.tsx's digest and the toast, which must not pull the catalogue into the first download). The `logicText` catalogue
+  holds the logic's English as ICU messages, `{holes}` where the facts go, plurals and selects where the English varies
+  (`'{n, plural, one {# match} other {# matches}}'`); in another language a line is matched against them, the most
+  specific first, and said again with what its holes held, each hole mirrored in turn; a list the logic joined with
+  `, ` or ` · ` reads through `logicList(text, separator)`. English is returned untouched. A new line in the logic
+  that reaches a screen gets its message there (`src/ui/__tests__/logicMirror.test.ts` plays a Season, the Office and a
+  Dynasty summer and fails on a line that reads back differently, or on too many unmatched); a message too general to
+  stand alone ("{objective}: {risk}") goes in `STRICT`, so it matches only when every hole is itself a known line. The
+  online layer's own words (the save status, this device's posts, a failed read) are mirrored from the facts in
+  `src/ui/online/statusText.ts`. Still in English: the match commentary and the match events' text (the live feed's
+  whistle lines excepted), and the data credits in How it works.
 - **Room to grow.** A translation runs about 30 % longer than English (German more). Buttons and chips wrap or
   ellipsise rather than overflow; never size a box to its English text. The development pseudo-locale shows it: in a
   dev build pick "Pseudo (en-XA)" under Profile, Settings, Language (or set `localStorage['touchline-language'] =

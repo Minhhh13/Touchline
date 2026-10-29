@@ -1,6 +1,6 @@
 /**
  * The logic's English mirrored through `logicLine()` (r10, `src/ui/i18n/logicText.ts`), beside `copyMirror.test.ts`:
- * every message parses and its own words are still in the engine's or the game logic's source; the lines a played
+ * every message parses and its own words are still in the engine's, the game logic's or the online layer's source; the lines a played
  * Season (the Office worked, player power on), a Dynasty summer and a Quick Draft write are matched by a message that
  * says them again, in English, character for character; in the pseudo-locale a matched line is translated, its names
  * kept, and a line nothing matches comes back as it was.
@@ -45,7 +45,7 @@ function words(parts: Part[]): string[] {
 
 describe('logicText mirrors the game logic’s English', () => {
   it('every message parses and its words are still in the logic', () => {
-    const src = [...sources('src/engine'), ...sources('src/game/logic')].join('\n').replace(/\\'/g, "'")
+    const src = [...sources('src/engine'), ...sources('src/game/logic'), ...sources('src/online')].join('\n').replace(/\\'/g, "'")
     const stale: string[] = []
     for (const [key, msg] of Object.entries(logicText.messages)) {
       const parts = parseMessage(msg)

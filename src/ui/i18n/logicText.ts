@@ -102,6 +102,7 @@ export function matchLogicLine(text: string, depth = 0): { key: string; vars: Va
 }
 
 const said = new Map<string, string>()
+const SAID_CAP = 4000
 let saidIn = ''
 
 /** A line the game logic built, in the viewer's language: mirrored through the `logicText` catalogue, or as it came. */
@@ -110,7 +111,8 @@ export function logicLine(text: string | undefined): string | undefined
 export function logicLine(text: string | null | undefined): string | null | undefined
 export function logicLine(text: string | null | undefined): string | null | undefined {
   if (!text || activeLocale() === 'en') return text
-  if (saidIn !== activeLocale()) {
+  // A new language, or a long session's worth of lines, starts the memo again
+  if (saidIn !== activeLocale() || said.size > SAID_CAP) {
     said.clear()
     saidIn = activeLocale()
   }

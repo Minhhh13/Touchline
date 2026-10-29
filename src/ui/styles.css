@@ -12061,6 +12061,11 @@ table.tbl tr.chase-perfect td:first-child {
   font-weight: 700;
   color: var(--text);
 }
+/* The tint is the cells' alone: the row's own (table.tbl tr.me) under it doubled it, and your chip and W fell under
+   4.5:1 on the darker blue (r10's signed-in audit) */
+table.tbl.board-table tr.me {
+  background: none;
+}
 table.tbl.board-table tr.me td {
   background: var(--primary-soft);
 }
@@ -12274,6 +12279,22 @@ table.tbl.board-table tr.chase-perfect td:first-child {
 .flag-pick.active {
   border-color: var(--primary);
   background: var(--primary-soft);
+}
+/* Phones (r10's signed-in audit): the flag and club lists' rows, the account menu's items and the signed-in chip were
+   33, 36 and 34 px; they take the phone's 44 px target (the chip keeps its look and grows an invisible hit area) */
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
+  .flag-pick,
+  .account-menu-item {
+    min-height: 44px;
+  }
+  .account-chip.signed-in {
+    position: relative;
+  }
+  .account-chip.signed-in::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+  }
 }
 .saved-line {
   font-size: var(--fs-sm);

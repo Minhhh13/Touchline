@@ -266,3 +266,34 @@ describe('the Dugout’s sim button', () => {
     expect(src).toContain("`Sim to ${seen.label} (MW ${seen.matchweek})` : 'Sim to the next big match'")
   })
 })
+
+describe('the online layer’s words mirrored on screen (r10)', () => {
+  it('the save status, the post labels and lines and a failed read say what core/status.ts and postText.ts say', async () => {
+    const { savedLine, ago } = await import('../../online/core/status')
+    const { postLabel, postLine, devicePosts, onlineErrorText } = await import('../../online/postText')
+    const { OnlineError } = await import('../../online/transport')
+    const ui = await import('../online/statusText')
+    const now = Date.parse('2026-10-29T12:00:00Z')
+    for (const secs of [0, 30, 50, 90, 600, 3599, 3600, 7200, 86000, 90000, 200000, 900000]) expect(ui.agoText(now - secs * 1000, now)).toBe(ago(now - secs * 1000, now))
+    for (const status of ['idle', 'syncing', 'offline', 'error', 'paused', 'off'] as const)
+      for (const last of [null, '2026-10-29T11:58:00Z', 'not a date']) expect(ui.savedLineText(status, last, now)).toEqual(savedLine(status, last, now))
+    const posts = {
+      'daily:2026-10-29': { state: 'posted' as const, position: 12, total: 1234, points: 71, claimMatched: true, already: false },
+      'weekly:2026-W44': { state: 'posted' as const, position: 1, total: 3, points: 90, claimMatched: true, already: false, detail: '19 wins' },
+      'daily:2026-10-28': { state: 'waiting' as const, reason: 'retry' as const, points: 66 },
+      'daily:2026-10-27': { state: 'waiting' as const, reason: 'sign_in' as const },
+      'arena:2026-10-27': { state: 'waiting' as const, reason: 'sign_in' as const, points: 12 },
+      'themed:2026-W44': { state: 'waiting' as const, reason: 'sending' as const },
+      'runin:2026-W43': { state: 'unranked' as const, code: 'x', reason: 'The run has not finished' },
+      'chase:K7Q2MX9A3B': { state: 'rejected' as const, code: 'x', reason: 'That chase run has closed.' },
+      'themed:2026-W43': { state: 'closed' as const },
+      'odd:1': { state: 'closed' as const },
+    }
+    for (const key of Object.keys(posts)) expect(ui.postLabelText(key)).toBe(postLabel(key))
+    for (const signedIn of [true, false]) {
+      for (const p of Object.values(posts)) expect(ui.postLineText(p, signedIn)).toBe(postLine(p, signedIn).line)
+      expect(ui.devicePostsText(posts, signedIn, 20)).toEqual(devicePosts(posts, signedIn, 20))
+    }
+    for (const e of [new OnlineError('network', 'x'), new OnlineError('rate', 'x'), new OnlineError('unavailable', ''), new OnlineError('unavailable', 'That board has closed'), new OnlineError('auth', 'x'), new OnlineError('bad', 'Not a Daily'), new Error('Failed to fetch'), new Error(''), 'plain words']) expect(ui.onlineErrorUi(e)).toBe(onlineErrorText(e))
+  })
+})

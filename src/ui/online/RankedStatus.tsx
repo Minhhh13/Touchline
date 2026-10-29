@@ -7,6 +7,7 @@ import { APP_NAME } from '../brand'
 import { sentence } from '../../online/postText'
 import { translator } from '../i18n'
 import { online } from '../i18n/en/online'
+import { formatLocale } from '../format'
 
 const t = translator(online)
 
@@ -40,14 +41,14 @@ export function RankedStatus({ game }: { game: Game }) {
   else if (post.state === 'waiting') line = <>{t('posting')}</>
   else if (post.state === 'posted') {
     const country = post.country && post.countryPosition ? t('countryRank', { pos: post.countryPosition, total: post.countryTotal ?? 0, country: countryName(post.country) }) : ''
-    share = t('shareRank', { pos: post.position, total: post.total.toLocaleString(), where, app: APP_NAME })
+    share = t('shareRank', { pos: post.position, total: post.total.toLocaleString(formatLocale()), where, app: APP_NAME })
     line = post.already ? (
       <>
-        {t('firstRunCounts', { n: post.points, pos: post.position, total: post.total.toLocaleString(), country })}
+        {t('firstRunCounts', { n: post.points, pos: post.position, total: post.total.toLocaleString(formatLocale()), country })}
       </>
     ) : (
       <>
-        {t(post.claimMatched ? 'posted' : 'postedOfficial', { pos: post.position, total: post.total.toLocaleString(), where, country })}
+        {t(post.claimMatched ? 'posted' : 'postedOfficial', { pos: post.position, total: post.total.toLocaleString(formatLocale()), where, country })}
       </>
     )
   } else if (post.state === 'unranked') line = <>{t('unranked', { reason: sentence(post.reason) })}</>
