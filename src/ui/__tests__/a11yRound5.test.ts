@@ -3,6 +3,7 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { overflows } from '../scrollFocus'
 
 // Round 5: every radio group and every icon-only button carries an accessible name. The checks read the JSX of every
 // .tsx file under src/ui, so a new Segmented, radio group or icon button without a name fails here before it ships.
@@ -110,5 +111,15 @@ describe('accessible names (round 5)', () => {
     }
     visit(sf)
     expect(hits).toEqual(['segmented', 'group', 'button'])
+  })
+})
+
+describe('scroll boxes (round 5)', () => {
+  it('a box one pixel over counts as scrolling, as axe counts it; a box that fits or cannot scroll does not', () => {
+    expect(overflows('auto', 164, 163)).toBe(true)
+    expect(overflows('scroll', 164, 163)).toBe(true)
+    expect(overflows('auto', 163, 163)).toBe(false)
+    expect(overflows('hidden', 400, 163)).toBe(false)
+    expect(overflows('visible', 400, 163)).toBe(false)
   })
 })

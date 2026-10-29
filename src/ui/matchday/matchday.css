@@ -498,9 +498,6 @@
     min-height: 0;
     overflow-y: auto;
     scrollbar-width: none;
-    /* One pixel more box than its share: rows that fit exactly round to a scrollHeight 1 px over the clientHeight, a
-       "scroll box" with nothing to scroll that axe asked to be focusable (round 5) */
-    margin-bottom: -1px;
   }
 }
 @container flank (max-height: 470px) {
