@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { runAfterPaint } from '../afterPaint'
+import { focusHasFallen, rescuedElement } from '../focusRescue'
 import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
@@ -161,6 +162,8 @@ export function Setup() {
   const [advanced, setAdvanced] = useState(readAdvanced)
   const moreRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLSelectElement>(null)
+  // Defaults takes its own link off the line: the focus goes to the change link beside it (QA r11)
+  const changeRef = useRef<HTMLButtonElement>(null)
   // On a phone the start bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
@@ -288,6 +291,9 @@ export function Setup() {
     setOnlyNation('')
     setHostClubId('')
     if (rememberedModes(mode)) saveChoices(mode, d)
+    runAfterPaint(() => {
+      if (focusHasFallen(document.activeElement as (HTMLElement & { disabled?: boolean }) | null, document.body, rescuedElement())) changeRef.current?.focus()
+    })
   }
   if (!u) return <div className="page">{t('loading')}</div>
   const pickLeague = (id: string) => {
@@ -885,7 +891,7 @@ export function Setup() {
                 {!fixed && (
                   <>
                     {' · '}
-                    <button type="button" className="linklike" onClick={openMore} data-testid="setup-change">
+                    <button type="button" className="linklike" onClick={openMore} data-testid="setup-change" ref={changeRef}>
                       {t('changeLink')}
                     </button>
                     {changed && (

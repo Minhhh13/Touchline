@@ -178,7 +178,12 @@ export function Draft() {
   // choice is never off screen (on a phone the page scrolls, on a desktop the squad box)
   const slotChoicesRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (selectedPlayer) slotChoicesRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' })
+    if (!selectedPlayer) return
+    const box = slotChoicesRef.current
+    box?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' })
+    // Opened from a squad row (Enter, Space or a tap): the focus goes to the first choice, which sits above the rows in
+    // the page's order, so a keyboard user is not left Tabbing away from it (QA r11)
+    if (box && document.activeElement?.closest('.prow')) box.querySelector<HTMLElement>('[data-testid="slot-chip"], [data-testid="to-bench"]')?.focus({ preventScroll: true })
   }, [selectedPlayer])
   // The landing moves the focus to the club's name (the Spin button under it is disabled), so the squad is the next Tab
   const clubHeadRef = useRef<HTMLHeadingElement>(null)

@@ -4,7 +4,7 @@ import { useStorePick } from '../useStorePick'
 import { seasonTable, type AiClub } from '@engine/season'
 import type { PlayerSeason } from '@engine/types'
 import { scoutOpposition, type OppositionTip } from '@game/logic/oppositionReport'
-import { STYLE_LABEL } from '@engine/tactics'
+import { playStyleLabel } from '../i18n/engineText'
 import { FormDots, Rating, Pos } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { translator } from '../i18n'
@@ -65,7 +65,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
           {t('oppReport')}<span className="opp-of">{t('oppOf', { club: club.name })}</span>
         </h3>
         <span className="small muted">
-          {t(neutral ? 'venue_neutral' : home ? 'venue_home' : 'venue_away')} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? t('posPts', { pos, points: row.points }) : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? t('contOpponent')}</>}
+          {t(neutral ? 'venue_neutral' : home ? 'venue_home' : 'venue_away')} · {playStyleLabel(u.clubById[clubId]?.style ?? 'balanced')} · {pos > 0 ? t('posPts', { pos, points: row.points }) : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? t('contOpponent')}</>}
           <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
         </span>
       </summary>
