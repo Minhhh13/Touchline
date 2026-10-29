@@ -68,18 +68,39 @@ export interface SquadBreakdown {
  * Pure: no RNG.
  */
 export function oddsLeague(game: Game, u: LoadedUniverse): OddsLeague {
+  const steps = oddsLeagueSteps(game, u)
+  for (;;) {
+    const r = steps.next()
+    if (r.done) return r.value
+  }
+}
+
+/** Pairings worked out between two pauses of `oddsLeagueSteps`: about 20 ms on a 4x-throttled phone. */
+export const ODDS_PAIRING_STEP = 20
+
+/**
+ * `oddsLeague` a step at a time: the sides first, then `ODDS_PAIRING_STEP` pairings a step (each pairing is the match
+ * engine's pre-match sums for both sides, about 1 ms at 4x, so the 380 of a league were one 340 ms task on Squad
+ * complete). The same league as `oddsLeague`, which runs it whole (odds.test.ts).
+ */
+export function* oddsLeagueSteps(game: Game, u: LoadedUniverse): Generator<void, OddsLeague, void> {
   const s = game.settings
   const get = playerLookup(game, u)
   const { lineup, bench } = quickXI(game, u)
   // The league as the season plays it: without the humans the user holds (E6-2)
   const { ai, offset } = quickLeague(u, s, humansOf([...Object.values(lineup), ...bench], get))
   const ids = [USER_TEAM, ...Object.keys(ai)]
-  const inputs: MatchTeamInput[] = ids.map((id) => (id === USER_TEAM ? quickUserInput(game, lineup, bench, game.tactics, game.captainId, get) : aiTeamInput(u, ai[id], offset)))
+  const inputs: MatchTeamInput[] = []
+  for (const id of ids) {
+    inputs.push(id === USER_TEAM ? quickUserInput(game, lineup, bench, game.tactics, game.captainId, get) : aiTeamInput(u, ai[id], offset))
+    if (inputs.length % 5 === 0) yield
+  }
   const pairings: OddsPairing[] = []
   for (let h = 0; h < ids.length; h++) {
     for (let a = 0; a < ids.length; a++) {
       if (h === a) continue
       pairings.push({ home: h, away: a, ...pairingExpectation(inputs[h], inputs[a]) })
+      if (pairings.length % ODDS_PAIRING_STEP === 0) yield
     }
   }
   return { ids, pairings }

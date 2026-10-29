@@ -4,7 +4,7 @@ import { createDraft, current, finishDraft, freeze, isDraft, produce, type Draft
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DEFAULT_LEAGUE } from '@engine/universe'
-import { loadLeague, loadPacks as loadRawPacks, warmClassicPacks } from './packs'
+import { loadLeague, loadPacks as loadRawPacks, warmClassicPacks, yieldToMain } from './packs'
 import { tidyUniverseNames } from './logic/playerNames'
 import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
 import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, fillingXI, isComplete, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
@@ -141,7 +141,12 @@ const playMatchweekAsSteps = late('playMatchweekAsSteps')
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
 async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUniverse> {
-  return tidyUniverseNames(await loadRawPacks(ids, classic)).universe
+  const raw = await loadRawPacks(ids, classic)
+  await yieldToMain()
+  const u = tidyUniverseNames(raw).universe
+  // The screens' render of the new universe in a task of its own: build, merge, tidy and render were one long task (r13)
+  await yieldToMain()
+  return u
 }
 
 /** A plain, unfrozen copy of part of a game being produced (JSON data), for an engine loop that reads it many times. */

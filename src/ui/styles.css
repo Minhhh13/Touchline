@@ -8787,10 +8787,13 @@ dl.kv {
 }
 .room-join-rematch .row {
   gap: var(--space-2);
+  /* A longer translation of the button drops it under the box rather than squeezing the box (QA r13, R13-4) */
+  flex-wrap: wrap;
 }
 .room-join-rematch .input {
   flex: 1;
-  min-width: 0;
+  /* The code's nine characters (in the box's own monospace) and its padding and border, always whole */
+  min-width: calc(9ch + 28px);
   text-transform: uppercase;
 }
 .room-share .btn {
@@ -9599,9 +9602,6 @@ table.tbl.match-stats th {
     transition: none;
   }
 }
-.h2h-league {
-  grid-column: 1 / -1;
-}
 .h2h-start {
   grid-column: 1 / -1;
   display: flex;
@@ -10088,6 +10088,10 @@ table.tbl.match-stats th {
   }
   .app.shell .page.home .mode-text {
     flex: none;
+  }
+  /* Every card's line keeps two lines' room, so a translation that wraps one card's line leaves its title in line with the other three (QA r13, R13-7) */
+  .app.shell .page.home .mode-text > p {
+    min-height: 2lh;
   }
   .app.shell .page.home .resume-list {
     margin: 0;
@@ -13046,92 +13050,33 @@ table.tbl.board-table tr.chase-perfect td:first-child {
     margin-inline: auto;
   }
 }
-/* Head-to-head setup on a desktop fits one screen: the two managers and the league side by side as three boxes (Start
-   under the league), each formation tile small with its picture beside the name, the how-it-works steps as titles only */
+/* Head-to-head's two setups (this device and the online room, `.h2h-setup`) on a desktop: the how-it-works steps as
+   titles only, and each formation tile small with its picture beside the name, so the managers' boxes stay short */
 @media (min-width: 1100px) {
-  .app.shell .screen-body:has(.h2h-league) > .steps li .small {
+  .app.shell .h2h-setup > .steps li .small {
     display: none;
   }
-  .app.shell .screen-body:has(.h2h-league) > .steps li {
+  .app.shell .h2h-setup > .steps li {
     padding-block: var(--space-2);
   }
-  .app.shell .screen-body:has(.h2h-league) > .grid.two {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 1fr) auto;
-    align-items: start;
-  }
-  .app.shell .screen-body:has(.h2h-league) > .grid.two > .panel:not(.h2h-league) {
-    grid-row: 1 / span 2;
-  }
-  .app.shell .screen-body:has(.h2h-league) .h2h-league {
-    grid-column: 3;
-    grid-row: 1;
-  }
-  /* The league box: the league and Draft from across it, then season, difficulty, hard mode and seed two to a row */
-  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2) var(--space-3);
-    align-items: end;
-  }
-  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col {
-    display: contents;
-  }
-  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:first-child > * {
-    grid-column: 1 / -1;
-  }
-  /* The Classic toggle takes a row of its own (its range wrapped to four lines in a half cell); Difficulty fills in beside Season */
-  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two {
-    grid-auto-flow: row dense;
-  }
-  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child > .toggle:has([data-testid='h2h-classic']) {
-    grid-column: 1 / -1;
-  }
-  /* Difficulty's two choices on one row in its half-width cell (they stacked at 1280x720, out of line with Season) */
-  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child .segmented {
-    display: flex;
-    flex-wrap: nowrap;
-  }
-  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child .segmented button {
-    flex: 1 1 auto;
-    padding-inline: 6px;
-    white-space: nowrap;
-  }
-  .app.shell .screen-body:has(.h2h-league) .h2h-start {
-    grid-column: 3;
-    grid-row: 2;
-  }
-  .app.shell .screen-body:has(.h2h-league) .h2h-start .btn {
-    width: 100%;
-  }
-  .app.shell .screen-body:has(.h2h-league) .formations {
+  .app.shell .h2h-setup .formations {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
   }
-  .app.shell .screen-body:has(.h2h-league) .formations button {
+  .app.shell .h2h-setup .formations button {
     padding: 4px;
     gap: 2px;
   }
-  .app.shell .screen-body:has(.h2h-league) .fthumb {
+  .app.shell .h2h-setup .fthumb {
     width: 26px;
   }
-  .app.shell .screen-body:has(.h2h-league) .formations .fname {
+  .app.shell .h2h-setup .formations .fname {
     font-size: var(--fs-sm);
   }
-  .app.shell .screen-body:has(.h2h-league) .formation-field > .help {
-    display: none;
-  }
-  .app.shell .screen-body:has(.h2h-league) .team-field > label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
 }
-/* A short desktop window: Head-to-head's how-it-works row folds away (How it works has the same steps) */
+/* A short desktop window: the how-it-works row folds away (How it works has the same steps) */
 @media (min-width: 1100px) and (max-height: 800px) {
-  .app.shell .screen-body:has(.h2h-league) > .steps {
+  .app.shell .h2h-setup > .steps {
     display: none;
   }
 }
@@ -13224,18 +13169,18 @@ html {
 .slot-chip.good {
   border-color: var(--good);
 }
-/* Head-to-head setup on a phone (M13): the four rule cards fold to one compact strip of titles, so the managers start above the fold */
+/* Head-to-head's setups on a phone (M13): the four rule cards fold to one compact strip of titles, so the managers start above the fold */
 @media (max-width: 720px) {
-  .screen-body:has(.h2h-league) > .steps {
+  .h2h-setup > .steps {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-1);
   }
-  .screen-body:has(.h2h-league) > .steps li {
+  .h2h-setup > .steps li {
     padding: var(--space-1) var(--space-2);
   }
-  .screen-body:has(.h2h-league) > .steps li .small,
-  .screen-body:has(.h2h-league) > .steps .step-icon {
+  .h2h-setup > .steps li .small,
+  .h2h-setup > .steps .step-icon {
     display: none;
   }
 }

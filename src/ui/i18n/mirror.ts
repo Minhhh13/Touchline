@@ -21,7 +21,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const PLURAL_VALUE: Record<string, number> = { zero: 0, one: 1, two: 2 }
 
 /** A message as a regular expression, its capture groups in `groups` (one per hole, branch and `#`). */
-function compile(parts: Part[], groups: Group[], plural: string | null): string {
+function compile(parts: Part[], groups: Group[], plural: string | null, fixed: Fixed): string {
   let out = ''
   for (const p of parts) {
     if (p.kind === 'text') out += escape(p.text)
@@ -35,7 +35,10 @@ function compile(parts: Part[], groups: Group[], plural: string | null): string 
         out += p.format === 'ordinal' ? '(\\d+)(?:st|nd|rd|th)' : '(-?\\d+(?:\\.\\d+)?)'
       } else {
         groups.push({ name: p.name, kind: 'arg' })
-        out += '(.+?)'
+        // A hole that only ever holds one of a few known pieces matches only those, so a name of several words before
+        // it is not cut short ("finds Kevin De Bruyne in midfield", not b "Kevin" and zone "De Bruyne in midfield")
+        const known = fixed[p.name]
+        out += known ? `(${known.map(escape).join('|')})` : '(.+?)'
       }
     } else {
       // An exact branch (`=0`) first, so "no games" is not read as the `other` branch of a number
@@ -43,7 +46,7 @@ function compile(parts: Part[], groups: Group[], plural: string | null): string 
       const alts = options.map(([k, ps]) => {
         const value = p.kind === 'select' ? k : k.startsWith('=') ? Number(k.slice(1)) : PLURAL_VALUE[k]
         groups.push({ name: p.name, kind: 'branch', value })
-        return `(${compile(ps, groups, p.kind === 'select' ? plural : p.name)})`
+        return `(${compile(ps, groups, p.kind === 'select' ? plural : p.name, fixed)})`
       })
       out += `(?:${alts.join('|')})`
     }
@@ -55,13 +58,16 @@ function literalLength(parts: Part[]): number {
   return parts.reduce((n, p) => n + (p.kind === 'text' ? p.text.length : p.kind === 'tag' ? p.raw.length : 'options' in p ? Math.max(...Object.values(p.options).map(literalLength)) : 0), 0)
 }
 
+/** Holes that hold only one of a few known pieces, by name (the commentary's `zone`). */
+export type Fixed = Record<string, readonly string[]>
+
 /** Every message of a catalogue as a pattern, the most specific first. */
-export function compilePatterns(messages: Record<string, string>): Pattern[] {
+export function compilePatterns(messages: Record<string, string>, fixed: Fixed = {}): Pattern[] {
   const list: Pattern[] = []
   for (const [key, src] of Object.entries(messages)) {
     const parts = parseMessage(src)
     const groups: Group[] = []
-    const re = new RegExp(`^${compile(parts, groups, null)}$`, 's')
+    const re = new RegExp(`^${compile(parts, groups, null, fixed)}$`, 's')
     list.push({ key, re, groups, weight: literalLength(parts) })
   }
   return list.sort((a, b) => b.weight - a.weight)
