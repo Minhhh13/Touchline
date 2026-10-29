@@ -368,8 +368,9 @@ function useTabInk(value: string, count: number) {
       const next = { x: b.offsetLeft, y: b.offsetTop + b.offsetHeight - 2, w: b.offsetWidth }
       setBox((prev) => (prev && prev.x === next.x && prev.y === next.y && prev.w === next.w ? prev : next))
     }
-    measure()
-    if (typeof ResizeObserver === 'undefined') return
+    if (typeof ResizeObserver === 'undefined') return measure()
+    // No measure here: the observer's first report comes after the frame's own layout, where reading the boxes is free;
+    // read inside the commit they forced the new screen's layout there (about 90 ms of the Dugout's mount at 4x)
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     el.querySelectorAll('button').forEach((b) => ro.observe(b))

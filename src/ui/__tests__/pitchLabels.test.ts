@@ -4,7 +4,7 @@ import { ROLES, ROLE_BY_ID } from '@engine/roles'
 import { LABEL_MIN, MAT, ONE_LINE_BELOW, discRadius, labelFont, labelHeight, labelLines, labelRooms } from '../match/pitchLabels'
 import { ROLE_SHORT, SHORT_ROLE_MAX, roleCodeByName, roleLine, shortRoleByName, shortRoleName } from '../match/roleNames'
 import { ROLE_CODE } from '../match/shirts'
-import { WIDE_CHAR, textWidth } from '../match/textWidth'
+import { WIDE_CHAR, textWidth, whenFontsReady } from '../match/textWidth'
 
 const slotsOf = (id: string) => FORMATIONS.find((f) => f.id === id)!.slots.map((s) => ({ id: s.id, x: s.x, y: s.y, foot: s.y <= 10 }))
 
@@ -131,5 +131,24 @@ describe('label text width', () => {
     expect(textWidth('Aubameyang', 10)).toBeCloseTo((10 * 10 * WIDE_CHAR) / 11, 5)
     expect(textWidth('', 11)).toBe(0)
     expect(textWidth('Complete Forward', 11)).toBeGreaterThan(textWidth('Complete', 11))
+  })
+})
+
+describe('the web font wait (r9 perf)', () => {
+  it('reads the font set once a page, and nothing once it has loaded', async () => {
+    let reads = 0
+    const fonts = {
+      get ready() {
+        reads++
+        return Promise.resolve()
+      },
+    }
+    const first = whenFontsReady(fonts)
+    expect(first).not.toBeNull()
+    expect(whenFontsReady(fonts)).toBe(first)
+    await first
+    expect(whenFontsReady(fonts)).toBeNull()
+    expect(reads).toBe(1)
+    expect(whenFontsReady(undefined)).toBeNull()
   })
 })
