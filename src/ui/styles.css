@@ -7039,13 +7039,19 @@ dl.kv {
   display: grid;
   gap: 8px;
 }
+/* Wraps when it must: at 200 % text on a 390 px phone the Share button ran 14 px past the window (a11y round 7) */
 .unlock-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
   border-radius: 10px;
   background: var(--panel-2);
+}
+.unlock-item > .milestone-text {
+  flex: 1 1 8em;
+  min-width: 0;
 }
 .unlock-card.animate .unlock-item {
   animation: unlock-rise var(--dur-3) var(--ease-out) backwards;

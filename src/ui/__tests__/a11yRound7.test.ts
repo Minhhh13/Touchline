@@ -115,6 +115,9 @@ describe('contrast and larger text on the game screens', () => {
     expect(kick).toMatch(/className="btn primary wraps".*data-testid="kickoff-go-tactics"/)
     expect(kick).toMatch(/className="btn ghost wraps".*data-testid="kickoff-skip"/)
     expect(rule('.case-odds-table td.small')).toMatch(/overflow-wrap: anywhere/)
+    // The Trophy Room's unlock rows on a summary
+    expect(rule('.unlock-item')).toMatch(/flex-wrap: wrap/)
+    expect(rule('.unlock-item > .milestone-text')).toMatch(/min-width: 0/)
     // The shot map's legend on a phone report
     expect(rule('.live-legend')).toMatch(/flex-wrap: wrap/)
     expect(rule('.shot-key')).toMatch(/flex-wrap: wrap/)
