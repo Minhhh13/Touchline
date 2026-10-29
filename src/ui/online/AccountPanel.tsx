@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { cleanName } from '@engine/challenge'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
-import { maskEmail, type NameVerdict } from '../../online/auth'
+import { EMAIL_RE, maskEmail, type NameVerdict } from '../../online/auth'
 import { restorable } from '../../online/sync'
 import type { CloudRow } from '../../online/transport'
 import { savedLine } from '../../online/core/status'
 import { SLOT_IDS, slotContents } from '../../online/core/slots'
-import { AUTH_MODES, authCopy, authOutcomeNote, type AuthMode } from '../../online/core/authCopy'
+import { authOutcomeNote, type AuthMode } from '../../online/core/authCopy'
+import { authModes, authNoteText, authText } from './authText'
 import { ClubBadge, Segmented } from '../components/bits'
 import { COUNTRY_OPTIONS, countryName } from './countries'
 import { ConflictCards, whereText } from './ConflictCard'
@@ -152,7 +153,7 @@ type Step = { at: 'email' } | { at: 'sending' } | { at: 'code'; sentAt: number }
  * the check fails), so the screen can say when the address was the other kind once the account loads.
  */
 function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMode) => void; onVerify: (m: AuthMode | null) => void }) {
-  const copy = authCopy(mode)
+  const copy = authText(mode)
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [step, setStep] = useState<Step>({ at: 'email' })
@@ -161,6 +162,9 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
   const [msg, setMsg] = useState<string | null>(null)
   // Email works alone; Google shows only when the build forces it or the project has the provider switched on
   const [google, setGoogle] = useState(false)
+  // Whether the address field has been left once: only then does a wrong-looking address say so
+  const [touched, setTouched] = useState(false)
+  const codeRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     let live = true
     void api.googleSignInAvailable().then((on) => live && setGoogle(on))
@@ -210,6 +214,12 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
     if (!r.ok) setMsg(r.message)
   }
   const onCodeStep = step.at === 'code' || step.at === 'verifying'
+  // The code step opens with its field focused, so the six digits go straight in (or the phone offers them)
+  useEffect(() => {
+    if (onCodeStep) codeRef.current?.focus()
+  }, [onCodeStep])
+  const emailOk = EMAIL_RE.test(email.trim())
+  const emailWrong = touched && !!email.trim() && !emailOk
   return (
     <div className="col" data-testid="account-signin">
       <p className="account-promise" data-testid="account-promise">
@@ -217,7 +227,7 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
       </p>
       {!onCodeStep && (
         <div data-testid="auth-mode">
-          <Segmented<AuthMode> label={tr('authModeLabel')} value={mode} onChange={onMode} options={AUTH_MODES.map((m) => ({ value: m.value, label: m.label, testId: m.value === 'signin' ? 'auth-mode-signin' : 'auth-mode-create' }))} />
+          <Segmented<AuthMode> label={tr('authModeLabel')} value={mode} onChange={onMode} options={authModes().map((m) => ({ value: m.value, label: m.label, testId: m.value === 'signin' ? 'auth-mode-signin' : 'auth-mode-create' }))} />
         </div>
       )}
       {!onCodeStep ? (
@@ -230,9 +240,14 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
         >
           <label className="field">
             {tr('email')}
-            <input className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" data-testid="signin-email" />
+            <input className="input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched(true)} placeholder="you@example.com" aria-invalid={emailWrong || undefined} aria-describedby={emailWrong ? 'signin-email-check' : undefined} data-testid="signin-email" />
           </label>
-          <button type="submit" className="btn primary" disabled={step.at === 'sending' || !email.trim()} data-testid="signin-send">
+          {emailWrong && (
+            <span id="signin-email-check" className="small bad-text" data-testid="signin-email-check">
+              {tr('emailLooksWrong')}
+            </span>
+          )}
+          <button type="submit" className="btn primary" disabled={step.at === 'sending' || !emailOk} data-testid="signin-send">
             {step.at === 'sending' ? tr('sending') : copy.submit}
           </button>
           <p className="help" data-testid="signin-help">
@@ -249,7 +264,7 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
           data-testid="signin-code-step"
         >
           <div className="notice" data-testid="signin-sent">
-            {copy.codeLead} <b>{maskEmail(email) ?? email}</b>.
+            {rich(tr('codeSentTo', { email: maskEmail(email.trim()) ?? email.trim() }), B)}
           </div>
           {expired ? (
             <div className="notice warn" data-testid="signin-expired">
@@ -258,7 +273,7 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
           ) : (
             <label className="field">
               {tr('sixDigitCode')}
-              <input className="input code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ''))} placeholder="123456" data-testid="signin-code" />
+              <input ref={codeRef} className="input code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ''))} placeholder="123456" data-testid="signin-code" />
             </label>
           )}
           <div className="row wrap">
@@ -438,6 +453,69 @@ function CloudHistory() {
 }
 
 /** What is saved to the account: the status line, Sync now, questions waiting, history, and the two deletions. */
+/** Delete the account, asked in the page: the plain words of what goes, then DELETE typed into a field (never the browser's prompt). */
+function DeleteAccount() {
+  const [asking, setAsking] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const fieldRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (asking) fieldRef.current?.focus()
+  }, [asking])
+  if (!asking)
+    return (
+      <button className="btn sm ghost danger" onClick={() => setAsking(true)} data-testid="delete-account">
+        {tr('deleteAccount')}
+      </button>
+    )
+  const ok = typed.trim().toUpperCase() === 'DELETE'
+  const stop = () => {
+    setAsking(false)
+    setTyped('')
+  }
+  const go = async () => {
+    if (!ok || busy) return
+    setBusy(true)
+    try {
+      const r = await api.deleteAccount()
+      useStore.getState().showToast(r.message)
+    } catch (e) {
+      useStore.getState().showToast(tr('accountNotDeleted', { error: onlineErrorText(e) }))
+    } finally {
+      setBusy(false)
+      stop()
+    }
+  }
+  return (
+    <form
+      className="col account-delete"
+      role="group"
+      aria-label={tr('deleteAccount')}
+      data-testid="delete-account-confirm"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void go()
+      }}
+    >
+      <p className="small" style={{ margin: 0 }}>
+        {tr('deleteAccountPrompt')}
+      </p>
+      <label className="field">
+        {tr('deleteAccountType')}
+        <input ref={fieldRef} className="input mono" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} data-testid="delete-account-type" onKeyDown={(e) => e.key === 'Escape' && stop()} />
+      </label>
+      <div className="row wrap">
+        <button type="submit" className="btn sm danger" disabled={!ok || busy} data-testid="delete-account-go">
+          {tr(busy ? 'deletingAccount' : 'deleteAccountGo')}
+        </button>
+        <button type="button" className="btn sm ghost" onClick={stop} data-testid="delete-account-cancel">
+          {tr('deleteAccountCancel')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function CloudPanel({ setup }: { setup: boolean }) {
   const status = useOnline((s) => s.syncStatus)
   const game = useStore((s) => s.game)
@@ -482,19 +560,7 @@ function CloudPanel({ setup }: { setup: boolean }) {
         >
           {tr('deleteCloud')}
         </button>
-        <button
-          className="btn sm ghost danger"
-          onClick={() => {
-            if (prompt(tr('deleteAccountPrompt')) !== 'DELETE') return
-            void api.deleteAccount().then(
-              (r) => useStore.getState().showToast(r.message),
-              (e: unknown) => useStore.getState().showToast(tr('accountNotDeleted', { error: onlineErrorText(e) })),
-            )
-          }}
-          data-testid="delete-account"
-        >
-          {tr('deleteAccount')}
-        </button>
+        <DeleteAccount />
       </div>
     </section>
   )
@@ -561,7 +627,7 @@ export function AccountScreen() {
     if (!attempt) return
     const n = authOutcomeNote(attempt, accountLoaded, !!account)
     if (n === undefined) return
-    setNote(n)
+    setNote(n === null ? null : authNoteText(n))
     setAttempt(null)
   }, [session, attempt, accountLoaded, account])
   return (
@@ -586,7 +652,7 @@ export function AccountScreen() {
           <div className="grid three account-grid">
             <section className="panel fit-panel" data-testid="account-identity">
               <div className="panel-head">
-                <h3>{!session ? authCopy(mode).heading : tr(setup ? 'setUpProfile' : 'you')}</h3>
+                <h3>{!session ? authText(mode).heading : tr(setup ? 'setUpProfile' : 'you')}</h3>
                 {session && (
                   <button className="btn sm ghost" onClick={() => void api.signOutOnline()} data-testid="signout">
                     {tr('signOut')}

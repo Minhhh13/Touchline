@@ -17,30 +17,15 @@ import type { Position } from '@engine/types'
 import { isAvailable, playerLookup } from './players'
 import { advanceLiveMatch, closeLiveMatch, playMatchweek, playMatchweekSteps, runSteps } from './week'
 import { advanceArenaMatch } from './arena'
+import type { MatchPlayMode } from './matchPlay'
+export { assistantTakesStops, matchPlayOf, type MatchPlayMode } from './matchPlay'
 
-/** How the main play button plays the next match. */
-export type MatchPlayMode = 'watch' | 'auto' | 'sim'
-
+/** The three ways to play the next match, as the Dugout's chips show them. */
 export const MATCH_PLAY_MODES: Array<{ id: MatchPlayMode; label: string; hint: string }> = [
   { id: 'watch', label: 'Watch', hint: 'Stops at half time and the 70th minute for your calls' },
   { id: 'auto', label: 'Auto-play', hint: 'Watch it all; the assistant makes the calls at the stops' },
   { id: 'sim', label: 'Sim result', hint: 'Straight to the result and the report' },
 ]
-
-/** The saved preference: Season and Dynasty only, Watch when unset (every save written before the setting existed). */
-export function matchPlayOf(game: Game): MatchPlayMode {
-  if (game.settings.mode !== 'season' && game.settings.mode !== 'dynasty') return 'watch'
-  return game.settings.matchPlay ?? 'watch'
-}
-
-/**
- * Whether the assistant takes the stops of the live match now on the screen when it opens fresh:
- * after a reload, or as the cup tie that follows a league match. Only the saved preference counts
- * ("Finish the match" and "Auto from here" were for the match they were asked in).
- */
-export function assistantTakesStops(game: Game | null | undefined): boolean {
-  return !!game?.live && matchPlayOf(game) === 'auto'
-}
 
 /** Below this estimated condition at the 70th minute a man is taken off; at half time only below the lower one. */
 export const TIRED_AT_70 = 65

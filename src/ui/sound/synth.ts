@@ -1,22 +1,24 @@
 import type { DisplayTier } from '@game/logic/rarity'
-import { categoryOn, draftSoundOn, soundOn, soundVolume, subscribeSound, subscribeVolume } from './prefs'
+import { categoryOn, soundOn, soundVolume, subscribeSound, subscribeVolume, volumeGain } from './prefs'
 import { makeBank, renderScore, safetyNet, type NoiseBank } from './render'
-import { scoreFor, type Score, type SoundRequest } from './scores'
+import { scoreFor, type Score, type SoundCategory, type SoundRequest } from './scores'
 import { CUE_CATEGORY, isCue, makeThinner, type CueRequest } from './cues'
 
 /*
  * TouchLine's sounds, synthesised in the browser with the Web Audio API: no
  * audio files ship and no recording is copied. Oscillators, FM pairs, gain
- * envelopes and filtered noise make every sound: the reel's tick, whoosh and
- * pop below, and the palette in scores.ts (`playSound`), rendered by render.ts.
+ * envelopes and filtered noise make every sound, all of them scores: the
+ * palette in scores.ts (`playSound`, the reel's tick, whoosh and pop included),
+ * the cues in voices.ts and the season's in seasonScores.ts (`playScore`),
+ * rendered by render.ts.
  *
  * Rules: nothing plays before a user gesture (the context is created or resumed
  * inside one, see `armAudio`), nothing plays while sound is off, and nothing
  * happens where there is no AudioContext (tests, headless runs, old browsers).
  * Match, draft and interface sounds also follow their own switches (`categoryOn`), and the
- * master follows the viewer's volume (`gainNow`). Math.random here
- * only varies a tick's pitch and fills the tick's noise; the palette's variation
- * is seeded per sound. All of it is presentation and never touches the game.
+ * master follows the viewer's volume on a perceptual curve (`gainNow`, `volumeGain`).
+ * Math.random (in reel.ts) only varies a tick's pitch; the palette's variation is
+ * seeded per sound. All of it is presentation and never touches the game.
  */
 
 /** The master volume: modest, under the page's own sounds and the viewer's music. */
@@ -24,22 +26,16 @@ export const MASTER_GAIN = 0.35
 
 export { LANDING_NOTES } from './scores'
 
-/** Seconds in the tick's and the whoosh's noise buffers (the smoke test tells them apart by length). */
-export const TICK_NOISE_S = 0.04
-export const WHOOSH_NOISE_S = 0.6
-
 type Ctor = typeof AudioContext
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
-let tickNoise: AudioBuffer | null = null
-let whooshNoise: AudioBuffer | null = null
 let bank: NoiseBank | null = null
 let armed = false
 
-/** The master's gain now: `MASTER_GAIN` at the viewer's volume, 0 with sound off. */
+/** The master's gain now: `MASTER_GAIN` at the viewer's volume (on the perceptual curve, `volumeGain`), 0 with sound off. */
 export function gainNow(): number {
-  return soundOn() ? (MASTER_GAIN * soundVolume()) / 100 : 0
+  return soundOn() ? MASTER_GAIN * volumeGain(soundVolume()) : 0
 }
 
 type Voices = typeof import('./voices')
@@ -64,13 +60,6 @@ function audioCtor(): Ctor | null {
   return w.AudioContext ?? w.webkitAudioContext ?? null
 }
 
-function noise(c: AudioContext, seconds: number): AudioBuffer {
-  const buf = c.createBuffer(1, Math.max(1, Math.round(c.sampleRate * seconds)), c.sampleRate)
-  const data = buf.getChannelData(0)
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
-  return buf
-}
-
 /** The page has had a real gesture (sticky user activation); true where the browser cannot say. */
 function hadGesture(): boolean {
   const ua = typeof navigator !== 'undefined' ? (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation : undefined
@@ -90,8 +79,6 @@ export function unlockAudio(): void {
       master = ctx.createGain()
       master.gain.value = gainNow()
       master.connect(safetyNet(ctx))
-      tickNoise = noise(ctx, TICK_NOISE_S)
-      whooshNoise = noise(ctx, WHOOSH_NOISE_S)
       const made = (bank = makeBank(ctx))
       // The buffers a sound has not asked for yet, each in a task of its own once the tap is over
       setTimeout(() => void made.white, 400)
@@ -154,77 +141,36 @@ export function liveAudio(): { c: AudioContext; out: AudioNode } | null {
   return { c: ctx, out: master }
 }
 
-/** A gain envelope: silent, up to `peak` in `attack` s, then an exponential fall to silence by `at + dur`. */
-function envelope(c: AudioContext, out: AudioNode, at: number, peak: number, attack: number, dur: number): GainNode {
-  const g = c.createGain()
-  g.gain.value = 0.0001
-  g.gain.setValueAtTime(0.0001, at)
-  g.gain.linearRampToValueAtTime(peak, at + attack)
-  g.gain.exponentialRampToValueAtTime(0.0001, at + dur)
-  g.connect(out)
-  return g
-}
-
-function tone(c: AudioContext, out: AudioNode, at: number, freq: number, opts: { type?: OscillatorType; peak?: number; attack?: number; dur?: number; glideTo?: number } = {}): OscillatorNode {
-  const dur = opts.dur ?? 0.5
-  const osc = c.createOscillator()
-  osc.type = opts.type ?? 'sine'
-  osc.frequency.setValueAtTime(freq, at)
-  if (opts.glideTo) osc.frequency.exponentialRampToValueAtTime(opts.glideTo, at + dur * 0.7)
-  osc.connect(envelope(c, out, at, opts.peak ?? 0.3, opts.attack ?? 0.005, dur))
-  osc.start(at)
-  osc.stop(at + dur + 0.05)
-  return osc
-}
-
 /** The context for the reel's own sounds: as `liveAudio`, and null while the draft's sounds are off. */
 function draftAudio(): { c: AudioContext; out: AudioNode } | null {
-  return draftSoundOn() ? liveAudio() : null
+  return categoryOn('draft') ? liveAudio() : null
 }
 
-/** A card passing the marker: a 40 ms burst of band-passed noise. `rate` (about 0.9 to 1.1) shifts its pitch. */
+/** One of the reel's own scores at `at` on the context's clock (not thinned: the reel paces itself); the source to stop on a skip, or null. */
+function reelSound(req: SoundRequest, at: number): AudioScheduledSourceNode | null {
+  const a = draftAudio()
+  if (!a || !bank) return null
+  try {
+    // A tick's or a pop's voices all end together, so the first source stands for the sound
+    return renderScore(a.c, a.out, Math.max(at, a.c.currentTime), scoreFor(req), bank)[0] ?? null
+  } catch {
+    return null
+  }
+}
+
+/** A card passing the marker: a short wooden knock near 2 kHz over a tiny tock (scores.ts `reelTick`). `rate` (about 0.9 to 1.2) shifts its pitch. */
 export function playTick(at: number, rate: number): AudioScheduledSourceNode | null {
-  const a = draftAudio()
-  if (!a || !tickNoise) return null
-  const { c, out } = a
-  const src = c.createBufferSource()
-  src.buffer = tickNoise
-  src.playbackRate.value = rate
-  const band = c.createBiquadFilter()
-  band.type = 'bandpass'
-  band.frequency.value = 3200 * rate
-  band.Q.value = 3
-  src.connect(band)
-  band.connect(envelope(c, out, at, 0.55, 0.001, 0.035))
-  src.start(at)
-  src.stop(at + TICK_NOISE_S)
-  return src
+  return reelSound({ id: 'tick', rate }, at)
 }
 
-/** The season showing: a short rising whoosh of filtered noise. */
+/** The season showing: a soft breath of pink noise swept up. */
 export function playWhoosh(at: number): AudioScheduledSourceNode | null {
-  const a = draftAudio()
-  if (!a || !whooshNoise) return null
-  const { c, out } = a
-  const src = c.createBufferSource()
-  src.buffer = whooshNoise
-  const band = c.createBiquadFilter()
-  band.type = 'bandpass'
-  band.Q.value = 1.4
-  band.frequency.setValueAtTime(320, at)
-  band.frequency.exponentialRampToValueAtTime(2400, at + 0.42)
-  src.connect(band)
-  band.connect(envelope(c, out, at, 0.32, 0.18, 0.5))
-  src.start(at)
-  src.stop(at + WHOOSH_NOISE_S)
-  return src
+  return reelSound({ id: 'whoosh' }, at)
 }
 
-/** The season landing on the drum: a soft pop, a sine dropping in pitch. */
+/** The season landing on the drum: a round wooden pop. */
 export function playPop(at: number): AudioScheduledSourceNode | null {
-  const a = draftAudio()
-  if (!a) return null
-  return tone(a.c, a.out, at, 540, { glideTo: 190, peak: 0.45, dur: 0.14 })
+  return reelSound({ id: 'pop' }, at)
 }
 
 /** The reveal, rising with rarity (scores.ts `landingScore`); the Icons card plays gold's. `reduced` (prefers-reduced-motion) drops the shimmer. */
@@ -243,10 +189,18 @@ export function stopAll(nodes: Iterable<AudioScheduledSourceNode>): void {
   }
 }
 
-/** The Upgrader's needle passing a tick mark: the reel's tick, now. `rate` (about 0.9 to 1.2) shifts its pitch. */
+/** The least time between two of the dial's ticks, ms: as the reel's (`MIN_TICK_GAP_MS`), so a fast needle never buzzes. */
+export const DIAL_TICK_GAP_MS = 15
+let lastDialTick = -Infinity
+
+/** The Upgrader's needle passing a tick mark: the reel's tick, now (one per `DIAL_TICK_GAP_MS` at most). `rate` (about 0.9 to 1.2) shifts its pitch. */
 export function playDialTick(rate: number): void {
   const a = liveAudio()
-  if (a) playTick(a.c.currentTime + 0.005, rate)
+  if (!a) return
+  const now = clock()
+  if (now - lastDialTick < DIAL_TICK_GAP_MS && now >= lastDialTick) return
+  lastDialTick = now
+  playTick(a.c.currentTime + 0.005, rate)
 }
 
 /** The Upgrader's verdict, a sting for a win and a falling "wah-wah" for a loss (scores.ts `upgradeScore`); `reduced` drops the win's shimmer. */
@@ -288,14 +242,24 @@ function render(a: { c: AudioContext; out: AudioNode }, score: Score, delay: num
   }
 }
 
+/** A score built outside the palette: its voices, and (the season's) the switch it follows and the id it is thinned by. */
+export interface OuterScore extends Pick<Score, 'voices'> {
+  category?: SoundCategory
+  /** Thinned by `CUE_GAP_MS` under this key (the season's as `season:<id>`). */
+  thinAs?: string
+}
+
 /**
  * Plays a score built outside the palette (seasonScores.ts: the season's cues, loaded with the screens that use them)
  * `delay` s from now, on the same master and under the same rules as `playSound`: nothing without a gesture, with
- * sound off, or without Web Audio. Returns the sources it scheduled (to stop on a pause).
+ * sound off, with its category switched off, for a repeat inside its gap, or without Web Audio. Returns the sources it
+ * scheduled (to stop on a pause).
  */
-export function playScore(score: Pick<Score, 'voices'>, delay = 0): AudioScheduledSourceNode[] {
+export function playScore(score: OuterScore, delay = 0): AudioScheduledSourceNode[] {
   const a = liveAudio()
   if (!a || !bank) return []
+  if (score.category && !categoryOn(score.category)) return []
+  if (score.thinAs && !thin(score.thinAs, clock())) return []
   try {
     return renderScore(a.c, a.out, a.c.currentTime + 0.01 + Math.max(0, delay), score, bank)
   } catch {

@@ -77,6 +77,7 @@ export const boxes = catalog('boxes', {
   'box_dugout-club_staff': 'Backroom staff',
   'box_dugout-club_contracts': 'Contracts',
   'box_dugout-club_legends': 'Club legends',
+  'box_dugout-club_history': 'Club history',
   'box_dugout-club_achievements': 'Achievements',
   'boxes_draft': 'Draft',
   'box_draft_needs': 'Still need',

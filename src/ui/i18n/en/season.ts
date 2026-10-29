@@ -66,6 +66,7 @@ export const season = catalog('season', {
   pause: 'Pause',
   play: 'Play',
   speed: '{x}x',
+  playbackSpeed: 'Playback speed',
   skipJanuary: 'Skip to January',
   skipEnd: 'Skip to the end',
   fullTime: 'Full time: {pos, ordinal}, {pts, plural, one {# point} other {# points}}.',

@@ -1,5 +1,5 @@
 import { Share2, Trophy } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { nextToChase, unlockShareText, type TrophyItem } from '@game/logic/trophyChase'
 import { translator } from '../i18n'
 import { profile as profileText } from '../i18n/en/profile'
@@ -9,6 +9,7 @@ import { trophyIcon } from '../trophyIcons'
 import { profileTrophyItems, useTrophyReveal } from '../trophyReveal'
 import { useBadgeSound } from '../sound/useBadgeSound'
 import { prefersReducedMotion } from '../motion'
+import { Tip } from './bits'
 
 const t = translator(profileText)
 
@@ -53,7 +54,7 @@ export function ChaseRow({ item }: { item: TrophyItem }) {
  * viewer says Got it or opens the Trophy Room. Nothing shows while nothing is new. Presentation only.
  */
 export function BadgeUnlocks() {
-  const { profile, universe, go, showToast } = useStore()
+  const { profile, universe, go, showToast } = useStorePick('profile', 'universe', 'go', 'showToast')
   const items = profileTrophyItems(profile, universe)
   const { fresh, markSeen } = useTrophyReveal(items)
   // The medal's ring, once, as the Trophy Room rings it (the same heard list)
@@ -87,6 +88,7 @@ export function BadgeUnlocks() {
           </ul>
           {fresh.length > SHOWN && <div className="small muted">{t('unlockMore', { n: fresh.length - SHOWN })}</div>}
           <ChaseBlock items={items} />
+          <Tip id="feats-first">{t('featsTip')}</Tip>
           <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
             <button
               type="button"

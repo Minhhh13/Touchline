@@ -15,7 +15,8 @@ import { answerRequest, openRequests, requestChance, requestPressure, talkOdds, 
 import { converse } from '../logic/conversations'
 import { answerPress, pressQuestions, PRESS_ANSWERS } from '../logic/pressConference'
 import { clubCeiling, clubValuation, counterBid, offerTerms, openingStatus, paymentPlan, proposeFee, termsDemand, walkAway } from '../logic/transferTalks'
-import { proposeContract, openingOffer } from '../logic/contracts'
+import { contractDemand, proposeContract, openingOffer } from '../logic/contracts'
+import { squadWages } from '../logic/squad'
 import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
 import { advanceToNextSeason } from '../logic/dynasty'
@@ -408,5 +409,74 @@ describe('saves', () => {
     expect(back.office?.promises).toHaveLength(1)
     const table = computeTable(back.season!.fixtures, [USER_TEAM, ...Object.keys(back.season!.ai)])
     expect(table.length).toBeGreaterThan(10)
+  }, 60_000)
+})
+
+describe('a contract promise is only made when it can be kept (r9 audit)', () => {
+  it('refuses a man on his longest deal, and one already renewed: either would be broken, or kept for nothing', () => {
+    const g = seasonGame(u, 'r9-office-contract', 2)
+    const id = Object.values(g.lineup)[3]
+    const longest = contractDemand(g, u, id, g.contracts[id].status ?? 'rotation')!.maxYears
+    // On the longest deal he would sign, no contract talks can give him more years: the promise could only break
+    g.contracts[id].years = longest
+    expect(promiseProblem(g, u, id, 'contract')).toMatch(/longest deal/)
+    expect(makePromise(g, u, id, 'contract').ok).toBe(false)
+    expect(openPromises(g)).toHaveLength(0)
+    // Already renewed (a dressing-room event), it would be kept at the next tick for nothing: +4 and +6 morale free
+    g.contracts[id].years = 1
+    g.contracts[id].renewed = true
+    expect(promiseProblem(g, u, id, 'contract')).toMatch(/already agreed/)
+    delete g.contracts[id].renewed
+    expect(promiseProblem(g, u, id, 'contract')).toBeNull()
+  }, 60_000)
+})
+
+describe('personal terms the market refuses leave the listing as it was (r9 audit)', () => {
+  it('a bid refused on the market\'s own wage rule puts the asking price back', () => {
+    const g = seasonGame(u, 'r9-office-terms-refused', 19)
+    expect(g.window).not.toBeNull()
+    g.finances.budget = 500
+    const ids = Object.keys(g.squad)
+    while (Object.keys(g.squad).length > 21) {
+      const id = ids.pop()!
+      delete g.squad[id]
+      delete g.contracts[id]
+    }
+    const l = g.window!.listings.find((x) => x.status === 'available' && u.index[x.playerSeasonId].age < 30 && u.index[x.playerSeasonId].wage > 10)!
+    const listingId = l.playerSeasonId
+    const fee = Math.round((clubValuation(g, l) / 0.9) * 10) / 10 + 0.1
+    expect(proposeFee(g, u, listingId, { fee, sellOn: 0, instalments: 2 }).outcome).toBe('agreed')
+    const asking = l.asking
+    const status = openingStatus(g, u, listingId)
+    const d = termsDemand(g, u, listingId, status)!
+    // A token wage made up by a big signing-on fee: inside our cap check, over the market's (which reads his own wage)
+    const years = 2
+    const signingFee = Math.ceil((d.agentFee + (d.wage * 52 * years) / 1000 + 1) * 10) / 10
+    g.finances.wageCap = squadWages(g, u) + 1
+    const out = offerTerms(g, u, listingId, { wage: 1, years, status, signingFee })
+    expect(out.ok).toBe(false)
+    expect(out.message).toMatch(/wage cap/)
+    // Before, the asking price was left at the agreed fee, not the club's own price
+    expect(l.asking).toBe(asking)
+    expect(l.status).toBe('available')
+  }, 60_000)
+})
+
+describe('the transfer list reads only this season\'s request (r9 audit)', () => {
+  it('listing a man whose request was refused last season is a listing he did not ask for', () => {
+    const g = seasonGame(u, 'r9-office-stale-request', 6)
+    const id = Object.values(g.lineup)[4]
+    const pid = playerLookup(g, u)(id)!.playerId
+    expect(lodgeRequest(g, u, id, 'morale')).not.toBeNull()
+    expect(answerRequest(g, u, id, 'refuse').ok).toBe(true)
+    // A Dynasty's next season: last year's refused request is still on file
+    g.office!.requests![pid].year = g.year - 1
+    g.squad[id].morale = 60
+    expect(setListed(g, u, id, true).ok).toBe(true)
+    // Before, it counted as accepting his request: +5 and the old request turned "listed"
+    expect(g.squad[id].morale).toBe(56)
+    expect(g.office!.requests![pid].stage).toBe('refused')
+    expect(setListed(g, u, id, false).ok).toBe(true)
+    expect(g.squad[id].morale).toBe(56)
   }, 60_000)
 })

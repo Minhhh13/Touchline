@@ -49,89 +49,89 @@ const other = (s: Side): Side => (s === 'home' ? 'away' : 'home')
 
 // Goals: what the goal does to the match, the strongest story first
 export const GOAL_LINES = {
-  fourPlus: ['{p} has four. Unstoppable today.', 'Another for {p}. He is having the game of his life.', '{p} again! Someone fetch a second match ball.'],
-  hatTrick: ['Hat-trick for {p}! He will want the match ball.', 'That is three for {p}. Take a bow.', '{p} completes his hat-trick. What a performance.', 'Three goals, one man: {p}.'],
-  comebackAhead: ['From two down to in front: {team} have turned this on its head!', 'What a turnaround. {team} lead now!', '{team} were dead and buried. Not any more.'],
-  comebackLevel: ['{team} have clawed it all the way back!', 'Two down, and now level. {team} are not done.', 'The comeback is on: {team} are level!'],
-  lateWinner: ['Surely that is the winner for {team}!', 'Late, late drama: {team} lead!', 'That could be the one. {team} in front with time almost up.', 'Heartbreak for {opp}, joy for {team}.'],
-  lateLevel: ['Rescued at the death! {team} are level.', 'Just when it looked over, {team} find a way.', 'A late leveller, and {opp} cannot believe it.'],
-  stoppage: ['In stoppage time, too!', 'Deep into added time. Cruel on {opp}.', 'The board was up and {team} still had something left.'],
-  brace: ['That is two for {p}.', '{p} doubles his tally for the day.', 'A brace for {p}. Sharp as anything.'],
-  earlyOpener: ['What a start for {team}!', 'Barely time to settle and {team} are ahead.', 'A dream start for {team}.'],
-  opener: ['{team} have the breakthrough.', 'The deadlock is broken.', 'First blood to {team}.', 'That is the goal the game needed.'],
-  equaliser: ['{team} are level.', 'All square again.', 'Back on terms. Game on.', 'Parity restored, and {opp} are rattled.'],
-  goAhead: ['{team} back in front.', '{team} edge ahead again.', 'The lead is restored.'],
-  twoClear: ['{team} have breathing space now.', 'Two clear. {opp} have a mountain to climb.', 'That one feels big.'],
-  rout: ['This is turning into a rout.', '{opp} are falling apart here.', 'Total control from {team}.', 'The floodgates are open.'],
-  pullBack: ['{team} have a lifeline.', 'Game on! {team} pull one back.', 'Now then. {opp} will be nervous.'],
-  consolation: ['Little more than a consolation, surely.', 'Pride restored, a little.', 'Too little, too late? Probably.'],
+  fourPlus: ['{p} has four. Unstoppable today.', 'Another for {p}. He is having the game of his life.', '{p} again! Someone fetch a second match ball.', 'Four for {p}, and the defenders have given up trying.', 'They cannot get near {p} today.'],
+  hatTrick: ['Hat-trick for {p}! He will want the match ball.', 'That is three for {p}. Take a bow.', '{p} completes his hat-trick. What a performance.', 'Three goals, one man: {p}.', 'The hat-trick is complete, and {p} is mobbed.', 'Three for {p}. A day he will never forget.'],
+  comebackAhead: ['From two down to in front: {team} have turned this on its head!', 'What a turnaround. {team} lead now!', '{team} were dead and buried. Not any more.', 'Unbelievable. {team} have gone from two behind to in front.', 'The comeback is complete, and then some: {team} lead!'],
+  comebackLevel: ['{team} have clawed it all the way back!', 'Two down, and now level. {team} are not done.', 'The comeback is on: {team} are level!', 'Two goals behind, and {team} have wiped it out.', 'Back from the dead: {team} are level.'],
+  lateWinner: ['Surely that is the winner for {team}!', 'Late, late drama: {team} lead!', 'That could be the one. {team} in front with time almost up.', 'Heartbreak for {opp}, joy for {team}.', 'With the clock running down, {team} strike!', 'The ground erupts. {team} lead, and there is hardly any time left.'],
+  lateLevel: ['Rescued at the death! {team} are level.', 'Just when it looked over, {team} find a way.', 'A late leveller, and {opp} cannot believe it.', '{team} refuse to lie down. Level, late on.', 'Agony for {opp}: {team} snatch an equaliser.'],
+  stoppage: ['In stoppage time, too!', 'Deep into added time. Cruel on {opp}.', 'The board was up and {team} still had something left.', 'Added time, and still {team} come forward.'],
+  brace: ['That is two for {p}.', '{p} doubles his tally for the day.', 'A brace for {p}. Sharp as anything.', '{p} again! Two for him now.', 'Second of the day for {p}.'],
+  earlyOpener: ['What a start for {team}!', 'Barely time to settle and {team} are ahead.', 'A dream start for {team}.', 'Some of the crowd are still finding their seats. {team} lead!', 'Out of the blocks quickest: {team}.'],
+  opener: ['{team} have the breakthrough.', 'The deadlock is broken.', 'First blood to {team}.', 'That is the goal the game needed.', '{team} are in front.', 'At last, a goal, and it belongs to {team}.', 'The opener goes to {team}.'],
+  equaliser: ['{team} are level.', 'All square again.', 'Back on terms. Game on.', 'Parity restored, and {opp} are rattled.', '{team} hit straight back.', 'The lead lasts no more: {team} are level.', 'Level again, and the noise goes up a notch.'],
+  goAhead: ['{team} back in front.', '{team} edge ahead again.', 'The lead is restored.', '{team} nose in front once more.', 'Ahead again, and {opp} have it all to do.'],
+  twoClear: ['{team} have breathing space now.', 'Two clear. {opp} have a mountain to climb.', 'That one feels big.', 'A two-goal cushion for {team}.', '{opp} needed to keep it tight. Now they need two.'],
+  rout: ['This is turning into a rout.', '{opp} are falling apart here.', 'Total control from {team}.', 'The floodgates are open.', 'It is one-way traffic now.', '{team} smell blood, and they are not stopping.'],
+  pullBack: ['{team} have a lifeline.', 'Game on! {team} pull one back.', 'Now then. {opp} will be nervous.', 'Back in it: {team} halve the deficit.', 'One goal in it now, and {team} believe again.'],
+  consolation: ['Little more than a consolation, surely.', 'Pride restored, a little.', 'Too little, too late? Probably.', 'Something for the travelling fans, at least.', 'A small consolation for {team}.'],
 } as const
 
 /** Lines for a goal's type, read off the engine's own words for it. */
 export const GOAL_TYPE_LINES: Record<'header' | 'longRange' | 'volley' | 'tapIn' | 'chip' | 'teamMove' | 'solo' | 'scramble' | 'penalty' | 'ownGoal' | 'finish', readonly string[]> = {
-  header: ['Towering header.', 'Up he went, and nobody could live with him.', 'Bullet header. No chance for the keeper.'],
-  longRange: ['What a hit!', 'From there! The keeper never moved.', 'Picked his spot from distance.'],
-  volley: ['Sweet as you like on the volley.', 'Struck on the half-volley and it flew in.', 'Technique of the highest order.'],
-  tapIn: ['The easiest goal he will ever score.', 'In the right place at the right time.', 'A poacher’s goal.'],
-  chip: ['Cheeky. Very cheeky.', 'Delicate. The keeper could only watch it drop.', 'The coolest head in the ground.'],
-  teamMove: ['A goal made on the training ground.', 'Passing, movement, finish. Lovely stuff.', 'Pass after pass, and the net bulges.'],
-  solo: ['Took the keeper out of the game entirely.', 'Composure itself.', 'Waltzed round him like he was not there.'],
-  scramble: ['Not pretty, but they all count.', 'It went through a forest of legs.', 'Bundled in, and nobody minds.'],
-  penalty: ['Sent the keeper the wrong way.', 'Never in doubt from the spot.', 'Cool as you like from twelve yards.', 'Into the corner, and the keeper guessed wrong.'],
-  ownGoal: ['A nightmare for {p}.', 'He will not want to see that one again.', 'Cruel, but that one goes down as his.', 'A gift for {team}.'],
-  finish: ['Clinical.', 'What a finish.', 'Emphatic.', 'No mistake there.'],
+  header: ['Towering header.', 'Up he went, and nobody could live with him.', 'Bullet header. No chance for the keeper.', 'Met it perfectly with his head.', 'A thumping header, and the net bulges.'],
+  longRange: ['What a hit!', 'From there! The keeper never moved.', 'Picked his spot from distance.', 'He just let fly, and it flew in.', 'A screamer from range.'],
+  volley: ['Sweet as you like on the volley.', 'Struck on the half-volley and it flew in.', 'Technique of the highest order.', 'He never let it bounce.', 'Leaning back, and he kept it down beautifully.'],
+  tapIn: ['The easiest goal he will ever score.', 'In the right place at the right time.', 'A poacher’s goal.', 'All he had to do was turn it in.', 'Gambled on the ball coming through, and it did.'],
+  chip: ['Cheeky. Very cheeky.', 'Delicate. The keeper could only watch it drop.', 'The coolest head in the ground.', 'A feather touch over the keeper.', 'He saw the keeper off his line and lifted it over.'],
+  teamMove: ['A goal made on the training ground.', 'Passing, movement, finish. Lovely stuff.', 'Pass after pass, and the net bulges.', 'Everyone touched it, and it ended in the net.', 'A move of real quality from front to back.'],
+  solo: ['Took the keeper out of the game entirely.', 'Composure itself.', 'Waltzed round him like he was not there.', 'He made the keeper commit, then walked it in.', 'Ice in his veins.'],
+  scramble: ['Not pretty, but they all count.', 'It went through a forest of legs.', 'Bundled in, and nobody minds.', 'Ugly, scrappy, and absolutely vital.', 'Pinball in the box, and in it goes.'],
+  penalty: ['Sent the keeper the wrong way.', 'Never in doubt from the spot.', 'Cool as you like from twelve yards.', 'Into the corner, and the keeper guessed wrong.', 'He waited for the keeper to move, then rolled it in.', 'Struck high and hard. Unsaveable.'],
+  ownGoal: ['A nightmare for {p}.', 'He will not want to see that one again.', 'Cruel, but that one goes down as his.', 'A gift for {team}.', 'He tried to clear it and only found his own net.', 'Hands on heads. {p} cannot believe it.'],
+  finish: ['Clinical.', 'What a finish.', 'Emphatic.', 'No mistake there.', 'Tucked away with real calm.', 'Into the bottom corner.', 'The keeper got nowhere near it.', 'Finished with a minimum of fuss.'],
 }
 
-export const DERBY_GOAL_LINES = ['Bragging rights at stake, and {team} have struck.', 'Half the ground goes up.', 'Local pride on the line, and {team} land a blow.']
+export const DERBY_GOAL_LINES = ['Bragging rights at stake, and {team} have struck.', 'Half the ground goes up.', 'Local pride on the line, and {team} land a blow.', 'In a derby, that one means even more.']
 
 // Chances
 export const CHANCE_LINES = {
-  woodwork: ['So close!', 'Inches away.', 'The woodwork saves {opp}.', 'It is still shaking.', 'Unlucky. That deserved better.'],
-  save: ['Strong hands.', 'Kept out, just.', 'He had to be at his best there.', 'Big moment, big save.', 'The keeper stands tall.'],
-  line: ['Desperate defending.', 'Someone threw a body at it.', 'How has that stayed out?', 'Last-ditch stuff.'],
-  miss: ['He has to hit the target there.', 'A let-off for {opp}.', 'He will be having nightmares about that.', 'That was the chance.', 'Should have scored.'],
-  lateLevel: ['That was the chance to level it.', 'So nearly the equaliser.', '{team} will rue that.'],
-  lateCushion: ['That would have settled it.', 'A second would have killed it off.', '{opp} survive.'],
+  woodwork: ['So close!', 'Inches away.', 'The woodwork saves {opp}.', 'It is still shaking.', 'Unlucky. That deserved better.', 'The frame of the goal comes to the rescue.', 'Off the woodwork, and away.'],
+  save: ['Strong hands.', 'Kept out, just.', 'He had to be at his best there.', 'Big moment, big save.', 'The keeper stands tall.', 'Fingertips!', 'What a stop.', 'Down low, and he smothers it.', 'The keeper reads it all the way.', 'Brave from the keeper.', 'Beaten for power? Not this time.'],
+  line: ['Desperate defending.', 'Someone threw a body at it.', 'How has that stayed out?', 'Last-ditch stuff.', 'Cleared off the line!', 'A block that is worth a goal.'],
+  miss: ['He has to hit the target there.', 'A let-off for {opp}.', 'He will be having nightmares about that.', 'That was the chance.', 'Should have scored.', 'Wide, and he knows it.', 'Over the bar. He leant back.', 'The crowd groan as one.', 'A big chance goes begging.', 'He snatched at it.', 'Not far away, but not close enough.', '{opp} breathe again.'],
+  lateLevel: ['That was the chance to level it.', 'So nearly the equaliser.', '{team} will rue that.', 'The leveller was right there.', 'Time is running out for {team}, and so are the chances.'],
+  lateCushion: ['That would have settled it.', 'A second would have killed it off.', '{opp} survive.', 'That would have been game over.', '{opp} are still in this, just.'],
 } as const
 
 // Cards
 export const CARD_LINES = {
-  early: ['Early booking. He will have to be careful now.', 'A long afternoon ahead on a yellow.', 'Too eager, too soon.'],
-  tactical: ['Taking one for the team.', 'Cynical, and he knew it.', 'Stopped the break at the cost of a yellow.'],
-  yellow: ['No complaints.', 'The referee had no choice.', 'Mistimed, and in the book he goes.', 'He went in late.'],
-  secondYellow: ['Two yellows and gone. Daft.', 'He was walking a tightrope all game.', 'An early bath.'],
-  straightRed: ['That changes everything.', 'Reckless. Off he goes.', 'No arguments. Straight off.', 'Down to ten.'],
-  downToNine: ['Down to nine now! Chaos.', 'Two men short. This is a long way back.'],
+  early: ['Early booking. He will have to be careful now.', 'A long afternoon ahead on a yellow.', 'Too eager, too soon.', 'In the book before the game has settled.'],
+  tactical: ['Taking one for the team.', 'Cynical, and he knew it.', 'Stopped the break at the cost of a yellow.', 'A professional foul, and a price worth paying for him.'],
+  yellow: ['No complaints.', 'The referee had no choice.', 'Mistimed, and in the book he goes.', 'He went in late.', 'A clumsy challenge, and a deserved booking.', 'He will be walking a tightrope now.', 'The referee reaches for his pocket.', 'Silly from him.'],
+  secondYellow: ['Two yellows and gone. Daft.', 'He was walking a tightrope all game.', 'An early bath.', 'He had been warned.'],
+  straightRed: ['That changes everything.', 'Reckless. Off he goes.', 'No arguments. Straight off.', 'Down to ten.', 'Dangerous, and the referee had no hesitation.'],
+  downToNine: ['Down to nine now! Chaos.', 'Two men short. This is a long way back.', 'Nine men. It is backs to the wall now.'],
 } as const
 
 // Changes and injuries
 export const SUB_LINES = {
-  chasing: ['A roll of the dice.', 'Fresh legs, and a goal needed.', 'Everything forward now.', 'Throwing on the attackers.'],
-  holding: ['Time to see it out.', 'Shoring things up.', 'Running down the clock, too.'],
-  halfTime: ['A change at the break.', 'Something needed changing, clearly.'],
-  routine: ['Fresh legs.', 'A like-for-like swap.', 'Applause as he goes off.', 'A chance to impress.'],
+  chasing: ['A roll of the dice.', 'Fresh legs, and a goal needed.', 'Everything forward now.', 'Throwing on the attackers.', 'Chasing the game.', 'A gamble from the bench.'],
+  holding: ['Time to see it out.', 'Shoring things up.', 'Running down the clock, too.', 'Closing the game down.', 'An extra body to protect the lead.'],
+  halfTime: ['A change at the break.', 'Something needed changing, clearly.', 'A half-time reshuffle.'],
+  routine: ['Fresh legs.', 'A like-for-like swap.', 'Applause as he goes off.', 'A chance to impress.', 'He has given everything.', 'A rest for tired legs.', 'New energy from the bench.', 'Warm applause for the man going off.'],
 } as const
 
-export const INJURY_LINES = ['That looks painful.', 'The physio is on.', 'A worry for {team}.', 'He is in real discomfort.', 'Not what {team} needed.']
+export const INJURY_LINES = ['That looks painful.', 'The physio is on.', 'A worry for {team}.', 'He is in real discomfort.', 'Not what {team} needed.', 'He is down and holding his leg.', 'The bench look concerned.', 'He tries to run it off, but it does not look good.']
 
 // The whistles
 export const HALF_TIME_LINES = {
-  goalless: ['Nothing to choose between them.', 'Tight, cagey, goalless.', 'Plenty of effort, no goals.', 'All to play for.'],
-  level: ['Honours even at the break.', 'All square, and everything to play for.', 'Level, and it could go either way.'],
-  lead: ['{team} will be the happier side.', 'Advantage {team}.', '{opp} have work to do.', 'Big team talk coming for {opp}.'],
-  comfortable: ['{team} in control.', 'It looks like {team}’s day.', 'A mountain for {opp} in the second half.'],
+  goalless: ['Nothing to choose between them.', 'Tight, cagey, goalless.', 'Plenty of effort, no goals.', 'All to play for.', 'Goalless at the break, and both managers have thinking to do.'],
+  level: ['Honours even at the break.', 'All square, and everything to play for.', 'Level, and it could go either way.', 'Nothing between them at the interval.'],
+  lead: ['{team} will be the happier side.', 'Advantage {team}.', '{opp} have work to do.', 'Big team talk coming for {opp}.', '{team} go in with their noses in front.'],
+  comfortable: ['{team} in control.', 'It looks like {team}’s day.', 'A mountain for {opp} in the second half.', '{opp} need a miracle after the break.'],
 } as const
 
 export const FULL_TIME_LINES = {
-  comeback: ['What a comeback from {team}!', '{team} came from behind and won it.', 'They never stopped, and {team} have their reward.'],
-  lateWinner: ['Won it at the death, {team}.', 'A late, late winner. Scenes.', 'Drama to the very end, and {team} have it.'],
-  derbyWin: ['Bragging rights to {team}.', 'The derby belongs to {team}.', 'That one will be talked about for weeks.'],
-  thrashing: ['A thrashing.', 'A statement from {team}.', 'One-way traffic from start to finish.', 'Embarrassing for {opp}.'],
-  cleanSheet: ['A clean sheet for {team}, too.', 'Job done, and nothing conceded.', 'Solid at the back, ruthless up top.', 'Three points and a clean sheet.'],
-  goalFest: ['What a game!', 'Goals galore.', 'Defences took the day off.'],
-  win: ['Three points for {team}.', 'A big win for {team}.', '{team} take the spoils.', 'Job done for {team}.'],
-  goalless: ['Goalless, and nobody can quite say why.', 'Stalemate.', 'A point each, and not much else.'],
-  draw: ['Honours even.', 'A point apiece.', 'Neither side could find a winner.', 'All square at the end.'],
+  comeback: ['What a comeback from {team}!', '{team} came from behind and won it.', 'They never stopped, and {team} have their reward.', 'Behind, and then in front: {team} have won it.'],
+  lateWinner: ['Won it at the death, {team}.', 'A late, late winner. Scenes.', 'Drama to the very end, and {team} have it.', 'Left it late, but {team} will not care.'],
+  derbyWin: ['Bragging rights to {team}.', 'The derby belongs to {team}.', 'That one will be talked about for weeks.', 'A derby win, and the city is theirs.'],
+  thrashing: ['A thrashing.', 'A statement from {team}.', 'One-way traffic from start to finish.', 'Embarrassing for {opp}.', 'A hammering, and it could have been more.'],
+  cleanSheet: ['A clean sheet for {team}, too.', 'Job done, and nothing conceded.', 'Solid at the back, ruthless up top.', 'Three points and a clean sheet.', 'Nothing past them all game.'],
+  goalFest: ['What a game!', 'Goals galore.', 'Defences took the day off.', 'Entertainment from start to finish.'],
+  win: ['Three points for {team}.', 'A big win for {team}.', '{team} take the spoils.', 'Job done for {team}.', 'A deserved win for {team}.', '{team} see it out.'],
+  goalless: ['Goalless, and nobody can quite say why.', 'Stalemate.', 'A point each, and not much else.', 'No goals, but no lack of effort.'],
+  draw: ['Honours even.', 'A point apiece.', 'Neither side could find a winner.', 'All square at the end.', 'They share the points.'],
 } as const
 
 // Before kick-off
@@ -149,13 +149,13 @@ export const PRE_MATCH_LINES = {
 
 // Quiet minutes: the mood of the match
 export const MOOD_LINES = {
-  early: ['A cagey start.', 'Both sides feeling each other out.', 'Nobody wants to make the first mistake.'],
-  goalless: ['Still goalless, and it is tight.', 'The goal will not come.', 'Chess more than football right now.'],
-  secondHalf: ['{team} have come out with purpose.', 'A brighter start to the half from {team}.'],
-  nervy: ['Nervy now for {lead}.', '{trail} throw bodies forward.', 'One goal in it, and the clock is ticking.', '{lead} sitting deeper and deeper.', 'Every clearance gets a cheer.'],
-  lateLevel: ['Both sides sense a winner is there.', 'Who blinks first?', 'Legs are going now.'],
-  cruising: ['{lead} are cruising.', 'Comfortable for {lead}.', '{trail} are out on their feet.'],
-  tenMen: ['{short} are digging in with ten.', 'Ten men, and {short} running twice as hard.'],
+  early: ['A cagey start.', 'Both sides feeling each other out.', 'Nobody wants to make the first mistake.', 'Plenty of caution in these opening minutes.', 'A tentative opening.'],
+  goalless: ['Still goalless, and it is tight.', 'The goal will not come.', 'Chess more than football right now.', 'Plenty of midfield scrapping, very little goalmouth action.', 'Somebody needs to take a risk.', 'Neither keeper has been worked much lately.'],
+  secondHalf: ['{team} have come out with purpose.', 'A brighter start to the half from {team}.', '{team} look sharper after the break.'],
+  nervy: ['Nervy now for {lead}.', '{trail} throw bodies forward.', 'One goal in it, and the clock is ticking.', '{lead} sitting deeper and deeper.', 'Every clearance gets a cheer.', 'The fans of {lead} are whistling for the end.', '{trail} are camped in the other half.'],
+  lateLevel: ['Both sides sense a winner is there.', 'Who blinks first?', 'Legs are going now.', 'Settle for a point, or go for it?', 'Gaps are opening up all over the pitch.'],
+  cruising: ['{lead} are cruising.', 'Comfortable for {lead}.', '{trail} are out on their feet.', '{lead} are playing keep-ball now.', 'The contest is over, and everyone knows it.'],
+  tenMen: ['{short} are digging in with ten.', 'Ten men, and {short} running twice as hard.', 'A man short, {short} are sitting deep.'],
 } as const
 
 /** The goal's type from the engine's words for it. */
@@ -178,25 +178,50 @@ function eventKey(feedKey: string, e: Pick<MatchEvent, 'minute' | 'type' | 'play
   return `${feedKey}|${e.minute}|${e.type}|${e.side}|${e.playerId ?? ''}`
 }
 
-/** The goal's colour: the story of the score first (four, a hat-trick, a comeback, a late one, a brace), else the situation, the type, a derby or the scorer's season. */
-export function goalColour(feedKey: string, e: MatchEvent, s: MatchState, names: { home: string; away: string }, ctx: CommentaryContext = {}): string {
+/**
+ * One entry of `bank` by the hash, as `pickVariant`, but never one already in `used` (the lines this match has said):
+ * from the hashed entry on to the first fresh one, which joins `used`; null when the bank is spent. Without `used` it is
+ * `pickVariant` exactly, so a line read on its own is the one the match reads first.
+ */
+export function pickFresh(bank: readonly string[], key: string, used?: Set<string>): string | null {
+  const start = flavourHash(key) % bank.length
+  if (!used) return bank[start]
+  for (let i = 0; i < bank.length; i++) {
+    const line = bank[(start + i) % bank.length]
+    if (!used.has(line)) {
+      used.add(line)
+      return line
+    }
+  }
+  return null
+}
+
+/** The goal's colour: the story of the score first (four, a hat-trick, a comeback, a late one, a brace), else the situation, the type, a derby or the scorer's season. With `used`, never a line the match has said; null once every fitting line is spent. */
+export function goalColour(feedKey: string, e: MatchEvent, s: MatchState, names: { home: string; away: string }, ctx: CommentaryContext = {}, used?: Set<string>): string | null {
   const us = e.side
   const them = other(us)
   const gf = s.after[us]
   const ga = s.after[them]
   const key = eventKey(feedKey, e)
   const vars = { p: e.playerName ?? 'He', team: names[us], opp: names[them] }
-  const say = (bank: readonly string[], k = key) => fillTemplate(pickVariant(bank, k), vars)
+  const say = (bank: readonly string[], k = key): string | null => {
+    const line = pickFresh(bank, k, used)
+    return line === null ? null : fillTemplate(line, vars)
+  }
   // An own goal counts for the other side: its line is about the man who scored it
   if (e.type === 'own_goal') return say(GOAL_TYPE_LINES.ownGoal)
-  if (s.tally >= 4) return say(GOAL_LINES.fourPlus)
-  if (s.tally === 3) return say(GOAL_LINES.hatTrick)
-  if (s.worst[us] >= 2 && gf > ga && s.before[us] <= s.before[them]) return say(GOAL_LINES.comebackAhead)
-  if (s.worst[us] >= 2 && gf === ga) return say(GOAL_LINES.comebackLevel)
-  if (e.minute >= 85 && gf === ga + 1 && s.before[us] === s.before[them]) return say(GOAL_LINES.lateWinner)
-  if (e.minute >= 85 && gf === ga) return say(GOAL_LINES.lateLevel)
-  if (e.minute > 90 && flavourChance(key, 1, 2)) return say(GOAL_LINES.stoppage)
-  if (s.tally === 2) return say(GOAL_LINES.brace)
+  const story: readonly string[] | null =
+    s.tally >= 4 ? GOAL_LINES.fourPlus
+    : s.tally === 3 ? GOAL_LINES.hatTrick
+    : s.worst[us] >= 2 && gf > ga && s.before[us] <= s.before[them] ? GOAL_LINES.comebackAhead
+    : s.worst[us] >= 2 && gf === ga ? GOAL_LINES.comebackLevel
+    : e.minute >= 85 && gf === ga + 1 && s.before[us] === s.before[them] ? GOAL_LINES.lateWinner
+    : e.minute >= 85 && gf === ga ? GOAL_LINES.lateLevel
+    : e.minute > 90 && flavourChance(key, 1, 2) ? GOAL_LINES.stoppage
+    : s.tally === 2 ? GOAL_LINES.brace
+    : null
+  // A story spent in this match falls back to the goal's type, then a plain word on the finish
+  if (story) return say(story) ?? say(GOAL_TYPE_LINES[goalType(e)], `${key}#type`) ?? say(GOAL_TYPE_LINES.finish, `${key}#finish`)
   const situation: readonly string[] =
     gf + ga === 1 ? (e.minute <= 5 ? GOAL_LINES.earlyOpener : GOAL_LINES.opener)
     : gf === ga ? GOAL_LINES.equaliser
@@ -207,70 +232,79 @@ export function goalColour(feedKey: string, e: MatchEvent, s: MatchState, names:
     : gf < ga ? GOAL_LINES.consolation
     : GOAL_LINES.opener
   // Otherwise one of a few angles, by the hash: the situation, the type, the derby, the scorer's season
-  const angles: Array<() => string> = [() => say(situation), () => say(GOAL_TYPE_LINES[goalType(e)], `${key}#type`)]
+  const angles: Array<() => string | null> = [() => say(situation), () => say(GOAL_TYPE_LINES[goalType(e)], `${key}#type`)]
   if (s.label === 'Derby day') angles.push(() => say(DERBY_GOAL_LINES, `${key}#derby`))
   const before = e.playerId ? ctx.seasonGoals?.[e.playerId] : undefined
-  if (before !== undefined) angles.push(() => seasonGoalLine(before + s.tally, key))
+  if (before !== undefined) angles.push(() => seasonGoalLine(before + s.tally, key, used))
   const form = e.playerId ? ctx.form?.[e.playerId] : undefined
-  if (form !== undefined && (form >= 7.4 || form <= 6.3)) angles.push(() => pickVariant(form >= 7.4 ? FORM_LINES.hot : FORM_LINES.cold, `${key}#form`))
-  return angles[flavourHash(`${key}#angle`) % angles.length]()
+  if (form !== undefined && (form >= 7.4 || form <= 6.3)) angles.push(() => pickFresh(form >= 7.4 ? FORM_LINES.hot : FORM_LINES.cold, `${key}#form`, used))
+  // The hashed angle first, then the others in turn, then the finish, so a busy match still says something new
+  const first = flavourHash(`${key}#angle`) % angles.length
+  for (let i = 0; i < angles.length; i++) {
+    const line = angles[(first + i) % angles.length]()
+    if (line !== null) return line
+  }
+  return say(GOAL_TYPE_LINES.finish, `${key}#finish`)
 }
 
 export const FORM_LINES = {
-  hot: ['He is in the form of his life.', 'Another one for a man who cannot stop scoring.', 'Form like that is priceless.'],
-  cold: ['Just what he needed after a quiet spell.', 'That should do his confidence the world of good.', 'The monkey is off his back.'],
+  hot: ['He is in the form of his life.', 'Another one for a man who cannot stop scoring.', 'Form like that is priceless.', 'Everything he touches goes in at the moment.'],
+  cold: ['Just what he needed after a quiet spell.', 'That should do his confidence the world of good.', 'The monkey is off his back.', 'He has been waiting for that one.'],
 } as const
 
-/** "His 12th of the season." and the like, by the hash; a round number gets its own line. */
-export function seasonGoalLine(n: number, key: string): string {
-  if (n === 1) return pickVariant(['His first of the season.', 'Off the mark for the season.'], `${key}#season`)
-  if (n % 10 === 0) return pickVariant([`That is ${n} for the season. Remarkable.`, `${n} goals this season now.`], `${key}#season`)
-  return pickVariant([`His ${ordinalOf(n)} of the season.`, `That makes ${n} for the season.`, `Goal number ${n} this season.`], `${key}#season`)
+/** "His 12th of the season." and the like, by the hash; a round number gets its own line. With `used`, null when the match has said it. */
+export function seasonGoalLine(n: number, key: string, used?: Set<string>): string | null {
+  if (n === 1) return pickFresh(['His first of the season.', 'Off the mark for the season.'], `${key}#season`, used)
+  if (n % 10 === 0) return pickFresh([`That is ${n} for the season. Remarkable.`, `${n} goals this season now.`], `${key}#season`, used)
+  return pickFresh([`His ${ordinalOf(n)} of the season.`, `That makes ${n} for the season.`, `Goal number ${n} this season.`], `${key}#season`, used)
 }
 
-/** A chance or a save: the woodwork, the keeper, the line or a miss, with a word for the score late on. Sometimes nothing (a third of the time). */
-export function chanceColour(feedKey: string, e: MatchEvent, s: MatchState, names: { home: string; away: string }): string | null {
+/** A chance or a save: the woodwork, the keeper, the line or a miss, with a word for the score late on. Sometimes nothing (a third of the time, or once the fitting lines are spent with `used`). */
+export function chanceColour(feedKey: string, e: MatchEvent, s: MatchState, names: { home: string; away: string }, used?: Set<string>): string | null {
   const key = eventKey(feedKey, e)
   if (!flavourChance(key, 2, 3)) return null
   const us = e.side
   const them = other(us)
   const vars = { team: names[us], opp: names[them] }
-  const say = (bank: readonly string[]) => fillTemplate(pickVariant(bank, key), vars)
-  if (e.minute >= 75 && s.before[them] - s.before[us] === 1 && flavourChance(`${key}#late`, 1, 2)) return say(CHANCE_LINES.lateLevel)
-  if (e.minute >= 75 && s.before[us] - s.before[them] === 1 && flavourChance(`${key}#late`, 1, 2)) return say(CHANCE_LINES.lateCushion)
+  const say = (bank: readonly string[]): string | null => {
+    const line = pickFresh(bank, key, used)
+    return line === null ? null : fillTemplate(line, vars)
+  }
+  const late = (bank: readonly string[]) => (flavourChance(`${key}#late`, 1, 2) ? say(bank) : null)
   const t = e.text
-  if (/post|crossbar/.test(t)) return say(CHANCE_LINES.woodwork)
-  if (/on the line/.test(t)) return say(CHANCE_LINES.line)
-  if (e.type === 'save') return say(CHANCE_LINES.save)
-  return say(CHANCE_LINES.miss)
+  const plain = () => (/post|crossbar/.test(t) ? say(CHANCE_LINES.woodwork) : /on the line/.test(t) ? say(CHANCE_LINES.line) : e.type === 'save' ? say(CHANCE_LINES.save) : say(CHANCE_LINES.miss))
+  if (e.minute >= 75 && s.before[them] - s.before[us] === 1) return late(CHANCE_LINES.lateLevel) ?? plain()
+  if (e.minute >= 75 && s.before[us] - s.before[them] === 1) return late(CHANCE_LINES.lateCushion) ?? plain()
+  return plain()
 }
 
-/** A card: a second yellow, a red and nine men, an early booking, a tactical one late on while ahead. Every red, and half the yellows. */
-export function cardColour(feedKey: string, e: MatchEvent, s: MatchState): string | null {
+/** A card: a second yellow, a red and nine men, an early booking, a tactical one late on while ahead. Every red, and half the yellows (with `used`, none once its lines are spent). */
+export function cardColour(feedKey: string, e: MatchEvent, s: MatchState, used?: Set<string>): string | null {
   const key = eventKey(feedKey, e)
   if (e.type === 'red') {
-    if (s.reds[e.side] >= 2) return pickVariant(CARD_LINES.downToNine, key)
-    return pickVariant(/second yellow/.test(e.text) ? CARD_LINES.secondYellow : CARD_LINES.straightRed, key)
+    if (s.reds[e.side] >= 2) return pickFresh(CARD_LINES.downToNine, key, used)
+    return pickFresh(/second yellow/.test(e.text) ? CARD_LINES.secondYellow : CARD_LINES.straightRed, key, used)
   }
   if (!flavourChance(key, 1, 2)) return null
-  if (e.minute <= 20) return pickVariant(CARD_LINES.early, key)
-  if (e.minute >= 70 && s.before[e.side] > s.before[other(e.side)]) return pickVariant(CARD_LINES.tactical, key)
-  return pickVariant(CARD_LINES.yellow, key)
+  if (e.minute <= 20) return pickFresh(CARD_LINES.early, key, used)
+  if (e.minute >= 70 && s.before[e.side] > s.before[other(e.side)]) return pickFresh(CARD_LINES.tactical, key, used) ?? pickFresh(CARD_LINES.yellow, key, used)
+  return pickFresh(CARD_LINES.yellow, key, used)
 }
 
 /** A change: chasing the game, holding on, at the break, or routine (half the time). An injury's replacement says enough already. */
-export function subColour(feedKey: string, e: MatchEvent, s: MatchState): string | null {
+export function subColour(feedKey: string, e: MatchEvent, s: MatchState, used?: Set<string>): string | null {
   if (/injured/.test(e.text)) return null
   const key = eventKey(feedKey, e)
   const diff = s.before[e.side] - s.before[other(e.side)]
-  if (e.minute >= 70 && diff < 0) return pickVariant(SUB_LINES.chasing, key)
-  if (e.minute >= 75 && diff > 0 && flavourChance(key, 1, 2)) return pickVariant(SUB_LINES.holding, key)
-  if (e.minute === 45 || e.minute === 46) return pickVariant(SUB_LINES.halfTime, key)
-  return flavourChance(key, 1, 2) ? pickVariant(SUB_LINES.routine, key) : null
+  if (e.minute >= 70 && diff < 0) return pickFresh(SUB_LINES.chasing, key, used)
+  if (e.minute >= 75 && diff > 0 && flavourChance(key, 1, 2)) return pickFresh(SUB_LINES.holding, key, used)
+  if (e.minute === 45 || e.minute === 46) return pickFresh(SUB_LINES.halfTime, key, used)
+  return flavourChance(key, 1, 2) ? pickFresh(SUB_LINES.routine, key, used) : null
 }
 
-export function injuryColour(feedKey: string, e: MatchEvent, names: { home: string; away: string }): string {
-  return fillTemplate(pickVariant(INJURY_LINES, eventKey(feedKey, e)), { team: names[e.side] })
+export function injuryColour(feedKey: string, e: MatchEvent, names: { home: string; away: string }, used?: Set<string>): string | null {
+  const line = pickFresh(INJURY_LINES, eventKey(feedKey, e), used)
+  return line === null ? null : fillTemplate(line, { team: names[e.side] })
 }
 
 /** The half-time word on the score. */
@@ -334,13 +368,16 @@ export function preMatchLine(feedKey: string, names: { home: string; away: strin
   return null
 }
 
-/** A word on the mood for a quiet minute, from the score and the clock; null when the mood has nothing to say. */
-export function moodLine(feedKey: string, minute: number, score: { home: number; away: number }, reds: { home: number; away: number }, momentumSide: Side, names: { home: string; away: string }): string | null {
+/** A word on the mood for a quiet minute, from the score and the clock; null when the mood has nothing to say (or, with `used`, nothing new). */
+export function moodLine(feedKey: string, minute: number, score: { home: number; away: number }, reds: { home: number; away: number }, momentumSide: Side, names: { home: string; away: string }, used?: Set<string>): string | null {
   const key = `${feedKey}|mood|${minute}`
   const diff = score.home - score.away
   const lead: Side | null = diff > 0 ? 'home' : diff < 0 ? 'away' : null
   const vars = { team: names[momentumSide], lead: lead ? names[lead] : '', trail: lead ? names[other(lead)] : '', short: reds.home > reds.away ? names.home : names.away }
-  const say = (bank: readonly string[]) => fillTemplate(pickVariant(bank, key), vars)
+  const say = (bank: readonly string[]) => {
+    const line = pickFresh(bank, key, used)
+    return line === null ? null : fillTemplate(line, vars)
+  }
   if (reds.home !== reds.away && flavourChance(key, 1, 3)) return say(MOOD_LINES.tenMen)
   if (lead && Math.abs(diff) >= 3) return say(MOOD_LINES.cruising)
   if (minute >= 80 && lead && Math.abs(diff) === 1) return say(MOOD_LINES.nervy)

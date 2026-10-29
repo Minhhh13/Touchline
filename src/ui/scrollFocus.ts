@@ -31,14 +31,22 @@ export function scrollFocusAction(s: ScrollBoxState): 'add' | 'remove' | 'none' 
   return 'none'
 }
 
+/**
+ * A box scrolls one way: its overflow lets it, and any content runs past it. Any overflow counts, as axe counts it:
+ * content that ends on a fractional pixel at the box's edge rounds to a scrollHeight 1 px over the clientHeight, and
+ * the box does scroll by that pixel (the match day's stat lists, round 5).
+ */
+export function overflows(overflow: string, scroll: number, client: number): boolean {
+  return (overflow === 'auto' || overflow === 'scroll') && scroll > client
+}
+
 /** One pass over the page's scroll boxes. */
 export function syncScrollFocus(root: ParentNode = document): void {
   // Innermost first, so a box whose inner box has just joined the Tab order sees it at once
   ;[...root.querySelectorAll<HTMLElement>(SCROLL_BOXES)].reverse().forEach((el) => {
     const managed = el.hasAttribute('data-scroll-focus')
     const style = getComputedStyle(el)
-    const canScroll = (o: string) => o === 'auto' || o === 'scroll'
-    const scrollable = (canScroll(style.overflowY) && el.scrollHeight > el.clientHeight + 1) || (canScroll(style.overflowX) && el.scrollWidth > el.clientWidth + 1)
+    const scrollable = overflows(style.overflowY, el.scrollHeight, el.clientHeight) || overflows(style.overflowX, el.scrollWidth, el.clientWidth)
     const action = scrollFocusAction({ scrollable, hasFocusable: !!el.querySelector(FOCUSABLE), managed, ownTabIndex: el.hasAttribute('tabindex') })
     if (action === 'add') {
       el.setAttribute('tabindex', '0')

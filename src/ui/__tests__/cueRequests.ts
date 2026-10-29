@@ -36,4 +36,5 @@ export const CUE_REQUESTS: CueRequest[] = [
   { id: 'crowd-swell', danger: 1 },
   { id: 'crowd-bed', level: 1 },
   { id: 'crowd-bed', level: 0.6 },
+  { id: 'volume' },
 ]

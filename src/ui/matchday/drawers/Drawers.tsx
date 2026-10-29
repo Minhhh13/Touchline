@@ -113,20 +113,20 @@ export function InstructionsDrawer({ hand }: DrawerProps) {
     <Drawer title={tx('instructions')} sub={tx('instructionsSub')} onClose={hand.close} foot={<Foot hand={hand} canApply={changed} onApply={() => hand.submit({ tactics: t }) && hand.close()} />}>
       <div className="md-group">{tx('inPossession')}</div>
       <Field label={tx('tempo')} help={tempoHelp(t.tempo)}>
-        <Segmented value={t.tempo} onChange={(v) => set({ tempo: v })} options={[{ value: 'slow', label: tx('slow') }, { value: 'standard', label: tx('standard') }, { value: 'fast', label: tx('fast') }]} />
+        <Segmented label={tx('tempo')} value={t.tempo} onChange={(v) => set({ tempo: v })} options={[{ value: 'slow', label: tx('slow') }, { value: 'standard', label: tx('standard') }, { value: 'fast', label: tx('fast') }]} />
       </Field>
       <Field label={tx('width')} help={widthHelp(t.width)}>
-        <Segmented value={t.width} onChange={(v) => set({ width: v })} options={[{ value: 'narrow', label: tx('narrow') }, { value: 'standard', label: tx('standard') }, { value: 'wide', label: tx('wide') }]} />
+        <Segmented label={tx('width')} value={t.width} onChange={(v) => set({ width: v })} options={[{ value: 'narrow', label: tx('narrow') }, { value: 'standard', label: tx('standard') }, { value: 'wide', label: tx('wide') }]} />
       </Field>
       <Field label={tx('passing')} help={passingHelp(t.passing)}>
-        <Segmented value={t.passing} onChange={(v) => set({ passing: v })} options={[{ value: 'short', label: tx('short') }, { value: 'mixed', label: tx('mixed') }, { value: 'direct', label: tx('direct') }]} />
+        <Segmented label={tx('passing')} value={t.passing} onChange={(v) => set({ passing: v })} options={[{ value: 'short', label: tx('short') }, { value: 'mixed', label: tx('mixed') }, { value: 'direct', label: tx('direct') }]} />
       </Field>
       <div className="md-group">{tx('outOfPossession')}</div>
       <Field label={tx('pressing')} help={pressingHelp(t.pressing)}>
-        <Segmented value={t.pressing} onChange={(v) => set({ pressing: v })} options={[{ value: 'low', label: tx('low') }, { value: 'mid', label: tx('mid') }, { value: 'high', label: tx('high') }]} />
+        <Segmented label={tx('pressing')} value={t.pressing} onChange={(v) => set({ pressing: v })} options={[{ value: 'low', label: tx('low') }, { value: 'mid', label: tx('mid') }, { value: 'high', label: tx('high') }]} />
       </Field>
       <Field label={tx('defensiveLine')} help={lineHelp(t.defensiveLine)}>
-        <Segmented value={t.defensiveLine} onChange={(v) => set({ defensiveLine: v })} options={[{ value: 'deep', label: tx('deep') }, { value: 'standard', label: tx('standard') }, { value: 'high', label: tx('high') }]} />
+        <Segmented label={tx('defensiveLine')} value={t.defensiveLine} onChange={(v) => set({ defensiveLine: v })} options={[{ value: 'deep', label: tx('deep') }, { value: 'standard', label: tx('standard') }, { value: 'high', label: tx('high') }]} />
       </Field>
     </Drawer>
   )

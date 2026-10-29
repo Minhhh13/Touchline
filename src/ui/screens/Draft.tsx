@@ -217,6 +217,8 @@ export function Draft() {
   const selected = selectedPlayer ? get(selectedPlayer) : undefined
   const selectedEligible = selected ? eligibleSlots(d, selected).map((s) => s.id) : []
   const isDynastySummer = game.settings.mode === 'dynasty' && game.year > 1
+  // A Gauntlet's bonus spin mid-run (after rungs 2, 4, 6 and 8): the heading says why the draft is back
+  const gauntletBonus = game.arena?.format === 'gauntlet' && game.arena.step > 0
   // The power-ups used, newest first, above the spins in the draft log
   const puLog = powerUpLog(d, (id) => get(id)?.name ?? t('yourPlayer'), seasonLabel).sort((a, b) => b.at - a.at)
   // Quick Draft managers: offered once the draft is done or may close, from the club-seasons drafted
@@ -280,7 +282,7 @@ export function Draft() {
     <div className="page">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>{isDynastySummer ? t('summerDraft', { year: game.year }) : t(game.settings.mode === 'runin' ? 'reinforcements' : 'theDraft')}</h1>
+          <h1>{isDynastySummer ? t('summerDraft', { year: game.year }) : gauntletBonus ? t('gauntletBonus', { n: game.arena!.step }) : t(game.settings.mode === 'runin' ? 'reinforcements' : 'theDraft')}</h1>
           <div className="screen-meta">
             {/* What this draft is for, where its title does not say: the Daily, the Weekly, an arena format */}
             {(game.settings.mode === 'daily' || game.settings.mode === 'weekly' || game.settings.mode === 'arena') && (
@@ -617,7 +619,7 @@ export function Draft() {
                   </div>
                   )}
                 </div>
-                <Segmented<'rating' | 'position'> value={sort} onChange={setSort} options={[{ value: 'rating', label: t('byRating') }, { value: 'position', label: t('byPosition') }]} />
+                <Segmented<'rating' | 'position'> label={t('sortPlayers')} value={sort} onChange={setSort} options={[{ value: 'rating', label: t('byRating') }, { value: 'position', label: t('byPosition') }]} />
               </div>
               {!revealed && spinning && <div className="notice">{t('reelRunning')}</div>}
               {revealed && twist === 'blind' && <div className="notice">{t('blindPick')}</div>}

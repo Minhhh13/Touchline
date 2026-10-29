@@ -22,58 +22,121 @@ import { dailyArenaResult } from './logic/arenaDaily'
 import { weeklyGameSettings, weeklyPlan } from './logic/weekly'
 import { alreadyCredited, creditArena, creditGame, creditH2H, creditH2HOnline, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { cabinetWithFeats, creditCupFeats, creditGameFeats, creditRunInFeatsOn, withFeats } from './logic/feats'
-import { isPerfectDraft } from './logic/perfectDraft'
 import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { workerSaveEncoder } from './saveEncoder'
 import { afterNextPaint, nextTask } from './yieldToPage'
-import { runQuickInWorker, stopQuickWorker, warmQuickWorker } from './quickWorkerClient'
 import type { JanuaryJob } from './quickJob'
-import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
-import { januaryGambleMade } from './logic/januaryGamble'
-import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, markQuickSeasonFresh, quickSeasonStale } from './logic/quickSeam'
-import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
-import { availableStopChanges } from './logic/stopChanges'
-import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, runSteps, simWeeksSteps, startSeasonProper, WEEK_END, type GameBox, type WeekStep } from './logic/week'
+import type { GameBox, WeekStep } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
-import { restTired as restTiredStarters, startPromised as startPromisedMan } from './logic/seasonPlay'
 import { playerLookup } from './logic/players'
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
 import { fullScout, setAssignment, setRecruitFocus } from './logic/scouting'
-import { proposeContract, setShopped, type ContractOffer } from './logic/contracts'
-import { makeRequest, shiftWages, type RequestKind } from './logic/board'
+import type { ContractOffer } from './logic/contracts'
+import type { RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
-import { withTick, type OfficeTick } from './logic/officeSteps'
+import type { OfficeTick } from './logic/officeSteps'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
-import { advanceToNextSeason, letContractGo, postRenewals, type OffseasonReport } from './logic/dynasty'
+import type { OffseasonReport } from './logic/dynasty'
+import type { SummerStories } from './logic/dynastyHistory'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
 import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
-import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
-import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
-import { h2hNeedsClassic, h2hRulesFor } from './logic/h2hClassic'
+import type { H2HDraft } from '@engine/h2h'
+import type { H2HManager, H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
-import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
-import { challengeSettings, replayChallenge } from './logic/challenge'
-import { storyForGame } from './logic/story'
-import { simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
-import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
+import type { ChallengePayload } from '@engine/challenge'
+import type { StopReason } from './logic/seasonHighlights'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withAllTipsSeen, withTipSeen, type TipId } from './logic/tips'
-import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
-import { passQuickCup } from './logic/summaryCall'
-import { leaguesBeforeSkip } from './logic/cupSkip'
-import { lifelineChanges, LIFELINE_SAME_NOTE } from './logic/lifeline'
-import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, playMatchweekAsSteps, type MatchPlayMode } from './logic/assistant'
+import type { QuickCupComp } from './logic/quickCups'
+import { assistantTakesStops, matchPlayOf, type MatchPlayMode } from './logic/matchPlay'
+import { h2hNeedsClassic } from './logic/h2hNeedsClassic'
+import { late, loadRules, rules, rulesReady } from './rulesHook'
+
+// The game rules once a game is under way live in the rules chunk (`rules.ts`, out of the first download): the store
+// calls them by these names, as if imported, and every path to them waits for `loadRules()` first (rulesHook.ts)
+const isPerfectDraft = late('isPerfectDraft')
+const runQuickInWorker = late('runQuickInWorker')
+const stopQuickWorker = late('stopQuickWorker')
+const warmQuickWorker = late('warmQuickWorker')
+const pickManager = late('pickManager')
+const januaryGambleMade = late('januaryGambleMade')
+const januaryStale = late('januaryStale')
+const markQuickSeasonFresh = late('markQuickSeasonFresh')
+const quickSeasonStale = late('quickSeasonStale')
+const closeJanuary = late('closeJanuary')
+const closeJanuarySpin = late('closeJanuarySpin')
+const closeQuickSeason = late('closeQuickSeason')
+const kickOff = late('kickOff')
+const makeQuickChange = late('makeQuickChange')
+const openSpinChoices = late('openSpinChoices')
+const playbackResults = late('playbackResults')
+const quickChangeProblem = late('quickChangeProblem')
+const reopenJanuary = late('reopenJanuary')
+const rollJanuarySpin = late('rollJanuarySpin')
+const rollJanuaryUpgrade = late('rollJanuaryUpgrade')
+const toKickoff = late('toKickoff')
+const availableStopChanges = late('availableStopChanges')
+const advanceLiveMatch = late('advanceLiveMatch')
+const applyEventChoice = late('applyEventChoice')
+const changeLiveMatch = late('changeLiveMatch')
+const closeLiveMatch = late('closeLiveMatch')
+const completeLiveMatch = late('completeLiveMatch')
+const playFriendly = late('playFriendly')
+const runSteps = late('runSteps')
+const simWeeksSteps = late('simWeeksSteps')
+const startSeasonProper = late('startSeasonProper')
+const restTiredStarters = late('restTired')
+const startPromisedMan = late('startPromised')
+const proposeContract = late('proposeContract')
+const setShopped = late('setShopped')
+const makeRequest = late('makeRequest')
+const shiftWages = late('shiftWages')
+const withTick = late('withTick')
+const advanceToNextSeason = late('advanceToNextSeason')
+const letContractGo = late('letContractGo')
+const postRenewals = late('postRenewals')
+const noteSeasonEnd = late('noteSeasonEnd')
+const summerSnapshot = late('summerSnapshot')
+const summerStories = late('summerStories')
+const h2hAutoPick = late('h2hAutoPick')
+const h2hComplete = late('h2hComplete')
+const h2hPick = late('h2hPick')
+const h2hSpin = late('h2hSpin')
+const newH2HDraft = late('newH2HDraft')
+const runH2HSeason = late('runH2HSeason')
+const h2hRulesFor = late('h2hRulesFor')
+const decodeChallenge = late('decodeChallenge')
+const isArenaPayload = late('isArenaPayload')
+const challengeSettings = late('challengeSettings')
+const replayChallenge = late('replayChallenge')
+const storyForGame = late('storyForGame')
+const simToNextStopSteps = late('simToNextStopSteps')
+const beginRunIn = late('beginRunIn')
+const runInEntry = late('runInEntry')
+const seedRunInDraft = late('seedRunInDraft')
+const creditCupRun = late('creditCupRun')
+const playQuickCup = late('playQuickCup')
+const quickCupProblem = late('quickCupProblem')
+const quickCupStatus = late('quickCupStatus')
+const skipQuickCup = late('skipQuickCup')
+const passQuickCup = late('passQuickCup')
+const leaguesBeforeSkip = late('leaguesBeforeSkip')
+const lifelineChanges = late('lifelineChanges')
+const advanceWithAssistant = late('advanceWithAssistant')
+const finishWithAssistant = late('finishWithAssistant')
+const playMatchweekAs = late('playMatchweekAs')
+const playMatchweekAsSteps = late('playMatchweekAsSteps')
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
 async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUniverse> {
@@ -156,7 +219,8 @@ interface Store {
    * older game). A full storage is `saveFailing`, which goes with the next write that lands.
    */
   saveIssue: 'elsewhere' | null
-  offseason: OffseasonReport | null
+  /** The summer's report, with the player stories the club's history tells (round 9; transient). */
+  offseason: (OffseasonReport & { stories?: SummerStories }) | null
   /** What happened over the matchweeks just simulated (Sim 5, Sim to end); transient, never saved. */
   digest: SimDigest | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
@@ -531,7 +595,7 @@ export const useStore = create<Store>()(
               return { next: finishDraft(box.g), value: r.value }
             }
             // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
-            if (r.value === WEEK_END) {
+            if (r.value === rules().WEEK_END) {
               tickOffice(box.g, u0, true)
               box.g = createDraft(finishDraft(box.g))
             }
@@ -585,7 +649,7 @@ export const useStore = create<Store>()(
         const { game, universe } = get()
         if (!game || !universe || !januaryStale(game, universe)) return false
         mutate((g, u) => reopenJanuary(g, u))
-        set({ toast: JANUARY_REDRAWN_NOTE })
+        set({ toast: rules().JANUARY_REDRAWN_NOTE })
         return true
       }
       /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
@@ -639,6 +703,20 @@ export const useStore = create<Store>()(
        * A quick season with a bench is held open while its playback runs; leaving it for another game (or abandoning it)
        * closes it and records it first, so a season that was played never goes missing from the record.
        */
+      /** A failed load of the rules chunk (offline before it was cached): said once, nothing changed. */
+      const rulesFailed = () => set({ toast: 'Could not load the game: check your connection and try again.' })
+      /**
+       * An action Home can reach before the rules chunk is in (start, abandon, resume) and that needs it now: true when
+       * it had to wait, the action then run again once the chunk has loaded (`again`). Settling a finished quick season
+       * needs it; nothing else these actions do does.
+       */
+      const waitForRules = (again: () => void, need = false): boolean => {
+        if (rulesReady()) return false
+        const { game } = get()
+        if (!need && !(game?.quickOpen && game.phase === 'summary')) return false
+        loadRules().then(again, rulesFailed)
+        return true
+      }
       const settleQuickSeason = () => {
         const { game } = get()
         if (!game?.quickOpen || game.phase !== 'summary') return
@@ -802,6 +880,13 @@ export const useStore = create<Store>()(
         openArenaSetup: (format) => set({ screen: 'setup', setupMode: 'arena', arenaSetupFormat: format, pendingChallenge: null }),
         showToast: (text) => set({ toast: text }),
         openChallenge: async (encoded) => {
+          // Reading and replaying a challenge is the rules chunk's work (a link can open before it has loaded)
+          try {
+            await loadRules()
+          } catch {
+            rulesFailed()
+            return false
+          }
           let payload: ChallengePayload
           try {
             payload = decodeChallenge(encoded)
@@ -836,6 +921,7 @@ export const useStore = create<Store>()(
         },
 
         startGame: (settings) => {
+          if (waitForRules(() => get().startGame(settings), settings.mode === 'runin')) return
           settleQuickSeason()
           const game = createGame(settings)
           // The Run-in inherits a real squad: the draft opens seeded with it and four spins to make
@@ -849,6 +935,7 @@ export const useStore = create<Store>()(
           set({ game, parked: next, screen: 'game', liveAuto: false, pendingChallenge: null, digest: null, playback: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
         abandonGame: () => {
+          if (waitForRules(() => get().abandonGame())) return
           settleQuickSeason()
           set({ game: null, screen: 'home', offseason: null, digest: null, playback: null })
         },
@@ -865,7 +952,7 @@ export const useStore = create<Store>()(
         },
         startRunInWeek: async (seed) => {
           // The Run-in of the week's mapping loads on demand, out of the first download (only this action needs it here)
-          const { weeklyRunInPlan, weeklyRunInSettings } = await import('./logic/runinWeekly')
+          const [{ weeklyRunInPlan, weeklyRunInSettings }] = await Promise.all([import('./logic/runinWeekly'), loadRules()])
           const plan = weeklyRunInPlan(seed)
           if (!plan || !(await get().ensureLeagues([plan.leagueId]))) return false
           const u = get().universe
@@ -875,6 +962,7 @@ export const useStore = create<Store>()(
           return true
         },
         resumeGame: (slot) => {
+          if (waitForRules(() => get().resumeGame(slot))) return
           settleQuickSeason()
           const target = get().parked[slot]
           if (!target) return
@@ -1117,7 +1205,7 @@ export const useStore = create<Store>()(
           }
           // A change plays the season again: on one an earlier engine played, that would rewrite the games already shown
           if (game.phase === 'january' ? redrawStaleJanuary() : quickSeasonStale(game, universe)) {
-            if (game.phase !== 'january') set({ toast: CHANGES_CLOSED_NOTE })
+            if (game.phase !== 'january') set({ toast: rules().CHANGES_CLOSED_NOTE })
             return
           }
           mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
@@ -1380,7 +1468,7 @@ export const useStore = create<Store>()(
           // A lifeline that would bring the same side back is refused before it is spent (`lifeline.ts`)
           const a = get().game?.arena
           if (a?.format === 'gauntlet' && a.lifelineUsed === undefined && !lifelineChanges(a)) {
-            set({ toast: LIFELINE_SAME_NOTE })
+            set({ toast: rules().LIFELINE_SAME_NOTE })
             return
           }
           mutate((g, u) => {
@@ -1599,9 +1687,12 @@ export const useStore = create<Store>()(
           const run = () => {
             // Only a finished season moves on (a second tap while leagues load must not run the summer twice)
             if (get().game?.phase !== 'summary') return
-            let report: OffseasonReport | null = null
+            let report: (OffseasonReport & { stories?: SummerStories }) | null = null
             mutate((g, u) => {
-              report = advanceToNextSeason(g, u)
+              // The stories read the squad before the summer drops last season's men; neither draws
+              const snap = summerSnapshot(g, u)
+              const r = advanceToNextSeason(g, u)
+              report = { ...r, stories: summerStories(snap, r.retired, g, u) }
             })
             set({ offseason: report })
           }
@@ -1619,6 +1710,11 @@ export const useStore = create<Store>()(
         dismissOffseason: () => set({ offseason: null }),
 
         recordResult: () => {
+          const ended = get().game
+          if (ended && rulesReady() && (ended.settings.mode === 'dynasty' || ended.settings.mode === 'season') && ended.phase === 'summary' && ended.season && ended.history.at(-1)?.year === ended.year && !ended.history.at(-1)?.notes) {
+            // The club's history notes the season once (display only, no draw; the rules chunk holds it, in since the season ended)
+            mutate((g, u) => void noteSeasonEnd(g, u))
+          }
           const { game, profile, universe } = get()
           if (!game || !universe || game.phase !== 'summary') return
           // The arena files a run on its own table and shelves: no leaderboard row, no daily streak, no season counted
@@ -1642,7 +1738,7 @@ export const useStore = create<Store>()(
           if (game.settings.mode === 'runin') {
             const row = runInEntry(game, universe, new Date().toISOString().slice(0, 10))
             if (!row || alreadyCredited(profile, row.id) || profile.runIns?.some((e) => e.id === row.id)) return
-            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, RUN_IN_LOG_CAP), cabinet: creditRunInFeatsOn(creditRunIn(cabinetWithFeats(profile), game, row.met), game, row.met) } })
+            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, rules().RUN_IN_LOG_CAP), cabinet: creditRunInFeatsOn(creditRunIn(cabinetWithFeats(profile), game, row.met), game, row.met) } })
             return
           }
           const rec = finishedRecord(game)

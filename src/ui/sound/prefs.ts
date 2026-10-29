@@ -66,6 +66,19 @@ export function parseVolume(raw: string | null): number {
   return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 100
 }
 
+/**
+ * The slider is perceptual (round 9): loudness grows about as the amplitude to the power 0.6 (Stevens' law), so the
+ * gain is the slider's share to the power 1 / 0.6, and each step of the slider sounds like the same step louder. Half
+ * way is about -10 dB (half as loud, as it should sound), 10 % about -33 dB, 0 silent, 100 the full master.
+ */
+export const VOLUME_EXPONENT = 1 / 0.6
+
+/** The gain (0 to 1) a volume in whole per cent stands for: `parseVolume`'s figure on the perceptual curve. */
+export function volumeGain(percent: number): number {
+  const x = parseVolume(String(percent)) / 100
+  return x <= 0 ? 0 : Math.pow(x, VOLUME_EXPONENT)
+}
+
 let volume: number | null = null
 const volumeListeners = new Set<() => void>()
 

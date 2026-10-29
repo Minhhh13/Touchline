@@ -43,6 +43,8 @@ export type CueRequest =
   | { id: 'ball'; touch: BallTouch; power: number }
   | { id: 'crowd-swell'; danger: number }
   | { id: 'crowd-bed'; level: number }
+  /** The volume slider let go: a reference note at the new level, on the master alone (any switch may be off). */
+  | { id: 'volume' }
 
 export type CueId = CueRequest['id']
 
@@ -69,6 +71,7 @@ export const CUE_CATEGORY: Record<CueId, SoundCategory> = {
   ball: 'match',
   'crowd-swell': 'match',
   'crowd-bed': 'match',
+  volume: 'reward',
 }
 
 export function isCue(id: string): id is CueId {
@@ -102,6 +105,19 @@ export const CUE_GAP_MS: Partial<Record<string, number>> = {
   // The ball's own thinning is in ball.ts (BALL_GAP_MS); this floor only keeps two requests in one frame apart
   ball: 40,
   'crowd-bed': 3000,
+  volume: 120,
+  // The palette's draft and reward moments (round 9): a double landing or a fanfare asked for twice in one breath plays once
+  landing: 150,
+  upgrade: 500,
+  grade: 1000,
+  fanfare: 1500,
+  // The season's cues (seasonScores.ts, played through playScore as `season:<id>`): one step never asks twice, so these only stop a double
+  'season:result': 120,
+  'season:goals': 120,
+  'season:batch': 300,
+  'season:stinger': 200,
+  'season:halfway': 1000,
+  'season:season-end': 1500,
 }
 
 /** Remembers when each sound last played and answers whether another may play now (`now` in ms, any clock that only goes forward). */

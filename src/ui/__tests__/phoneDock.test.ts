@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8')
+// The game screens' sheet (gameScreens.css, round 9's first download) holds the match report's shoot-out rules
+const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8') + readFileSync(join(__dirname, '..', 'gameScreens.css'), 'utf8')
 const app = readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')
 const phoneCss = readFileSync(join(__dirname, '..', 'matchday', 'matchday-phone.css'), 'utf8')
 const dockAt = css.indexOf('@media (max-width: 720px) and (min-height: 501px) {\n  .app:not(.bar-hidden):not(.dock-off) {')
@@ -28,6 +29,10 @@ describe('the phone dock', () => {
     }
     // Off the phone (and with no dock) the tokens give back the plain home-indicator padding
     expect(css).toContain(':root {\n  --dock-h: 0px;\n  --dock-safe: var(--safe-bottom);\n}')
+  })
+
+  it("keeps a phone shoot-out's Take the penalties above the dock (r9)", () => {
+    expect(css).toMatch(/\.shootout-foot \{\n {2}position: sticky;\n {2}bottom: calc\(var\(--space-2\) \+ var\(--dock-h\) \+ var\(--dock-safe\)\);/)
   })
 
   it('stands down for the match day and while the keyboard is up', () => {

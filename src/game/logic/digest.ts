@@ -64,6 +64,8 @@ export interface SimDigest {
   suspensions: NewsItem[]
   transfers: NewsItem[]
   development: NewsItem[]
+  /** What the manager's office posted (requests handed in, promises kept or broken, a boast settled); its transfer items stay under transfers too. */
+  office: NewsItem[]
   /** Every inbox item posted during the simulation, newest first (at most the feed's cap). */
   news: NewsItem[]
   /** More items were posted than the feed keeps, so the oldest of them are gone. */
@@ -139,6 +141,7 @@ export function buildDigest(before: DigestSnapshot, game: Game): SimDigest | nul
     suspensions: news.filter((n) => n.kind === 'suspension'),
     transfers: news.filter((n) => n.kind === 'transfer'),
     development: news.filter((n) => n.kind === 'training'),
+    office: news.filter((n) => n.office === true && n.kind !== 'transfer'),
     news,
     truncated: added > news.length,
   }

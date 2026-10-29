@@ -1,5 +1,5 @@
 import { useStore } from '@game/store'
-import { RUN_IN_BRIEF_SHORT } from '@game/logic/runin'
+import { briefShortText } from '../runInText'
 import { ClubBadge } from './bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { translator } from '../i18n'
@@ -39,7 +39,7 @@ export function RunInsTable() {
                 </td>
                 <td style={{ whiteSpace: 'normal' }}>
                   <span className={`chip ${e.met ? 'good' : 'bad'}`}>
-                    {RUN_IN_BRIEF_SHORT[e.template]} {e.met ? '✓' : e.sacked ? t('sacked') : '✗'}
+                    {briefShortText(e.template)} {e.met ? '✓' : e.sacked ? t('sacked') : '✗'}
                   </span>
                 </td>
                 <td className="num">

@@ -24,22 +24,22 @@ export function TeamInstructions({ t: tac, onChange }: { t: Tactics; onChange: (
   return (
     <div className="col" data-testid="team-instructions">
       <Instruction label={t('mentality')} help={MENTALITY_HELP[tac.mentality]}>
-        <Segmented value={tac.mentality} onChange={(v) => onChange({ mentality: v })} options={[{ value: 'defensive', label: t('defensive') }, { value: 'balanced', label: t('balancedOpt') }, { value: 'attacking', label: t('attacking') }]} />
+        <Segmented label={t('mentality')} value={tac.mentality} onChange={(v) => onChange({ mentality: v })} options={[{ value: 'defensive', label: t('defensive') }, { value: 'balanced', label: t('balancedOpt') }, { value: 'attacking', label: t('attacking') }]} />
       </Instruction>
       <Instruction label={t('tempo')} help={TEMPO_HELP[tac.tempo]}>
-        <Segmented value={tac.tempo} onChange={(v) => onChange({ tempo: v })} options={[{ value: 'slow', label: t('slow') }, { value: 'standard', label: t('standard') }, { value: 'fast', label: t('fast') }]} />
+        <Segmented label={t('tempo')} value={tac.tempo} onChange={(v) => onChange({ tempo: v })} options={[{ value: 'slow', label: t('slow') }, { value: 'standard', label: t('standard') }, { value: 'fast', label: t('fast') }]} />
       </Instruction>
       <Instruction label={t('pressing')} help={PRESSING_HELP[tac.pressing]}>
-        <Segmented value={tac.pressing} onChange={(v) => onChange({ pressing: v })} options={[{ value: 'low', label: t('lowBlock') }, { value: 'mid', label: t('mid') }, { value: 'high', label: t('highPress') }]} />
+        <Segmented label={t('pressing')} value={tac.pressing} onChange={(v) => onChange({ pressing: v })} options={[{ value: 'low', label: t('lowBlock') }, { value: 'mid', label: t('mid') }, { value: 'high', label: t('highPress') }]} />
       </Instruction>
       <Instruction label={t('defLine')} help={LINE_HELP[tac.defensiveLine]}>
-        <Segmented value={tac.defensiveLine} onChange={(v) => onChange({ defensiveLine: v })} options={[{ value: 'deep', label: t('deep') }, { value: 'standard', label: t('standard') }, { value: 'high', label: t('high') }]} />
+        <Segmented label={t('defLine')} value={tac.defensiveLine} onChange={(v) => onChange({ defensiveLine: v })} options={[{ value: 'deep', label: t('deep') }, { value: 'standard', label: t('standard') }, { value: 'high', label: t('high') }]} />
       </Instruction>
       <Instruction label={t('width')} help={WIDTH_HELP[tac.width]}>
-        <Segmented value={tac.width} onChange={(v) => onChange({ width: v })} options={[{ value: 'narrow', label: t('narrow') }, { value: 'standard', label: t('standard') }, { value: 'wide', label: t('wide') }]} />
+        <Segmented label={t('width')} value={tac.width} onChange={(v) => onChange({ width: v })} options={[{ value: 'narrow', label: t('narrow') }, { value: 'standard', label: t('standard') }, { value: 'wide', label: t('wide') }]} />
       </Instruction>
       <Instruction label={t('passing')} help={PASSING_HELP[tac.passing]}>
-        <Segmented value={tac.passing} onChange={(v) => onChange({ passing: v })} options={[{ value: 'short', label: t('short') }, { value: 'mixed', label: t('mixed') }, { value: 'direct', label: t('direct') }]} />
+        <Segmented label={t('passing')} value={tac.passing} onChange={(v) => onChange({ passing: v })} options={[{ value: 'short', label: t('short') }, { value: 'mixed', label: t('mixed') }, { value: 'direct', label: t('direct') }]} />
       </Instruction>
     </div>
   )

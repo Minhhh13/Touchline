@@ -69,6 +69,7 @@ export const app = catalog('app', {
   suspensions: 'Suspensions',
   transfers: 'Transfers',
   development: 'Development',
+  digestOffice: 'In the office',
   digestQuiet: 'Nothing else to report: no injuries, bans, transfers or decisions taken in your name.',
   digestTruncated: 'The inbox keeps the latest 120 items, so the earliest of these weeks have already dropped off it.',
   unread: '{n, plural, =0 {Nothing unread in the Inbox} other {# unread in the Inbox}}',

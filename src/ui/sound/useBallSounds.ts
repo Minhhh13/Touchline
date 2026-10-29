@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { timeline, useLiveClock, type TimelinePoint } from '../match/clockStore'
 import type { BallKeyframe } from '../match/possession'
 import type { Side } from '../match/pitchGeometry'
-import { ballCues, dueBallCues, dueGoals, dueSwells, speedScale, swellCues } from './ball'
+import { ALWAYS, ballCues, dueBallCues, dueGoals, dueSwells, speedScale, swellCues } from './ball'
+import { admit, bedLevel, crowdMood, ducked, matchMix } from './mix'
 import { matchSoundOn } from './prefs'
 import { liveAudio, playSound, stopAll } from './synth'
 
@@ -25,7 +26,7 @@ export interface BallSoundOptions {
 /**
  * The ball's sounds on the live pitch: each frame reads the shared live clock (the `timeline` the pitch draws from)
  * and plays the kicks, saves, woodwork and swells `ball.ts` says passed since the last frame, with the crowd's bed
- * under them while the clock runs. Silent and free with sound or match sounds off, before a gesture and without Web
+ * under them while the clock runs, rising and falling with the match (`crowdMood`) and hushed under a goal's roar. Silent and free with sound or match sounds off, before a gesture and without Web
  * Audio; it decides nothing and reads nothing but the clock and the drawn path.
  */
 export function useBallSounds(o: BallSoundOptions): void {
@@ -59,12 +60,15 @@ export function useBallSounds(o: BallSoundOptions): void {
         const m = model.current
         const speed = st.speed * (st.boost ?? 1)
         const k = speedScale(speed)
-        for (const c of dueBallCues(prev, cur, m.cues, speed, now, last)) playSound({ id: 'ball', touch: c.touch, power: Math.round(c.power * k * 10) / 10 })
-        for (const s of dueSwells(prev, cur, m.swells)) playSound({ id: 'crowd-swell', danger: Math.round(s.danger * 10) / 10 })
-        if (m.goals) for (const g of dueGoals(prev, cur, m.path)) playSound({ id: 'goal', tone: m.goals.userSide ? (g.side === m.goals.userSide ? 'ours' : 'theirs') : 'neutral', seed: `reel-${g.t.toFixed(2)}` })
-        if (st.running && m.bed > 0 && now - bedAt >= BED_EVERY_MS) {
+        if (m.goals) for (const g of dueGoals(prev, cur, m.path)) if (admit(matchMix, 'goal', now, speed)) playSound({ id: 'goal', tone: m.goals.userSide ? (g.side === m.goals.userSide ? 'ours' : 'theirs') : 'neutral', seed: `reel-${g.t.toFixed(2)}` })
+        for (const c of dueBallCues(prev, cur, m.cues, speed, now, last)) if (admit(matchMix, ALWAYS.has(c.touch) ? 'strike' : 'ball', now, speed)) playSound({ id: 'ball', touch: c.touch, power: Math.round(c.power * k * 10) / 10 })
+        for (const s of dueSwells(prev, cur, m.swells)) if (admit(matchMix, 'swell', now, speed)) playSound({ id: 'crowd-swell', danger: Math.round(s.danger * 10) / 10 })
+        // A goal's roar has the stadium: the bed goes quiet under it and comes back, roused, once it has passed
+        if (ducked(matchMix, now)) {
+          if (bed.size) hush()
+        } else if (st.running && m.bed > 0 && now - bedAt >= BED_EVERY_MS) {
           bedAt = now
-          for (const n of playSound({ id: 'crowd-bed', level: m.bed })) {
+          for (const n of playSound({ id: 'crowd-bed', level: bedLevel(m.bed, crowdMood(m.path, cur.t), speed) })) {
             bed.add(n)
             n.addEventListener('ended', () => bed.delete(n))
           }

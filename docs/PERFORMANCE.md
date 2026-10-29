@@ -2,7 +2,7 @@
 
 What a mid-range phone pays for TouchLine, measured before the iOS App Store release, what the perf pass of
 2026-10-26 (`perf-pass`, from `claude/touchline-preview` 32ace40) changed, what round 2 (`perf-r2`, from 9aaa6c0, the
-same evening) changed, round 6's UI work, round 3 (`r7-perf`, 2026-10-27, on engine 6), and what to look at next. Every number is from the production build.
+same evening) changed, round 6's UI work, round 3 (`r7-perf`, 2026-10-27, on engine 6), round 9's first download (`r9-firstload`, 2026-10-29, on engine 7), and what to look at next. Every number is from the production build.
 
 ## How it was measured
 
@@ -131,7 +131,8 @@ software rasteriser. A phone's GPU takes much of that off the main thread.
    (`api.ts`'s board readers and chase actions, the store's `startRunInWeek`), and the entry measured 310.5 KB.
    Batch 5 (the round 8 branches, 2026-10-28) raised the budgets to 330 KB and 56 KB: each branch stayed under 315 and
    50 on its own, together they measured 323.0 KB of JS and 53.0 KB of CSS; splitting `week.ts` and the round's styles
-   out of the first download would take them back under the old figures.
+   out of the first download would take them back under the old figures. Round 9 did (below): 241.0 KB and 47.0 KB,
+   budgets 255 and 50.
 
 No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pass untouched, ENGINE_VERSION is `'4'`.
 
@@ -317,6 +318,61 @@ the edge bundle); Auto-complete's own loop (180 ms, the engine's `autoDraft` in 
 it; the first render of the quick summary (about 290 ms) and the match report (about 230 to 290 ms). No seeded outcome
 moved: the pins, `noMove`, `dailyPin` and `marketPin` pass untouched, ENGINE_VERSION is `'6'`.
 
+## Round 9 (`r9-firstload`)
+
+The first download after round 8, on `main` at d76e552 (engine 7, round 8 and accessibility round 4). Byte counts are
+the budget test's (`gzip -9` of the entry chunk and every chunk it imports statically, and of the global stylesheet);
+the cold loads are the iPhone 13 viewport, 4x CPU and Fast 3G as above, behind a gzip static server, no service worker,
+median of three interleaved runs; the matchweeks are a Season save at pre-season (Everton 2023-24, England, Sim result)
+loaded into the page, 4x CPU from 9 s after load, two runs each, before and after interleaved. The machine was quiet
+(load average under 3).
+
+| | Before (main) | After |
+| --- | --- | --- |
+| Entry JS with its static imports (gzip -9) | 323.1 KB | 241.0 KB |
+| Global stylesheet (gzip -9) | 53.2 KB | 47.0 KB |
+| On the wire before Home (gzip 6): JS, CSS | 325.7 KB, 53.8 KB | 243.3 KB, 47.6 KB |
+| Cold start, first contentful paint | 6.49 to 6.52 s (6.51) | 5.42 to 5.51 s (5.44) |
+| Cold start, Home rendered | 7.05 to 7.17 s (7.06) | 6.51 to 6.55 s (6.51) |
+| Long tasks before Home: total, longest | 811 to 974 ms (817), 392 to 427 ms (402) | 785 to 888 ms (816), 361 to 415 ms (388) |
+| Play matchweek (Sim result), Kick off: tap to the report, longest task | 709 to 807 ms, 207 to 248 ms | 744 to 827 ms, 215 to 261 ms |
+| Play matchweek (Sim result), weeks 2 to 6: longest task | 93 to 143 ms | 98 to 182 ms |
+| Edge verifier | `verifier-ecc269657e48639b.js` | unchanged |
+
+The matchweek is the same code in the same order (the store calls it through the rules chunk), so its figures are
+equal within the runs' spread; the first paint comes about a second sooner because 82 KB less script is downloaded,
+parsed and compiled before it on Fast 3G. Screenshots of Home, the Dugout, its Cup tab, the player card and the match
+report, at 1280 and 390 in both themes, are pixel-identical before and after (one dark Dugout differed by one colour
+level on 43 pixels of a panel edge, a rasteriser dither, identical on a second run).
+
+What changed:
+
+1. **The rules chunk** (`src/game/rules.ts`, held by `src/game/rulesHook.ts`). The store imported every game rule it
+   runs once a game is under way: the season loop (`week.ts`, the assistant, the Dynasty, contracts, the board, the
+   office's steps), the quick season and its worker client, the post-season cups, challenges (and through them the
+   managers' data, 18 KB gzip), the Run-in, head-to-head and Season Highlights. They are re-exported by `rules.ts` and
+   the store calls each by its old name through `late(name)`, so no call reads differently. Every game screen loads the
+   chunk with its own (App.tsx's `withRules`; HowTo and Privacy do not need it), so its actions find it in place. Home's
+   own actions need it only to settle an open quick season or seed a run-in: start, abandon and resume then load it and
+   run again (`waitForRules`, tested with a fresh store in `rulesHook.test.ts`), and `openChallenge` awaits it. A save
+   loads without it: `matchPlay.ts` (`assistantTakesStops`) and `h2hNeedsClassic.ts` were split out of `assistant.ts`
+   and `h2hClassic.ts`, which re-export them. The tests load it in `src/testSetup.ts`, in a `beforeAll` so a file's
+   `vi.mock` of an engine module is in place first.
+2. **The online layer loads on use.** `api.ts` imported the account checks (`auth.ts`, which reads the verifier's
+   `HIDDEN_CHARS`) and the challenge links statically, and with them the challenge codec and the engine's replay; each
+   is now an `import()` in the async action that uses it. Home's ranked tag (`usePinnedDaily`) loads the Daily's ranked
+   mapping and `engineRoute.ts` once a board's pin is in (the pin itself arrives after Home is up).
+3. **The game screens' sheet** (`src/ui/gameScreens.css`, loaded through `gameStyles.ts` by `withRules`): the player
+   card (both sections), the match report, the playback's short windows, the Cup brackets, the arena hub's calls column
+   and the pre-season coach mark, in their old order. A section could move only if no later rule of styles.css matched
+   the same elements with the same specificity and property (it would win a tie it lost before): each was checked with
+   a script over the stylesheet, and the one such rule (the large screen's cap on the report page) moved with them.
+   `budget.test.ts` checks that every selector there names a class Home and the shell never render.
+
+The budget test now also fails on a value import of a rules module in `store.ts`, on a `late()` name the chunk does
+not export, and on a game screen that does not wait for the rules. No seeded outcome moved: the pins, `noMove`,
+`dailyPin`, `marketPin` and the whole suite pass untouched, and the edge bundle keeps its name.
+
 ## Next
 
 In order of what a phone would gain:
@@ -335,8 +391,14 @@ In order of what a phone would gain:
    game-side loop over `spin`, `assistantChoice` and `pick` (tested equal to `autoDraft`) could slice it.
 5. **The in-memory game**: compact finished results in memory as the save does (invariant 5 already limits what
    may read them), about 0.7 MB a matchweek. Test: seeded seasons with and without it give identical games.
-6. **`src/engine/data/managers.json`** (60 KB, 20 KB gzip) is in the entry chunk (round 2, item 7).
-7. **The global stylesheet** (222 KB) costs a 230 ms style recalculation on Home's first frame; screen-only rules
-   could move into the screens' chunks.
+6. **`src/engine/data/managers.json`** left the entry chunk with the rules chunk in round 9; it still rides in the
+   quick-season worker and the edge verifier (round 2, item 7).
+7. **The global stylesheet** (255 KB minified after round 9 moved 34 KB to `gameScreens.css`) costs a style
+   recalculation on Home's first frame; more screen-only sections could follow (the Draft's reel, the manager pick, the
+   digest), each checked for later rules of equal weight first.
 8. **Flags for offline**: the drawn flags are cached only once seen; the precache list could take the ones the packs
    name.
+9. **What Home still carries of the game**: `setup.ts` (in the verifier's graph) imports the arena, youth and market
+   logic, and with them the match engine, because Home builds the Daily's, the Weekly's and the first draft's settings.
+   A Home that read only `daily.ts`, `weekly.ts`'s plan and `onboarding.ts`'s settings without `setup.ts` would leave
+   them out, but `weekly.ts` and `onboarding.ts` import `setup.ts`: an engine release that splits `setup.ts` could do it.

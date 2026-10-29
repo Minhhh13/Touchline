@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { WifiOff } from 'lucide-react'
 import { useStore, slotOf, todaysDailySeed } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
 import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, CasualKind, CasualRow, CasualSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
+import { startingTeam } from '../teamName'
 import { PAGE } from '../../online/boards'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
 import { dailyStartSettings, weeklyStartSettings } from '../../online/daily'
@@ -53,6 +56,9 @@ function rememberedTab(): Tab {
 }
 
 const DAY = 86400000
+
+/** The browser says it has no connection (a board then waits for one instead of trying). */
+const offlineNow = () => typeof navigator !== 'undefined' && navigator.onLine === false
 const tierText = (t: string) => TIER_LABEL[t as SeasonTier] ?? t
 
 function Flag({ code }: { code: string | null }) {
@@ -74,6 +80,7 @@ function useBoard<R, S>(key: string, page: (offset: number) => Promise<R[]>, sum
   const [sum, setSum] = useState<S | null>(null)
   const [more, setMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [offline, setOffline] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const [busy, setBusy] = useState(false)
   // The readers change every render; the effect reads the latest through a ref and reloads only on what it names
@@ -82,7 +89,17 @@ function useBoard<R, S>(key: string, page: (offset: number) => Promise<R[]>, sum
   useEffect(() => {
     let live = true
     setRows(null)
+    // A new board never shows the last one's summary while it loads
+    setSum(null)
+    setMore(false)
     setError(null)
+    setOffline(false)
+    if (offlineNow()) {
+      // No connection: say so at once, and load when the browser says it is back (below)
+      setOffline(true)
+      setError(tr('offlineBoard'))
+      return
+    }
     Promise.all([readers.current.page(0), readers.current.summary()]).then(
       ([r, s]) => {
         if (!live) return
@@ -90,7 +107,11 @@ function useBoard<R, S>(key: string, page: (offset: number) => Promise<R[]>, sum
         setSum(s)
         setMore(r.length === PAGE)
       },
-      (e: unknown) => live && setError(onlineErrorText(e)),
+      (e: unknown) => {
+        if (!live) return
+        setOffline(offlineNow())
+        setError(onlineErrorText(e))
+      },
     )
     return () => {
       live = false
@@ -110,6 +131,7 @@ function useBoard<R, S>(key: string, page: (offset: number) => Promise<R[]>, sum
       next = await readers.current.page(rows.length)
     } catch (e) {
       // A dropped connection keeps the rows shown and says why the next page did not come
+      setOffline(offlineNow())
       setError(onlineErrorText(e))
       setBusy(false)
       return
@@ -119,16 +141,19 @@ function useBoard<R, S>(key: string, page: (offset: number) => Promise<R[]>, sum
     setRows([...rows, ...next])
     setMore(next.length === PAGE)
   }
-  return { rows, summary: sum, more, error, busy, loadMore, retry: () => setAttempt((a) => a + 1) }
+  return { rows, summary: sum, more, error, offline, busy, loadMore, retry: () => setAttempt((a) => a + 1) }
 }
 
 /** A board's state above its table: the error with Try again, loading, or nobody yet (with what to do about it). */
-function BoardState({ rows, error, retry, empty }: { rows: unknown[] | null; error: string | null; retry: () => void; empty: string }) {
+export function BoardState({ rows, error, offline = false, retry, empty, hint }: { rows: unknown[] | null; error: string | null; offline?: boolean; retry: () => void; empty: string; hint?: string }) {
   return (
     <>
       {error && (
-        <div className="notice warn row between wrap board-error" data-testid="board-error" role="status">
-          <span>{tr('boardError', { error })}</span>
+        <div className={`notice warn row between wrap board-error${offline ? ' board-offline' : ''}`} data-testid={offline ? 'board-offline' : 'board-error'} role="status">
+          <span className="row">
+            {offline && <WifiOff size={16} aria-hidden="true" />}
+            {offline ? error : tr('boardError', { error })}
+          </span>
           <button type="button" className="btn sm" onClick={retry} data-testid="board-retry">
             {tr('tryAgain')}
           </button>
@@ -145,6 +170,7 @@ function BoardState({ rows, error, retry, empty }: { rows: unknown[] | null; err
       {rows && rows.length === 0 && (
         <div className="empty-state board-empty" data-testid="board-empty">
           <p className="muted">{empty}</p>
+          {hint && <p className="small muted" data-testid="board-empty-hint">{hint}</p>}
         </div>
       )}
     </>
@@ -199,7 +225,7 @@ function MoreButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
   )
 }
 
-function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boardKey: string; country: string | null; title: string }) {
+function RankedTable({ kind, boardKey, country, title, current }: { kind: RankedKind; boardKey: string; country: string | null; title: string; current: boolean }) {
   const openChallenge = useStore((s) => s.openChallenge)
   const b = useBoard<BoardRow, BoardSummary | null>(`${kind}|${boardKey}|${country}`, (offset) => api.board(kind, boardKey, country, offset), () => api.boardSummary(kind, boardKey, country))
   const { rows, summary } = b
@@ -215,7 +241,7 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
         </span>
       </div>
       <div className="fit-scroll">
-        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
+        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} hint={current && summary?.open !== false ? tr('beFirst') : undefined} />
         {rows && rows.length > 0 && (
           <table className="tbl sticky-head board-table">
             <thead>
@@ -281,7 +307,7 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
         <span className="small muted">{tr(order === 'points' ? 'byPoints' : 'byStreak')}</span>
       </div>
       <div className="fit-scroll">
-        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
+        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
         {rows && rows.length > 0 && (
           <table className="tbl sticky-head board-table">
             <thead>
@@ -324,7 +350,7 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
 }
 
 function WeeklyPlay({ weekKey }: { weekKey: string }) {
-  const { universe: u, game, startGame, go, profile, loadedLeagues } = useStore()
+  const { universe: u, game, startGame, go, profile, loadedLeagues } = useStorePick('universe', 'game', 'startGame', 'go', 'profile', 'loadedLeagues')
   const pin = useOnline((s) => (s.pins.week === weekKey ? s.pins.weekly : null))
   if (!u || !loadedLeagues.includes('england')) return null
   const decision = weeklyStartSettings(u, weekKey, profile.managerName.trim() || 'Touchline XI', pin)
@@ -340,7 +366,7 @@ function WeeklyPlay({ weekKey }: { weekKey: string }) {
       <div>
         <b>{tr('playThisWeek')}</b>
         <div className="small muted">
-          {rich(tr('weeklyBlurb', { formation: s.formationId, club: u.clubById[s.hostClubId]?.name ?? s.hostClubId, season: seasonLabel(s.leagueSeason) }), B)}
+          {rich(tr('weeklyBlurb', { formation: formationName(s.formationId), club: u.clubById[s.hostClubId]?.name ?? s.hostClubId, season: seasonLabel(s.leagueSeason) }), B)}
           {pin && !decision.ranked && ` ${PIN_NOTE[pinStanding(pin, decision.source) as Exclude<PinStanding, 'ranked'>] ?? ''}`}
         </div>
       </div>
@@ -385,7 +411,7 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
         </div>
       )}
       <div className="fit-scroll">
-        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyChase', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
+        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyChase', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} hint={scope === 'week' ? tr('beFirstChase') : undefined} />
         {rows && rows.length > 0 && (
           <table className="tbl sticky-head board-table">
             <thead>
@@ -450,7 +476,7 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
 
 /** The side panel's "Start a chase run": the league and shape, today's attempts left, and the button. */
 function ChasePlay() {
-  const { universe: u, game, go, profile } = useStore()
+  const { universe: u, game, go, profile } = useStorePick('universe', 'game', 'go', 'profile')
   const session = useOnline((s) => s.session)
   const [league, setLeague] = useState('england')
   const [formation, setFormation] = useState('4-3-3')
@@ -510,7 +536,7 @@ function ChasePlay() {
             <select className="input" value={formation} onChange={(e) => setFormation(e.target.value)} data-testid="chase-formation">
               {CHASE_FORMATIONS.map((f) => (
                 <option key={f} value={f}>
-                  {f}
+                  {formationName(f)}
                 </option>
               ))}
             </select>
@@ -549,7 +575,7 @@ function ChasePlay() {
 }
 
 /** A casual board (the Daily Arena, the Weekly Challenge, the Run-in of the week): its rows, your place pinned at the foot. */
-function CasualTable({ board, boardKey, country, title }: { board: CasualKind; boardKey: string; country: string | null; title: string }) {
+function CasualTable({ board, boardKey, country, title, current }: { board: CasualKind; boardKey: string; country: string | null; title: string; current: boolean }) {
   const openChallenge = useStore((s) => s.openChallenge)
   const b = useBoard<CasualRow, CasualSummary | null>(`${board}|${boardKey}|${country}`, (offset) => api.casualBoard(board, boardKey, country, offset), () => api.casualSummary(board, boardKey, country))
   const { rows, summary } = b
@@ -567,7 +593,7 @@ function CasualTable({ board, boardKey, country, title }: { board: CasualKind; b
         </span>
       </div>
       <div className="fit-scroll">
-        <BoardState rows={rows} error={b.error} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
+        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} hint={current && summary?.open !== false ? tr('beFirst') : undefined} />
         {rows && rows.length > 0 && (
           <table className="tbl sticky-head board-table">
             <thead>
@@ -639,7 +665,7 @@ function PlayCard({ title, line, done, action, onClick, disabled, testId }: { ti
 
 /** Today's Daily from its board: it continues where it was left, else opens the Daily's setup (as Home's card does). */
 function DailyPlay() {
-  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues } = useStore()
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile', 'loadedLeagues')
   const pin = useOnline((st) => (st.pins.day === new Date().toISOString().slice(0, 10) ? st.pins.daily : null))
   if (!u || !loadedLeagues.includes('england')) return null
   const seed = todaysDailySeed()
@@ -663,7 +689,7 @@ function DailyPlay() {
 
 /** Today's Daily Arena from its board: the run continues wherever it is; another unfinished arena run is only dropped on a yes. */
 function ArenaDailyPlay() {
-  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues, startGame } = useStore()
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues, startGame } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile', 'loadedLeagues', 'startGame')
   if (!u || !loadedLeagues.includes('england')) return null
   const seed = arenaDailySeed()
   const today = dailyArenaSettings(seed)
@@ -676,7 +702,9 @@ function ArenaDailyPlay() {
     const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
     if (open && !(await askConfirm(tr('arenaAbandonWorld', { team: open.settings.teamName }), { ok: tr('startOk'), danger: true }))) return
     if (!open && done && !(await askConfirm(tr('arenaAgainWorld', { label: done.label }), { ok: tr('playAgainOk') }))) return
-    startGame(dailyArenaGameSettings(u, seed))
+    // The manager's own team name (the remembered one, or an invented one), never the logic's "Touchline XI" fallback
+    const team = startingTeam()
+    startGame({ ...dailyArenaGameSettings(u, seed, team.teamName), shortName: team.shortName })
   }
   return (
     <PlayCard
@@ -692,7 +720,7 @@ function ArenaDailyPlay() {
 
 /** This week's Weekly Challenge from its board: under way it continues, else its setup opens (the week's packs load there). */
 function ThemedWeekPlay() {
-  const { universe: u, game, parked, go, resumeGame, profile } = useStore()
+  const { universe: u, game, parked, go, resumeGame, profile } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile')
   if (!u) return null
   const seed = weeklySeed()
   const plan = weeklyPlan(u, seed)
@@ -714,7 +742,7 @@ function ThemedWeekPlay() {
 
 /** The side panel's card for the Run-in of the week: the week's job, and Play (its league loads first). */
 function RunInWeekPlay() {
-  const { universe: u, game, go, startRunInWeek, loadedLeagues, ensureLeagues, parked } = useStore()
+  const { universe: u, game, go, startRunInWeek, loadedLeagues, ensureLeagues, parked, resumeGame } = useStorePick('universe', 'game', 'go', 'startRunInWeek', 'loadedLeagues', 'ensureLeagues', 'parked', 'resumeGame')
   const seed = runInWeekSeed()
   const plan = weeklyRunInPlan(seed)
   const [busy, setBusy] = useState(false)
@@ -726,7 +754,7 @@ function RunInWeekPlay() {
   const open = [game, parked.runin].find((g) => g && slotOf(g) === 'runin' && g.phase !== 'summary')
   const underWay = !!open && isWeeklyRunIn(open.settings) && open.settings.seed === seed
   const play = async () => {
-    if (underWay) return open === game ? go('game') : useStore.getState().resumeGame('runin')
+    if (underWay) return open === game ? go('game') : resumeGame('runin')
     if (open && !(await askConfirm(tr('runInWeekConfirm', { team: open.settings.teamName }), { ok: tr('takeJobOk'), danger: true }))) return
     setBusy(true)
     await startRunInWeek(seed)
@@ -879,12 +907,12 @@ export function WorldBoard() {
               </div>
             )}
           </aside>
-          {tab === 'daily' && <RankedTable kind="daily" boardKey={day} country={country} title={day === today ? tr('todaysDaily') : tr('dailyOf', { day })} />}
-          {tab === 'weekly' && <RankedTable kind="weekly" boardKey={week} country={country} title={week === thisWeek ? tr('thisWeeksChallenge') : tr('weekOf', { week })} />}
+          {tab === 'daily' && <RankedTable kind="daily" boardKey={day} country={country} current={day === today} title={day === today ? tr('todaysDaily') : tr('dailyOf', { day })} />}
+          {tab === 'weekly' && <RankedTable kind="weekly" boardKey={week} country={country} current={week === thisWeek && weeklyIsOpen(thisWeek, new Date())} title={week === thisWeek ? tr('thisWeeksChallenge') : tr('weekOf', { week })} />}
           {tab === 'alltime' && <AlltimeTable country={country} order={order} />}
           {tab === 'chase' && <ChaseTable scope={chaseScope} country={country} week={thisWeek} />}
-          {tab === 'arena' && <CasualTable board="arena" boardKey={arenaDay} country={country} title={arenaDay === today ? tr('todaysArena') : tr('arenaOf', { day: arenaDay })} />}
-          {(tab === 'themed' || tab === 'runin') && <CasualTable board={tab} boardKey={casualWeek} country={country} title={tr(casualWeek === thisWeek ? 'casualThisWeek' : 'casualWeekOf', { board: tab, week: casualWeek })} />}
+          {tab === 'arena' && <CasualTable board="arena" boardKey={arenaDay} country={country} current={arenaDay === today} title={arenaDay === today ? tr('todaysArena') : tr('arenaOf', { day: arenaDay })} />}
+          {(tab === 'themed' || tab === 'runin') && <CasualTable board={tab} boardKey={casualWeek} country={country} current={casualWeek === thisWeek} title={tr(casualWeek === thisWeek ? 'casualThisWeek' : 'casualWeekOf', { board: tab, week: casualWeek })} />}
         </div>
         </div>
       )}

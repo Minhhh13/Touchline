@@ -182,9 +182,31 @@ Contrast, both themes: besides axe on every state above, the kit colours were ch
 
 Every flow ran with no page error (the harness's own timeouts aside), and a last smoke of the final build in both themes and both sizes (Home, Setup, Head-to-head, Profile, Explore and its views, a Quick Draft to its Summary, a live match to its report) found no page error and no failing node. Vitest (`--testTimeout=180000`): 2,092 tests pass and 22 are skipped in 285 files (4 skipped files; the new `a11yRound4.test.ts` has 12); typecheck, build, the first-download budget and `check:dist-keys` pass; `dist/edge` holds `verifier-37d256f009b3b3e9.js`, `verifier-5e7764386729eb13.js`, `verifier-603b905d0570f641.js` and `verifier-f088fc41409257f9.js`, unchanged.
 
+## 3e. Results of the fifth pass
+
+Round 5 (`claude/r9-a11y-names`, from `main` d76e552). Round 4 named the `Segmented` switches on Profile, Head-to-head, World, the Account switch, Explore and the Stats tables; 46 more were still unnamed radio groups (a screen reader read "Defensive, radio button, 1 of 3" with no "Mentality"): the Tactics tab's six instructions, training and the team talk, the quick season's tactics step, the match day's instructions drawer and its 45' and 70' stops, Setup (league, bench, era, opposition), the arena setup (format, size, field, wheel, league, era, difficulty) and the arena hub's team talk, the Run-in setup's brief and league, the online room's league, wheel and difficulty, the salary cap, the Draft's sort, the playback speed and the Stats switch. Each now carries the name its screen already prints beside it, through `t()` (new keys `sortPlayers`, `playbackSpeed`, `statsView`, `leagueChoice`). `Segmented`'s `label` is required, so TypeScript refuses a new unnamed one, and `src/ui/__tests__/a11yRound5.test.ts` parses every `.tsx` under `src/ui` (the TypeScript compiler's own parser) and fails on an unnamed `Segmented`, an unnamed `role="radiogroup"` or a button whose only content is icons with no `aria-label`; it found the 10 icon-only buttons already named. The Office's talk topics (a radio group built by hand) take the radio keys and one Tab stop.
+
+axe-core 4.10.2, the same rules, on `main` before (with the names in, which axe does not test for a radio group) and on this branch after, on a build with placeholder `VITE_SUPABASE_*` values, reduced motion on, Floodlit and Daylight at 1280x720 and 390x844, 39 states a run: Home, Head-to-head on both sides of its switch, Explore, Profile, How it works, World, the Season, Run-in, Cup (with its more options) and Gauntlet setups, the Quick Draft's setup (and more options), draft, completed draft, playback and Summary, a Season's draft, the Dugout on each of its 13 tabs, a live league match, its 45' and 70' stops and the report. 156 states a side, with no page error.
+
+| Rule | Before | After |
+|---|---|---|
+| `target-size`: a tip's "No more tips" link (19 px tall, 2 px under Got it) on the draft, the Dugout and the match day | 28 | 0 |
+| `scrollable-region-focusable`: the match day's stat lists beside the pitch and on the report, at 1280x720 (content ending on a fractional pixel at the box's edge rounds to a scrollHeight 1 px over its clientHeight; the scroll-focus watcher allowed a pixel of slack, axe allows none: the watcher's test is now `overflows()`, any overflow) | 8 | 0 |
+| **Total** | **36** | **0** |
+
+Larger text, 200 % root size on a 390 px phone, both themes, every phone state above (the width past the window, before; nothing after):
+
+- World 30 px: the heading's one long word ("leaderboard") and the foot's one-line "Sign in to post to the World board". The heading breaks a word only when it must (`overflow-wrap: break-word`), the foot's button wraps.
+- The Run-in setup 79 px: its "Run-in of the week" and Back row never wrapped (it wraps).
+- The Dugout's Office tab 58 px: the press conference's answers are one-line buttons (`.btn.press-answer` wraps).
+- The Dugout's Club tab 66 px: the finance ledger's terms kept one line, leaving the figures no room; on a phone they wrap.
+- The match day 19 to 50 px (playing, both stops, the report): the scoreboard kept its 112 px clock beside the score; on a phone the clock drops under it.
+
+The harness finds the culprit by listing, at 200 %, the innermost elements whose box or text runs past the window with no clipping ancestor (text overflow counts: a `white-space: nowrap` button's box stays inside while its text does not).
+
 ## 4. What is left
 
-After the fourth pass (round 4; the formation panels' overlap, left by round 3, is fixed):
+After the fifth pass (round 5; nothing below is new, and every `Segmented` is named):
 
 - **Strings outside the catalogues.** The storylines (`Storylines.tsx`), Explore's club and league pages and the Stats tables still print English written in the component rather than through `t()`; round 4's new words went into the catalogues where the file already had one (and the Stats table's one group name stays English like the rest of that file). A screen reader reads them correctly; they are an i18n gap, not an accessibility one.
 - **The World boards' panels** are not `role="tabpanel"` (the tabs name their board and the table beside them has its own heading).
@@ -193,6 +215,7 @@ After the fourth pass (round 4; the formation panels' overlap, left by round 3, 
 - **The setup cards' "i"** stays 32 px, clear of its card's own target; the shortlist star and the Explore rows on a tablet (721 to 1099 px) keep their desktop sizes.
 - **The live pitch is a picture** (`aria-hidden`); a screen reader follows the match through the score, the key commentary lines and the stops. No spoken play-by-play of every pass, by design.
 - **Focus on a dialog's box.** `useDialog` focuses a dialog's own box when it opens, and the box draws the focus ring; a screen reader names the dialog, which is right, but a sighted keyboard user sees a ring round the whole sheet until the first Tab.
+- **Not swept in round 5:** the arena hubs and summaries, Explore's sub-views, Dynasty and the head-to-head draft were not in round 5's harness (round 4's states for them were clean, and round 5 changed only names and wrapping on them); the new names were read from the markup and the test, not by VoiceOver.
 - **Not audited:** the online screens signed in (World's boards were audited empty, on a build that cannot reach a project) and a head-to-head room in play (they need the live project and two signed-in devices), an arena shoot-out reached live (a seeded draw at 90 could not be forced from the keyboard harness; its markup and words are tested), and VoiceOver on a real device. Run them before the App Store submission.
 
 ## 5. iOS Dynamic Type (the plan for the native wrapper)

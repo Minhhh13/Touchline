@@ -91,14 +91,17 @@ export function inviteKindOf(game: Pick<Game, 'settings'>): InviteKind {
 
 /** The share text's last line: the call and where to answer it (the challenge link when there is one). */
 export function inviteLine(invite: Invite, url?: string | null): string {
-  return `${invite.title}: ${url || SHARE_HOST}`
+  // A question asks on its own: "Can you top this? touchline.quest", never "this?: "
+  return `${invite.title}${/[?!]$/.test(invite.title) ? ' ' : ': '}${url || SHARE_HOST}`
 }
 
 /** Glyphs that carry a result (the form blocks, a result's own icon) and stay in the share text. */
 const STATUS = new Set(['🟩', '🟨', '🟥', '⬛', '⬜'])
 /** A picture used as a label, and the word that replaces it. */
 const LABEL: Record<string, string> = { '⚽': 'Top scorer', '⭐': 'Star' }
-const PICTO = /\p{Extended_Pictographic}\uFE0F?/gu
+/** One picture whole: its variation selector, skin tone and tag letters (England's, Scotland's and Wales's flags) and every joined part (r9: a ZWJ family or a tag flag in a team name left invisible characters behind). */
+const PART = '\\p{Extended_Pictographic}(?:\\uFE0F|\\p{Emoji_Modifier}|[\\u{E0020}-\\u{E007F}])*'
+const PICTO = new RegExp(`${PART}(?:\\u200D${PART})*`, 'gu')
 const FLAG = /[\u{1F1E6}-\u{1F1FF}]{2}\s?/gu
 
 /**
@@ -112,7 +115,7 @@ export function tidyShareText(text: string): string {
     .map((line) => {
       let out = line.replace(FLAG, '')
       // A result's icon before its banner in capitals (`🏆 WINNERS`, `🪜 7 RUNGS`, a run-in's `✅ SURVIVED`) is a status glyph
-      const lead = /^(\p{Extended_Pictographic}\uFE0F?) (?:\d+ )?[A-Z]{2,}\b/u.exec(out)
+      const lead = new RegExp(`^(${PICTO.source}) (?:\\d+ )?[A-Z]{2,}\\b`, 'u').exec(out)
       const keepLead = !!lead && !(lead[1].replace('\uFE0F', '') in LABEL)
       const head = keepLead && lead ? `${lead[1]} ` : ''
       const body = out.slice(head.length)

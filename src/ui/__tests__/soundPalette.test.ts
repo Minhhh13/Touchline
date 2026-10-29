@@ -36,6 +36,10 @@ const REQUESTS: SoundRequest[] = [
   { id: 'fanfare', treble: true, reduced: true },
   ...(['A', 'B', 'C', 'D'] as const).map((grade): SoundRequest => ({ id: 'grade', grade })),
   { id: 'click' },
+  { id: 'tick', rate: 0.92 },
+  { id: 'tick', rate: 1.2 },
+  { id: 'whoosh' },
+  { id: 'pop' },
 ]
 
 const name = (r: SoundRequest) => JSON.stringify(r)

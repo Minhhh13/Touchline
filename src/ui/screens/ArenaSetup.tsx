@@ -173,6 +173,7 @@ export function ArenaSetup() {
                 <div className="setup-opt setup-wide-opt">
                   <h3>{t('format')}</h3>
                   <Segmented
+                    label={t('format')}
                     value={format}
                     onChange={setFormat}
                     options={[
@@ -185,6 +186,7 @@ export function ArenaSetup() {
                   <div className="setup-opt setup-wide-opt" data-testid="arena-size">
                     <h3>{t('size')}</h3>
                     <Segmented
+                      label={t('size')}
                       value={String(size)}
                       onChange={(v) => setSize(Number(v) as CupSize)}
                       options={[
@@ -204,7 +206,7 @@ export function ArenaSetup() {
                         {t('fieldInfo', { hint: t(`fieldHint_${field}`), final: final ? 'yes' : 'no' })}
                       </Info>
                     </h3>
-                    <Segmented value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: t(`field_${f.value}`), hint: t(`fieldHint_${f.value}`) }))} />
+                    <Segmented label={t(final ? 'opponent' : 'field')} value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: t(`field_${f.value}`), hint: t(`fieldHint_${f.value}`) }))} />
                     {field === 'decade' && (
                       <select className="input" value={decade} onChange={(e) => setDecade(Number(e.target.value))} data-testid="arena-decade">
                         {cupDecades(u.firstSeason, u.lastSeason).map((d) => (
@@ -226,12 +228,13 @@ export function ArenaSetup() {
                     <>
                       <div className="field">
                         {t('draftFrom')}
-                        <Segmented value={wheelScope} onChange={setWheelScope} options={[{ value: 'league', label: t('oneLeague') }, { value: 'europe', label: t('europeanNights', { n: u.available.length }) }]} />
+                        <Segmented label={t('draftFrom')} value={wheelScope} onChange={setWheelScope} options={[{ value: 'league', label: t('oneLeague') }, { value: 'europe', label: t('europeanNights', { n: u.available.length }) }]} />
                       </div>
                       {wheelScope === 'league' && (
                         <div className="field">
                           {t('league')}
                           <Segmented
+                            label={t('league')}
                             value={leagueId}
                             onChange={(id) => {
                               setLeagueId(id)
@@ -246,6 +249,7 @@ export function ArenaSetup() {
                           {t('era')} <Info label={t('aboutEra')}>{gauntlet ? t('eraGauntlet') : field === 'decade' ? t('eraDecade') : field === 'europe' ? t('eraEurope') : t('eraOther', { final: final ? 'yes' : 'no' })}</Info>
                         </span>
                         <Segmented
+                          label={t('era')}
                           value={era}
                           onChange={setEra}
                           options={[
@@ -262,6 +266,7 @@ export function ArenaSetup() {
                           <Info label={t('aboutDifficulty')}>{difficulty === 'calibrated' ? (gauntlet ? t('diffGauntlet', { start: GAUNTLET_CEILING.start, step: GAUNTLET_CEILING.step }) : final ? t('diffFinal') : t('diffCup', { n: CUP_FIELD_TARGET[field] })) : t('diffRealistic')}</Info>
                         </span>
                         <Segmented
+                          label={t('difficulty')}
                           value={difficulty}
                           onChange={setDifficulty}
                           options={[

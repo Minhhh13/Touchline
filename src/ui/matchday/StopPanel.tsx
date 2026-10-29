@@ -193,6 +193,7 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
             <div className="field">
               {tx('teamTalk')}
               <Segmented<TeamTalk>
+                label={tx('teamTalk')}
                 value={talk}
                 onChange={setTalk}
                 options={[
@@ -206,26 +207,26 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
           ) : (
             <div className="field" data-testid="shout">
               {tx('touchlineShout')} <span className="help">{shoutHint(shout)}</span>
-              <Segmented<Shout> value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: shoutLabel(k), hint: shoutHint(k) }))} />
+              <Segmented<Shout> label={tx('touchlineShout')} value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: shoutLabel(k), hint: shoutHint(k) }))} />
             </div>
           )}
           <div className="field">
             {tx('mentality')} <span className="help">{mentalityHelp(t.mentality)}</span>
-            <Segmented value={t.mentality} onChange={(v) => setTactics({ ...t, mentality: v })} options={[{ value: 'defensive', label: tx('defensive') }, { value: 'balanced', label: tx('balanced') }, { value: 'attacking', label: tx('attacking') }]} />
+            <Segmented label={tx('mentality')} value={t.mentality} onChange={(v) => setTactics({ ...t, mentality: v })} options={[{ value: 'defensive', label: tx('defensive') }, { value: 'balanced', label: tx('balanced') }, { value: 'attacking', label: tx('attacking') }]} />
           </div>
         </div>
         <div className="col">
           <div className="field">
             {tx('pressing')} <span className="help">{pressingHelp(t.pressing)}</span>
-            <Segmented value={t.pressing} onChange={(v) => setTactics({ ...t, pressing: v })} options={[{ value: 'low', label: tx('low') }, { value: 'mid', label: tx('mid') }, { value: 'high', label: tx('high') }]} />
+            <Segmented label={tx('pressing')} value={t.pressing} onChange={(v) => setTactics({ ...t, pressing: v })} options={[{ value: 'low', label: tx('low') }, { value: 'mid', label: tx('mid') }, { value: 'high', label: tx('high') }]} />
           </div>
           <div className="field">
             {tx('defensiveLine')} <span className="help">{lineHelp(t.defensiveLine)}</span>
-            <Segmented value={t.defensiveLine} onChange={(v) => setTactics({ ...t, defensiveLine: v })} options={[{ value: 'deep', label: tx('deep') }, { value: 'standard', label: tx('standard') }, { value: 'high', label: tx('high') }]} />
+            <Segmented label={tx('defensiveLine')} value={t.defensiveLine} onChange={(v) => setTactics({ ...t, defensiveLine: v })} options={[{ value: 'deep', label: tx('deep') }, { value: 'standard', label: tx('standard') }, { value: 'high', label: tx('high') }]} />
           </div>
           <div className="field">
             {tx('tempo')} <span className="help">{tempoHelp(t.tempo)}</span>
-            <Segmented value={t.tempo} onChange={(v) => setTactics({ ...t, tempo: v })} options={[{ value: 'slow', label: tx('slow') }, { value: 'standard', label: tx('standard') }, { value: 'fast', label: tx('fast') }]} />
+            <Segmented label={tx('tempo')} value={t.tempo} onChange={(v) => setTactics({ ...t, tempo: v })} options={[{ value: 'slow', label: tx('slow') }, { value: 'standard', label: tx('standard') }, { value: 'fast', label: tx('fast') }]} />
           </div>
         </div>
         <div className="col md-stop-subs">
