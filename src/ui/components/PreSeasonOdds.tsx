@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { Rng } from '@engine/rng'
-import { barFill, chanceLabel, emptyTally, ODDS_SEASONS, ODDS_STEP, oddsFrom, oddsKey, oddsLeague, oddsRng, sampleSeasons, squadBreakdown, type OddsLeague, type OddsTally, type PreSeasonOdds } from '@game/logic/odds'
+import { barFill, chanceLabel, emptyTally, ODDS_SEASONS, ODDS_STEP, oddsFrom, oddsKey, oddsLeagueSteps, oddsRng, sampleSeasons, squadBreakdown, type OddsLeague, type OddsTally, type PreSeasonOdds } from '@game/logic/odds'
 import { formatLocale, seasonLabel } from '../format'
 import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { playSound } from '../sound/synth'
@@ -55,13 +55,27 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
     let league: OddsLeague | null = null
     let rng: Rng | null = null
     let tally: OddsTally | null = null
+    let building: Generator<void, OddsLeague, void> | null = null
     let cancel: Cancel = () => {}
     let shown = 0
     const step = (budgetMs: number) => {
       if (!league || !rng || !tally) {
-        league = oddsLeague(game, u)
-        rng = oddsRng(game)
-        tally = emptyTally(league.ids.length)
+        // The league's pairings a few at a time too (one 340 ms task at 4x when built whole, r13)
+        building ??= oddsLeagueSteps(game, u)
+        const until = performance.now() + budgetMs
+        for (;;) {
+          const r = building.next()
+          if (r.done) {
+            league = r.value
+            rng = oddsRng(game)
+            tally = emptyTally(league.ids.length)
+            break
+          }
+          if (performance.now() >= until) break
+        }
+        // Not built yet, or built with this slice spent: the seasons start on the next turn
+        cancel = nextSlice(step)
+        return
       } else {
         const until = performance.now() + budgetMs
         while (tally.seasons < ODDS_SEASONS && performance.now() < until) sampleSeasons(league, rng, Math.min(ODDS_BATCH, ODDS_SEASONS - tally.seasons), tally)
