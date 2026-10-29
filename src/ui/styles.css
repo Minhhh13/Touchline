@@ -386,8 +386,12 @@ pre.mono,
   letter-spacing: 0.08em;
   color: var(--text-3);
 }
+/* Pinned to its containing block's corner: left where it falls, a word inside a scrolling box (the Continental Cup's
+   groups on the Dugout) escaped the box's clip and hung below the window, so the page scrolled (a11y round 7) */
 .sr-only {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -1039,6 +1043,12 @@ pre.mono,
   transition: transform var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
   text-decoration: none;
   white-space: nowrap;
+}
+/* A long label that may wrap rather than run past a phone's edge at 200 % text (Kick-off's "Simulate with the default
+   tactics" ran 140 px past a 390 px window, a11y round 7) */
+.btn.wraps {
+  white-space: normal;
+  max-width: 100%;
 }
 /* A decision's choice carries its hint under the label, so it wraps rather than running past a phone's edge */
 .btn.event-choice {
@@ -7766,6 +7776,21 @@ dl.kv {
 .plist.lined > .prow.dim:hover {
   background: transparent;
 }
+/* A tinted chip on a hovered row or on the Office's tinted "his view" box keeps its tint over the panel, not over the
+   fill behind it: in Daylight "fits ST" read 4.3:1 and "can cover" 3.95:1 on a hovered row, in Floodlit "Agent: greedy"
+   4.31:1 on --primary-soft (a11y round 7) */
+.prow:hover .chip.good,
+.office-view .chip.good {
+  background: linear-gradient(var(--good-soft), var(--good-soft)) var(--panel);
+}
+.prow:hover .chip.warn,
+.office-view .chip.warn {
+  background: linear-gradient(var(--warn-soft), var(--warn-soft)) var(--panel);
+}
+.prow:hover .chip.bad,
+.office-view .chip.bad {
+  background: linear-gradient(var(--bad-soft), var(--bad-soft)) var(--panel);
+}
 .scroll-list {
   max-height: 280px;
   overflow: auto;
@@ -10784,6 +10809,10 @@ table.tbl.match-stats th {
 .case-odds-table td.mono {
   white-space: nowrap;
   font-weight: 700;
+}
+/* The items column gives way at 200 % text on a phone (it ran 6 px past the window): a word breaks only when it must */
+.case-odds-table td.small {
+  overflow-wrap: anywhere;
 }
 /* Beside the reel, the locker's counts; under the odds, what each item does. Each takes its tier's colour */
 .case-left {

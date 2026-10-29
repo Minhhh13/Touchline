@@ -142,10 +142,10 @@ export function KickOff() {
               <h3>{t('teamInstructions')}</h3>
               <TeamInstructions t={tac} onChange={setTactics} />
               <div className="row wrap" style={{ gap: 10 }}>
-                <button className="btn primary" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-tactics">
+                <button className="btn primary wraps" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-tactics">
                   {t(kicking ? 'simulating' : 'simulateTactics')}
                 </button>
-                <button className="btn ghost" onClick={() => void kickOffSoon(true)} disabled={kicking} data-testid="kickoff-skip" title={t('defaultsTip')}>
+                <button className="btn ghost wraps" onClick={() => void kickOffSoon(true)} disabled={kicking} data-testid="kickoff-skip" title={t('defaultsTip')}>
                   {t('simulateDefaults')}
                 </button>
               </div>

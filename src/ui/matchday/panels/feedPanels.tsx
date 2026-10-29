@@ -21,6 +21,7 @@ import { translator } from '../../i18n'
 import { match } from '../../i18n/en/match'
 import { rich } from '../../i18n/rich'
 import { changeLineText, commentaryLineText, commentaryPiece, eventLine } from '../../i18n/commentaryText'
+import { useSayOnce } from '../../liveOnce'
 
 const tx = translator(match)
 
@@ -254,16 +255,24 @@ export function CommentaryBanner({ d }: PanelProps) {
   const cp = assistantCheckpoint(d.minute)
   const side = d.userSide
   const assist = useMemo(() => (cp !== null && side ? assistantLine(d.feed, d.series, side, cp, d.getName) : null), [cp, side, d.feed, d.series, d.getName])
-  if (assist && (!line || line.kind === 'play' || line.minute < assist.minute)) {
+  const showAssist = !!assist && (!line || line.kind === 'play' || line.minute < assist.minute)
+  // One region for both, mounted throughout, each moment said once: two regions swapped in place re-read the booking
+  // before the assistant's word once his word went (a11y round 7)
+  const keyAt = key ? lines.lastIndexOf(key) : -1
+  const said = useSayOnce(showAssist && assist ? `a${assist.minute}` : key ? `k${keyAt}` : null, showAssist && assist ? tx('assistantSays', { text: commentaryPiece(assist.text) }) : key ? `${minuteLabel(key.minute)} ${commentaryLineText(key)}` : '')
+  const region = (
+    <span className="sr-only" aria-live="polite" data-testid="banner-live">
+      {said}
+    </span>
+  )
+  if (showAssist && assist) {
     return (
       <div className="md-banner assistant key" data-testid="assistant-line">
         <span className="min mono">{minuteLabel(assist.minute)}</span>
         <span className="txt" key={`a${assist.minute}`}>
           <b className="md-assistant-tag">{tx('assistant')}</b> {commentaryPiece(assist.text)}
         </span>
-        <span className="sr-only" aria-live="polite">
-          {tx('assistantSays', { text: commentaryPiece(assist.text) })}
-        </span>
+        {region}
       </div>
     )
   }
@@ -275,9 +284,7 @@ export function CommentaryBanner({ d }: PanelProps) {
       <span className="txt" key={`${line?.minute}-${line?.text}`}>
         {line ? commentaryLineText(line) : tx('teamsOut')}
       </span>
-      <span className="sr-only" aria-live="polite">
-        {key ? `${minuteLabel(key.minute)} ${commentaryLineText(key)}` : ''}
-      </span>
+      {region}
     </div>
   )
 }
