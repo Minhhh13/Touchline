@@ -27,6 +27,7 @@ import { seasonLabel } from '../format'
 import { CapControl } from '../components/CapControl'
 import { capXI, DEFAULT_CAP_CHOICE, type CapChoice } from '@game/logic/cap'
 import { askConfirm } from '../confirm'
+import { logicList } from '../i18n/logicText'
 
 type Era = 'all' | 'early' | 'mid' | 'modern'
 
@@ -323,7 +324,7 @@ export function ArenaSetup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={4} title={t('stepSpin')} />
               <div className="small muted" data-testid="arena-summary">
-                {preview ? summariseArena(u, preview) : <LeagueWait needs={needs} />}
+                {preview ? logicList(summariseArena(u, preview), ', ') : <LeagueWait needs={needs} />}
                 {' · '}
                 <button
                   type="button"

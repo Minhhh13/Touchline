@@ -213,4 +213,15 @@ export const engineText = catalog('engineText', {
   tagNormal: 'Normal',
   tagHard: 'Hard',
   tagBlind: 'Blind',
+  // engine/status.ts: a squad status, as a label and inside a sentence
+  status_key: 'Key player',
+  'status_first-team': 'First team',
+  status_rotation: 'Rotation',
+  status_backup: 'Backup',
+  status_prospect: 'Prospect',
+  statusLower_key: 'key player',
+  'statusLower_first-team': 'first team',
+  statusLower_rotation: 'rotation',
+  statusLower_backup: 'backup',
+  statusLower_prospect: 'prospect',
 })

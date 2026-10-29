@@ -10,6 +10,7 @@ import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(draft)
 
@@ -50,7 +51,7 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
         <div className="col" style={{ gap: 4, minWidth: 0 }}>
           <span className="eyebrow">{t(r.grade ? 'yourDraft' : 'allPicksMade')}</span>
           <h3 className="recap-verdict" data-testid="draft-verdict">
-            {r.verdict}
+            {logicLine(r.verdict)}
           </h3>
           {r.grade && (
             <div className="row wrap recap-tally" style={{ gap: 6 }}>

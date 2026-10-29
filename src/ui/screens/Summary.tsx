@@ -83,6 +83,7 @@ import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
 import { tierBlurbText, tierText } from '../i18n/tierText'
 import { reelTierName, ruleTagText } from '../i18n/engineText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(summary)
 
@@ -420,7 +421,7 @@ export function Summary() {
             <span className="vp-line">
               <b className="vp-against">{t('against', { target: perfectTarget(games) })}</b>
               <span className="vp-sep" aria-hidden="true">·</span>
-              <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
+              <span className="vp-short">{logicLine(versusPerfectLine(record.won, record.lost, games))}</span>
             </span>
             {runsSummary(runs, bests.longestPerfectRun, chase.perfectRun) ? (
               <span className="vp-runs small muted" data-testid="versus-perfect-runs">
@@ -453,12 +454,12 @@ export function Summary() {
         )}
         {!replay.playing && story && (
           <p className="tier-blurb" data-testid="moment">
-            {story.moment}
+            {logicLine(story.moment)}
           </p>
         )}
         {!replay.playing && verdict && (
           <p className="tier-blurb pundit-verdict" data-testid="pundit-verdict">
-            <Mic size={13} aria-hidden="true" /> {rich(t('pundit', { verdict }), B)}
+            <Mic size={13} aria-hidden="true" /> {rich(t('pundit', { verdict: logicLine(verdict) }), B)}
           </p>
         )}
         {!replay.playing && weeklyStanding && (
@@ -816,7 +817,7 @@ export function Summary() {
                   const isRecord = bench.records.some((r) => r.key === m.key)
                   return (
                     <tr key={m.key}>
-                      <td>{m.label}</td>
+                      <td>{logicLine(m.label)}</td>
                       <td className="num">{m.value}</td>
                       <td style={{ whiteSpace: 'normal' }}>
                         {isRecord ? (
@@ -870,7 +871,7 @@ export function Summary() {
                       </div>
                     </div>
                   </div>
-                  <p className="small" style={{ margin: 'var(--space-2) 0' }}>{o.pitch}</p>
+                  <p className="small" style={{ margin: 'var(--space-2) 0' }}>{logicLine(o.pitch)}</p>
                   <button className={`btn sm ${chosen ? '' : 'primary'}`} onClick={() => acceptJob(chosen ? null : i)}>
                     {t(chosen ? 'changeMind' : 'accept')}
                   </button>

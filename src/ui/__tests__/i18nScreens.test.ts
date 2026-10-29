@@ -23,8 +23,7 @@ import { setLocaleMessages } from '../i18n'
 import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
 import { openFiltered, show } from './qaSsr'
 import { App } from '../App'
-import { surname } from '../match/shirts'
-import { surname as shortSurname } from '@game/logic/slotSheet'
+import { dataNames, leftover } from './i18nLeftover'
 import { Home } from '../screens/Home'
 import { HowTo } from '../screens/HowTo'
 import { ProfileScreen } from '../screens/ProfileScreen'
@@ -48,34 +47,7 @@ import { BLANK_SEARCH } from '@game/logic/exploreFilter'
 
 const u = loadTestUniverse(['england'])
 
-// Data on screen is never English to translate: names of players, clubs, nations and leagues, and the test's teams
-const DATA = new Set<string>(['QA XI', 'QA United', 'QAX', 'QAU', 'Ann', 'Bob', 'Touchline XI', 'TouchLine'])
-for (const p of Object.values(u.index)) [p.name, surname(p.name), shortSurname(p.name)].forEach((n) => DATA.add(n))
-for (const c of Object.values(u.clubById)) [c.name, c.shortName].forEach((n) => n && DATA.add(n))
-for (const n of Object.values(u.nations)) DATA.add(n.name)
-for (const l of u.available) DATA.add(l.name)
-
-/** The text a render shows: text nodes and the attributes a screen reader or a tooltip reads. */
-function texts(html: string): string[] {
-  const clean = html.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<script[\s\S]*?<\/script>/g, '')
-  const decode = (s: string) => s.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
-  const out: string[] = []
-  for (const m of clean.matchAll(/\b(?:aria-label|title|placeholder|alt)="([^"]*)"/g)) out.push(decode(m[1]))
-  for (const seg of clean.replace(/<!--[\s\S]*?-->/g, '').split(/<[^>]+>/)) out.push(decode(seg))
-  return out.map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean)
-}
-
-/** English that skipped `t()`: a segment with a lower-case word of three letters or more that is neither pseudo nor data. */
-function leftover(html: string): string[] {
-  return texts(html).filter((s) => {
-    if (isPseudo(s) || DATA.has(s)) return false
-    const rest = s
-      .split(/\s*(?:·|,|:|—|–|\(|\)|\/|\|)\s*/)
-      .map((x) => x.replace(/\b\d{4}-\d{2}\b|[\d.,%'+−-]+/g, ' ').replace(/\s+/g, ' ').trim())
-      .filter((x) => x && !DATA.has(x) && !isPseudo(x))
-    return rest.some((x) => /\b[a-z]{3,}\b/.test(x))
-  })
-}
+const DATA = dataNames(u)
 
 type Render = { name: string; C: ComponentType<never>; props?: Record<string, unknown> }
 const report: Record<string, string[]> = {}
@@ -104,7 +76,7 @@ function check({ name, C, props }: Render): void {
   if (en.includes('⟦') || pseudo.includes('⟦')) fails.push(`${name}: a missing key ${pseudo.match(/⟦[^⟧]*⟧/)?.[0]}`)
   if (!isPseudo(pseudo)) fails.push(`${name}: no pseudo text at all`)
   for (const p of openFiltered(pseudo)) fails.push(`${name} (pseudo): ${p}`)
-  report[name] = [...new Set([...(report[name] ?? []), ...leftover(pseudo)])]
+  report[name] = [...new Set([...(report[name] ?? []), ...leftover(pseudo, DATA)])]
 }
 
 const NOOP = { onPlayer: () => {}, onMessage: () => {}, onOpen: () => {} }
@@ -117,9 +89,11 @@ function quickSettings(seed: string, mode: Mode = 'quick'): GameSettings {
 }
 
 /**
- * Which screens have been through `t()`, and the most English each may still show in the pseudo-locale (what is left
- * is the game logic's and the engine's words, listed by `I18N_REPORT=1`), with two of headroom for the Daily's and
- * the Weekly's date-seeded puzzles. Lower a ceiling when a screen gets cleaner; raising one means a string skipped `t()`.
+ * Which screens have been through `t()`, and the most English each may still show in the pseudo-locale, with two of
+ * headroom for the Daily's and the Weekly's date-seeded puzzles. Since r10 the logic's own lines read through its
+ * mirror (`logicLine`), so what is left is data: How it works' source credits (the datasets' own titles and licences),
+ * a nation with its count in Explore's search, and the match commentary's kick-off line. Lower a ceiling when a screen
+ * gets cleaner; raising one means a string skipped `t()`.
  */
 const CEILING: Record<string, number> = {
   'App home': 2,
@@ -133,30 +107,30 @@ const CEILING: Record<string, number> = {
   'Profile': 2,
   'Explore': 2,
   'Explore clubs': 2,
-  'Explore league': 10,
+  'Explore league': 2,
   'Explore search': 3,
   'Explore compare': 2,
   'Stats players': 2,
   'Stats team': 2,
   'Privacy': 2,
-  'H2H setup': 4,
-  'Setup quick': 7,
-  'Setup daily': 3,
-  'Setup season': 5,
-  'Setup dynasty': 5,
+  'H2H setup': 2,
+  'Setup quick': 2,
+  'Setup daily': 2,
+  'Setup season': 2,
+  'Setup dynasty': 2,
   'Setup weekly': 2,
-  'Arena setup': 3,
-  'Run-in setup': 3,
-  'Draft': 3,
+  'Arena setup': 2,
+  'Run-in setup': 2,
+  'Draft': 2,
   'Kick-off': 2,
-  'Season playback': 7,
-  'Summary': 8,
-  'Dugout': 3,
+  'Season playback': 2,
+  'Summary': 2,
+  'Dugout': 2,
   'Match': 3,
-  'Arena': 4,
-  'Arena summary': 3,
+  'Arena': 2,
+  'Arena summary': 2,
   'H2H draft': 2,
-  'H2H result': 3,
+  'H2H result': 2,
 }
 
 describe('the pseudo-locale renders every migrated screen', () => {

@@ -20,6 +20,7 @@ import { Empty, Swatch, TeamCode } from './bits'
 import { translator } from '../../i18n'
 import { match } from '../../i18n/en/match'
 import { rich } from '../../i18n/rich'
+import { logicLine } from '../../i18n/logicText'
 
 const tx = translator(match)
 
@@ -51,7 +52,7 @@ export function MatchEvents({ d }: PanelProps) {
           <li key={`e${i}`} className={`md-ev ${whistle ? 'whistle' : e.side} ${e.type}`}>
             <span className="min mono">{whistle ? '' : minuteLabel(e.minute)}</span>
             <EventIcon type={e.type} />
-            <span className="txt">{whistle ? e.text : who}</span>
+            <span className="txt">{whistle ? logicLine(e.text) : who}</span>
           </li>
         )
       })}
