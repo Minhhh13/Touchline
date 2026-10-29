@@ -11,6 +11,9 @@ const t = translator(runin)
 
 export const templateText = (k: RunInTemplate) => t(`template_${k}`)
 
+/** A brief in two or three words for a job's chip: `Stay up` (`RUN_IN_BRIEF_SHORT`). */
+export const briefShortText = (k: RunInTemplate) => t(`briefShort_${k}`)
+
 /** How far the side is from its target: `2 points behind safety`, `top by 3 points` (`gapLine`). */
 export function gapText(template: RunInTemplate, target: number, position: number, gap: number): string {
   const pts = (n: number) => t('gapPts', { n })
@@ -26,4 +29,22 @@ export function gapText(template: RunInTemplate, target: number, position: numbe
 /** A job in one line: `18th, 28 points after matchweek 28 (projected), 1 point behind safety` (`jobLine`). */
 export function jobText(job: RunInJob): string {
   return t('jobLine', { pos: job.projected.position, points: job.projected.points, week: job.takeover, gap: gapText(job.template, job.target, job.projected.position, job.gap) })
+}
+
+/**
+ * How close a finished run-in came, against the club on the other side of the brief's line (r9): `3 points clear of
+ * Fulham in 18th`, `Level on points with QPR in 17th: out on goal difference`. Null for a sacked manager, a German
+ * 16th's play-off (its own line says it), or a table with no club across the line.
+ */
+export function marginText(rows: ReadonlyArray<{ teamId: string; points: number }>, userId: string, target: number, opts: { sacked: boolean; playOff: boolean; name: (id: string) => string }): string | null {
+  if (opts.sacked || opts.playOff) return null
+  const at = rows.findIndex((r) => r.teamId === userId)
+  if (at < 0) return null
+  const met = at + 1 <= target
+  // The rival: the first club below the line when the brief is met, the last one above it when missed
+  const rival = met ? rows[target] : rows[target - 1]
+  if (!rival || rival.teamId === userId) return null
+  const n = Math.abs(rows[at].points - rival.points)
+  const pos = met ? target + 1 : target
+  return t(met ? (n === 0 ? 'marginGdMet' : 'marginClear') : n === 0 ? 'marginGdMissed' : 'marginShort', { n, club: opts.name(rival.teamId), pos })
 }

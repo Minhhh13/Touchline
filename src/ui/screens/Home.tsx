@@ -15,7 +15,7 @@ import type { StartDecision } from '../../online/daily'
 import type { PuzzlePin } from '../../online/server/dailyVerify'
 import type { LoadedUniverse } from '@engine/universe'
 import { onlineAvailable } from '../../online/api'
-import { startingTeamName, teamShortName } from '../teamName'
+import { startingTeam, startingTeamName, teamShortName } from '../teamName'
 import { useOnline } from '../../online/state'
 import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel, formationName } from '../format'
@@ -215,7 +215,9 @@ export function Home() {
     if (open && !(await askConfirm(t('arenaAbandon', { mode: modeText(open, 'short'), team: open.settings.teamName }), { ok: t('startOk'), danger: true }))) return
     // Played already: a second go is practice, and says so before it replaces today's summary
     if (!open && arenaDone && !(await askConfirm(t('arenaAgain', { label: arenaDone.label }), { ok: t('playAgainOk') }))) return
-    startGame(dailyArenaGameSettings(u, arenaSeed))
+    // The manager's own team name (the remembered one, or an invented one), never the logic's "Touchline XI" fallback
+    const team = startingTeam()
+    startGame({ ...dailyArenaGameSettings(u, arenaSeed, team.teamName), shortName: team.shortName })
   }
   // The Weekly Challenge: its setup names the team and loads the week's packs; this week's run under way continues
   const weekSeed = weeklySeed()

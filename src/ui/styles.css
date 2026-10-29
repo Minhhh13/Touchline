@@ -4353,6 +4353,12 @@ table.tbl.contracts .btn.sm {
   line-height: 1;
   letter-spacing: 0.01em;
 }
+/* An arena banner with one long word (r9): a size down on a phone, so "Semi-finalists" never breaks at its hyphen */
+@media (max-width: 600px) {
+  .tier-banner .tier.long-word {
+    font-size: calc(var(--fs-h1) * 1.05);
+  }
+}
 .tier-banner .tier.PERFECT,
 .tier-banner .tier.INVINCIBLE {
   background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 28%, var(--text)), var(--gold));
@@ -6544,6 +6550,29 @@ dl.kv {
   .arena-best {
     animation: none;
   }
+}
+/* A shoot-out as a scoreboard (r9, ShootoutRows): one row a side, the side's code first, dashed places for kicks to come */
+.arena-pens {
+  margin-top: var(--space-3);
+}
+.shootout-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.arena-pens .shootout-rows {
+  margin-top: var(--space-2);
+}
+.shootout-code {
+  min-width: 3.2em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text-2);
+}
+.chip.shootout-open {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-3);
 }
 .tier-banner .tier.pop {
   animation: tier-pop var(--dur-4) var(--ease-spring);
@@ -14779,6 +14808,11 @@ table.tbl.tv-compact .tv-name {
 .chip.rung-ahead {
   border-style: dashed;
   background: transparent;
+}
+/* A rung a bonus spin follows (r9): a small gift beside its number */
+.rung-gift {
+  margin-left: 2px;
+  color: var(--accent);
 }
 /* Phones at 175 % and 200 % text (iOS Dynamic Type through the root font size, docs/ACCESSIBILITY.md section 5): the
    rows that ran past the window wrap instead. Each only wraps when its content no longer fits, so 100 % is unchanged */

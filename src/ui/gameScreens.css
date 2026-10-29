@@ -1183,21 +1183,22 @@
   .page.report-page > [data-testid='shootout-reveal'] h2 {
     font-size: var(--fs-h3);
   }
-  /* A long shoot-out (sudden death) keeps one line of kicks that scrolls sideways, so the report below keeps its height */
-  .page.report-page > [data-testid='shootout-reveal'] .shootout-kicks {
+  /* A long shoot-out (sudden death) keeps one line of kicks a side that scrolls sideways, so the report below keeps its height */
+  .page.report-page > [data-testid='shootout-reveal'] .shootout-side {
     flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 2px;
   }
-  .page.report-page > [data-testid='shootout-reveal'] .shootout-kicks > .chip {
+  .page.report-page > [data-testid='shootout-reveal'] .shootout-side > * {
     flex: none;
   }
 }
 /* A phone shoot-out: the disabled "Penalties first" leaves the head, and Take the penalties rides at the foot of the
-   window while the eleven takers scroll under it (ShootoutPanel renders it there under 721 px) */
+   window while the eleven takers scroll under it (ShootoutPanel renders it there under 721 px), standing on the dock
+   (r9: it sat behind the dock's tab bar) */
 .shootout-foot {
   position: sticky;
-  bottom: max(var(--space-2), var(--safe-bottom));
+  bottom: calc(var(--space-2) + var(--dock-h) + var(--dock-safe));
   z-index: 2;
   margin-top: var(--space-3);
 }

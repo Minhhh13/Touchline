@@ -4,7 +4,9 @@ import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
 import { aiLookup } from '@engine/reserve'
 import { useMediaQuery } from './LivePitch'
-import { kickLine, takerMoved } from '../arenaText'
+import { clubCode, kickLine, takerMoved } from '../arenaText'
+import { ShootoutRows } from './ShootoutRows'
+import { setShootoutRevealed, shootoutKey } from '../shootoutReveal'
 import { prefersReducedMotion } from '../motion'
 import { translator } from '../i18n'
 import { arena } from '../i18n/en/arena'
@@ -35,7 +37,7 @@ export function ShootoutPanel() {
   }, [moved])
   const last = game?.arena?.log.at(-1)
   const pens = last?.pens
-  const revealKey = pens ? `${game?.id}-${game?.arena?.log.length}-${pens.kicks.length}` : ''
+  const revealKey = pens && game?.arena ? shootoutKey(game.id, game.arena.log.length, pens.kicks.length) : ''
   const [shown, setShown] = useState(0)
   useEffect(() => {
     if (!pens) return
@@ -64,6 +66,11 @@ export function ShootoutPanel() {
     const k = pens.kicks[shown - 1]
     if (k) playSound({ id: 'kick', scored: k.scored, ours: !!k.us })
   }, [revealKey, shown])
+  // The report's verdict and Next button wait for the last kick (shootoutReveal.ts)
+  const allShown = !!pens && shown >= pens.kicks.length
+  useEffect(() => {
+    if (revealKey) setShootoutRevealed(revealKey, allShown)
+  }, [revealKey, allShown])
   // On a phone the takers stack above the keeper: Take the penalties rides at the foot of the window instead
   const phone = useMediaQuery('(max-width: 720px)')
   if (!u || !game?.arena) return null
@@ -164,16 +171,7 @@ export function ShootoutPanel() {
           </button>
         )}
       </div>
-      <div className="row wrap shootout-kicks" style={{ gap: 6 }}>
-        {kicks.map((k, i) => (
-          <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`} title={t(k.us ? 'ours' : 'theirs')}>
-            <span aria-hidden="true">{k.us ? '' : '⇢ '}</span>
-            <span className="sr-only">{k.us ? 'Ours: ' : 'Theirs: '}</span>
-            {name(k.takerId, k.us)} <span aria-hidden="true">{k.scored ? '✓' : '✗'}</span>
-            <span className="sr-only">{k.scored ? ' scored' : ' missed'}</span>
-          </span>
-        ))}
-      </div>
+      <ShootoutRows kicks={kicks} ourCode={game.settings.shortName} theirCode={last ? clubCode(u, last.opponent) : ''} name={(k) => name(k.takerId, k.us)} pending={!done} />
       {/* Each kick said once as it shows (the chips are ticks and colours), then the verdict */}
       <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="shootout-live">
         {lastKick ? kickLine(lastKick, kicks.length, name(lastKick.takerId, lastKick.us), us, them, done ? verdict : null) : ''}
