@@ -34,7 +34,7 @@ import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
 import { januaryGambleMade } from './logic/januaryGamble'
-import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, markQuickSeasonFresh, quickSeasonStale } from './logic/quickSeam'
+import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, markQuickSeasonFresh, quickSeasonKnownFresh, quickSeasonStale } from './logic/quickSeam'
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { availableStopChanges } from './logic/stopChanges'
@@ -252,6 +252,14 @@ interface Store {
   endPlayback: () => void
   /** Quick bench: before game `revealed + 1` of the playback, put bench player `inId` into slot `slotId` (one of the three changes). */
   benchChange: (revealed: number, slotId: string, inId: string) => void
+  /**
+   * `benchChange` as the playback's bench panel makes it: the busy state painted, then the season played again in the
+   * quick-season worker (the staleness check too, the first time this page sees the season); the page plays it where
+   * the worker cannot, the season is stale, or the game moved meanwhile. The same game as the plain action.
+   */
+  benchChangeSoon: (revealed: number, slotId: string, inId: string) => Promise<void>
+  /** Transient: a `benchChangeSoon` is under way. Never saved. */
+  changingBench: boolean
   /** Quick Draft after the league: play the domestic cup or the Continental Cup through (loading every league first for the Continental Cup). Resolves true when it was played. */
   playCup: (comp: QuickCupComp) => Promise<boolean>
   /** Quick Draft after the league: pass on a cup. */
@@ -613,7 +621,7 @@ export const useStore = create<Store>()(
           afterWindow(from)
         } finally {
           set({ closingJanuary: false })
-          stopQuickWorker()
+          if (!warmHeld) stopQuickWorker()
         }
       }
       const afterWindow = (from: number) => {
@@ -631,6 +639,8 @@ export const useStore = create<Store>()(
           get().recordResult()
         }
       }
+      /** How many screens hold the quick-season worker warm (`warmKickOff`): while any does, a finished job keeps it. */
+      let warmHeld = 0
       /** A `simWeeksSoon` or `simToNextBigMatchSoon` is under way (the Dugout's own busy flag resets if it remounts). */
       let simRunning = false
       /** League loads run one after another so two callers never overwrite each other's universe. */
@@ -704,6 +714,7 @@ export const useStore = create<Store>()(
         playingWeek: false,
         kickingOff: false,
         closingJanuary: false,
+        changingBench: false,
 
         loadData: async () => {
           if (get().universe || get().loading) return
@@ -1040,13 +1051,17 @@ export const useStore = create<Store>()(
             afterKickOff()
           } finally {
             set({ kickingOff: false })
-            stopQuickWorker()
+            if (!warmHeld) stopQuickWorker()
           }
         },
         warmKickOff: () => {
           warmQuickWorker(get().loadedLeagues, get().classicLoaded)
+          warmHeld++
+          let held = true
           return () => {
-            if (!get().kickingOff && !get().closingJanuary) stopQuickWorker()
+            if (held) warmHeld--
+            held = false
+            if (!warmHeld && !get().kickingOff && !get().closingJanuary && !get().changingBench) stopQuickWorker()
           }
         },
         januarySpin: () => {
@@ -1124,6 +1139,26 @@ export const useStore = create<Store>()(
           // Just played by this engine: the next change's staleness check need not play it again
           const after = get().game
           if (after && after !== game) markQuickSeasonFresh(after)
+        },
+        benchChangeSoon: async (revealed, slotId, inId) => {
+          const { game: before, universe: u0 } = get()
+          if (!before || !u0 || get().changingBench) return
+          // A refused change is the plain action's toast; nothing to play
+          if (quickChangeProblem(before, u0, playbackResults(before), revealed, { slotId, inId })) return get().benchChange(revealed, slotId, inId)
+          set({ changingBench: true })
+          try {
+            await afterNextPaint()
+            const same = () => get().game === before && get().universe === u0
+            const job = { op: 'quickChange' as const, game: before, revealed, slotId, inId, check: !quickSeasonKnownFresh(before) }
+            const played = same() ? await runQuickInWorker(job, get().loadedLeagues, get().classicLoaded, u0) : null
+            // No worker, a stale season (the plain action says so), or the game moved meanwhile: the page makes the change
+            if (!played || !same()) return get().benchChange(revealed, slotId, inId)
+            set({ game: freeze(played, true) })
+            markQuickSeasonFresh(get().game!)
+          } finally {
+            set({ changingBench: false })
+            if (!warmHeld) stopQuickWorker()
+          }
         },
 
         playCup: async (comp) => {

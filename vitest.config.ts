@@ -29,6 +29,7 @@ export const SLOW_FILES = [
   'src/game/__tests__/bothSides.test.ts', // 28
   'src/game/__tests__/engine6.test.ts', // 28
   'src/game/__tests__/classicRelease.test.ts', // 25
+  'src/game/__tests__/quickWorkerBench.test.ts', // 23
   'src/game/__tests__/medical.test.ts', // 16
 ]
 
