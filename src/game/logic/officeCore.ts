@@ -90,7 +90,8 @@ export function lodgeRequest(game: Game, u: LoadedUniverse, playerSeasonId: stri
   const requests = (o.requests ??= {})
   const old = requests[p.playerId]
   const week = weekOf(game)
-  if (old && (old.stage === 'open' || old.stage === 'listed')) return null
+  // One waiting this season blocks a second; one an earlier season left open was let go with that season (r9)
+  if (old && old.year === game.year && (old.stage === 'open' || old.stage === 'listed')) return null
   if (old && old.year === game.year && week - (old.settledAt ?? old.at) < REQUEST_COOLDOWN && reason !== 'promise') return null
   const req: TransferRequest = { playerId: p.playerId, name: p.name, reason, year: game.year, at: week, stage: 'open' }
   requests[p.playerId] = req

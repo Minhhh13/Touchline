@@ -44,7 +44,8 @@ function pruneRequests(game: Game, u: LoadedUniverse): void {
   const week = weekOf(game)
   for (const [pid, r] of Object.entries(requests)) {
     const id = squadIdOf(game, u, pid)
-    if (!id) {
+    // An earlier season's request still waiting is let go with it, as its promises are (r9: it hid and blocked his next)
+    if (!id || (r.stage === 'open' && r.year !== game.year)) {
       delete requests[pid]
       continue
     }

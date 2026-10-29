@@ -8,6 +8,10 @@ import { makePromise, settlePromises } from '../logic/promises'
 import { proposeContract, openingOffer } from '../logic/contracts'
 import { clubValuation, offerTerms, openingStatus, proposeFee, termsDemand } from '../logic/transferTalks'
 import { squadWages } from '../logic/squad'
+import { playerLookup } from '../logic/players'
+import { lodgeRequest } from '../logic/officeCore'
+import { openRequests } from '../logic/transferRequests'
+import { officeTick } from '../logic/office'
 import { seasonGame } from './seasonGame'
 import type { Game } from '../types'
 
@@ -100,5 +104,23 @@ describe('R9-3: the office and the feats break ties in English on every device',
     asDeviceIn('lt')
     expect('yeti'.localeCompare('user')).toBeLessThan(0)
     expect(seasonGroupRead(cont)?.topped).toBe(engineFirst === USER_TEAM)
+  })
+})
+
+describe("R9-5: a request left open at a season's end does not block the next season's", () => {
+  it('a broken promise in the new season lodges a request; the old one is let go at the tick', () => {
+    const g = seasonGame(u, 'r9-5-stale', 6)
+    const id = Object.values(g.lineup)[2]
+    const pid = playerLookup(g, u)(id)!.playerId
+    // Last season's request, never answered (a promise broken on the final matchweek lodges one that late)
+    g.office = { requests: { [pid]: { playerId: pid, name: 'Stale', reason: 'promise', year: g.year - 1, at: 38, stage: 'open' } } }
+    expect(openRequests(g)).toHaveLength(0)
+    const req = lodgeRequest(g, u, id, 'promise')
+    expect(req?.year).toBe(g.year)
+    expect(openRequests(g)).toHaveLength(1)
+    // And the tick lets an earlier season's open request go
+    g.office.requests![pid] = { playerId: pid, name: 'Stale', reason: 'morale', year: g.year - 1, at: 38, stage: 'open' }
+    officeTick(g, u)
+    expect(g.office.requests![pid]).toBeUndefined()
   })
 })
