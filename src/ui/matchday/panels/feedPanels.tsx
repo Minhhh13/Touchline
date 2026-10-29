@@ -9,7 +9,7 @@ import { MOMENTUM_BINS } from '@engine/matchDetail'
 import { statsAt } from '@engine/matchStats'
 import { isAvailable } from '@game/logic/players'
 import { minuteLabel } from '../../format'
-import { changeText, latestLine, type CommentaryLine } from '../../match/commentary'
+import { latestLine, type CommentaryLine } from '../../match/commentary'
 import { momentumScale } from '../../match/charts'
 import { surname } from '../../match/shirts'
 import { assistantCheckpoint, assistantLine } from '../../match/assistant'
@@ -20,7 +20,7 @@ import { Empty, Swatch, TeamCode } from './bits'
 import { translator } from '../../i18n'
 import { match } from '../../i18n/en/match'
 import { rich } from '../../i18n/rich'
-import { logicLine } from '../../i18n/logicText'
+import { changeLineText, commentaryLineText, commentaryPiece, eventLine } from '../../i18n/commentaryText'
 
 const tx = translator(match)
 
@@ -40,19 +40,19 @@ export function MatchEvents({ d }: PanelProps) {
             <li key={`c${i}`} className={`md-ev change ${it.entry.side}`}>
               <span className="min mono">{minuteLabel(it.minute)}</span>
               <ChangeIcon />
-              <span className="txt">{changeText(it.entry, team) ?? tx('teamChange', { team })}</span>
+              <span className="txt">{changeLineText(it.entry, team) ?? tx('teamChange', { team })}</span>
             </li>
           )
         }
         const e = it.event
         const whistle = e.type === 'half_time' || e.type === 'full_time'
         const sub = e.type === 'substitution'
-        const who = sub ? tx('subFor', { on: surname(e.secondaryName ?? (e.secondaryId ? d.getName(e.secondaryId) : undefined)), off: surname(e.playerName) }) : e.playerName ? `${e.playerName}${e.type === 'penalty' ? tx('penMark') : e.type === 'own_goal' ? tx('ogMark') : ''}${e.type === 'goal' && e.secondaryName ? ` (${e.secondaryName})` : ''}` : e.text
+        const who = sub ? tx('subFor', { on: surname(e.secondaryName ?? (e.secondaryId ? d.getName(e.secondaryId) : undefined)), off: surname(e.playerName) }) : e.playerName ? `${e.playerName}${e.type === 'penalty' ? tx('penMark') : e.type === 'own_goal' ? tx('ogMark') : ''}${e.type === 'goal' && e.secondaryName ? ` (${e.secondaryName})` : ''}` : eventLine(e.text)
         return (
           <li key={`e${i}`} className={`md-ev ${whistle ? 'whistle' : e.side} ${e.type}`}>
             <span className="min mono">{whistle ? '' : minuteLabel(e.minute)}</span>
             <EventIcon type={e.type} />
-            <span className="txt">{whistle ? logicLine(e.text) : who}</span>
+            <span className="txt">{whistle ? eventLine(e.text) : who}</span>
           </li>
         )
       })}
@@ -69,7 +69,7 @@ export function CommentaryList({ d }: PanelProps) {
       {lines.map((l, i) => (
         <li key={i} className={`md-line ${l.kind} ${l.side ?? ''}`}>
           <span className="min mono">{l.minute > 0 ? minuteLabel(l.minute) : ''}</span>
-          <span className="txt">{l.text}</span>
+          <span className="txt">{commentaryLineText(l)}</span>
         </li>
       ))}
     </ol>
@@ -259,10 +259,10 @@ export function CommentaryBanner({ d }: PanelProps) {
       <div className="md-banner assistant key" data-testid="assistant-line">
         <span className="min mono">{minuteLabel(assist.minute)}</span>
         <span className="txt" key={`a${assist.minute}`}>
-          <b className="md-assistant-tag">{tx('assistant')}</b> {assist.text}
+          <b className="md-assistant-tag">{tx('assistant')}</b> {commentaryPiece(assist.text)}
         </span>
         <span className="sr-only" aria-live="polite">
-          {tx('assistantSays', { text: assist.text })}
+          {tx('assistantSays', { text: commentaryPiece(assist.text) })}
         </span>
       </div>
     )
@@ -273,10 +273,10 @@ export function CommentaryBanner({ d }: PanelProps) {
     <div className={`md-banner ${tone} ${moment ? 'key' : ''}`}>
       <span className="min mono">{line && line.minute > 0 ? minuteLabel(line.minute) : "0'"}</span>
       <span className="txt" key={`${line?.minute}-${line?.text}`}>
-        {line?.text ?? tx('teamsOut')}
+        {line ? commentaryLineText(line) : tx('teamsOut')}
       </span>
       <span className="sr-only" aria-live="polite">
-        {key ? `${minuteLabel(key.minute)} ${key.text}` : ''}
+        {key ? `${minuteLabel(key.minute)} ${commentaryLineText(key)}` : ''}
       </span>
     </div>
   )

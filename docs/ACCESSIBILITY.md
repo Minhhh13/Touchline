@@ -224,7 +224,7 @@ Round 6 (`claude/r10-i18n-a11y`, from `main` 869c434, 2026-10-29): the signed-in
 
 After the sixth pass (round 6):
 
-- **English left on screen, by design or for later.** The match commentary and the match events' own text (the live feed's whistle lines excepted), the data credits in How it works (the datasets' own titles and licences), and the share text and card (English on purpose). Everything else in the pseudo-locale is data.
+- **English left on screen, by design or for later.** The live pitch's caption pill (`aria-hidden`; the match commentary and the events' own text are translated since round 12, R11-O3), the data credits in How it works (the datasets' own titles and licences), and the share text and card (English on purpose). Everything else in the pseudo-locale is data.
 - **The World boards' panels** are not `role="tabpanel"` (the tabs name their board and the table beside them has its own heading).
 - **The match day's phone controls** (its tool buttons and selects, 32 px, and its phone tabs, 31 px) stay under 44 px: the compact match layout is fitted to the window height. They pass WCAG 2.5.8 (24 px).
 - **iOS text size needs the wrapper.** The page is ready (section 5): `@capacitor/text-zoom@8.0.1` and three calls in the wrapper's start-up, waiting on the iOS PR.

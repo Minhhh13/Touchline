@@ -240,7 +240,7 @@ describe('panel models', () => {
 
   it('writes a line for every goal elsewhere with the score it made, and flashes a fresh one', () => {
     const s: LatestScore = { homeTeamId: 'a', awayTeamId: 'b', homeName: 'Arsenal', awayName: 'Spurs', homeCode: 'ARS', awayCode: 'TOT', home: 2, away: 1, status: 'live', goals: [{ minute: 23, side: 'home', scorer: 'Saka' }, { minute: 50, side: 'away' }, { minute: 88, side: 'home', scorer: 'Rice' }] }
-    expect(elsewhereLines([s])).toEqual([
+    expect(elsewhereLines([s])).toMatchObject([
       { minute: 23, text: "Elsewhere: Arsenal 1-0 Spurs, Saka 23'." },
       { minute: 50, text: 'Elsewhere: Arsenal 1-1 Spurs.' },
       { minute: 88, text: "Elsewhere: Arsenal 2-1 Spurs, Rice 88'." },

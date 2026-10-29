@@ -219,7 +219,20 @@ export function rematchOf(view: Pick<RoomView, 'code' | 'managers'>, seat: 0 | 1
  * A room's code from whatever the player put in the box: a typed code ("k7q2 mx9a", "K7Q2-MX9A"), or the whole invite
  * link pasted in (`https://touchline.quest/#h=K7Q2MX9A`, with or without the address, even inside the invite's text).
  */
-export function roomCodeFrom(input: string): string | null {
+function decoded(text: string): string {
+  if (!/%[0-9A-F]{2}/i.test(text)) return text
+  try {
+    return decodeURIComponent(text)
+  } catch {
+    // A stray "%" elsewhere in the text: the link's own marks still read
+    return text.replace(/%23/gi, '#').replace(/%3D/gi, '=').replace(/%2D/gi, '-')
+  }
+}
+
+export function roomCodeFrom(raw: string): string | null {
+  // Full-width letters, digits and marks typed on a Japanese keyboard fold to plain ones (NFKC), and a link or invite
+  // pasted URL-encoded ("%23h%3D", "%20") reads as it was written (QA r11, R11-O2)
+  const input = decoded(raw.normalize('NFKC'))
   const link = /#h=([A-Za-z0-9]{4}-?[A-Za-z0-9]{4})(?![A-Za-z0-9])/i.exec(input)
   if (link) return normaliseCode(link[1])
   const whole = normaliseCode(input.trim())

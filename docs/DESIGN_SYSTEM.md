@@ -974,8 +974,13 @@ translations. English stays the source; nothing on screen changes in English.
   Dynasty summer and fails on a line that reads back differently, or on too many unmatched); a message too general to
   stand alone ("{objective}: {risk}") goes in `STRICT`, so it matches only when every hole is itself a known line. The
   online layer's own words (the save status, this device's posts, a failed read) are mirrored from the facts in
-  `src/ui/online/statusText.ts`. Still in English: the match commentary and the match events' text (the live feed's
-  whistle lines excepted), and the data credits in How it works.
+  `src/ui/online/statusText.ts`. The match commentary and the match events' text are mirrored the same way through
+  the `commentaryText` catalogue (`src/ui/i18n/commentaryText.ts`, QA r11's R11-O3): a `CommentaryLine` keeps its
+  English `text` and carries the pieces it was joined from (`source`), and a screen prints `commentaryLineText(line)`,
+  an event's own text `eventLine(text)`, the assistant's word `commentaryPiece(text)` and a change of instructions
+  `changeLineText(entry, team)`; a new commentary template or event wording gets its message there
+  (`src/ui/__tests__/commentaryMirror.test.ts`). Both mirrors share the matcher in `src/ui/i18n/mirror.ts`. Still in
+  English: the live pitch's caption pill and the data credits in How it works.
 - **Room to grow.** A translation runs about 30 % longer than English (German more). Buttons and chips wrap or
   ellipsise rather than overflow; never size a box to its English text. The development pseudo-locale shows it: in a
   dev build pick "Pseudo (en-XA)" under Profile, Settings, Language (or set `localStorage['touchline-language'] =
