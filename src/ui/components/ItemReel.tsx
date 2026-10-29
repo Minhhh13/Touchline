@@ -6,6 +6,7 @@ import { OVERSHOOT, reelKeyframes, reelPosition, type ReelTiming } from '../reel
 import { NeonFlow } from './Art'
 import { REDUCED_MS } from './CaseReel'
 import { CaseItemIcon, isCaseItemKey } from './icons'
+import { caseRowTitle } from '../i18n/engineText'
 
 function prefersReducedMotion(): boolean {
   try {
@@ -19,7 +20,8 @@ function Card({ c, landed }: { c: ItemCard; landed?: boolean }) {
   return (
     <div className={`reel-card item-card${landed ? ' landed' : ''}`} data-tier={c.tier}>
       <span className="code">{isCaseItemKey(c.key) ? <CaseItemIcon item={c.key} size="0.9em" /> : c.face}</span>
-      <span className="item-lbl">{c.label}</span>
+      {/* A case item's name in the viewer's language (the logic's card keeps the English); a manager's is his surname */}
+      <span className="item-lbl">{isCaseItemKey(c.key) ? caseRowTitle({ item: c.key, title: c.label }) : c.label}</span>
     </div>
   )
 }

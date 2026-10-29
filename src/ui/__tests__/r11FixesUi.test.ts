@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { roomCodeFrom, roomInviteText } from '../../online/rooms'
+import { paceLine } from '@game/logic/gameByGame'
+import { POWER_UPS } from '@engine/powerups'
+import { formatText, setLocaleMessages } from '../i18n'
+import { isPseudo, PSEUDO_LOCALE } from '../i18n/pseudo'
+import { logicText } from '../i18n/en/logicText'
+import { logicLine, matchLogicLine } from '../i18n/logicText'
+import { caseRowTitle } from '../i18n/engineText'
 
 /** QA round 6 (r11, docs/QA.md): the screen fixes. The browser checks are in docs/QA.md; these hold the code to them. */
 const src = (p: string): string => readFileSync(join(__dirname, '..', p), 'utf8')
@@ -69,5 +76,36 @@ describe('R11-7: Explore’s range fields say “to” in the viewer’s languag
     for (const f of files('.')) for (const m of src(f).matchAll(/>\s*([a-z][a-z' ]+)\s*<\//g)) bare.push(`${f}: ${m[1]}`)
     expect(bare).toEqual([])
     expect(src('screens/ExploreViews.tsx')).toContain("{tx('rangeBetween')}")
+  })
+})
+
+describe('R11-8: January’s pace line and the case reel’s items in the viewer’s language', () => {
+  const lines = (): string[] => {
+    const out = [paceLine({ played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, position: 0 }, 38, 20)]
+    for (let position = 1; position <= 20; position++) for (const points of [3, 19, 25, 40, 57]) out.push(paceLine({ played: 19, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points, position }, 38, 20))
+    return out
+  }
+
+  it('every pace line the logic writes is a logicText message, read back character for character', () => {
+    for (const line of lines()) {
+      const hit = matchLogicLine(line)
+      expect(hit, line).not.toBeNull()
+      expect(hit!.key.startsWith('gameByGame_'), line).toBe(true)
+      expect(formatText(logicText.messages[hit!.key as keyof typeof logicText.messages], hit!.vars)).toBe(line)
+    }
+  })
+
+  it('in the pseudo-locale the pace line and the case items are translated; English is untouched', () => {
+    expect(caseRowTitle({ item: 'icon', title: 'Icon' })).toBe('Icon')
+    setLocaleMessages({ id: PSEUDO_LOCALE, messages: {} })
+    try {
+      for (const line of lines()) expect(isPseudo(logicLine(line)), line).toBe(true)
+      expect(isPseudo(caseRowTitle({ item: 'icon', title: 'Icon' }))).toBe(true)
+      for (const k of POWER_UPS) expect(isPseudo(caseRowTitle({ item: k, title: k }))).toBe(true)
+    } finally {
+      setLocaleMessages({ id: 'en', messages: {} })
+    }
+    expect(src('components/JanuaryWindow.tsx')).toContain('{logicLine(paceLine(f, totalGames, teams))}')
+    expect(src('components/ItemReel.tsx')).toContain('caseRowTitle({ item: c.key, title: c.label })')
   })
 })

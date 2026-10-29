@@ -1701,4 +1701,10 @@ export const logicText = catalog('logicText', {
   events_knockedOnYourDoor: '{name} has knocked on your door. {missed, plural, =0 {He feels} one {He has not played in # match and feels} other {He has not played in # matches and feels}} he deserves a place in the side.',
   events_knockedOnYourDoorStatus: '{name} has knocked on your door. {missed, plural, =0 {He feels} one {He has not played in # match and feels} other {He has not played in # matches and feels}} he deserves a place in the side. He signed as {status} and has had {had}% of the minutes; he expected {expected}%.',
   events_renewAs: 'Renew as {status, select, key {a key player} other {first team}} (£{fee}M, +10% wages)',
+  // game/logic/gameByGame.ts: the January halfway panel's pace line (QA r11)
+  gameByGame_paceNone: 'No games played yet.',
+  gameByGame_paceTitle: 'Top at the turn and on course for the title, at {article} {pace, number}-point pace.',
+  gameByGame_paceTopFour: 'On course for {pos, ordinal}, inside the top four, at {article} {pace, number}-point pace.',
+  gameByGame_paceDrop: 'On course for {pos, ordinal}, in the bottom three, at {article} {pace, number}-point pace: the drop if nothing changes.',
+  gameByGame_pace: 'On course for {pos, ordinal}, at {article} {pace, number}-point pace.',
 })
