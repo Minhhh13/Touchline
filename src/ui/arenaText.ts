@@ -3,7 +3,7 @@
  * `src/ui/__tests__/arenaText.test.ts`. Presentation only: nothing here decides a result.
  */
 import { GAUNTLET_BANDS, rungBandLabel } from '@engine/gauntlet'
-import { clubIdOfKey } from '@engine/knockout'
+import { clubIdOfKey, type ArenaTier } from '@engine/knockout'
 import type { LoadedUniverse } from '@engine/universe'
 import type { Outcome } from './format'
 import { translator } from './i18n'
@@ -68,7 +68,29 @@ export function splitSeason(name: string): { club: string; season: string | null
 export function gauntletBandText(rung: number): string {
   const label = rungBandLabel(rung)
   const top = /^top (\d+)% of the wheel$/.exec(label)
-  return top && rung >= 2 && rung <= GAUNTLET_BANDS ? t('strongerThan', { n: 100 - Number(top[1]) }) : label
+  if (top && rung >= 2 && rung <= GAUNTLET_BANDS) return t('strongerThan', { n: 100 - Number(top[1]) })
+  // The ends of the ladder in the viewer's language too (QA r11); anything else as the engine says it
+  return rung === 1 ? t('weakestBand') : rung > GAUNTLET_BANDS ? t('strongestBand') : label
+}
+
+const TIER_KEY = {
+  WINNERS: 'winners',
+  'RUNNERS-UP': 'runnersUp',
+  'GAUNTLET COMPLETE': 'gauntletComplete',
+  'CUP WINNERS': 'cupWinners',
+  FINALISTS: 'finalists',
+  'SEMI-FINALISTS': 'semiFinalists',
+  'QUARTER-FINALISTS': 'quarterFinalists',
+  'OUT IN THE ROUND OF 16': 'outRound16',
+  'OUT IN THE FIRST ROUND': 'outFirstRound',
+} as const satisfies Record<Exclude<ArenaTier, 'RUNGS'>, string>
+
+/**
+ * An arena run's banner on screen (`WINNERS`, `7 RUNGS`, `OUT IN THE ROUND OF 16`) in the viewer's language; the
+ * engine's `arenaTierLabel` keeps the English the share text and card use, held equal in English by a test (QA r11).
+ */
+export function arenaTierText(tier: ArenaTier, score: number): string {
+  return t(`arenaTier_${tier === 'RUNGS' ? 'rungs' : TIER_KEY[tier]}`, { n: score })
 }
 
 /**

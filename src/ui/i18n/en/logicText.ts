@@ -1701,6 +1701,28 @@ export const logicText = catalog('logicText', {
   events_knockedOnYourDoor: '{name} has knocked on your door. {missed, plural, =0 {He feels} one {He has not played in # match and feels} other {He has not played in # matches and feels}} he deserves a place in the side.',
   events_knockedOnYourDoorStatus: '{name} has knocked on your door. {missed, plural, =0 {He feels} one {He has not played in # match and feels} other {He has not played in # matches and feels}} he deserves a place in the side. He signed as {status} and has had {had}% of the minutes; he expected {expected}%.',
   events_renewAs: 'Renew as {status, select, key {a key player} other {first team}} (£{fee}M, +10% wages)',
+  // game/logic/gameByGame.ts: the January halfway panel's pace line (QA r11)
+  gameByGame_paceNone: 'No games played yet.',
+  gameByGame_paceTitle: 'Top at the turn and on course for the title, at {article} {pace, number}-point pace.',
+  gameByGame_paceTopFour: 'On course for {pos, ordinal}, inside the top four, at {article} {pace, number}-point pace.',
+  gameByGame_paceDrop: 'On course for {pos, ordinal}, in the bottom three, at {article} {pace, number}-point pace: the drop if nothing changes.',
+  gameByGame_pace: 'On course for {pos, ordinal}, at {article} {pace, number}-point pace.',
+  // engine/market.ts: the window's log lines the news never carries (QA r11)
+  market_windowOpen: 'The {kind, select, summer {summer} other {January}} window is open. {n, number} players are available.',
+  market_newPlayersListed: '{n, plural, one {# new player} other {# new players}} listed: {names}.',
+  // game/logic/liveTable.ts: the playback's points gap (QA r11)
+  liveTable_topBy: 'Top by {n, plural, one {# pt} other {# pts}}',
+  liveTable_topOnGd: 'Top on goal difference',
+  liveTable_levelWithFirst: 'Level on points with 1st',
+  liveTable_offTop: '{n, plural, one {# pt} other {# pts}} off top',
+  liveTable_levelWith: 'Level with {pos, ordinal}',
+  liveTable_offPlace: '{n, plural, one {# pt} other {# pts}} off {pos, ordinal}',
+  // engine/h2h.ts: the head-to-head draft log (an online room's with the managers' names in place; QA r11)
+  h2h_spinPicksFirst: 'Spin {n, number}: {clubSeason}. {manager} picks first.',
+  h2h_missesOut: '{manager} has no eligible player here and misses out.',
+  h2h_drafts: '{manager} drafts {name}.',
+  h2h_managerN: 'Manager {n, number}',
+  // game/logic/briefing.ts: round 10's Office line (officeLine), mirrored here by engine 8's merge
   briefing_officeWaiting: '{count} things wait in the Office: {names}',
   briefing_officeRequest: '{name} has asked to leave: answer him in the Office ({weeks, plural, =0 {this matchweek} one {# matchweek left} other {# matchweeks left}})',
   briefing_officeTerms: 'Fee agreed for {name}: his personal terms wait in the Office',

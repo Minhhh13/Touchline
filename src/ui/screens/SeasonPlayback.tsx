@@ -187,7 +187,7 @@ export function SeasonPlayback() {
         <SeasonTally results={results} upTo={pb.revealed} flare={flare?.box ? { box: flare.box, stamp: pb.revealed } : undefined} />
         {gap && (
           <span className="chip info pb-gap" data-testid="playback-gap">
-            {gap}
+            {logicLine(gap)}
           </span>
         )}
         {moment && pb.revealed > 0 && (

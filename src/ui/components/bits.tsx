@@ -58,7 +58,7 @@ export function Rating({ value, size, hidden, range, reveal, label }: { value: n
   const v = Math.round(value)
   if (!hidden && range && range.hi > range.lo) {
     return (
-      <span className={`rating range ${ratingBand(Math.round((range.lo + range.hi) / 2))} ${size ?? ''}`} title={`Somewhere from ${range.lo} to ${range.hi}: scout him to know`} data-testid="rating-range">
+      <span className={`rating range ${ratingBand(Math.round((range.lo + range.hi) / 2))} ${size ?? ''}`} title={t('ratingRangeTip', { lo: range.lo, hi: range.hi })} data-testid="rating-range">
         {range.lo}–{range.hi}
       </span>
     )
