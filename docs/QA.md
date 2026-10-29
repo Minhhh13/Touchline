@@ -302,7 +302,7 @@ Branch `claude/r10-tests`. v8 line coverage over `src/engine`, `src/game` and `s
 
 ## R5-3. Open
 
-- `src/online/runtime.ts`, `api.ts`'s online half, `boot.ts`, `client.ts` and the error reporter's window wiring need supabase-js or a browser: covered by the Playwright smokes and the live checks only.
+- ~~`src/online/runtime.ts`, `api.ts`'s online half, `boot.ts`, `client.ts` and the error reporter's window wiring need supabase-js or a browser: covered by the Playwright smokes and the live checks only.~~ Tested against stand-ins in round 6 (r11), at the end of this file.
 - `SupabaseTransport.listFolder` reads 100 objects a slot with no paging (the stray sweep after "Delete my cloud data"); harmless at today's two objects a slot.
 
 ## R5-4. Coverage notes
@@ -324,3 +324,31 @@ Quick Draft's Setup and Draft at 1280x800 and 390x844 (and 360x740), Floodlit an
 | R10-6 | Low (wording) | "Re-spin (1)" did not say the number is what is left, or what a re-spin costs; slot chips read "left CM" | "Re-spin · 1 left" with a tooltip (swaps the club-season, costs no pick); "Left CM" (`slotLabelText`) | `setupMemory.test.ts`, `draftFit.test.ts` |
 
 Looked at and left: the reel's timing (`reelCurve.ts`, untouched), the recap and Hindsight XI (clear, with the grade tip above them), the desktop Modes row (hover, focus or a tap shows each card's line), and an invented team name, which is invented again on the next setup by design (`teamName.ts`; a typed name is kept).
+
+# Round 6: the online layer's browser half (r11, 2026-10-29)
+
+Branch `claude/r11-online-tests`. Round 5 left the parts of `src/online` that need supabase-js or a page untested. They now run in Vitest's node environment against stand-ins: a fake supabase-js `auth` (and a recorder in place of `createClient`), the in-memory `FakeTransport` in place of `SupabaseTransport`, a fake window, document, `navigator`, `localStorage`, `history` and `fetch`, and fake timers. No request leaves a test.
+
+## R6-1. What was tested
+
+- Coverage of `src/online` by its own tests (`npx vitest run src/online --coverage.enabled --coverage.provider=v8 --coverage.include='src/online/**' --coverage.exclude='**/__tests__/**'`): before 82.64% of lines (359 tests in 46 files), after 95.01% (409 in 50). By file: `runtime.ts` 0 → 93.7%, `api.ts` 19.9 → 96.6%, `boot.ts` 0 → 91.4%, `client.ts` 0 → 100%, `errors.ts` 62.2 → 91.7%.
+- `runtime.test.ts`: starting signed out (both pins read, the function never asked) and with a stored session (account, sync, orphans, outbox, the function asked to pin a missing day or week); a `token_hash` link verified and stripped from the address, an expired one reported; the auth events (a sign-in elsewhere, a token refresh for the same account changing nothing, a sign-out clearing the screens); another account's record pausing sync until the player chooses; sign-out on this device only; the account read failing with its words and read again on `online`; the push budget (a profile change 10 s later, several in one pass), the backoff (5 s doubling with jitter, 15 minutes when rate-limited, none after a refusal), offline, the page put away, back after a minute and closed, the five-minute pass only while visible, the sync lock; the outbox (waiting for sign-in, then posted on sign-in; a run filed during a flush kept; a retry on its own timer; one flush at a time); the pins read once when asked twice and a failed read as no pin; account deletion refused and done; `startRuntime` null without the variables and started once with them.
+- `apiOnline.test.ts`: every call of `api.ts` over a stand-in runtime; a runtime chunk that did not load ("Could not reach the online service", every reader's offline answer); the email code and Google; the name check and `saveAccount`'s words for each refusal; Sync now and conflict resolution; the outbox flush and a room's close only once started; the boards, and a player's own rows only signed in; short links signed out, signed in and offline; the room calls; the Error reports switch; Google's settings read once a page; the 38-0 chase's start (signed out, no connection, 401, a refusal, an unplayable wheel, the server's attempt started) and `submitChase`'s refusals.
+- `boot.test.ts`: no session or link (the reporter only); a stored session and a sign-in link (the runtime started with it); the device's posts mirrored; a finished ranked Daily filed once while signed out, with a flush asked for; nothing for a Quick Draft or a finished game arriving from the cloud.
+- `clientWiring.test.ts`: the client's options (PKCE, the session key, the publishable key) and its fetch giving up after `REQUEST_TIMEOUT_MS` with the caller's abort kept; `installErrorReporting` off without the variables, once a page, a page error posted as a guest (the publishable key, no `Authorization`), nothing with the setting off, a rejection, a chunk, the screen boundary's early and late signals, and reports kept offline until `online`.
+
+## R6-2. Fixed
+
+| Id | Severity | What happened | Fixed by | Test |
+| --- | --- | --- | --- | --- |
+| R11-1 | Medium (server load) | After a rate-limit answer the runtime scheduled its retry 15 minutes out, but the five-minute pass and a return to the page synced anyway, so a rate-limited device kept knocking | `Runtime.syncNow` keeps `rateUntil`: a background pass waits until then; Sync now and `pagehide` (forced) still go | `runtime.test.ts`, the backoff case |
+| R11-2 | Low (requests) | Every outbox flush read today's pins again (two reads) once any post had ever been posted on the device | Only a post that has just landed in this flush reads them | `runtime.test.ts`, "reads the pins again only when a post has just landed" |
+| R11-3 | Low (tests, a future caller) | `Runtime.dispose()` unsubscribed the store only: the page's listeners, the five-minute interval and the outbox timer kept running | `listen()` records how to undo each; `dispose()` runs them and clears every timer (nothing in the app calls it) | `runtime.test.ts`, "stops every timer and listener when disposed" |
+
+Each test fails on the runtime before its fix (checked by stashing the fix).
+
+## R6-3. Open
+
+- `boot.ts`'s casual-board filing (the 50 ms delay before `captureCasualEntry`) is not driven through the boot subscription (`captureCasualEntry` itself is tested in `casualClient.test.ts`); `main.tsx`'s one-line gate stays covered by the budget test (no online chunk in an offline build).
+- `runtime.ts`'s room wiring (the seat store, `onFinished`'s Trophy Room credit) is reached only through `roomSession.test.ts`'s own deps.
+- Still untested: `server/entry.ts` (the verifier bundle's entry, run by `check:verifier`).

@@ -343,7 +343,7 @@ export function RoomScreen() {
 function RoomMessage({ icon, title, line, action, testId }: { icon: React.ReactNode; title: string; line: string; action?: React.ReactNode; testId?: string }) {
   return (
     <div className="screen-body fill">
-      <div className="panel col" data-testid={testId}>
+      <div className="panel col room-message" data-testid={testId}>
         <div className="empty-state">
           <span className="empty-icon" aria-hidden="true">
             {icon}
@@ -402,15 +402,17 @@ function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
       line={line}
       testId="room-ended"
       action={
-        <div className="row wrap" style={{ justifyContent: 'center' }}>
-          {seat !== null && (
-            <button className="btn primary" disabled={busy} onClick={() => { setBusy(true); void rematch(u, view, seat, showToast).finally(() => setBusy(false)) }} data-testid="room-rematch">
-              <RotateCcw size={16} aria-hidden="true" /> {t(busy ? 'makingRoom' : 'sameRoomAgain')}
+        <div className="room-ended-actions">
+          <div className="row wrap room-ended-buttons">
+            {seat !== null && (
+              <button className="btn primary" disabled={busy} onClick={() => { setBusy(true); void rematch(u, view, seat, showToast).finally(() => setBusy(false)) }} data-testid="room-rematch">
+                <RotateCcw size={16} aria-hidden="true" /> {t(busy ? 'makingRoom' : 'sameRoomAgain')}
+              </button>
+            )}
+            <button className={`btn ${seat === null ? 'primary' : ''}`} onClick={() => go('h2h')}>
+              {t('newRoom')}
             </button>
-          )}
-          <button className={`btn ${seat === null ? 'primary' : ''}`} onClick={() => go('h2h')}>
-            {t('newRoom')}
-          </button>
+          </div>
           {seat !== null && <JoinRematch name={other?.name ?? null} />}
         </div>
       }

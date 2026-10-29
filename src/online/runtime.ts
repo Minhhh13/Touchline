@@ -78,8 +78,11 @@ export class Runtime {
   private timerAt = 0
   private outboxTimer: ReturnType<typeof setTimeout> | null = null
   private retry = 0
+  /** After a rate-limit answer, background passes (the periodic one, a return to the page) wait until then. */
+  private rateUntil = 0
   private hiddenAt = 0
-  private unsubscribe: (() => void) | null = null
+  /** Undoes everything `listen` set up: the store subscription, the page's listeners and the periodic pass. */
+  private stops: Array<() => void> = []
 
   constructor(cfg: OnlineConfig, redirect: AuthRedirect | null) {
     const sb = createOnlineClient(cfg)
@@ -162,33 +165,40 @@ export class Runtime {
   // ------------------------------------------------------------------ sync scheduling
 
   private listen(): void {
-    this.unsubscribe = useStore.subscribe((s, prev) => {
-      if (!this.engine) return
-      const changed = this.engine.observe(prev, s)
-      for (const slot of changed) this.scheduleSlot(slot, prev, s)
-      if (s.profile !== prev.profile || s.shortlist !== prev.shortlist) this.schedule(10000)
-    })
-    window.addEventListener('online', () => {
+    const on = (target: EventTarget, type: string, fn: (e: Event) => void) => {
+      target.addEventListener(type, fn)
+      this.stops.push(() => target.removeEventListener(type, fn))
+    }
+    this.stops.push(
+      useStore.subscribe((s, prev) => {
+        if (!this.engine) return
+        const changed = this.engine.observe(prev, s)
+        for (const slot of changed) this.scheduleSlot(slot, prev, s)
+        if (s.profile !== prev.profile || s.shortlist !== prev.shortlist) this.schedule(10000)
+      }),
+    )
+    on(window, 'online', () => {
       this.rooms.connectionChanged(true)
       void this.syncNow()
       void this.flushOutbox()
       if (this.session && !onlineStore.getState().accountLoaded) void this.loadAccount()
     })
-    window.addEventListener('offline', () => this.rooms.connectionChanged(false))
+    on(window, 'offline', () => this.rooms.connectionChanged(false))
     // Back from the back-forward cache (iOS Safari restores a put-away tab this way): read the room again at once
-    window.addEventListener('pageshow', (e) => e.persisted && this.rooms.visibilityChanged())
-    window.addEventListener('offline', () => report({ syncStatus: 'offline', syncMessage: 'Offline: your games sync when the connection is back.' }))
-    document.addEventListener('visibilitychange', () => {
+    on(window, 'pageshow', (e) => (e as PageTransitionEvent).persisted && this.rooms.visibilityChanged())
+    on(window, 'offline', () => report({ syncStatus: 'offline', syncMessage: 'Offline: your games sync when the connection is back.' }))
+    on(document, 'visibilitychange', () => {
       this.rooms.visibilityChanged()
       if (document.visibilityState === 'hidden') {
         this.hiddenAt = Date.now()
         void this.syncNow({ force: true })
       } else if (this.hiddenAt && Date.now() - this.hiddenAt >= HIDDEN_RESYNC_MS) void this.syncNow()
     })
-    window.addEventListener('pagehide', () => void this.syncNow({ force: true }))
-    setInterval(() => {
+    on(window, 'pagehide', () => void this.syncNow({ force: true }))
+    const periodic = setInterval(() => {
       if (document.visibilityState === 'visible') void this.syncNow()
     }, PERIODIC_MS)
+    this.stops.push(() => clearInterval(periodic))
   }
 
   /** The push budget: Quick, head-to-head and the arena 20 s after a change (2 s at a checkpoint); Season, Dynasty and the Run-in at most every 2 minutes. */
@@ -228,12 +238,17 @@ export class Runtime {
       report({ syncStatus: 'offline', syncMessage: 'Offline: your games sync when the connection is back.' })
       return
     }
+    // The server asked this device to slow down: only a pass the player or the page's closing forces goes before then
+    if (!opts.force && Date.now() < this.rateUntil) return
     await withLock(async () => {
       const out = await engine.sync(opts)
-      if (out.ok) this.retry = 0
-      else if (out.error && out.error.kind !== 'auth' && out.error.kind !== 'guest' && out.error.kind !== 'bad') {
+      if (out.ok) {
+        this.retry = 0
+        this.rateUntil = 0
+      } else if (out.error && out.error.kind !== 'auth' && out.error.kind !== 'guest' && out.error.kind !== 'bad') {
         this.retry++
         const wait = out.error.kind === 'rate' ? 15 * 60000 : Math.min(600000, 5000 * 2 ** (this.retry - 1)) * (1 + Math.random() * 0.3)
+        if (out.error.kind === 'rate') this.rateUntil = Date.now() + wait
         this.schedule(wait)
       }
     })
@@ -279,7 +294,8 @@ export class Runtime {
     if (this.outboxTimer) clearTimeout(this.outboxTimer)
     const due = nextDue(merged)
     if (due && this.signedIn) this.outboxTimer = setTimeout(() => void this.flushOutbox(), Math.max(1000, due - Date.now()))
-    if (Object.values(rec.posts).some((p) => p.state === 'posted')) void this.refreshPins()
+    // A post that has just landed may have pinned today's puzzle on the server; one posted earlier has nothing new to say
+    if (Object.entries(rec.posts).some(([k, p]) => p.state === 'posted' && before.posts[k]?.state !== 'posted')) void this.refreshPins()
   }
 
   private pinning: Promise<void> | null = null
@@ -331,9 +347,13 @@ export class Runtime {
     return { ok: true, message: 'Your account and its cloud data are deleted. The games on this device stay.' }
   }
 
+  /** Stop the layer's own work on this page: listeners, the periodic pass and every pending timer. */
   dispose(): void {
-    this.unsubscribe?.()
+    for (const stop of this.stops.splice(0)) stop()
     this.clearTimer()
+    if (this.outboxTimer) clearTimeout(this.outboxTimer)
+    this.outboxTimer = null
+    this.engine = null
   }
 }
 
