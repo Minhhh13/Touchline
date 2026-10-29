@@ -44,6 +44,16 @@ Then run `npm ci`, `npm run typecheck`, `npm test` and `npm run build`.
 
 ## 3. What to do now
 
+**Current state (2026-10-29, 07:30 UTC). Read this first; it overrides A to B0 below, which are kept as history.**
+
+- Live: `main` at #94 (engine 7, rounds 9 and 10 in). `touchline-e7` pins `verifier-ecc269657e48639b.js`, and nothing since #88 changed it.
+- Next PR: round 11's online tests plus the owner's screenshot fixes, from `claude/youthful-mccarthy-a57idu`.
+- Still running: `claude/r11-qa`, and `claude/r10-engine8` kept level with main.
+- Engine 8 releases on Monday 2026-11-02 just before 00:00 UTC from `claude/r10-engine8`. The steps are in `docs/HANDOVER.md` section 0.
+- The owner still has to:
+  - delete the 87 merged branches listed in `docs/branch-cleanup.txt`;
+  - delete the test row "SMOKE e7 release check" from `private.error_reports`.
+
 **A. Engine 7 is live** (PR #86, squash f51eca0, live on touchline.quest from 2026-10-28 17:29 UTC). The Edge Function `touchline-e7` was deployed at 17:30 UTC as the loader pinning `verifier-5e7764386729eb13.js` (Verify JWT off) and answers `status` with `engine: "7"`; `touchline-e6`, `-e5` and `-e4` still answer. Keep `touchline-e6` (to at least 2026-11-05), `touchline-e5` (to 2026-11-04) and `touchline-e4` (to 2026-11-03).
 
 **A2. The Daily rotation is live too** (PR #87, squash 1df6a32): `touchline-e7` was redeployed at 17:56 UTC pinning `verifier-533df0bd10128be8.js`. Nothing left to do for it.
