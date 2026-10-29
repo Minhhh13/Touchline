@@ -52,16 +52,12 @@ describe('shirts, numbers and codes', () => {
     expect(roleCode({ ...t, roles: {} }, 'gk', 'GK')).toBe('GK')
   })
 
-  it('gives every slot of every formation its Football Manager position code', () => {
+  it('gives every slot of every formation the game\'s own position code, the one the Draft and the pitch print (r10)', () => {
     const codes = (id: string) => getFormation(id).slots.map((s) => positionCode(getFormation(id), s.id))
-    expect(codes('4-3-3')).toEqual(['GK', 'DL', 'DC', 'DC', 'DR', 'DM', 'MC', 'MC', 'AML', 'STC', 'AMR'])
-    expect(codes('4-4-2')).toEqual(['GK', 'DL', 'DC', 'DC', 'DR', 'ML', 'MC', 'MC', 'MR', 'STC', 'STC'])
-    expect(codes('4-2-3-1')).toEqual(['GK', 'DL', 'DC', 'DC', 'DR', 'DM', 'DM', 'AML', 'AMC', 'AMR', 'STC'])
-    expect(codes('3-5-2')).toEqual(['GK', 'DC', 'DC', 'DC', 'WBL', 'DM', 'MC', 'MC', 'WBR', 'STC', 'STC'])
-    expect(codes('3-4-3')).toEqual(['GK', 'DC', 'DC', 'DC', 'WBL', 'MC', 'MC', 'WBR', 'AML', 'STC', 'AMR'])
-    expect(codes('4-1-4-1')).toEqual(['GK', 'DL', 'DC', 'DC', 'DR', 'DM', 'ML', 'MC', 'MC', 'MR', 'STC'])
-    expect(codes('4-4-2-diamond')).toEqual(['GK', 'DL', 'DC', 'DC', 'DR', 'DM', 'MC', 'MC', 'AMC', 'STC', 'STC'])
-    expect(codes('5-3-2')).toEqual(['GK', 'WBL', 'DC', 'DC', 'DC', 'WBR', 'MC', 'DM', 'MC', 'STC', 'STC'])
+    expect(codes('4-3-3')).toEqual(['GK', 'LB', 'CB', 'CB', 'RB', 'DM', 'CM', 'CM', 'LW', 'ST', 'RW'])
+    expect(codes('3-5-2')).toEqual(['GK', 'CB', 'CB', 'CB', 'LB', 'DM', 'CM', 'CM', 'RB', 'ST', 'ST'])
+    expect(codes('4-2-3-1')).toEqual(['GK', 'LB', 'CB', 'CB', 'RB', 'DM', 'DM', 'LW', 'AM', 'RW', 'ST'])
+    for (const f of FORMATIONS) expect(codes(f.id)).toEqual(f.slots.map((s) => s.position))
     expect(positionCode(getFormation('4-3-3'), 'nope')).toBe('?')
   })
 

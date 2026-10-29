@@ -265,12 +265,62 @@ Also: the Office tab's components read the store through `useStorePick` (a bare 
 
 | Id | Severity | Where | What happens, and how to see it | Proposed patch |
 | --- | --- | --- | --- | --- |
-| R9-O1 | Low (a11y) | `src/ui/App.tsx`, the dock | On a phone the dock's visible words are "Explore", "H2H" and "Guide" (`nav-tiny`, aria-hidden) while the buttons are named "Database", "Head-to-head" and "How it works": voice control ("click Explore") finds nothing (WCAG 2.5.3, label in name) | Make each name start with its visible word (`aria-label` "Explore the database", "H2H, head-to-head", "Guide: how it works"), or show the long label's first word |
-| R9-O2 | Low | `src/game/logic/marketOps.ts` `bidFor` (bundled) | Personal terms with a wage below his listed wage × status are refused by the market's wage-cap check when the squad is near the cap, with that check's words, though the agreed wage fits (R9-2 keeps the listing intact) | `BidOptions.wage`: `placeBid` checks the wage given. Renames the edge bundle |
-| R9-O3 | Low (perf) | `EndCase.tsx`, `HomeBadgeNudge.tsx`, `ContractTalks.tsx`, `JanuaryWindow.tsx`, `BadgeUnlocks.tsx`, `CupRuns.tsx`, `WorldBoard.tsx`, `Rooms.tsx`, `matchday/StopPanel.tsx`, `matchday/MatchDashboard.tsx` | 25 components still read the store with a bare `useStore()`, so every store write re-renders them (the match day's dashboard on every clock-driven write) | `useStorePick` with the keys each reads, as the Office tab now does |
-| R9-O4 | Note | the Office's conversation box at 1280 | The four topic buttons scroll sideways inside a narrow box ("His fu…" cut at the edge) | Let the topics wrap in the box, or two rows of two |
+| R9-O1 (fixed r10) | Low (a11y) | `src/ui/App.tsx`, the dock | On a phone the dock's visible words are "Explore", "H2H" and "Guide" (`nav-tiny`, aria-hidden) while the buttons are named "Database", "Head-to-head" and "How it works": voice control ("click Explore") finds nothing (WCAG 2.5.3, label in name) | Make each name start with its visible word (`aria-label` "Explore the database", "H2H, head-to-head", "Guide: how it works"), or show the long label's first word |
+| R9-O2 (fixed r10, bundled) | Low | `src/game/logic/marketOps.ts` `bidFor` (bundled) | Personal terms with a wage below his listed wage × status are refused by the market's wage-cap check when the squad is near the cap, with that check's words, though the agreed wage fits (R9-2 keeps the listing intact) | `BidOptions.wage`: `placeBid` checks the wage given. Renames the edge bundle |
+| R9-O3 (fixed r10) | Low (perf) | `EndCase.tsx`, `HomeBadgeNudge.tsx`, `ContractTalks.tsx`, `JanuaryWindow.tsx`, `BadgeUnlocks.tsx`, `CupRuns.tsx`, `WorldBoard.tsx`, `Rooms.tsx`, `matchday/StopPanel.tsx`, `matchday/MatchDashboard.tsx` | 25 components still read the store with a bare `useStore()`, so every store write re-renders them (the match day's dashboard on every clock-driven write) | `useStorePick` with the keys each reads, as the Office tab now does |
+| R9-O4 (fixed r9 visual) | Note | the Office's conversation box at 1280 | The four topic buttons scroll sideways inside a narrow box ("His fu…" cut at the edge) | Let the topics wrap in the box, or two rows of two |
+
+
+### Round 10 (`claude/r10-fixes`, 2026-10-29): what became of them
+
+| Id | State | How | Test |
+| --- | --- | --- | --- |
+| R9-O1 | **Fixed** (display) | The three captions that differ from their label ("H2H", "Explore", "Guide") are no longer aria-hidden: on a phone they start the button's name ("H2H Head-to-head", "Explore Database", "Guide How it works") before the visually hidden label; captions equal to their label stay hidden; on a desktop the captions are `display: none`, so the names are unchanged | `src/ui/__tests__/r10FixesUi.test.ts` |
+| R9-O2 | **Fixed**, titled `BUNDLED:` (its modules are in the verifier's graph, but `placeBid` is tree-shaken out: after `npm run build` the bundle is still `verifier-ecc269657e48639b.js`; no default draw moves) | `BidOptions.wage` → `StatusTerms.wage`: `offerTerms` passes the agreed wage and `placeBid` checks the cap with it; absent everywhere else | `src/game/__tests__/r10Fixes.test.ts` (three seeds sign where the old check refused) |
+| R9-O3 | **Fixed** (perf) | ContractTalks (both cards), CupRuns, EndCase, HomeBadgeNudge, JanuaryWindow (four panels), StopPanel and MatchDashboard read through `useStorePick` (the rest of the list was done in round 9); a source test fails on any bare `useStore()` under `src/ui` | `r10FixesUi.test.ts` |
+| R9-O4 | **Fixed** by round 9's visual pass (the topics' row lost `.scroll` and wraps), now pinned | — | `r10FixesUi.test.ts` |
+| r9-audit-new: a sacked Season never paid its instalments | **Fixed** (no draw; `transferTalks.ts` is not bundled) | `payInstalments` settles what is left at the week of the sack, in a Season or a Dynasty, as it does at a Season's last matchweek | `r10Fixes.test.ts` |
 
 ## R4-4. Coverage notes
 
 - Round 8's systems held up in their arithmetic: no NaN, broken window, stuck phase or lost save in the office, cup or sync sweeps; every reload and cloud trip played on to the same game. The bugs were at the seams again: a promise rule written before contract talks could shorten a deal (R9-1), a request outliving its season (R9-5), a market check the office cannot pass its wage to (R9-2, R9-O2), words wrapped twice (R9-8, R9-10) and a load path that trusted an imported file (R9-7).
 - Not covered: online play against the real project, real iOS, the share card's canvas in a browser, and sound.
+- Round 10 (`claude/r10-rooms`): the room screens in a real browser against `scripts/online/room-mock.mjs` (the Edge Function's `createServer` over the test harness, docs/ONLINE.md 5e): two Playwright contexts made, shared, joined, drafted every turn (about 35 picks) and reached the result, then a rematch joined from the other result's box, at 1280x800 and 390x844 (touch), no page error and no page scroll at 1280. Fixed: the rematch's waiting room said "Send the link" until its clock ticked (the rematch was a module variable set after the room rendered; it is on the session and the seat now, so a reload keeps it); on a phone the rematch room opened scrolled to the old result's depth, away from its code; a toast covered the phone turn pill; the friend had no way into the rematch but a second Rematch, which made a second room.
+
+# Round 5: test gaps by coverage (r10, 2026-10-29)
+
+Branch `claude/r10-tests`. v8 line coverage over `src/engine`, `src/game` and `src/online` (installed locally with `npm i --no-save @vitest/coverage-v8@3.2.7`, run as `npx vitest run --coverage.enabled --coverage.provider=v8 --coverage.include='src/engine/**' --coverage.include='src/game/**' --coverage.include='src/online/**' --coverage.exclude='**/__tests__/**'`, about 16 minutes on 4 cores).
+
+## R5-1. What was tested
+
+- Before: 93.15% of lines (engine 98.38, game/logic 98.69, online 75.68). After: 94.53% (game/logic 98.99, online 82.83).
+- Code that reaches a result or a save, untested before: the Edge Function adapter (`server/edge.ts`: request checks, the guest key, account deletion over every slot folder), the browser transport's cloud saves (`save_claim`, rows, folders, failures), the device record and the error-report setting, the board readers, a Daily Arena Gauntlet's bonus spins in the casual verifier, a Run-in of the week replayed through re-spins and an Auto-complete, the promise list's cap and its drops, the Europe match day's other scores.
+
+## R5-2. Fixed
+
+- R10-1 (test only): the Upgrader dial's tick-gap test read the real clock; under the full suite's load the ticks fell more than 15 ms apart and it failed. The clock is now held in hand.
+
+## R5-3. Open
+
+- `src/online/runtime.ts`, `api.ts`'s online half, `boot.ts`, `client.ts` and the error reporter's window wiring need supabase-js or a browser: covered by the Playwright smokes and the live checks only.
+- `SupabaseTransport.listFolder` reads 100 objects a slot with no paging (the stray sweep after "Delete my cloud data"); harmless at today's two objects a slot.
+
+## R5-4. Coverage notes
+
+- game/logic's uncovered lines left are mostly exhaustive `never` branches and display fallbacks; engine's are the browser loaders in `universe.ts` (`fetch`).
+- No test exposed a game bug.
+
+## R10 (setup and draft). Setup and the Draft played as a returning player would (`claude/r10-setup-draft`, 2026-10-29)
+
+Quick Draft's Setup and Draft at 1280x800 and 390x844 (and 360x740), Floodlit and Daylight, Playwright on the built site; display and UI only, no draw, no save field, the edge bundle unchanged (`verifier-ecc269657e48639b.js`).
+
+| Id | Severity | What happened | Fixed by | Test |
+| --- | --- | --- | --- | --- |
+| R10-1 | Medium (friction) | Setup forgot every choice: a returning player with a favourite shape, modes or cap set them again each time | `src/ui/setupMemory.ts`: the last choices started with, per mode and viewer, and a **defaults** link above Start | `setupMemory.test.ts`, Playwright (start, Home, Setup: the choices back; defaults: the key cleared) |
+| R10-2 | Low (display) | On a phone the mode cards broke their names mid-word ("Underdo g", "Speedru n", "Upgrade r") and said nothing of what they do; the four switches were cards of other sizes | Under 1000 px one grid of cards, each icon, whole name and one line | Playwright (390, 360) |
+| R10-3 | Low | The Modes count said "1 on" with End case, Moneyball and a mode lit | The count includes the four switches | Playwright |
+| R10-4 | Low (friction) | Tapping a player low in the landed squad opened "Where does he play?" above the list, off screen on a phone and above the scrolled list on a desktop | It scrolls into view on a selection | Playwright (390, 1280: in view after tapping the tenth row) |
+| R10-5 | Low (friction) | On a phone the landed squad stopped with its first player at the screen's foot: the focus moved to the club's name cut the smooth scroll short | The scroll waits a frame, club name at the top | Playwright (390) |
+| R10-6 | Low (wording) | "Re-spin (1)" did not say the number is what is left, or what a re-spin costs; slot chips read "left CM" | "Re-spin · 1 left" with a tooltip (swaps the club-season, costs no pick); "Left CM" (`slotLabelText`) | `setupMemory.test.ts`, `draftFit.test.ts` |
+
+Looked at and left: the reel's timing (`reelCurve.ts`, untouched), the recap and Hindsight XI (clear, with the grade tip above them), the desktop Modes row (hover, focus or a tap shows each card's line), and an invented team name, which is invented again on the next setup by design (`teamName.ts`; a typed name is kept).

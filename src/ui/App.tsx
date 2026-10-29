@@ -11,6 +11,7 @@ import { ConfirmHost } from './components/ConfirmDialog'
 import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
+import { AHEAD_CAP, digestAhead } from '@game/logic/digestAhead'
 import type { NewsItem } from '@engine/season'
 import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
@@ -23,7 +24,7 @@ import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { watchFocusRescue } from './focusRescue'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, CalendarClock, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
@@ -310,13 +311,13 @@ export function App() {
           )}
           <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')}>
             <Swords size={16} />
+            <span className="nav-tiny">{t('navTinyH2H')}</span>
             <span className="nav-label">{t('navH2H')}</span>
-            <span className="nav-tiny" aria-hidden="true">{t('navTinyH2H')}</span>
           </button>
           <button className={screen === 'explore' ? 'active' : ''} aria-current={screen === 'explore' ? 'page' : undefined} onClick={() => nav('explore')}>
             <Search size={16} />
+            <span className="nav-tiny">{t('navTinyExplore')}</span>
             <span className="nav-label"><span className="nav-long">{t('navExplore')}</span><span className="nav-short">{t('navExploreShort')}</span></span>
-            <span className="nav-tiny" aria-hidden="true">{t('navTinyExplore')}</span>
           </button>
           {onlineAvailable() && (
             <button className={screen === 'world' ? 'active' : ''} aria-current={screen === 'world' ? 'page' : undefined} onClick={() => nav('world')} data-testid="nav-world">
@@ -332,8 +333,8 @@ export function App() {
           </button>
           <button className={screen === 'howto' ? 'active' : ''} aria-current={screen === 'howto' ? 'page' : undefined} onClick={() => nav('howto')}>
             <BookOpen size={16} />
+            <span className="nav-tiny">{t('navTinyGuide')}</span>
             <span className="nav-label">{t('navHowTo')}</span>
-            <span className="nav-tiny" aria-hidden="true">{t('navTinyGuide')}</span>
           </button>
         </nav>
         {onlineAvailable() && (
@@ -434,6 +435,8 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   const u = useStore((s) => s.universe)
   // Read live, as the Inbox tab's badge is: a run simulated with the Inbox open has already been marked read
   const unread = useStore((s) => (s.game ? unseenNews(s.game) : 0))
+  const game = useStore((s) => s.game)
+  const ahead = game && u ? digestAhead(game, u) : null
   const league = d.results.filter((r) => r.comp === 'league')
   const tally = { W: 0, D: 0, L: 0 }
   for (const r of league) tally[r.outcome]++
@@ -510,6 +513,26 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
       <NewsGroup title={t('development')} icon={<TrendingUp size={14} />} items={d.development} />
       {quiet && <p className="muted small">{t('digestQuiet')}</p>}
       {d.truncated && <p className="muted small">{t('digestTruncated')}</p>}
+      {/* Where the run leaves you: the next match and who misses it (r10) */}
+      {ahead && (
+        <div className="digest-group digest-ahead" data-testid="digest-ahead">
+          <div className="small muted digest-group-title">
+            <CalendarClock size={14} aria-hidden="true" /> {ahead.opponentId ? t('aheadNext', { week: ahead.matchweek, venue: ahead.home ? 'home' : 'away', club: clubName(u, ahead.opponentId) }) : t('aheadFree', { week: ahead.matchweek })}
+          </div>
+          {ahead.out.length > 0 ? (
+            <ul>
+              {ahead.out.slice(0, AHEAD_CAP).map((m) => (
+                <li key={m.id}>
+                  <b>{m.name}</b> {t(m.why === 'injury' ? 'aheadInjured' : 'aheadBanned', { n: m.weeks })}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="small">{t('aheadAllFit')}</p>
+          )}
+          {ahead.out.length > AHEAD_CAP && <div className="small muted">{t('andMore', { n: ahead.out.length - AHEAD_CAP })}</div>}
+        </div>
+      )}
       <div className="row between wrap">
         <span className="small muted" data-testid="digest-unread">
           {t('unread', { n: unread })}

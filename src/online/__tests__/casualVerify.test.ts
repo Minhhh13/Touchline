@@ -135,6 +135,30 @@ describe('the Daily Arena board', { timeout: 120_000 }, () => {
     }
   })
 
+  it("replays a Gauntlet's bonus spins between rungs, and refuses one changed or missing (r10)", () => {
+    // 2026-10-26 and 10-28 are Gauntlets the assistant climbs far enough to earn bonus spins (rungs 2, 4, 6, 8)
+    for (const seed of ['arena-2026-10-26', 'arena-2026-10-28']) {
+      const g = arenaRun(seed)
+      const a = g.arena!
+      expect(a.format).toBe('gauntlet')
+      const c = arenaChallengeFromGame(g, u, 'Minh')!
+      const bonus = c.p.length - 14
+      expect(bonus).toBeGreaterThan(0)
+      const pin = pinOf('arena', casualSettings(u, 'arena', seed)!)
+      const e = ok(verifyCasual(u, pin, arenaBody(g), new Date(`${seed.slice(6)}T12:00:00Z`), never))
+      expect(e.score).toBe(a.log.filter((s) => s.gf > s.ga || (s.pens && s.pens.us > s.pens.them)).length)
+      expect(e.xi).toEqual(Object.values(g.lineup).slice(0, 18))
+      expect(e.claim_matched).toBe(true)
+      const when = new Date(`${seed.slice(6)}T12:00:00Z`)
+      // The last bonus row dropped: the run cannot go on to its next rung
+      expect(verifyCasual(u, pin, arenaBody(g, { ...c, p: c.p.slice(0, -1) }), when, never)).toMatchObject({ ok: false, code: 'invalid_picks' })
+      // A bonus spin taking a man the assistant would not have: its rung replays to another side, so the wheel or the run differs
+      const last = c.p.length - 1
+      const swapped = c.p.map((r, i) => (i === last ? ([c.p[0][0], r[1]] as typeof r) : r))
+      expect(verifyCasual(u, pin, arenaBody(g, { ...c, p: swapped }), when, never)).toMatchObject({ ok: false, code: 'invalid_picks' })
+    }
+  })
+
   it('a Daily Arena replayed from a link, or practised as an ordinary run, is not on the board', () => {
     const s = dailyArenaGameSettings(u, 'arena-2026-10-25')
     expect(casualBoardOf({ ...s, arena: { ...s.arena!, daily: undefined } })).toBeNull()

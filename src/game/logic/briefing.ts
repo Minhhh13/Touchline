@@ -17,6 +17,9 @@ import { playerLookup, squadPlayers } from './players'
 import { lineupProblems, squadWages } from './squad'
 import { nextOpponent, upcomingCupTie } from './week'
 import { riskiestStarter } from './medical'
+import { officeItems } from './office'
+import { requestDeadline } from './officeView'
+import { openRequests } from './transferRequests'
 import { boardLine, boardStakes, contractsEnding, europeLine, europeStake, promiseSlot, restPlan, tiredStarters } from './seasonPlay'
 
 export type DugoutTab = 'squad' | 'next' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club' | 'dressing' | 'planner' | 'office'
@@ -207,6 +210,9 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
   const boardText = boardLine(board)
   if (board && boardText) items.push({ id: 'board', level: board.level === 'danger' ? 'warn' : 'info', text: boardText, action: { label: 'Club', tab: 'club' } })
 
+  const office = officeLine(game, u)
+  if (office) items.push(office)
+
   const problems = lineupProblems(game, u)
   if (problems.length > 2) items.push({ id: 'lineup', level: 'warn', text: `${problems.length} lineup issues: ${list(problems)}`, action: { label: 'Auto-pick', op: 'autoPick' } })
   else for (const [i, p] of problems.entries()) items.push({ id: `lineup-${i}`, level: 'warn', text: p, action: { label: 'Auto-pick', op: 'autoPick' } })
@@ -279,6 +285,38 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
   const where = next ? ` for ${u.clubById[next.clubId]?.shortName ?? next.clubId} (${positionOf(table, next.clubId)}${ordinalSuffix(positionOf(table, next.clubId))})` : ''
   items.push({ id: 'knobs', level: 'ok', text: `Training ${TRAINING_LABEL[game.training]}, team talk ${TALK_LABEL[game.teamTalk]}${where}`, action: { label: 'Tactics', tab: 'tactics' } })
   return items
+}
+
+/** A request to leave or a promise this close (in matchweeks) makes the Office's line a warning. */
+export const OFFICE_URGENT_WEEKS = 1
+
+/**
+ * What waits on the manager in the Office (r10): a request to leave, personal terms after an agreed fee, a promise
+ * falling due, as the Office tab's badge counts them (`officeItems`). One line, named when it is one thing; a warning
+ * when a request or a promise has a matchweek or less left. Nothing for a game with no office state.
+ */
+function officeLine(game: Game, u: LoadedUniverse): BriefingItem | null {
+  const waiting = officeItems(game, u)
+  if (!waiting.length) return null
+  const requests = openRequests(game)
+  const weeksOf = (it: (typeof waiting)[number]): number => {
+    if (it.kind === 'promise') return it.weeks ?? 0
+    const req = it.kind === 'request' ? requests.find((r) => r.name === it.name) : undefined
+    return req ? requestDeadline(req).weeksLeft : Infinity
+  }
+  const urgent = waiting.some((it) => weeksOf(it) <= OFFICE_URGENT_WEEKS)
+  const action: BriefingAction = { label: 'Office', tab: 'office' }
+  const level: BriefingLevel = urgent ? 'warn' : 'info'
+  if (waiting.length > 1) {
+    const names = [...new Set(waiting.map((it) => it.name ?? 'a player'))]
+    return { id: 'office', level, text: `${waiting.length} things wait in the Office: ${list(names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names)}`, action }
+  }
+  const it = waiting[0]
+  const name = it.name ?? 'a player'
+  const weeks = weeksOf(it)
+  const left = weeks <= 0 ? 'this matchweek' : `${weeks} matchweek${weeks === 1 ? '' : 's'} left`
+  const text = it.kind === 'request' ? `${name} has asked to leave: answer him in the Office (${left})` : it.kind === 'terms' ? `Fee agreed for ${name}: his personal terms wait in the Office` : `Your promise to ${name} falls due: ${left}`
+  return { id: 'office', level, text, action }
 }
 
 function ordinalSuffix(n: number): string {

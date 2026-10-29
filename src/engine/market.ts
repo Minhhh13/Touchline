@@ -369,6 +369,8 @@ export interface BidOutcome {
 export interface StatusTerms {
   status: SquadStatus
   squadOveralls: number[]
+  /** A weekly wage already agreed with him (the office's personal terms), GBP thousands: the wage-cap check reads it in place of his wage at the status. */
+  wage?: number
 }
 
 /**
@@ -387,7 +389,7 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
     const answer = acceptsStatus(p, terms.squadOveralls, terms.status)
     if (!answer.ok) return { accepted: false, message: answer.reason ?? `${p.name} will not sign as ${STATUS_LABEL[terms.status].toLowerCase()}.`, counterStatus: answer.counter }
   }
-  const wage = Math.round(p.wage * (terms ? WAGE_MULT[terms.status] : 1))
+  const wage = terms?.wage ?? Math.round(p.wage * (terms ? WAGE_MULT[terms.status] : 1))
   let credit = 0
   if (exchange) {
     const x = exchangeCredit(ctx, p, exchange)

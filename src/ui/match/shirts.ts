@@ -107,36 +107,12 @@ export function roleCode(tactics: Tactics, slotId: string, position: Position): 
 }
 
 /**
- * The Football Manager position code of a slot: GK, DC, DL / DR (WBL / WBR in
- * a back three), DM, MC, AMC, ML / MR for a wide man in midfield, AML / AMR for
- * a wide forward, STC.
+ * The position code of a slot, in the game's own words (GK, CB, LB, RB, DM, CM, AM, LW, RW, ST): the codes the
+ * Draft, the pitch and every player card print, so the squad strip and the substitution board match their fit
+ * glows (r10; they were Football Manager's DC, MC, AML, STC). The role code beside it says wing-back or wide man.
  */
 export function positionCode(formation: Formation, slotId: string): string {
-  const slot = formation.slots.find((s) => s.id === slotId)
-  if (!slot) return '?'
-  const backThree = formation.slots.filter((s) => s.position === 'CB').length >= 3
-  switch (slot.position) {
-    case 'GK':
-      return 'GK'
-    case 'CB':
-      return 'DC'
-    case 'LB':
-      return backThree || slot.id === 'lwb' ? 'WBL' : 'DL'
-    case 'RB':
-      return backThree || slot.id === 'rwb' ? 'WBR' : 'DR'
-    case 'DM':
-      return 'DM'
-    case 'CM':
-      return 'MC'
-    case 'AM':
-      return 'AMC'
-    case 'LW':
-      return slot.y < 62 ? 'ML' : 'AML'
-    case 'RW':
-      return slot.y < 62 ? 'MR' : 'AMR'
-    case 'ST':
-      return 'STC'
-  }
+  return formation.slots.find((s) => s.id === slotId)?.position ?? '?'
 }
 
 const PARTICLES = new Set(['van', 'von', 'de', 'der', 'den', 'da', 'di', 'du', 'del', 'della', 'dos', 'das', 'la', 'le', 'ter', 'ten', 'mac', 'st.'])

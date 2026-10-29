@@ -10,13 +10,13 @@ import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine
 import type { H2HManager } from '@game/logic/h2h'
 import type { LoadedUniverse } from '@engine/universe'
 import { draftFromEvents, roomClubs, roomEndLine, roomLeagues, roomLogLine, roomSeasons, roomWheel, ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS, ROOM_WAIT_MINUTES, type RoomSettings, type RoomView } from '@game/logic/h2hRoom'
-import { clockText, pollDelay, roomCodeFrom, roomInviteText, turnClock, waitClock, type RoomUi } from '../../online/rooms'
+import { clockText, pollDelay, roomCodeFrom, roomInviteText, turnClock, waitClock, type RematchNote, type RoomUi } from '../../online/rooms'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { useOnline } from '../../online/state'
 import { useTurnSound } from '../sound/useTurnSound'
-import { closeRoom, createRoom, joinRoom, leaveRoom, openRoom, pickInRoom, refreshRoom, resumeRoom, roomSeats } from '../../online/api'
+import { closeRoom, createRoom, joinRoom, leaveRoom, openRoom, pickInRoom, refreshRoom, rematchRoom, resumeRoom, roomSeats } from '../../online/api'
 import { formatCode, roomLink } from '../../online/core/codes'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
@@ -64,27 +64,43 @@ function useNow(ms = 15000): number {
   return now
 }
 
-/** The rematch this device just made: the new room's code and the manager to send it to (the waiting room's line). */
-let rematchFor: { code: string; opponent: string } | null = null
-
-/** A new room with a finished or ended room's settings and this seat's manager (name, shape, club). */
+/** A new room with a finished or ended room's settings and this seat's manager (name, shape, club); a second press opens the one already made. */
 let rematching = false
 async function rematch(u: LoadedUniverse, view: RoomView, seat: 0 | 1, showToast: (t: string) => void): Promise<void> {
-  const me = view.managers[seat]
-  const other = view.managers[seat === 0 ? 1 : 0]
-  if (!me || rematching) return
+  if (rematching || !view.managers[seat]) return
   rematching = true
   try {
-    const r = await createRoom(view.settings, { name: me.name, formationId: me.formationId, hostClubId: me.hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')
+    const r = await rematchRoom(view, seat, ENGINE_VERSION, u.generatedAt ?? '')
     if (!r.ok) {
       showToast(r.message)
       return
     }
-    rematchFor = other ? { code: r.code, opponent: other.name } : null
-    showToast(other ? t('rematchOpen', { code: formatCode(r.code), name: other.name }) : t('rematchOpenAnon', { code: formatCode(r.code) }))
+    const other = view.managers[seat === 0 ? 1 : 0]
+    const code = formatCode(r.code)
+    showToast(other ? t(r.reused ? 'rematchBack' : 'rematchOpen', { code, name: other.name }) : t(r.reused ? 'rematchBackAnon' : 'rematchOpenAnon', { code }))
   } finally {
     rematching = false
   }
+}
+
+/** The other manager's way into a rematch they did not make: their code or link, opened here instead of a second room. */
+function JoinRematch({ name }: { name: string | null }) {
+  const [code, setCode] = useState('')
+  const typed = roomCodeFrom(code)
+  const open = () => typed && void openRoom(typed)
+  return (
+    <div className="room-join-rematch col" data-testid="room-join-rematch">
+      <div className="field">
+        <span className="small muted" id="room-rematch-help">{t('joinRematchHelp', { name: name ?? 'none' })}</span>
+        <span className="row">
+          <input className="input mono grow" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={200} autoCapitalize="characters" autoComplete="off" spellCheck={false} aria-label={t('joinRematch')} aria-describedby="room-rematch-help" data-testid="room-rematch-code" onKeyDown={(e) => e.key === 'Enter' && open()} />
+          <button className="btn" disabled={!typed} onClick={open} data-testid="room-rematch-join">
+            <DoorOpen size={16} aria-hidden="true" /> {t('joinRematchOpen')}
+          </button>
+        </span>
+      </div>
+    </div>
+  )
 }
 
 /** Head-to-head setup's online half: make a room, or open one by its code. */
@@ -261,6 +277,10 @@ export function RoomScreen() {
     if (!code) return
     if (location.hash !== `#h=${code}`) history.replaceState(null, '', `${location.pathname}${location.search}#h=${code}`)
   }, [code])
+  // Another room on the same screen (a rematch, a room opened from a result): its top, not the old room's scroll
+  useEffect(() => {
+    if (code) window.scrollTo(0, 0)
+  }, [code])
   useEffect(
     () => () => {
       if (/^#h=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search)
@@ -307,7 +327,7 @@ export function RoomScreen() {
   else if (!view) body = ui.errorCode === 'network' || ui.errorCode === 'timeout' ? <RoomMessage icon={<WifiOff size={26} />} title={t('noConnection')} line={t('noConnectionLine')} testId="room-loading" action={<button className="btn primary" onClick={() => void refreshRoom()} data-testid="room-retry"><RefreshCw size={16} aria-hidden="true" /> {t('tryAgain')}</button>} /> : <RoomMessage icon={<Hourglass size={26} />} title={t('openingRoom')} line={ui.error ?? t('readingRoom')} testId="room-loading" />
   else if (versionNote) body = <RoomMessage icon={<Lock size={26} />} title={versionNote.title} line={versionNote.line} testId="room-version" action={versionNote.older ? <button className="btn primary" onClick={() => go('h2h')}>{t('makeNewRoom')}</button> : <button className="btn primary" onClick={() => location.reload()}>{t('reload')}</button>} />
   else if (missingLeagues.length) body = <RoomMessage icon={<Hourglass size={26} />} title={t('loadingLeagues')} line={t('leaguesNeeded')} />
-  else if (view.status === 'waiting') body = ui.seat === null ? <RoomJoin view={view} /> : <RoomWaiting view={view} />
+  else if (view.status === 'waiting') body = ui.seat === null ? <RoomJoin view={view} /> : <RoomWaiting view={view} rematch={ui.rematch ?? null} />
   else if (view.status === 'drafting') body = <RoomDraft view={view} seat={ui.seat} />
   else if (view.status === 'finished' && view.result && view.managers[1]) return <RoomResult view={view} seat={ui.seat} />
   else body = <RoomEnded view={view} seat={ui.seat} />
@@ -391,6 +411,7 @@ function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
           <button className={`btn ${seat === null ? 'primary' : ''}`} onClick={() => go('h2h')}>
             {t('newRoom')}
           </button>
+          {seat !== null && <JoinRematch name={other?.name ?? null} />}
         </div>
       }
     />
@@ -398,14 +419,14 @@ function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
 }
 
 /** Share the room's link: the share sheet on a phone, the clipboard elsewhere. */
-function ShareRoom({ view, primary }: { view: RoomView; primary?: boolean }) {
+function ShareRoom({ view, primary, rematch }: { view: RoomView; primary?: boolean; rematch?: RematchNote | null }) {
   const showToast = useStore((s) => s.showToast)
   const [copied, flashCopied] = useFlash()
   const [codeCopied, flashCode] = useFlash()
   const sheet = hasShareSheet()
   const link = roomLink(view.code, here().origin, here().pathname)
   const go = async () => {
-    const out = await shareOrCopy({ title: t('inviteTitle'), text: roomInviteText(view.managers[0]?.name ?? null, view.code), url: link })
+    const out = await shareOrCopy({ title: t('inviteTitle'), text: roomInviteText(view.managers[0]?.name ?? null, view.code, rematch), url: link })
     if (out === 'failed') showToast(t('shareLinkFailed'))
     else if (out !== 'dismissed') flashCopied()
   }
@@ -451,24 +472,24 @@ function settingsLine(u: NonNullable<ReturnType<typeof useStore.getState>['unive
 }
 
 /** Seat 0, waiting: the code, the link to share and the deadline. */
-function RoomWaiting({ view }: { view: RoomView }) {
+function RoomWaiting({ view, rematch }: { view: RoomView; rematch: RematchNote | null }) {
   const u = useStore((s) => s.universe)
   const now = useNow(1000)
   if (!u) return null
   const clock = waitClock(view, now)
-  const again = rematchFor?.code === view.code ? rematchFor.opponent : null
+  const again = rematch?.opponent ?? null
   return (
     <div className="screen-body fill">
       <div className="grid two">
         <div className="panel col room-wait" data-testid="room-waiting">
-          <div className="eyebrow">{t('roomCode')}</div>
+          <div className="eyebrow" data-testid={again ? 'room-rematch-for' : undefined}>{again ? t('rematchTitle', { name: again }) : t('roomCode')}</div>
           <div className="room-code mono" data-testid="room-code">
             {formatCode(view.code)}
           </div>
           <p className="muted small" style={{ margin: 0 }}>
             {again ? t('rematchHelp', { name: again }) : t('shareHelp')}
           </p>
-          <ShareRoom view={view} primary />
+          <ShareRoom view={view} primary rematch={rematch} />
           <div className="notice icon-notice room-clock" data-testid="room-wait-clock">
             <Hourglass size={16} aria-hidden="true" />
             <span>
@@ -813,5 +834,5 @@ function RoomResult({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
     if (seat === null) go('h2h')
     else void rematch(u, view, seat, showToast)
   }
-  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label={t('resultLabel')} shareLabel="Online head-to-head" rematchLabel={t(seat === null ? 'newRoom' : 'rematch')} onRematch={onRematch} onHome={() => go('home')} you={seat ?? undefined} testId="room-result" />
+  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label={t('resultLabel')} shareLabel="Online head-to-head" rematchLabel={t(seat === null ? 'newRoom' : 'rematch')} onRematch={onRematch} onHome={() => go('home')} you={seat ?? undefined} testId="room-result" extra={seat === null ? undefined : <JoinRematch name={managers[seat === 0 ? 1 : 0].name} />} />
 }

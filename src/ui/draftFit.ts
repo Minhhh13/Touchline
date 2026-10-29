@@ -25,3 +25,8 @@ export function fitGroups(p: Pick<PlayerSeason, 'positions'>, slotPositions: Pos
 export function fitsFirst<T extends { fit: string }>(choices: readonly T[]): T[] {
   return [...choices.filter((c) => c.fit === 'fits'), ...choices.filter((c) => c.fit !== 'fits')]
 }
+
+/** A slot's label as a chip's first word: "left CM" reads "Left CM" (the label comes from the bundled `slotSheet.ts`, left as it is). Pure. */
+export function slotLabelText(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1)
+}

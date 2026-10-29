@@ -64,7 +64,7 @@ import { RecruitmentPanel, ScoutModal, ScoutReportsPanel } from './Recruitment'
 import { listingFit, sortListings, type ListingSort } from '@game/logic/marketFit'
 import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_BUDGET, SHIFT_LIMIT, SHIFT_WAGE, wageRoom } from '@game/logic/board'
 import { ContractCard, ContractTalks } from '../components/ContractTalks'
-import { dugoutKey, isControlTarget } from '../dugoutKeys'
+import { clickedTabAfter, DUGOUT_TAB_ORDER, dugoutKey, isControlTarget, tabShortcuts } from '../dugoutKeys'
 import { PositionChart } from '../components/LiveLeague'
 import { PlayerPeek } from '../components/PlayerPeek'
 import { BoxesMenu, useBoxes, type Boxes } from '../components/Boxes'
@@ -114,6 +114,12 @@ function tabPresent(tab: string, game: Game): string[] | undefined {
   return undefined
 }
 
+/** Each tab with its shortcuts: `aria-keyshortcuts` and a tooltip naming the digit and the letter (r10). */
+function withShortcuts<T extends { id: Tab }>(tabs: T[]): Array<T & { keys: string; title: string }> {
+  const keys = tabShortcuts(tabs.map((x) => x.id))
+  return tabs.map((x, i) => ({ ...x, keys: [keys[i].digit, keys[i].letter].filter(Boolean).join(' '), title: keys[i].digit ? t('tabKeysTip', { digit: keys[i].digit, letter: keys[i].letter }) : t('tabKeyTip', { letter: keys[i].letter }) }))
+}
+
 /** Whether this viewer keeps the Key on (bar labels and the pitch legend). */
 const KEY_FLAG = 'touchline-squad-key'
 
@@ -151,18 +157,30 @@ export function Dugout() {
   // The keyboard (Space plays the week, 1 to 0 open the tabs): one listener reading the latest render through a ref
   const keys = useRef<{ play: (() => void) | null; tabs: Tab[]; manage: { autoPick: () => void; rest: () => void } | null }>({ play: null, tabs: [], manage: null })
   useEffect(() => {
+    // The strip's tab a click last focused (r10): Space there plays the week; a key that moves the focus forgets it
+    let clicked: Element | null = null
+    const onPointer = (e: PointerEvent) => {
+      clicked = clickedTabAfter(clicked, { pointer: (e.target as HTMLElement | null)?.closest?.('.tabs-row [role="tab"]') ?? null })
+    }
     const onKey = (e: KeyboardEvent) => {
       const k = keys.current
-      const out = dugoutKey(e.key, { onControl: isControlTarget(e.target as HTMLElement | null), modalOpen: !!document.querySelector('.modal-back, .md-drawer, [aria-modal="true"]'), modifier: e.ctrlKey || e.metaKey || e.altKey, canPlay: !!k.play, tabs: k.tabs.length, canManage: !!k.manage })
+      const target = e.target as HTMLElement | null
+      const stripTab = target?.closest?.('.tabs-row [role="tab"]') ?? null
+      const out = dugoutKey(e.key, { onControl: isControlTarget(target), modalOpen: !!document.querySelector('.modal-back, .md-drawer, [aria-modal="true"]'), modifier: e.ctrlKey || e.metaKey || e.altKey, canPlay: !!k.play, tabs: k.tabs.length, canManage: !!k.manage, onTab: !!stripTab, tabByPointer: !!stripTab && stripTab === clicked, tabIds: k.tabs })
+      clicked = clickedTabAfter(clicked, { key: e.key })
       if (!out) return
       e.preventDefault()
       if (out.kind === 'play') k.play?.()
       else if (out.kind === 'autoPick') k.manage?.autoPick()
       else if (out.kind === 'rest') k.manage?.rest()
-      else setTab(k.tabs[out.index])
+      else setTab(out.kind === 'tabId' ? out.id : k.tabs[out.index])
     }
+    window.addEventListener('pointerdown', onPointer, true)
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', onPointer, true)
+      window.removeEventListener('keydown', onKey)
+    }
   }, [])
   // Above the early return, so the hooks run in the same order on every render
   const fixtures = game?.season?.fixtures
@@ -212,22 +230,24 @@ export function Dugout() {
     if (a.tab) setTab(a.tab)
   }
 
-  const tabList: Array<{ id: Tab; label: string; alert?: boolean; badge?: number }> = [
-    { id: 'squad', label: t('tabSquad') },
-    ...(done ? [] : [{ id: 'next' as const, label: t('tabNext') }]),
-    { id: 'tactics', label: t('tabTactics') },
-    { id: 'dressing', label: t('tabDressing') },
-    { id: 'office', label: tOffice('tabOffice'), badge: officeAlertCount(game, u) || undefined },
-    { id: 'planner', label: t('tabPlanner') },
-    { id: 'fixtures', label: t('tabFixtures') },
-    { id: 'table', label: t('tabTable') },
-    ...(season.cup.length ? [{ id: 'cup' as const, label: t('tabCup') }] : []),
-    ...(season.continental ? [{ id: 'europe' as const, label: t('tabEurope') }] : []),
-    { id: 'stats', label: t('tabStats') },
-    { id: 'market', label: t('tabMarket'), alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
-    { id: 'inbox', label: t('tabInbox'), alert: !!game.pendingEvent, badge: unseen },
-    { id: 'club', label: t('tabClub') },
-  ]
+  // The tabs in the order a manager works through the week (`DUGOUT_TAB_ORDER`, r10); keys 1 to 0 follow it
+  const tabSpec: Partial<Record<Tab, { label: string; alert?: boolean; badge?: number }>> = {
+    squad: { label: t('tabSquad') },
+    ...(done ? {} : { next: { label: t('tabNext') } }),
+    tactics: { label: t('tabTactics') },
+    inbox: { label: t('tabInbox'), alert: !!game.pendingEvent, badge: unseen },
+    office: { label: tOffice('tabOffice'), badge: officeAlertCount(game, u) || undefined },
+    dressing: { label: t('tabDressing') },
+    planner: { label: t('tabPlanner') },
+    market: { label: t('tabMarket'), alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
+    fixtures: { label: t('tabFixtures') },
+    table: { label: t('tabTable') },
+    ...(season.cup.length ? { cup: { label: t('tabCup') } } : {}),
+    ...(season.continental ? { europe: { label: t('tabEurope') } } : {}),
+    stats: { label: t('tabStats') },
+    club: { label: t('tabClub') },
+  }
+  const tabList = withShortcuts(DUGOUT_TAB_ORDER.flatMap((id) => (tabSpec[id] ? [{ id, ...tabSpec[id] }] : [])))
   keys.current = { play: done || game.pendingEvent || simming ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id), manage: done ? null : { autoPick: () => { store.autoPick(); store.showToast(t('autoPicked')) }, rest: () => rest() } }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
@@ -381,7 +401,7 @@ export function Dugout() {
                 <span className="lbl-short">{t(bigNext ? 'bigNextShort' : 'toBigShort')}</span>
               </button>
               <button className="btn" onClick={() => afterPaint(() => store.simWeeksSoon(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title={t('sim5Tip')} data-testid="sim-5">
-                {t(simming ? 'simulating' : 'sim5')}
+                {simming ? t('simulating') : <><span className="lbl-long">{t('sim5Weeks')}</span><span className="lbl-short">{t('sim5')}</span></>}
               </button>
               <button className="btn ghost" onClick={() => void askConfirm(t('simEndConfirm'), { ok: t('simEnd') }).then((ok) => { if (ok) afterPaint(() => store.simWeeksSoon(40)) })} disabled={!!game.pendingEvent || simming} data-testid="sim-end">
                 {t('simEnd')}
@@ -394,6 +414,10 @@ export function Dugout() {
 
       <div className="tabs-row">
         <Tabs<Tab> value={tab} onChange={setTab} tabs={tabList} />
+        {/* The keyboard on a desktop: what Space, the digits, the tabs' letters, A and R do (r10) */}
+        <span className="dugout-keys" data-testid="dugout-keys">
+          <Info label={t('keysLabel')}>{t('playTip')}</Info>
+        </span>
         <BoxesMenu groups={[headBoxes, tabBoxes]} resets={DUGOUT_ALL} />
       </div>
 

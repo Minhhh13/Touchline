@@ -24,6 +24,15 @@ export interface SeatRecord {
   at: number
   /** The finished room was credited to this device's Trophy Room. */
   credited?: boolean
+  /** A rematch: the code of the room it was made from, and the manager it is for (the waiting room's words, the second press of Rematch). */
+  rematchOf?: string
+  opponent?: string | null
+}
+
+/** A rematch room as the screens see it: the room it came from and the manager to send it to. */
+export interface RematchNote {
+  of: string
+  opponent: string | null
 }
 
 /** Where the seats live (localStorage in the browser; a map in the tests). */
@@ -86,6 +95,8 @@ export interface RoomUi {
   syncedAt?: number | null
   /** Reads in a row that failed (a dropped connection): the next one waits longer (`pollDelay`). */
   failures?: number
+  /** This device made the room as a rematch (kept on its seat, so a reload still says who it is for). */
+  rematch?: RematchNote | null
 }
 
 /** A read or call with no answer after this long is given up (an iOS tab put away mid-request may never answer). */
@@ -189,10 +200,19 @@ export function clockText(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-/** The words a share sheet or a copied message carries beside the link: who invites and the room's code. */
-export function roomInviteText(hostName: string | null, code: string): string {
+/** The words a share sheet or a copied message carries beside the link: who invites and the room's code (a rematch says so). */
+export function roomInviteText(hostName: string | null, code: string, rematch?: RematchNote | null): string {
   const pretty = `${code.slice(0, 4)}-${code.slice(4)}`
+  if (rematch) return `${rematch.opponent ? `${rematch.opponent}, rematch? ` : 'Rematch? '}${hostName ? `${hostName} has` : 'I have'} a new TouchLine head-to-head room, same settings: ${pretty}, no account needed.`
   return `${hostName ? `${hostName} invites you to` : 'Join me for'} a TouchLine head-to-head. Room ${pretty}, no account needed.`
+}
+
+/** The manager this seat's rematch keeps (name, shape, club) and the other one's name, from the room it follows. */
+export function rematchOf(view: Pick<RoomView, 'code' | 'managers'>, seat: 0 | 1): { manager: RoomManagerInput; note: RematchNote } | null {
+  const me = view.managers[seat]
+  if (!me) return null
+  const other = view.managers[seat === 0 ? 1 : 0]
+  return { manager: { name: me.name, formationId: me.formationId, hostClubId: me.hostClubId }, note: { of: view.code, opponent: other?.name ?? null } }
 }
 
 /**
@@ -243,6 +263,8 @@ function browserTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 }
 
 type Answer = { ok: true; body: Record<string, unknown> } | { ok: false; code: string; message: string; room: RoomView | null }
+
+const noteOf = (rec: SeatRecord | null | undefined): RematchNote | null => (rec?.rematchOf ? { of: rec.rematchOf, opponent: rec.opponent ?? null } : null)
 
 export class RoomSession {
   private ui: RoomUi | null = null
@@ -358,7 +380,7 @@ export class RoomSession {
     }
     this.close()
     const rec = this.seatOf(code)
-    this.ui = { code, view: null, seat: rec?.seat ?? null, error: null, errorCode: null, busy: false, missing: false, syncedAt: null, failures: 0 }
+    this.ui = { code, view: null, seat: rec?.seat ?? null, error: null, errorCode: null, busy: false, missing: false, syncedAt: null, failures: 0, rematch: noteOf(rec) }
     this.d.report(this.ui)
     await this.poll()
   }
@@ -393,16 +415,43 @@ export class RoomSession {
     return true
   }
 
-  /** Make a room: this device takes seat 0. Resolves to the room's code, or null (the error is on the state). */
-  async create(settings: RoomSettings, manager: RoomManagerInput, engine: string, data: string): Promise<{ ok: true; code: string } | { ok: false; message: string }> {
+  /** Make a room: this device takes seat 0 (a rematch notes the room it follows). Resolves to the room's code, or the refusal's words. */
+  async create(settings: RoomSettings, manager: RoomManagerInput, engine: string, data: string, rematch?: RematchNote): Promise<{ ok: true; code: string } | { ok: false; message: string }> {
     const a = await this.call({ op: 'room.create', settings, manager, engine, data })
     if (!a.ok) return { ok: false, message: a.message }
     const view = a.body.room as RoomView
-    this.keepSeat(view.code, { seat: 0, token: String(a.body.token), at: this.d.now() })
+    const rec: SeatRecord = { seat: 0, token: String(a.body.token), at: this.d.now(), ...(rematch ? { rematchOf: rematch.of, opponent: rematch.opponent } : {}) }
+    this.keepSeat(view.code, rec)
     this.close()
-    this.ui = { code: view.code, view: null, seat: 0, error: null, errorCode: null, busy: false, missing: false, syncedAt: this.d.now(), failures: 0 }
+    this.ui = { code: view.code, view: null, seat: 0, error: null, errorCode: null, busy: false, missing: false, syncedAt: this.d.now(), failures: 0, rematch: noteOf(rec) }
     this.accept(view)
     return { ok: true, code: view.code }
+  }
+
+  /** The rematch this device already made of a room, newest first, if its seat is still kept. */
+  rematchMade(code: string): string | null {
+    const all = Object.entries(liveSeats(this.d.seats.get(), this.d.now())).filter(([, r]) => r.rematchOf === code && r.seat === 0)
+    all.sort((a, b) => b[1].at - a[1].at)
+    return all[0]?.[0] ?? null
+  }
+
+  /**
+   * A rematch of a finished or ended room through the ordinary `room.create`: the same settings, this seat's name,
+   * shape and club. A second press opens the rematch already made while it still waits or drafts, so two presses never
+   * leave two rooms for one friend; one that has closed is replaced by a new room.
+   */
+  async rematch(view: RoomView, seat: 0 | 1, engine: string, data: string): Promise<{ ok: true; code: string; reused: boolean } | { ok: false; message: string }> {
+    const from = rematchOf(view, seat)
+    if (!from) return { ok: false, message: roomMessage('invalid_room', undefined) }
+    const prior = this.rematchMade(view.code)
+    if (prior) {
+      await this.open(prior)
+      const status = this.ui?.code === prior ? this.ui.view?.status : undefined
+      if (status === 'waiting' || status === 'drafting') return { ok: true, code: prior, reused: true }
+    }
+    const made = await this.create(view.settings, from.manager, engine, data, from.note)
+    if (!made.ok && prior && this.ui?.code === prior) await this.open(view.code)
+    return made.ok ? { ...made, reused: false } : made
   }
 
   /** Take seat 1 of the open room. */

@@ -48,8 +48,8 @@ describe('the stylesheets', () => {
       }
     }
     walk(UI)
-    // The arena hub's two headings stay with the agent that owns Arena.tsx
-    expect(out.filter((l) => !l.startsWith('screens/Arena.tsx:'))).toEqual([])
+    // The arena hub's two headings are on the tokens now: no file is exempt (r10)
+    expect(out).toEqual([])
   })
 
   it('never animate left or top (DESIGN_SYSTEM section 12, rule 2: transform and opacity only)', () => {
