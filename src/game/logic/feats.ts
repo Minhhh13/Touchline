@@ -242,7 +242,47 @@ export function featsFromBoard(profile: Pick<Profile, 'leaderboard'> & { runIns?
 
 /** A cabinet with its feats normalised: an older one (none yet) counts them once from the leaderboard and the run-in log. */
 export function withFeats(c: Cabinet, profile: Pick<Profile, 'leaderboard' | 'runIns'>): Cabinet {
-  return { ...c, feats: normaliseFeats(c.feats) ?? featsFromBoard(profile) }
+  return { ...soundCounts(c), feats: normaliseFeats(c.feats) ?? featsFromBoard(profile) }
+}
+
+/**
+ * The cabinet's counts as whole numbers of zero or more and its lists as lists of strings (r9): `normaliseCabinet`
+ * fills in what is missing but keeps a count a damaged or hand-edited save bent ("NaN perfect seasons", "-3 of 1 for
+ * bronze" in the Trophy Room). Kept here, not in `cabinet.ts`, which the edge verifier bundles. A sound cabinet reads
+ * the same.
+ */
+export function soundCounts(c: Cabinet): Cabinet {
+  const shelf = <T extends Record<string, number>>(v: unknown, keys: T): T => {
+    const o = v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+    return Object.fromEntries(Object.keys(keys).map((k) => [k, count(o[k])])) as T
+  }
+  const keyed = (v: unknown): Record<string, number> => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, count(x)])) : {})
+  const words = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+  const cups = c.cups && typeof c.cups === 'object' ? c.cups : { runs: 0, won: 0, bySize: {} }
+  return {
+    ...c,
+    league: count(c.league),
+    cup: count(c.cup),
+    continental: count(c.continental),
+    doubles: count(c.doubles),
+    trebles: count(c.trebles),
+    perfect: count(c.perfect),
+    invincible: count(c.invincible),
+    centurions: count(c.centurions),
+    dailies: count(c.dailies),
+    weeklies: count(c.weeklies),
+    arenaDailies: count(c.arenaDailies),
+    giantKills: count(c.giantKills),
+    hostsTitled: words(c.hostsTitled),
+    nationsTitled: words(c.nationsTitled),
+    ...(c.recent !== undefined ? { recent: words(c.recent) } : {}),
+    byMode: keyed(c.byMode),
+    gauntlet: shelf(c.gauntlet, { runs: 0, best: 0, complete: 0 }),
+    cups: { ...shelf(cups, { runs: 0, won: 0 }), bySize: keyed(cups.bySize) },
+    h2h: shelf(c.h2h, { played: 0 }),
+    ...(c.h2hOnline !== undefined ? { h2hOnline: shelf(c.h2hOnline, { played: 0, won: 0 }) } : {}),
+    runIns: shelf(c.runIns, { played: 0, met: 0 }),
+  }
 }
 
 /**

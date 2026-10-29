@@ -291,3 +291,49 @@ describe("QA r9: Explore's player card tabs and Records in every league", () => 
     expect([...new Set(fails)]).toEqual([])
   }, 300_000)
 })
+
+describe('QA r9: a damaged Trophy Room loads and renders', () => {
+  const u = loadTestUniverse(['england'])
+  /** A value a hand-edited, imported or older save might hold where a number or a list belongs. */
+  const junk = (ch: Chooser): unknown => ch.pick([undefined, null, -3, 0, 1e9, 2.5, '7', 'x', [], {}, [1, 'a', null], true, Number.NaN])
+  it('profiles with feats, counts and lists bent at random merge into sound cabinets that Profile and Home render', async () => {
+    const { persistedState } = await import('@game/store')
+    const { encodeSave, parseSave } = await import('@game/saveStorage')
+    const { ProfileScreen } = await import('../screens/ProfileScreen')
+    const { Home } = await import('../screens/Home')
+    const { emptyFeats } = await import('@game/logic/feats')
+    const fails: string[] = []
+    for (let i = 0; i < 40; i++) {
+      const ch = new Chooser(`r9-cabinet-${i}`)
+      show({ universe: u, loadedLeagues: ['england'], game: null, parked: {}, h2h: null, screen: 'profile' })
+      const base = persistedState(st()) as unknown as { profile: Record<string, unknown> }
+      const profile = JSON.parse(JSON.stringify(base.profile)) as Record<string, unknown>
+      const cab = (profile.cabinet ?? {}) as Record<string, unknown>
+      const feats = { ...emptyFeats(), seasonsTitled: [2010, 2019], perfectDrafts: ['a', 'b'], runInWeeks: ['2026-W40'] } as unknown as Record<string, unknown>
+      for (const k of Object.keys(feats)) if (ch.chance(0.4)) feats[k] = junk(ch)
+      if (ch.chance(0.15)) cab.feats = junk(ch)
+      else cab.feats = feats
+      for (const k of ['league', 'cup', 'perfect', 'centurions', 'hostsTitled', 'nationsTitled', 'byMode', 'gauntlet', 'honours']) if (ch.chance(0.3)) cab[k] = junk(ch)
+      profile.cabinet = ch.chance(0.1) ? junk(ch) : cab
+      for (const k of ['leaderboard', 'runIns', 'arenaRuns', 'quickBests', 'achievements', 'weekly', 'arenaDaily']) if (ch.chance(0.15)) profile[k] = junk(ch)
+      const raw = encodeSave(JSON.stringify({ state: { ...base, profile }, version: 1 }))
+      const value = parseSave<Record<string, unknown>>(raw)
+      const merge = useStore.persist.getOptions().merge!
+      let merged: ReturnType<typeof st>
+      try {
+        merged = merge(value.state, { ...useStore.getInitialState(), universe: u, loadedLeagues: ['england'] }) as ReturnType<typeof st>
+      } catch (e) {
+        fails.push(`${i} merge threw: ${e instanceof Error ? e.message : String(e)}`)
+        continue
+      }
+      fails.push(...badValues(merged.profile.cabinet, `${i} cabinet`))
+      const negatives = JSON.stringify(merged.profile.cabinet).match(/"[a-zA-Z0-9]+":-\d/g)
+      if (negatives) fails.push(`${i} cabinet: negative counts ${negatives.join(' ')}`)
+      show({ ...merged, screen: 'profile' })
+      renderBoth(`${i} profile`, ProfileScreen as ComponentType<never>, {}, fails)
+      show({ screen: 'home' })
+      renderBoth(`${i} home`, Home as ComponentType<never>, {}, fails)
+    }
+    expect([...new Set(fails)].slice(0, 12)).toEqual([])
+  }, 300_000)
+})

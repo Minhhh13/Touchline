@@ -13,7 +13,10 @@ import { lodgeRequest } from '../logic/officeCore'
 import { openRequests } from '../logic/transferRequests'
 import { officeTick } from '../logic/office'
 import { seasonGame } from './seasonGame'
-import type { Game } from '../types'
+import type { Game, Profile } from '../types'
+import { normaliseProfile } from '../logic/save'
+import { emptyCabinet } from '../logic/cabinet'
+import { soundCounts } from '../logic/feats'
 
 /** QA round 4 (r9): the fixes, each failing without its change. */
 const u = loadTestUniverse(['england'])
@@ -122,5 +125,31 @@ describe("R9-5: a request left open at a season's end does not block the next se
     g.office.requests![pid] = { playerId: pid, name: 'Stale', reason: 'morale', year: g.year - 1, at: 38, stage: 'open' }
     officeTick(g, u)
     expect(g.office.requests![pid]).toBeUndefined()
+  })
+})
+
+describe('R9-7: a bent profile loads in its shapes; a sound one is untouched', () => {
+  const defaults: Profile = { achievements: {}, leaderboard: [], dailyStreak: 0, lastDailyDate: null, dailyResults: {}, gamesPlayed: 0, seasonsSimulated: 0, theme: 'auto', managerName: '', cabinet: emptyCabinet() }
+  it('lists, records and counts of the wrong kind read as empty or zero', () => {
+    const p = normaliseProfile({ leaderboard: 'x' as never, runIns: [null, { id: 'a' }] as never, arenaDaily: {} as never, weekly: { streak: 'two', last: 5, results: { w: { points: 3, tier: 'CHAMPIONS' } } } as never, gamesPlayed: Number.NaN, achievements: [] as never }, defaults)
+    expect(p.leaderboard).toEqual([])
+    expect(p.runIns).toEqual([{ id: 'a' }])
+    expect(p.arenaDaily).toBeUndefined()
+    expect(p.weekly).toEqual({ streak: 0, last: null, results: { w: { points: 3, tier: 'CHAMPIONS' } } })
+    expect(p.gamesPlayed).toBe(0)
+    expect(p.achievements).toEqual({})
+  })
+
+  it('cabinet counts become whole numbers of zero or more', () => {
+    const c = soundCounts({ ...emptyCabinet(), perfect: Number.NaN, league: -3, cup: '4' as never, gauntlet: [1, 2] as never, cups: { runs: 2.7, won: 1, bySize: { '8': -1, '16': 2 } }, hostsTitled: ['a', 3] as never })
+    expect([c.perfect, c.league, c.cup, c.gauntlet, c.cups, c.hostsTitled]).toEqual([0, 0, 0, { runs: 0, best: 0, complete: 0 }, { runs: 2, won: 1, bySize: { '8': 0, '16': 2 } }, ['a']])
+  })
+
+  it('a sound profile and cabinet come back equal', () => {
+    const cab = { ...emptyCabinet(), league: 3, perfect: 1, byMode: { quick: 4 }, hostsTitled: ['burnley'], recent: ['g-1'], h2hOnline: { played: 2, won: 1 } }
+    expect(soundCounts(cab)).toEqual(cab)
+    const sound: Profile = { ...defaults, leaderboard: [], runIns: [], arenaDaily: { streak: 2, last: 'arena-2026-10-28', results: {} }, gamesPlayed: 7 }
+    const out = normaliseProfile(sound, defaults)
+    expect(out).toEqual({ ...sound, quickBests: { perfectSeasons: 0, longestPerfectRun: 0 }, inventory: {} })
   })
 })
