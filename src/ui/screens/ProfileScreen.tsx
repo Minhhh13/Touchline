@@ -568,7 +568,7 @@ export function ProfileScreen() {
                   <span>
                     {t('volume')} <span className="muted small" data-testid="sound-volume-value">{volume}%</span>
                   </span>
-                  <input type="range" className="volume-range" min={0} max={100} step={5} value={volume} onChange={(e) => setVolume(Number(e.target.value))} onPointerUp={() => playSound({ id: 'pick' })} onKeyUp={() => playSound({ id: 'pick' })} aria-label={t('volume')} aria-valuetext={`${volume}%`} data-testid="sound-volume" />
+                  <input type="range" className="volume-range" min={0} max={100} step={5} value={volume} onChange={(e) => setVolume(Number(e.target.value))} onPointerUp={() => playSound({ id: 'volume' })} onKeyUp={() => playSound({ id: 'volume' })} aria-label={t('volume')} aria-valuetext={`${volume}%`} data-testid="sound-volume" />
                 </label>
                 <div className="field">
                   <span>

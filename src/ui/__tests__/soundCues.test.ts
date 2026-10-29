@@ -4,7 +4,7 @@ import path from 'node:path'
 import { CUE_CATEGORY, CUE_GAP_MS, PICK_BANDS, isCue, makeThinner, newlyEarned, pickBand, toastTone, type CueId, type CueRequest } from '../sound/cues'
 import { CUE_LEVEL, CUE_MAX_LEVEL, cueScore } from '../sound/voices'
 import { CATEGORY, FLOOR, envAt, peakOf, scoreFor, scoreLength } from '../sound/scores'
-import { categoryOn, parseVolume, setDraftSoundOn, setMatchSoundOn, setSoundVolume, setUiSoundOn, soundVolume } from '../sound/prefs'
+import { categoryOn, parseVolume, setDraftSoundOn, setMatchSoundOn, setSoundVolume, setUiSoundOn, soundVolume, volumeGain } from '../sound/prefs'
 import { MASTER_GAIN, gainNow, playSound } from '../sound/synth'
 import { CUE_REQUESTS } from './cueRequests'
 
@@ -192,11 +192,12 @@ describe('the switches and the volume', () => {
     expect(parseVolume('250')).toBe(100)
   })
 
-  it('scales the master by the volume and never above the first pass’s master', () => {
+  it('scales the master by the volume on its perceptual curve and never above the first pass’s master', () => {
     try {
       setSoundVolume(50)
       expect(soundVolume()).toBe(50)
-      expect(gainNow()).toBeCloseTo(MASTER_GAIN / 2, 9)
+      expect(gainNow()).toBeCloseTo(MASTER_GAIN * volumeGain(50), 9)
+      expect(gainNow()).toBeLessThan(MASTER_GAIN / 2)
       setSoundVolume(0)
       expect(gainNow()).toBe(0)
       setSoundVolume(300)

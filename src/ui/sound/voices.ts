@@ -10,28 +10,30 @@
 import type { CueRequest } from './cues'
 import type { BallTouch } from './ball'
 import { seeded } from './noise'
-import { chime, noise, normalise, shimmer, timpani, tone, type Score, type Voice } from './scores'
+import { bell, chime, knock, mallet, noise, normalise, pad, shimmer, timpani, tone, type Score, type Voice } from './scores'
 
-/** The most any cue here reaches; the match's goal is 0.9, a gold landing 0.9, a pink one 0.52. */
+/** The most any cue here reaches; the match's goal is 0.9, a gold landing 0.82. */
 export const CUE_MAX_LEVEL = 0.5
 
-/** Each cue's level: interface sounds barely there, the draft's under the reel's landings, the arena's under the match's crowd. */
+/** Each cue's level: interface sounds barely there, the draft's under the reel's landings, the arena's under the match's crowd (round 9: set from offline renders, scores.ts `DRAFT_LEVEL`). */
 export const CUE_LEVEL = {
-  pickBand: { squad: 0.36, solid: 0.4, star: 0.45, world: 0.5 },
-  hindsight: 0.3,
-  squadComplete: 0.42,
-  managerLanded: 0.3,
-  caseOpen: 0.3,
-  bonus: 0.42,
-  turn: { mine: 0.28, theirs: 0.16 },
-  tab: 0.06,
-  toast: 0.1,
-  error: 0.13,
-  confirm: 0.12,
+  pickBand: { squad: 0.19, solid: 0.25, star: 0.32, world: 0.42 },
+  hindsight: 0.2,
+  squadComplete: 0.35,
+  managerLanded: 0.21,
+  caseOpen: 0.28,
+  bonus: 0.32,
+  turn: { mine: 0.2, theirs: 0.11 },
+  tab: 0.05,
+  toast: 0.054,
+  error: 0.075,
+  confirm: 0.066,
   kick: { scoredOurs: 0.42, scored: 0.3, missedOurs: 0.3, missed: 0.34 },
-  rung: 0.34,
-  bracketTie: { user: 0.22, other: 0.1 },
-  badge: 0.5,
+  rung: 0.22,
+  bracketTie: { user: 0.11, other: 0.07 },
+  badge: 0.43,
+  /** The volume slider's reference note: the pick's two mallets at its level, so the slider is set by an everyday sound. */
+  volume: 0.19,
   /** The ball: a touch barely there, kept under the crowd's bed at its loudest; a strike under a near miss's start, the woodwork the loudest of them. */
   ball: { touch: 0.05, pass: 0.07, long: 0.1, header: 0.09, throw: 0.045, goalkick: 0.11, strike: 0.2, keeper: 0.18, woodwork: 0.3 },
   /** The crowd under the match: the bed at its most roused (its `level` is the mood, mix.ts), a swell up to a near miss's. */
@@ -53,68 +55,72 @@ export function cueScore(req: CueRequest): Score {
   return s
 }
 
-/** The pick's thock: a short band of noise, the sound of the card going down. */
+/** The pick's thock: a soft wooden knock, the sound of the card going down (the palette's `knock`). */
 function thock(at = 0): Voice {
-  return noise(at, { filter: 'bandpass', freq: 1800, q: 1.5, dur: 0.04, peak: 1 })
+  return knock(at, 900)
 }
 
-/** C major from C5 up, for the Gauntlet's climb: rung i is the i-th step (two octaves over fifteen rungs). */
-const SCALE = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.5, 1174.66, 1318.51, 1396.91, 1567.98, 1760, 1975.53, 2093]
+/** C major from C4 up, for the Gauntlet's climb: rung i is the i-th step (two octaves over fifteen rungs, C4 to C6: round 9 moved it down an octave, warmer). */
+const SCALE = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.5]
 
 function build(req: CueRequest): Score {
   switch (req.id) {
     case 'pick-band': {
-      // A squad man the old pick (thock, E5 to B5); then a third note, then a triad, then a triad with a shimmer
-      const v: Voice[] = [thock(), tone(0.005, 659.25, { peak: 0.5, dur: 0.14 }), tone(0.065, 987.77, { peak: 0.5, dur: 0.22 })]
-      if (req.band === 'solid') v.push(tone(0.125, 1318.51, { peak: 0.32, dur: 0.24 }))
-      if (req.band === 'star' || req.band === 'world') v.push(...chime(0.125, 1318.51, { wave: 'triangle', peak: 0.34, dur: 0.4 }), ...chime(0.185, 1567.98, { wave: 'triangle', peak: 0.3, dur: req.band === 'world' ? 0.9 : 0.5 }))
+      // A squad man the plain pick (a knock, mallets E5 to B5); then a third mallet, then two more over a pad, then a bell and a glint
+      const v: Voice[] = [thock(), ...mallet(0.005, 659.25, { peak: 0.3, dur: 0.18, knock: false }), ...mallet(0.06, 987.77, { peak: 0.3, dur: 0.28, knock: false })]
+      if (req.band === 'solid') v.push(...mallet(0.12, 1318.51, { peak: 0.24, dur: 0.3, knock: false }))
+      if (req.band === 'star' || req.band === 'world') v.push(...mallet(0.12, 1318.51, { peak: 0.26, dur: 0.4, knock: false }), ...mallet(0.18, 1567.98, { peak: 0.24, dur: req.band === 'world' ? 0.9 : 0.5, knock: false }), ...pad(0.12, [329.63, 493.88], { peak: 0.05, attack: 0.04, dur: 0.6 }))
       if (req.band === 'world') {
-        v.push(tone(0.185, 98, { attack: 0.004, dur: 0.4, peak: 0.25 }))
-        if (!req.reduced) v.push(...shimmer(0.26, [2637, 3136, 3951, 3520], 0.05, seeded('pick-world'), 0.06))
+        v.push(tone(0.18, 98, { attack: 0.006, dur: 0.4, peak: 0.25, glideTo: 82, glideTime: 0.3 }), ...bell(0.2, 1975.53, { peak: 0.08, dur: 0.9 }))
+        if (!req.reduced) v.push(...shimmer(0.26, [2637, 3136, 3951, 3520], 0.05, seeded('pick-world')))
       }
       return normalise('pick-band', CUE_LEVEL.pickBand[req.band], v)
     }
     case 'hindsight':
       // Looking back: perfect, a soft rising sixth with a glint; otherwise a gentle falling third, thoughtful, never a buzzer
       return req.perfect
-        ? normalise('hindsight', CUE_LEVEL.hindsight, [...chime(0, 659.25, { wave: 'triangle', dur: 0.5 }), ...chime(0.12, 1046.5, { wave: 'triangle', dur: 0.9 }), ...(req.reduced ? [] : shimmer(0.24, [2093, 2637], 0.07, seeded('hindsight'), 0.05))])
-        : normalise('hindsight', CUE_LEVEL.hindsight, [...chime(0, 587.33, { dur: 0.45 }), ...chime(0.14, 493.88, { dur: 0.8 })])
+        ? normalise('hindsight', CUE_LEVEL.hindsight, [...mallet(0, 659.25, { dur: 0.5 }), ...mallet(0.12, 1046.5, { dur: 0.9, knock: false }), ...(req.reduced ? [] : shimmer(0.24, [2093, 2637], 0.07, seeded('hindsight')))])
+        : normalise('hindsight', CUE_LEVEL.hindsight, [...mallet(0, 587.33, { dur: 0.45, bright: 0.5 }), ...mallet(0.14, 493.88, { dur: 0.8, bright: 0.5, knock: false })])
     case 'squad-complete': {
-      // The sheet signed: a low drum, then an open fifth rising to the octave, held under the pundits' numbers
-      const v: Voice[] = [...timpani(0, 98, 0.5), tone(0.02, 196, { wave: 'triangle', attack: 0.02, hold: 0.2, dur: 1.2, peak: 0.2 })]
-      ;[392, 587.33, 783.99].forEach((f, i) => v.push(...chime(0.06 + i * 0.09, f, { wave: 'triangle', peak: 0.24, dur: i === 2 ? 1.1 : 0.4 })))
-      if (!req.reduced) v.push(...shimmer(0.36, [2349, 3136, 2637], 0.07, seeded('squad-complete'), 0.05))
+      // The sheet signed: a low drum, then an open fifth rising to the octave in mallets, held on a pad under the pundits' numbers
+      const v: Voice[] = [...timpani(0, 98, 0.5), ...pad(0.02, [196, 293.66], { peak: 0.1, attack: 0.05, hold: 0.2, dur: 1.2 })]
+      ;[392, 587.33, 783.99].forEach((f, i) => v.push(...mallet(0.06 + i * 0.09, f, { peak: 0.24, dur: i === 2 ? 1.1 : 0.4, knock: false })))
+      if (!req.reduced) v.push(...shimmer(0.36, [2349, 3136, 2637], 0.07, seeded('squad-complete')))
       return normalise('squad-complete', CUE_LEVEL.squadComplete, v)
     }
     case 'manager-landed':
-      // All three managers landed: three quick bell notes, A C sharp E (apart from the red landing's C E G), the shortlist in
-      return normalise('manager-landed', CUE_LEVEL.managerLanded, [...chime(0, 440, { dur: 0.3 }), ...chime(0.08, 554.37, { dur: 0.3 }), ...chime(0.16, 659.25, { dur: 0.7 })])
+      // All three managers landed: three quick mallets, A C sharp E (apart from the red landing's C E G), the shortlist in
+      return normalise('manager-landed', CUE_LEVEL.managerLanded, [...mallet(0, 440, { dur: 0.3 }), ...mallet(0.08, 554.37, { dur: 0.3, knock: false }), ...mallet(0.16, 659.25, { dur: 0.7, knock: false })])
     case 'case-open':
-      // The case's latch: a click, a short low knock and the lid's breath (noise swept up)
+      // The case's latch: a soft click, a short low knock and the lid's breath (pink noise swept up)
       return normalise('case-open', CUE_LEVEL.caseOpen, [
-        noise(0, { filter: 'highpass', freq: 3000, q: 0, attack: 0.001, dur: 0.025, peak: 1 }),
-        tone(0.01, 180, { glideTo: 120, glideTime: 0.06, attack: 0.002, dur: 0.12, peak: 0.6 }),
-        noise(0.05, { filter: 'bandpass', freq: 500, freqTo: 2200, sweep: 0.3, q: 1.4, attack: 0.12, dur: 0.38, peak: 0.6 }),
+        noise(0, { filter: 'bandpass', freq: 2400, q: 1.2, attack: 0.0015, dur: 0.022, peak: 0.35 }),
+        tone(0.01, 180, { glideTo: 120, glideTime: 0.06, attack: 0.003, dur: 0.12, peak: 0.6 }),
+        noise(0.05, { colour: 'pink', filter: 'bandpass', freq: 400, freqTo: 1800, sweep: 0.3, q: 1.2, attack: 0.12, dur: 0.38, peak: 1, offset: 0.4 }),
       ])
     case 'bonus':
-      // A bonus spin earned: two bright bells a fourth apart, and a glint
-      return normalise('bonus', CUE_LEVEL.bonus, [...chime(0, 1046.5, { wave: 'triangle', dur: 0.4 }), ...chime(0.11, 1396.91, { wave: 'triangle', dur: 0.8 }), ...(req.reduced ? [] : shimmer(0.2, [2794, 3520, 4186], 0.05, seeded('bonus'), 0.06))])
+      // A bonus spin earned: two round bells a fourth apart, C6 and F6, and a glint
+      return normalise('bonus', CUE_LEVEL.bonus, [...mallet(0, 523.25, { dur: 0.3, peak: 0.2 }), ...bell(0.02, 1046.5, { dur: 0.5 }), ...bell(0.13, 1396.91, { dur: 0.9 }), ...(req.reduced ? [] : shimmer(0.22, [2794, 3520, 4186], 0.05, seeded('bonus')))])
     case 'turn':
       // A head-to-head turn passing (E flat and B flat, apart from every landing's notes): rising to the one whose pick it is on this screen, falling and quieter when it goes to the other
       return req.mine
-        ? normalise('turn', CUE_LEVEL.turn.mine, [...chime(0, 622.25, { dur: 0.3 }), ...chime(0.1, 932.33, { dur: 0.6 })])
-        : normalise('turn', CUE_LEVEL.turn.theirs, [...chime(0, 932.33, { dur: 0.3 }), ...chime(0.1, 622.25, { dur: 0.5 })])
+        ? normalise('turn', CUE_LEVEL.turn.mine, [...mallet(0, 622.25, { dur: 0.3 }), ...mallet(0.1, 932.33, { dur: 0.6, knock: false })])
+        : normalise('turn', CUE_LEVEL.turn.theirs, [...mallet(0, 932.33, { dur: 0.3, bright: 0.5 }), ...mallet(0.1, 622.25, { dur: 0.5, bright: 0.5, knock: false })])
     case 'tab':
-      // Softer and lower than a primary button's click
-      return normalise('tab', CUE_LEVEL.tab, [tone(0, 900, { attack: 0.002, dur: 0.035, peak: 0.6 }), noise(0, { filter: 'bandpass', freq: 2400, q: 2, attack: 0.001, dur: 0.015, peak: 0.6 })])
+      // Softer and lower than a primary button's click: a tiny falling tock
+      return normalise('tab', CUE_LEVEL.tab, [tone(0, 700, { attack: 0.002, dur: 0.035, peak: 0.6, glideTo: 560, glideTime: 0.03 }), noise(0, { filter: 'bandpass', freq: 1600, q: 1.4, attack: 0.0015, dur: 0.015, peak: 0.5 })])
     case 'toast':
-      return normalise('toast', CUE_LEVEL.toast, [tone(0, 880, { attack: 0.004, dur: 0.12, peak: 0.5 }), tone(0.07, 1174.66, { attack: 0.004, dur: 0.2, peak: 0.5 })])
+      // A soft two-note mallet, A5 to D6, dulled (no bright partials)
+      return normalise('toast', CUE_LEVEL.toast, [...mallet(0, 880, { dur: 0.14, bright: 0.3, knock: false }), ...mallet(0.07, 1174.66, { dur: 0.22, bright: 0.3, knock: false })])
     case 'error':
-      // Two low notes falling a semitone, soft-edged: something did not work, without a buzzer
-      return normalise('error', CUE_LEVEL.error, [tone(0, 311.13, { wave: 'triangle', attack: 0.008, dur: 0.14, peak: 0.5 }), tone(0.12, 293.66, { wave: 'triangle', attack: 0.008, dur: 0.24, peak: 0.5 })])
+      // Two low notes falling a semitone, soft-edged and low-passed: something did not work, without a buzzer
+      return normalise('error', CUE_LEVEL.error, [tone(0, 311.13, { wave: 'triangle', attack: 0.01, dur: 0.14, peak: 0.5, lowpass: 900 }), tone(0.12, 293.66, { wave: 'triangle', attack: 0.01, dur: 0.24, peak: 0.5, lowpass: 900 })])
     case 'confirm':
-      // A dialog's action taken: a rising fifth, short
-      return normalise('confirm', CUE_LEVEL.confirm, [tone(0, 698.46, { attack: 0.004, dur: 0.1, peak: 0.5 }), tone(0.06, 1046.5, { attack: 0.004, dur: 0.22, peak: 0.5 })])
+      // A dialog's action taken: a short rising fifth in mallets
+      return normalise('confirm', CUE_LEVEL.confirm, [...mallet(0, 698.46, { dur: 0.1, bright: 0.4 }), ...mallet(0.06, 1046.5, { dur: 0.22, bright: 0.4, knock: false })])
+    case 'volume':
+      // The slider let go: the plain pick's two mallets, the everyday sound to judge the level by
+      return normalise('volume', CUE_LEVEL.volume, [...mallet(0, 659.25, { peak: 0.3, dur: 0.18 }), ...mallet(0.06, 987.77, { peak: 0.3, dur: 0.28, knock: false })])
     case 'kick': {
       // The boot (a low thud and a slap), then the net's swish and a lift for a goal, or the keeper's gloves and a groan for a miss
       const r = seeded(`kick:${req.scored ? 's' : 'm'}:${req.ours ? 'o' : 't'}`)
@@ -132,16 +138,16 @@ function build(req: CueRequest): Score {
       return normalise('kick', req.ours ? CUE_LEVEL.kick.missedOurs : CUE_LEVEL.kick.missed, v)
     }
     case 'rung': {
-      // A rung climbed: one step higher on the scale each time, a note and its fifth
+      // A rung climbed: one step higher on the scale each time, a mallet and a softer one on its fifth
       const i = Math.max(0, Math.min(SCALE.length - 1, Math.round(req.rung)))
       const f = SCALE[i]
-      return normalise('rung', CUE_LEVEL.rung, [thock(), ...chime(0.02, f, { wave: 'triangle', dur: 0.5 }), ...chime(0.1, f * 1.5, { wave: 'triangle', peak: 0.2, dur: 0.6 })])
+      return normalise('rung', CUE_LEVEL.rung, [thock(), ...mallet(0.02, f, { dur: 0.5, knock: false }), ...mallet(0.1, f * 1.5, { peak: 0.2, dur: 0.6, knock: false })])
     }
     case 'bracket-tie':
-      // A tie filled in on the bracket: a soft wooden tick, a little chime for the user's own
+      // A tie filled in on the bracket: a soft wooden knock, a little mallet for the user's own
       return req.user
-        ? normalise('bracket-tie', CUE_LEVEL.bracketTie.user, [noise(0, { filter: 'bandpass', freq: 1400, q: 2, attack: 0.001, dur: 0.03, peak: 1 }), ...chime(0.02, 987.77, { dur: 0.45 })])
-        : normalise('bracket-tie', CUE_LEVEL.bracketTie.other, [noise(0, { filter: 'bandpass', freq: 1400, q: 2, attack: 0.001, dur: 0.03, peak: 1 }), tone(0, 740, { attack: 0.002, dur: 0.06, peak: 0.5 })])
+        ? normalise('bracket-tie', CUE_LEVEL.bracketTie.user, [knock(0, 1100), ...mallet(0.02, 987.77, { dur: 0.45, knock: false })])
+        : normalise('bracket-tie', CUE_LEVEL.bracketTie.other, [knock(0, 1100), tone(0, 587.33, { attack: 0.003, dur: 0.07, peak: 0.4, lowpass: 1200 })])
     case 'ball':
       return ballScore(req.touch, req.power)
     case 'crowd-swell': {
@@ -165,9 +171,11 @@ function build(req: CueRequest): Score {
       ])
     }
     case 'badge': {
-      // A medal pinned on: a low strike, a bright bell held over its fifth, a glint
-      const v: Voice[] = [tone(0, 130.81, { attack: 0.003, dur: 0.35, peak: 0.3 }), ...chime(0.02, 1046.5, { wave: 'triangle', peak: 0.3, dur: 1.2 }), ...chime(0.09, 1567.98, { wave: 'triangle', peak: 0.22, dur: 1.1 })]
-      if (!req.reduced) v.push(...shimmer(0.2, [2093, 2637, 3136, 4186], 0.06, seeded('badge'), 0.06))
+      // A medal pinned on, the trophy unlock: a low strike, a quick rising C major in mallets, a round bell held over its fifth, a glint
+      const v: Voice[] = [tone(0, 130.81, { attack: 0.004, dur: 0.35, peak: 0.3, glideTo: 110, glideTime: 0.25 })]
+      ;[523.25, 659.25, 783.99].forEach((f, i) => v.push(...mallet(i * 0.05, f, { peak: 0.2, dur: 0.3, knock: i === 0 })))
+      v.push(...bell(0.15, 1046.5, { peak: 0.24, dur: 1.2 }), ...bell(0.2, 1567.98, { peak: 0.14, dur: 1.1 }), ...pad(0.15, [261.63, 392], { peak: 0.05, attack: 0.05, dur: 1 }))
+      if (!req.reduced) v.push(...shimmer(0.3, [2093, 2637, 3136, 4186], 0.06, seeded('badge')))
       return normalise('badge', CUE_LEVEL.badge, v)
     }
   }
