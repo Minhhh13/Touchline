@@ -435,3 +435,28 @@ Branch `claude/r12-visual`, from `main` at #95. The owner kept finding layout od
 - On a phone the head-to-head result's final table cuts club names short ("Liverpo…", "Manag…"): it shows seven columns in 390 px; the cut is an ellipsis, by design.
 - The live match day at 844x390 shows the stop panel over the pitch with its controls in two scrolling columns; usable, nothing clipped.
 - A full-page phone screenshot paints the fixed dock part way down the page: an artefact of the capture, not of the page (viewport shots scrolled down the page show it at the foot).
+
+# Round 9: head-to-head's two ways to play as one (r13, 2026-10-29)
+
+Branch `claude/r13-h2h-look`, from `main` at #96 with round 12's integration branch merged in. The owner asked that head-to-head on one device look like online play. Display only: no draw, no save field, `h2h.ts`, `h2hSpin`, `h2hLand` and the pins untouched, the room's behaviour unchanged, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.
+
+## R9-1. How it was checked
+
+- Playwright (the preinstalled one) against `npx vite preview` of an online build pointed at `scripts/online/room-mock.mjs` (docs/ONLINE.md 5e), before and after the change: the hot-seat (setup, a landed spin mid-draft, both squads complete, the result) and the room (setup, waiting, join, a landed spin for the guest, the result, host and guest in two contexts) at 1280x800 and 390x844 (touch), Floodlit and Daylight: 36 shots each time, no page error in either run, every flow played to its result.
+
+## R9-2. Before and after
+
+| # | Screen | Before | After |
+| --- | --- | --- | --- |
+| 1 | Setup, this device (desktop) | Three boxes (Manager 1, Manager 2, the league), Start under the league; the room's setup was two boxes | Two boxes like the room's: Make the match (Manager 1 beside the league, as Make a room puts you beside it) and Manager 2 (as Join with a code), with the match shown as the room shows its two seats; Start across the foot |
+| 2 | Setup, both (desktop) | Only the hot-seat had compact formation tiles and folded its steps on a short window | Both setups (`.h2h-setup`) take the compact tiles and fold the steps the same way; on a phone both fold the steps to a strip of titles |
+| 3 | Draft head, this device | "Head-to-head draft", the managers' names and the seed as text, Home and Abandon in the toolbar beside a "Manager 2 to pick" chip | "Play on this device" with the seed as a chip where the room has its code, the league season, the rules' chips, one way back (as the room's head) |
+| 4 | Draft, whose turn (this device) | The turn only in the toolbar chip; on a phone it scrolled away | The room's turn band under the reel (lit when a pick is due) and, on a phone, its turn pill at the foot; Abandon under the controls where the room has Leave |
+| 5 | Draft, both pitches (online room, desktop) | The room's pitches were not fitted: Manager 2's XI ran under the fold | Both flows fit both pitches in the third box, the manager on the clock bigger (the hot-seat's rule, now shared) |
+| 6 | Waiting for packs (this device) | An empty state straight on the page | The room's message box (`h2h-waiting` kept) |
+| 7 | Result | Already one view (`H2HResultView`) | Unchanged |
+
+## R9-3. Open
+
+- The hot-seat setup still scrolls its body at 1280x800 (as the room's setup does): Manager 1's and Manager 2's formation tiles are the long part. Start stays in view at the foot.
+
