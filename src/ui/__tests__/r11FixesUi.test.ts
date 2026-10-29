@@ -109,3 +109,12 @@ describe('R11-8: January’s pace line and the case reel’s items in the viewer
     expect(src('components/ItemReel.tsx')).toContain('caseRowTitle({ item: c.key, title: c.label })')
   })
 })
+
+describe('R11-9: “Where does he play?” takes the focus from the row that opened it', () => {
+  it('the first slot choice (or Send him to the bench) is focused when the choice opens from a squad row', () => {
+    const draft = src('screens/Draft.tsx')
+    const effect = draft.split('const slotChoicesRef = useRef<HTMLDivElement>(null)')[1].split('}, [selectedPlayer])')[0]
+    expect(effect).toMatch(/document\.activeElement\?\.closest\('\.prow'\)/)
+    expect(effect).toMatch(/querySelector<HTMLElement>\('\[data-testid="slot-chip"\], \[data-testid="to-bench"\]'\)\?\.focus\(\{ preventScroll: true \}\)/)
+  })
+})
