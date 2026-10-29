@@ -58,7 +58,7 @@ Rules of thumb: put new code in new files, keep diffs surgical, never reflow lon
 CI (`.github/workflows/ci.yml`) runs only on pull requests and on pushes to `main`: a branch without a pull request is not built at all, a newer push to a pull request cancels the run still going, and the full test suite runs on the pull request only (three shards beside the build job), since it tests the merged tree; the push to `main` that merging makes runs the rest (typecheck, build, the first-download budget, `check:dist-keys`, `build:verifier`, `check:verifier`), which Render waits for. So:
 
 - **Run the checks locally first** and treat CI as the confirmation, not the test runner.
-- **Push in batches.** Commit as often as you like, but push a pull request's branch when a batch is ready, not after every commit: each push to an open pull request starts a full run. A release is one pull request (usually from `claude/touchline-preview`) with one full run, plus one short run on `main` after the merge.
+- **Push in batches.** Commit as often as you like, but push a pull request's branch when a batch is ready, not after every commit: each push to an open pull request starts a full run. A release is one pull request (from the round's batch branch, or `claude/touchline-preview`) with one full run, plus one short run on `main` after the merge.
 - **Run tests fast while you work, all of them before you push.** `npm run test:fast` skips the long seeded sweeps (`SLOW_FILES` in `vitest.config.ts`) and gives a verdict in about four minutes on 4 cores; `npx vitest run src/game/__tests__/thatFile.test.ts` runs one file; `npm test` (about eight minutes) is the gate and what CI runs, in three shards (`npx vitest run --shard=1/3` reproduces one). Every test has 60 s unless it names its own timeout; a seeded sweep that runs for more than about ten seconds yields with `await breathe()` (`src/engine/__tests__/helpers.ts`) every few seeds and goes in `SLOW_FILES`. `loadTestUniverse` is shared within a file: never change the universe it returns; take `freshTestUniverse` for that (`TL_FREEZE_UNIVERSE=1 npm test` finds a test that does).
 
 Run all of these locally before you push:
@@ -69,6 +69,8 @@ npm run typecheck      # tsc strict: no any, no unused symbols
 npm test               # Vitest, real data packs, about eight minutes (npm run test:fast while you work)
 npm run build          # what Render runs
 ```
+
+The other workflows: `db-tests.yml` runs the SQL suite (`npm run sql:test`'s files) on Postgres 17 only for commits touching `supabase/**` or `scripts/online/sql/**`; `supabase-deploy.yml` is manual only (migrations and the function, environment `production`); `keepalive.yml` pings the Supabase project daily and never fails. Do not add a workflow that can fail on `main`: Render deploys only a commit whose every check passed.
 
 For UI changes, also run the Playwright smoke against `npx vite preview --port 4173 --strictPort` at desktop (1280) and phone (390) widths with no page errors (see CLAUDE.md).
 
@@ -83,8 +85,8 @@ Also check:
 ## 6. Pull requests and review
 
 - Open a PR into `main` early (as a draft if unfinished). The title says what changes; the body says why, what you tested, and screenshots for UI.
-- PRs into `main` come either from a feature branch or from `claude/touchline-preview`, where finished branches are merged together and tried on the preview site first. After a squash merge, merge `main` back into `claude/touchline-preview` (the "Record main (#NN squash) as merged" commits) so the two stay level.
-- Big releases are batched: many branches (often one per agent session) merge into one release branch (for example `release-e6`), which goes to `main` in one pull request that only the session running the release opens and merges. A session working on a branch of its own never pushes to `main`, `claude/touchline-preview` or a release branch.
+- PRs into `main` come from a feature branch, a round's batch branch, or `claude/touchline-preview`, where finished branches are merged together and tried on the preview site first. After a squash merge, bring the squash back into `claude/touchline-preview` and every branch still in flight so the two stay level. Record it with `git merge -s ours origin/main` (the "Record the squash of #NN on the branch" commits) **only when the branch already holds a commit with exactly the squash's tree** (the commit the pull request was made from); otherwise do a real `git merge origin/main`, or `-s ours` silently drops whatever `main` has that the branch lacks.
+- Work is batched: commit as often as you like, push in batches, and release in rounds. Many branches (often one per agent session, `claude/rNN-*`, each from `main`, pushed without a pull request of its own) are merged by the main session into one batch or release branch (for example `release-e6`, `batch5`), which goes to `main` in one pull request that only the session running the release opens and merges: one release, one pull request, one CI run. A session working on a branch of its own never pushes to `main`, `claude/touchline-preview` or a release branch.
 - An `ENGINE_VERSION` bump or a data rebuild is released just before or just after 00:00 UTC (best on a Monday) so the day's Daily and the week's Weekly are pinned on one engine ([docs/ONLINE.md](docs/ONLINE.md) section 7).
 - Link the issue (`Closes #N`). Mention any ENGINE_VERSION bump, save-field addition or data rebuild at the top of the body.
 - Keep PRs small: under about 400 changed lines of hand-written code where possible.
