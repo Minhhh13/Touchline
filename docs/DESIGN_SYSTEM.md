@@ -979,8 +979,12 @@ translations. English stays the source; nothing on screen changes in English.
   English `text` and carries the pieces it was joined from (`source`), and a screen prints `commentaryLineText(line)`,
   an event's own text `eventLine(text)`, the assistant's word `commentaryPiece(text)` and a change of instructions
   `changeLineText(entry, team)`; a new commentary template or event wording gets its message there
-  (`src/ui/__tests__/commentaryMirror.test.ts`). Both mirrors share the matcher in `src/ui/i18n/mirror.ts`. Still in
-  English: the live pitch's caption pill and the data credits in How it works.
+  (`src/ui/__tests__/commentaryMirror.test.ts`). Both mirrors share the matcher in `src/ui/i18n/mirror.ts`; a hole
+  that only ever holds one of a few known pieces is matched as those alone (`compilePatterns(messages, fixed)`: the
+  commentary's `{zone}`), so a name of several words before it stays whole. The live pitch's caption pill says its
+  words through the `match` catalogue's `caption_` messages (`captionWords` in `LivePitch.tsx`, QA r13), and the match
+  header's round and occasion labels ("Fourth round", "Derby day") through `logicLine`. Still in English: the data
+  credits in How it works.
 - **Room to grow.** A translation runs about 30 % longer than English (German more). Buttons and chips wrap or
   ellipsise rather than overflow; never size a box to its English text. The development pseudo-locale shows it: in a
   dev build pick "Pseudo (en-XA)" under Profile, Settings, Language (or set `localStorage['touchline-language'] =
