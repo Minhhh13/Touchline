@@ -274,3 +274,26 @@ Also: the Office tab's components read the store through `useStorePick` (a bare 
 
 - Round 8's systems held up in their arithmetic: no NaN, broken window, stuck phase or lost save in the office, cup or sync sweeps; every reload and cloud trip played on to the same game. The bugs were at the seams again: a promise rule written before contract talks could shorten a deal (R9-1), a request outliving its season (R9-5), a market check the office cannot pass its wage to (R9-2, R9-O2), words wrapped twice (R9-8, R9-10) and a load path that trusted an imported file (R9-7).
 - Not covered: online play against the real project, real iOS, the share card's canvas in a browser, and sound.
+
+# Round 5: test gaps by coverage (r10, 2026-10-29)
+
+Branch `claude/r10-tests`. v8 line coverage over `src/engine`, `src/game` and `src/online` (installed locally with `npm i --no-save @vitest/coverage-v8@3.2.7`, run as `npx vitest run --coverage.enabled --coverage.provider=v8 --coverage.include='src/engine/**' --coverage.include='src/game/**' --coverage.include='src/online/**' --coverage.exclude='**/__tests__/**'`, about 16 minutes on 4 cores).
+
+## R5-1. What was tested
+
+- Before: 93.15% of lines (engine 98.38, game/logic 98.69, online 75.68). After: 94.53% (game/logic 98.99, online 82.83).
+- Code that reaches a result or a save, untested before: the Edge Function adapter (`server/edge.ts`: request checks, the guest key, account deletion over every slot folder), the browser transport's cloud saves (`save_claim`, rows, folders, failures), the device record and the error-report setting, the board readers, a Daily Arena Gauntlet's bonus spins in the casual verifier, a Run-in of the week replayed through re-spins and an Auto-complete, the promise list's cap and its drops, the Europe match day's other scores.
+
+## R5-2. Fixed
+
+- R10-1 (test only): the Upgrader dial's tick-gap test read the real clock; under the full suite's load the ticks fell more than 15 ms apart and it failed. The clock is now held in hand.
+
+## R5-3. Open
+
+- `src/online/runtime.ts`, `api.ts`'s online half, `boot.ts`, `client.ts` and the error reporter's window wiring need supabase-js or a browser: covered by the Playwright smokes and the live checks only.
+- `SupabaseTransport.listFolder` reads 100 objects a slot with no paging (the stray sweep after "Delete my cloud data"); harmless at today's two objects a slot.
+
+## R5-4. Coverage notes
+
+- game/logic's uncovered lines left are mostly exhaustive `never` branches and display fallbacks; engine's are the browser loaders in `universe.ts` (`fetch`).
+- No test exposed a game bug.
