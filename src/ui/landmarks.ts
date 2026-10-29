@@ -51,3 +51,22 @@ export function skipToMain(event?: { preventDefault(): void }): void {
   main.addEventListener('blur', () => main.removeAttribute('tabindex'), { once: true })
   main.focus()
 }
+
+/** The id of Setup's Start button, the target of its "Skip to Start" link (QA r11, R11-O1). */
+export const SETUP_START_ID = 'setup-start'
+
+/**
+ * A skip link to one control on the screen (Setup's Start, 39 Tabs down at 1280 otherwise): the control takes the
+ * focus; a disabled one cannot, so its section takes it for this focus (`tabindex="-1"`, dropped on blur) and the
+ * next Tab lands beside it. The hash is left alone, as for `skipToMain`.
+ */
+export function skipToControl(id: string, event?: { preventDefault(): void }): void {
+  event?.preventDefault()
+  const target = document.getElementById(id) as (HTMLElement & { disabled?: boolean }) | null
+  if (!target) return
+  const holder = target.disabled ? (target.closest('section') as HTMLElement | null) : null
+  if (!holder) return void target.focus()
+  holder.setAttribute('tabindex', '-1')
+  holder.addEventListener('blur', () => holder.removeAttribute('tabindex'), { once: true })
+  holder.focus()
+}

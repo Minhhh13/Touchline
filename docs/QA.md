@@ -325,7 +325,7 @@ Quick Draft's Setup and Draft at 1280x800 and 390x844 (and 360x740), Floodlit an
 
 Looked at and left: the reel's timing (`reelCurve.ts`, untouched), the recap and Hindsight XI (clear, with the grade tip above them), the desktop Modes row (hover, focus or a tap shows each card's line), and an invented team name, which is invented again on the next setup by design (`teamName.ts`; a typed name is kept).
 
-# Round 6 (coverage): the online layer's browser half (r11, 2026-10-29)
+# Round 6: the online layer's browser half (r11, 2026-10-29)
 
 Branch `claude/r11-online-tests`. Round 5 left the parts of `src/online` that need supabase-js or a page untested. They now run in Vitest's node environment against stand-ins: a fake supabase-js `auth` (and a recorder in place of `createClient`), the in-memory `FakeTransport` in place of `SupabaseTransport`, a fake window, document, `navigator`, `localStorage`, `history` and `fetch`, and fake timers. No request leaves a test.
 
@@ -352,18 +352,19 @@ Each test fails on the runtime before its fix (checked by stashing the fix).
 - `boot.ts`'s casual-board filing (the 50 ms delay before `captureCasualEntry`) is not driven through the boot subscription (`captureCasualEntry` itself is tested in `casualClient.test.ts`); `main.tsx`'s one-line gate stays covered by the budget test (no online chunk in an offline build).
 - `runtime.ts`'s room wiring (the seat store, `onFinished`'s Trophy Room credit) is reached only through `roomSession.test.ts`'s own deps.
 - Still untested: `server/entry.ts` (the verifier bundle's entry, run by `check:verifier`).
-# Round 6: what round 10 shipped (r11, 2026-10-29)
+
+# Round 7: what round 10 shipped (r11, 2026-10-29)
 
 Branch `claude/r11-qa`, from `main` at #93 (round 10) with `claude/r10-i18n-a11y` merged in first. Same rules as before: every fix has a test that fails without it, nothing moves a draw or a seeded outcome (pins, `noMove`, `marketPin`, `dailyPin` green, ENGINE_VERSION `'7'`), no module in the edge verifier's graph is touched and the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`. No save field, no migration. No commit is titled `FIX (moves draws):` or `BUNDLED:`.
 
-## R6-1. What was tested
+## R7-1. What was tested
 
 - **The digest's next match and the Office's briefing line** (`src/game/__tests__/qaR11Season.test.ts`, new): random Seasons and Dynasties through the store (`driveSeason`, Sim 5 weighted), read at every step: `digestAhead` names exactly the men injured or banned, longest out first, the next league fixture's opponent, and none of the men it names plays that match; `officeLine` is in the briefing exactly while `officeItems` has something, counted as the Office counts, with no NaN or `undefined`. The sweep counts what it met (men named out, matches checked, Office lines and warnings) and fails on a sweep that checked nothing. Nothing wrong.
 - **Setup's remembered choices** (`src/ui/__tests__/qaR11Setup.test.ts`, new): 3,000 stored values bent at random (another build's fields, wrong types, NaN, a custom era backwards, modes twice, junk) read as whole choices of the right shapes, the same on a second read; a save reads back as it went, the defaults leave no key, one mode's memory never reaches another's; a value that is not JSON or a storage that refuses starts from the defaults. Nothing wrong.
 - **In the browser** (Playwright on `vite preview`, scripts not committed): a Quick Draft from Setup to the summary with a reload at every step (draft complete, manager spin, end case, tactics, playback, January, summary) at 1280x800 Daylight and 390x844 Floodlit in the pseudo-locale; Setup's memory and **defaults** at both widths; a Season to the Dugout with the tab keys (digits and letters from the page and on a focused tab), Sim 5, the digest (focus inside, Escape, a reload with it open), Space from the page, at 1280 Floodlit and 390 Daylight with and without the pseudo-locale; Explore's search (12 rows, then growing to 200; a new query starts again; Tab into a row, Enter opens the card, Escape returns to the row) at both widths; the arena's Cup and Gauntlet and the Run-in from Home to their summaries with reloads in the hub and on the summary; hot-seat Head-to-head at 390 in the pseudo-locale; **a whole Quick Draft by keyboard alone** (Tab, Enter) at both widths; the online rooms against `scripts/online/room-mock.mjs` (round 10's mock): two contexts made, joined by typed code, pasted link and pasted invite, drafted to the result, Rematch from either side, both at once, a reload in the rematch's waiting room, a leave and a rejoin, at 1280 and 390 in both themes. Found R11-1 to R11-6, R11-9.
 - **The pseudo-locale, scanned**: on every screen above, every visible text node and every `title`, `aria-label` and `placeholder` that still read as an English sentence (two or more common function words, plain ASCII) was listed: Home, Setup, every Dugout tab in pre-season, at matchweek 5 and in January, four digests, a match, Profile, Explore, the guide, the whole Quick Draft flow, the arena hub and summary. Found R11-7, R11-8, R11-10 to R11-13. The match commentary is the one English left on purpose (DESIGN_SYSTEM.md section 17).
 
-## R6-2. Fixed
+## R7-2. Fixed
 
 | Id | Severity | What was wrong | Fix | Test |
 | --- | --- | --- | --- | --- |
@@ -381,15 +382,19 @@ Branch `claude/r11-qa`, from `main` at #93 (round 10) with `claude/r10-i18n-a11y
 | R11-12 | Low (i18n) | The playback's points gap ("Level on points with 1st", "3 pts off 5th") | Six `logicText` messages | `r11FixesUi.test.ts` R11-12 |
 | R11-13 | Low (i18n) | The head-to-head draft log ("Spin 1: West Ham United 2014-15. Manager 1 picks first."), hot-seat and in an online room | Four `logicText` messages, the room's names in place | `r11FixesUi.test.ts` R11-13 (three seeded drafts) |
 
-## R6-3. Open
+## R7-3. Open
 
-| Id | Severity | Where | What happens | Proposed patch |
-| --- | --- | --- | --- | --- |
-| R11-O1 | Low (a11y) | `src/ui/screens/Setup.tsx` | From the top of Setup, Start is 39 Tabs away at 1280 (the whole options page comes first); a skip link reaches the page, not Start | A "Skip to Start" link at the top of Setup's options, or Start first in the bar's Tab order on a desktop |
-| R11-O2 | Note (rooms) | `src/online/rooms.ts` `roomCodeFrom` | A URL-encoded `%23h=` link and full-width characters typed on a Japanese keyboard read as no code | Decode `%23` and fold full-width letters and digits (NFKC) before matching |
-| R11-O3 | Note (i18n) | the match commentary and the match events' text | English in every language, as DESIGN_SYSTEM.md section 17 says | A commentary catalogue, as the logic's lines have now |
+All three closed on `claude/r12-open` (2026-10-29); the rows keep their ids.
 
-## R6-4. Coverage notes
+| Id | Severity | Where | What happened | Closed by | Test |
+| --- | --- | --- | --- | --- | --- |
+| R11-O1 | Low (a11y) | `src/ui/screens/Setup.tsx` | From the top of Setup, Start was 39 Tabs away at 1280 (the whole options page comes first); a skip link reached the page, not Start | **Closed.** A "Skip to Start" link, Setup's first Tab stop and built like the app's `skip-link` (off the screen until focused): `skipToControl(SETUP_START_ID)` in `landmarks.ts` focuses Start, or, while Start is disabled, its box for that once (`tabindex="-1"` dropped on blur), so the next Tab lands beside it | `r12Open.test.ts` (the link is the first focusable element on every mode's Setup and points at Start's id; the focus with Start on and off) |
+| R11-O2 | Note (rooms) | `src/online/rooms.ts` `roomCodeFrom` | A URL-encoded `%23h=` link and full-width characters typed on a Japanese keyboard read as no code | **Closed.** The input is folded with NFKC, then a percent-encoded link or invite is decoded (`decodeURIComponent`; a stray `%` it refuses still lets `%23`, `%3D` and `%2D` read) before matching | `r12Open.test.ts` (encoded links and invites, full-width codes, links and dashes; what it refused before still refused) |
+| R11-O3 | Note (i18n) | the match commentary and the match events' text | English in every language | **Closed.** A `commentaryText` catalogue (about 620 messages: the engine's event wordings, the lines of play, the colour, the assistant's word, the pieces a hole may hold) and `src/ui/i18n/commentaryText.ts`, the way `logicLine` mirrors the logic: a line keeps its English and carries the pieces it was joined from (`CommentaryLine.source`), each mirrored on screen (the commentary list, the banner and its live region, the events list, the highlights, the shot map's tooltips); a change of instructions, the board and a goal elsewhere said by key. The matcher moved to `src/ui/i18n/mirror.ts`. No line, pick or order moved in English | `commentaryMirror.test.ts` (English hashed against the commentary before the change; every template and engine wording a message; every piece of 60 matches read back character for character; the pseudo-locale) |
+
+Left in English on the match day: the live pitch's caption pill ("Building from the back", "Corner"), drawn by `LivePitch.tsx` and `aria-hidden`; a small catalogue of its fifteen labels would close it.
+
+## R7-4. Coverage notes
 
 - Round 10's logic held up: the digest, the Office's line and Setup's memory met every check. The bugs were at the edges again: a browser behaviour the two-tab guard did not expect (R11-1), two people pressing the same button (R11-3), the order of the page against the order of the eye (R11-4, R11-5, R11-9), and English that reached the screen through a door the round 10 mirror had not covered.
 - Not covered: the signed-in online screens beyond round 10's own audit (`claude/r10-i18n-a11y`, 72 states against a network fake), real iOS, sound, and the share card's canvas.

@@ -50,6 +50,7 @@ import { CAP_NARROW_NOTE, CAP_PRESETS, capBudget, capTotal, withCap, type CapCho
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
+import { SETUP_START_ID, skipToControl } from '../landmarks'
 import { B, rich } from '../i18n/rich'
 import { formationBlurb, modeCardInfo, modeCardLine, modeCardTitle, powerUpTitle, ruleChipsText } from '../i18n/engineText'
 import { weeklyThemeLineText, weeklyThemeText } from '../i18n/weeklyThemeText'
@@ -440,6 +441,10 @@ export function Setup() {
   return (
     <div className="page setup-page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">
+        {/* Start is the last of about forty controls: a skip link, the screen's first Tab stop, goes straight to it (QA r11, R11-O1) */}
+        <a className="skip-link" href={`#${SETUP_START_ID}`} onClick={(e) => skipToControl(SETUP_START_ID, e)} data-testid="setup-skip-start">
+          {t('skipToStart')}
+        </a>
         <div className="row between wrap setup-top" style={{ alignItems: 'flex-start' }}>
           <div className="setup-title">
             <h1 data-testid={challenge ? 'challenge-title' : undefined}>{challenge ? t('playingDraft', { name: challenge.name }) : modeTitle(mode)}</h1>
@@ -906,7 +911,7 @@ export function Setup() {
                 )}
               </div>
               <LeagueRetry needs={needs} classic={!fixed && classic} />
-              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || emptyWheel} data-testid="setup-start">
+              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || emptyWheel} id={SETUP_START_ID} data-testid="setup-start">
                 {!ready ? gateText(gate) : emptyWheel ? t('emptyWheel') : isManage ? t('startSquad') : challenge ? t('takeOn', { name: challenge.name }) : t('startDraft')}
               </button>
             </section>

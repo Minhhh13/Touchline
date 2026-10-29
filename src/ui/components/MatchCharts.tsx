@@ -16,6 +16,7 @@ import { PitchSvg, pitchMapper, useMediaQuery, type PitchSide } from './LivePitc
 import { formationName, minuteLabel, textColourFor } from '../format'
 import { translator } from '../i18n'
 import { match } from '../i18n/en/match'
+import { eventLine } from '../i18n/commentaryText'
 
 const tx = translator(match)
 /** A tactic's setting in words, capitalised ("High"). */
@@ -132,7 +133,7 @@ export function ShotMap({ events, home, away, upTo = Infinity, sizeByXg = false 
           const goal = GOAL_TYPES.has(e.type)
           return (
             <g key={i} transform={`translate(${cx.toFixed(2)} ${cy.toFixed(2)})`}>
-              <title>{`${minuteLabel(e.minute)} ${e.text}`}</title>
+              <title>{`${minuteLabel(e.minute)} ${eventLine(e.text)}`}</title>
               {goal ? <circle r={size(e, 2.6)} fill={colour} stroke="#fff" strokeWidth="0.6" /> : e.type === 'save' ? <circle r={size(e, 2.2)} fill="rgba(0,0,0,0.25)" stroke={colour} strokeWidth="0.9" /> : <circle r={size(e, 2.2)} fill="none" stroke={colour} strokeWidth="0.9" strokeDasharray="1.4 1" />}
               {e.type === 'save' && <circle r="0.7" fill={colour} />}
             </g>
