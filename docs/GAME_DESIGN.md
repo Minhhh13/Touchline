@@ -967,14 +967,14 @@ The Dugout's Office tab (`src/ui/screens/OfficeTab.tsx`) gathers the man-managem
 
 **How the no-move rule is kept.** The store runs `officeTick` after every action (`mutate`) and at every simulated week's end (`withTick` around Sim 5, Sim to end and Sim to the next big match, and the sliced runner's `WEEK_END`); it is a hook the office's module registers when it loads (the Dugout's chunk, or an `import()` the first time a game with office state changes), and every part of the tick catches up idempotently. With no office state and player power off it returns before reading anything, so a game nobody manages through the office is byte for byte the game it was (`office.test.ts` plays Seasons both ways and compares the whole game). Every roll the office makes is `Rng.fromState(game.rngState).fork('office-<label>')` of a copy, never written back: a tick never moves `rngState`, so no match, market day or event draw moves. Fee and counter prices are pure hashes (`hashUnit`), conversations and the press have no dice at all.
 
-**Squad status** (section 10, "Squad status and playing time") is the expectation every other system reads: the share of the minutes a key player (85%), first-team man (65%), rotation player (35%), backup (15%) or prospect (10%) expects. The Office's Squad status box shows each man's status, what he expects and what he has played over the last six matchweeks, with a List or Unlist button (`setListed`: listing a man who did not ask to go costs him 4; one who asked is glad, +5).
+**Squad status** (section 10, "Squad status and playing time") is the expectation every other system reads: the share of the minutes a key player (85%), first-team man (65%), rotation player (35%), backup (15%) or prospect (10%) expects. The Office's Squad status box shows each man's status, what he expects and what he has played over the last six matchweeks, with a List or Unlist button (`setListed`: listing a man who did not ask to go costs him 4; one who asked this season is glad, +5).
 
 **Promises.** Made in a conversation or in answer to a transfer request, at most four running:
 
 | Promise | Kept when | Due |
 | --- | --- | --- |
 | Football (a regular place 55%, more football 30%) | his minutes since the promise reach the share, 5 points of slack | six matchweeks on (the season's last at the latest) |
-| A new contract | his contract runs longer than when it was made (contract talks or a renewal) | eight matchweeks on |
+| A new contract | his contract runs longer than when it was made (contract talks or a renewal); refused for a man already renewed or already on the longest deal he would sign (two seasons from 33, five below) | eight matchweeks on |
 | A signing | a man who plays the position whose best natural man rates lowest in the shape, at that man's rating + 2 or better | the end of the next window to close (refused when no window is left this season) |
 
 Made, he is lifted (football +5, contract +4, signing +3), 40% less for each promise broken to him before. Kept, +6 and one broken promise forgiven. Broken, −14, his group in the dressing room −2 (the whole squad −1 when he is one of the top two tiers of the hierarchy), the broken count goes up, and he hands in a transfer request. Promises of an earlier season are dropped at the summer.
