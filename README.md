@@ -18,7 +18,7 @@ Your drafted side takes one real club's place in a real league season and plays 
 
 | Home | The draft |
 | --- | --- |
-| ![Home: Quick Draft, the Daily Challenge, Season and Dynasty, with the casual modes below](docs/images/home.png) | ![The wheel has landed on Everton 2020-21: pick one player from the squad](docs/images/draft.png) |
+| ![Home: the first draft in three steps, Quick Draft, the Daily Challenge, Season and Dynasty, with the other modes below](docs/images/home.png) | ![The wheel has landed on Southampton 2024-25: pick one player from the squad](docs/images/draft.png) |
 
 | The draft recap | Squad complete |
 | --- | --- |
@@ -26,7 +26,7 @@ Your drafted side takes one real club's place in a real league season and plays 
 
 | The season, game by game | The summary |
 | --- | --- |
-| ![The quick season played back beside a live table and a league-position chart](docs/images/season-playback.png) | ![Champions on 82 points, the record against 38-0, then the Cup and the Continental Cup](docs/images/summary.png) |
+| ![The quick season played back beside a live table and a league-position chart](docs/images/season-playback.png) | ![Champions on 80 points, the record against 38-0, a new Trophy Room badge, then the Cup and the Continental Cup](docs/images/summary.png) |
 
 | The Dugout | Match day |
 | --- | --- |

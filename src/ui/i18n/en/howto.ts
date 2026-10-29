@@ -62,7 +62,7 @@ export const howto = catalog('howto', {
   fDevelopmentTitle: 'Development',
   fDevelopment: 'Every five matchweeks the young who play grow and veterans fade.',
   fOfficeTitle: 'The Office',
-  fOffice: 'Negotiate a fee and then personal terms, counter bids for your players, answer transfer requests, keep the promises you make, talk to players and, if you like, face the press. Player power, an option, lets unhappy players ask to leave on their own.',
+  fOffice: 'Fee talks and personal terms, counters to bids, transfer requests, promises, player talks and the press. Player power is optional.',
   fBoardTitle: 'The board',
   fBoard: 'A target from your squad’s strength; with job security on, it can sack you.',
   mDailyTitle: 'Daily Challenge',
