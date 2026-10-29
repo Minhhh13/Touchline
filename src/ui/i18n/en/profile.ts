@@ -165,4 +165,5 @@ export const profile = catalog('profile', {
   gfga: 'GF-GA',
   ladderSeed: 'Seed {seed}',
   ladderLine: '{format} · {n, plural, one {# run} other {# runs}} · best {tier}',
+  featsTip: 'Badges, milestones and feats (a comeback, a perfect draft) are kept in your Trophy Room on the Profile page. Home names the next one to chase.',
 })

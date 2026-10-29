@@ -9,6 +9,7 @@ import { trophyIcon } from '../trophyIcons'
 import { profileTrophyItems, useTrophyReveal } from '../trophyReveal'
 import { useBadgeSound } from '../sound/useBadgeSound'
 import { prefersReducedMotion } from '../motion'
+import { Tip } from './bits'
 
 const t = translator(profileText)
 
@@ -87,6 +88,7 @@ export function BadgeUnlocks() {
           </ul>
           {fresh.length > SHOWN && <div className="small muted">{t('unlockMore', { n: fresh.length - SHOWN })}</div>}
           <ChaseBlock items={items} />
+          <Tip id="feats-first">{t('featsTip')}</Tip>
           <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
             <button
               type="button"

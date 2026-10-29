@@ -285,4 +285,6 @@ export const summary = catalog('summary', {
   groupKey: 'The top two of each group go through to the quarter-finals',
   weeklyCounted: "This week's Weekly counts · {streak, plural, one {# week in a row} other {# weeks in a row}} · a new wheel on Monday (UTC)",
   weeklyPractice: "A practice run: this week's counted result stays {points, plural, one {# point} other {# points}}",
+  shareTipChallenge: 'Challenge a friend sends a link to your exact spins: they draft from the same wheel and try to beat your points.',
+  shareTipInvite: 'Challenge a friend sends this result with a link to TouchLine, and the share card asks them to beat it.',
 })

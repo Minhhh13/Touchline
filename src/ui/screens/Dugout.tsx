@@ -400,6 +400,7 @@ export function Dugout() {
       {/* The tab's content: on a desktop it scrolls inside itself under the fixed header, briefing and tab bar */}
       <div className="tab-body fill" data-testid="tab-body">
       {tab === 'squad' && <Tip id="dugout-first">{t('firstTip')}</Tip>}
+      {tab === 'office' && <Tip id="office-first">{tOffice('officeTip')}</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
         <div className="panel emphasis youth-intake" style={{ marginBottom: 'var(--space-4)' }} data-testid="youth-intake">
           <div className="panel-head">

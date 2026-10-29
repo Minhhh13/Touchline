@@ -6,6 +6,7 @@ import { defaultHostClub, setupRules, shortNameFor, startFormation } from './set
 import { leagueSeasonChoices } from './era'
 import { DEFAULT_CAP_CHOICE, withCap } from './cap'
 import { isQuickLike } from './modes'
+import { dailyLeagueOf } from './daily'
 
 /**
  * The first ten minutes: who counts as new, the one-tap first draft and what the first result points to next.
@@ -104,12 +105,24 @@ export const NEXT_UP_UNTIL = 6
  * Daily is played; then, on an online build, the world boards once (the Daily's score is on them); then Season, the
  * managed mode, until one is finished. Null for a newcomer (the first-run panel is their step) and for everyone later.
  */
-export function nextUpFor(p: ProfileBits, opts: { dailyPlayedToday: boolean; online: boolean }): NextUp | null {
+export function nextUpFor(p: ProfileBits, opts: { dailyPlayedToday: boolean; online: boolean; seasonWaiting?: boolean }): NextUp | null {
   const n = resultsFinished(p)
   if (n === 0 || n > NEXT_UP_UNTIL) return null
   const dailyEver = opts.dailyPlayedToday || Object.keys(p.dailyResults).length > 0
   if (!dailyEver) return 'daily'
   if (opts.online && n <= 2) return 'boards'
   const managed = p.leaderboard.some((e) => e.mode === 'season' || e.mode === 'dynasty')
-  return managed ? null : 'season'
+  // A Season or Dynasty already under way is on the resume strip: the marker would only send them to start another
+  return managed || opts.seasonWaiting ? null : 'season'
+}
+
+/**
+ * The Daily's league rotation as its setup's tip tells it: today's league and tomorrow's, for two daily seeds. Null
+ * when tomorrow repeats today's league (every day before the rotation's first, all Premier League), so the tip says
+ * nothing untrue. Pure, from the seeds alone (`dailyLeagueOf`).
+ */
+export function dailyRotation(todaySeed: string, tomorrowSeed: string): { today: string; tomorrow: string } | null {
+  const today = dailyLeagueOf(todaySeed)
+  const tomorrow = dailyLeagueOf(tomorrowSeed)
+  return today === tomorrow ? null : { today, tomorrow }
 }

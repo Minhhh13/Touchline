@@ -28,7 +28,7 @@ import { TWIST_INFO } from '../components/TwistCard'
 import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { activeModeCards, modesLine } from '@engine/modes'
 import { TableView } from '../components/TableView'
-import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
+import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge, Tip } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
 import { countPhrase, cupWinsLine, runsSummary, versusReal } from '../screenText'
@@ -546,6 +546,8 @@ export function Summary() {
             </span>
           )}
         </div>
+        {/* Sharing to be beaten, said once from the second result: the first one's summary has enough to take in */}
+        {!replay.playing && <Tip id="share-first">{t(canChallenge ? 'shareTipChallenge' : 'shareTipInvite')}</Tip>}
         <div className="banner-actions">
           {/* Challenge a friend leads whenever there is a wheel to send and no cup to play first */}
           {canChallenge && (
