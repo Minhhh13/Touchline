@@ -45,7 +45,7 @@ describe('the device pass', () => {
   })
 })
 
-/** Phones, round 12 (docs/QA.md, "Round 12: phones"): what the pass on six phones, upright and on their side, found */
+/** Phones, round 12 (docs/QA.md, "Round 12: phones"): what the pass on five phones, upright and on their side, found */
 describe('the phones pass (round 12)', () => {
   const game = readFileSync(join(__dirname, '..', 'gameScreens.css'), 'utf8')
   const r12 = css.slice(css.indexOf('/* Phones, round 12'))
