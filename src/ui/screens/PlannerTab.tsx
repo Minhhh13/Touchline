@@ -11,6 +11,8 @@ import { wage } from '../format'
 import { translator } from '../i18n'
 import { rich } from '../i18n/rich'
 import { dugout } from '../i18n/en/dugout'
+import { statusLabel } from '../i18n/engineText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(dugout)
 
@@ -56,7 +58,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                   <Pos p={r.position} />
                   <span className="small muted">{t('naturalCover', { naturals: r.naturals, cover: r.depth.length })}</span>
                 </span>
-                {r.need && <span className="chip warn">{r.need}</span>}
+                {r.need && <span className="chip warn">{logicLine(r.need)}</span>}
               </div>
               <div className="small plan-names">
                 {r.depth.length === 0 && <span className="muted">{t('nobody')}</span>}
@@ -102,7 +104,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                     <Pos p={c.position} />
                     <span className="who">
                       <b>{c.name}</b>
-                      <span className="small muted">{t('renewalLine', { age: c.age, wage: wage(c.wage), role: c.statusLabel })}</span>
+                      <span className="small muted">{t('renewalLine', { age: c.age, wage: wage(c.wage), role: statusLabel(c.status) })}</span>
                     </span>
                   </span>
                   <span className="row" style={{ gap: 'var(--space-2)' }}>
@@ -148,7 +150,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                   <td className="num">{c.age}</td>
                   <td className="num">{c.outOfContract ? <span className="chip warn" title={t('talksTip')}>{t('talks')}</span> : c.loan ? <span className="chip">{t('loan')}</span> : c.declined ? <span className="chip bad">{t('out')}</span> : c.renewed ? <span className="chip good">{t('newChip')}</span> : c.expiring ? <span className="chip warn" title={t('lastTip')}>{t('last')}</span> : c.years}</td>
                   <td className="num">{wage(c.wage)}</td>
-                  <td className="one-line">{c.statusLabel}</td>
+                  <td className="one-line">{statusLabel(c.status)}</td>
                 </tr>
               ))}
             </tbody>
@@ -187,7 +189,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
             <button key={r.id} type="button" className="room-row" onClick={() => onPlayer(r.id)} data-testid="risk-row">
               <span className="who">
                 <b>{r.name}</b>
-                <span className="small muted one-line">{r.reasons.length ? r.reasons.join(' · ') : t('nothingToNote')}</span>
+                <span className="small muted one-line">{r.reasons.length ? r.reasons.map(logicLine).join(' · ') : t('nothingToNote')}</span>
               </span>
               <span className={`chip ${BAND_CHIP[r.band]}`} title={t('riskTip', { match: r.matchPct, training: r.trainingPct })}>
                 {t('bandPct', { band: t(`band_${r.band}`), pct: r.matchPct })}

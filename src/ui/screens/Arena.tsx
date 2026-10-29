@@ -35,6 +35,7 @@ import { fixed } from '../format'
 import { translator } from '../i18n'
 import { arena } from '../i18n/en/arena'
 import { trainingBlurb, trainingLabel } from '../i18n/engineText'
+import { logicLine } from '../i18n/logicText'
 
 const t = translator(arena)
 
@@ -122,7 +123,7 @@ export function Arena() {
             <h1>{game.settings.teamName}</h1>
             <div className="screen-meta" data-testid="arena-head">
               {/* The format and the match, once each: a Final's "Cup Final" and "Cup final" read as one chip */}
-              {distinctLabels([arenaFormatText(game.settings.arena), info.label]).map((l, i) => (
+              {distinctLabels([arenaFormatText(game.settings.arena), logicLine(info.label)]).map((l, i) => (
                 <span key={l} className={`chip${i === 0 ? ' info' : ''}`}>
                   {l}
                 </span>
@@ -142,7 +143,7 @@ export function Arena() {
           {opp && (
             <div className="panel col" style={{ gap: 6 }} data-testid="arena-opponent">
               <div className="eyebrow">
-                {gauntlet ? t('rungLine', { rung, band: gauntletBandText(rung) }) : cup ? t('roundLine', { label: info.label, round: a.step + 1, total: cupRoundCount(size), seed: seeded ? 'yes' : 'no' }) : info.label}
+                {gauntlet ? t('rungLine', { rung, band: gauntletBandText(rung) }) : cup ? t('roundLine', { label: logicLine(info.label), round: a.step + 1, total: cupRoundCount(size), seed: seeded ? 'yes' : 'no' }) : info.label}
                 {t(info.neutral ? 'neutralGround' : info.home ? 'home' : 'away')}
                 {billing ? ` · ${billing}` : ''}
               </div>
@@ -189,7 +190,7 @@ export function Arena() {
               {ghost?.arena && (
                 <div className="row wrap" style={{ gap: 6 }} data-testid="ghost-trail">
                   {Array.from({ length: cupRoundCount(size) }, (_, r) => (
-                    <span key={r} className="chip" title={`${cupRoundName(size, r).name}: ${ghostStepLine(ghost, r)}`}>
+                    <span key={r} className="chip" title={`${logicLine(cupRoundName(size, r).name)}: ${ghostStepLine(ghost, r)}`}>
                       {cupRoundName(size, r).code} 👻 {ghostStepLine(ghost, r)?.replace(`${ghost.name} `, '')}
                     </span>
                   ))}
@@ -306,7 +307,7 @@ export function Arena() {
           </div>
           <div className="panel col bottom-bar arena-actions" ref={barRef} data-testid="arena-actions">
             {problems.length > 0 && <div className="small" style={{ color: 'var(--warn)' }}>{t('assistantFills', { problem: problems[0] })}</div>}
-            <div className="small muted arena-vs">{opp ? t('versus', { label: info.label, club: opp.club.name }) : t('noOpponent')}</div>
+            <div className="small muted arena-vs">{opp ? t('versus', { label: logicLine(info.label), club: opp.club.name }) : t('noOpponent')}</div>
             <button className="btn primary big block" onClick={() => void store.playArenaStepSoon(true, prepareStep)} disabled={!opp || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="arena-live" title={t('manageTip')}>
               {t('manage')}
             </button>

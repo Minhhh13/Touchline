@@ -12,6 +12,7 @@ import { rememberWorldTab } from './WorldBoard'
 import { sentence } from '../../online/postText'
 import { translator } from '../i18n'
 import { online } from '../i18n/en/online'
+import { formatLocale } from '../format'
 
 const t = translator(online)
 
@@ -67,9 +68,9 @@ export function ChaseStatus({ game }: { game: Game }) {
   } else if (post.state === 'waiting') line = post.reason === 'sign_in' && !session ? <>{t('chaseSignInPost', { record })}</> : <>{t('chasePosting')}</>
   else if (post.state === 'posted') {
     const flawless = post.perfect ? t('chaseFlawless', { target: perfectTarget(games) }) : ''
-    const week = post.weekPosition ? t('chaseWeekRank', { pos: post.weekPosition, total: (post.weekTotal ?? 0).toLocaleString() }) : ''
+    const week = post.weekPosition ? t('chaseWeekRank', { pos: post.weekPosition, total: (post.weekTotal ?? 0).toLocaleString(formatLocale()) }) : ''
     const country = post.country && post.countryPosition ? t('chaseCountry', { pos: post.countryPosition, country: countryName(post.country) }) : ''
-    const total = post.total.toLocaleString()
+    const total = post.total.toLocaleString(formatLocale())
     share = t('chaseShare', { record: recordLabel(q?.won ?? 0, q?.drawn ?? 0, q?.lost ?? 0), pos: post.position, total, app: APP_NAME })
     line = <>{t(post.already ? 'chaseAlready' : 'chasePosted', { flawless, pos: post.position, total, week, country, official: post.claimMatched ? 'no' : 'yes' })}</>
   } else if (post.state === 'unranked') line = <>{t('chaseNotOnReason', { reason: sentence(post.reason) })}</>

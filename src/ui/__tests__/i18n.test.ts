@@ -228,6 +228,9 @@ describe('the catalogues', () => {
   it('hold no key that no file uses', () => {
     const unused: string[] = []
     for (const c of Object.values(all)) {
+      // The logic's mirror is read by matching a line against every message (`logicLine`), never by a key in code:
+      // `logicMirror.test.ts` holds each message to its source instead
+      if (c.ns === 'logicText') continue
       const users = files.filter(({ code }) => translatorsOf(code).some((x) => x.ns === c.ns))
       const literals = new Set(users.flatMap(({ code }) => translatorsOf(code).filter((x) => x.ns === c.ns).flatMap((x) => firstArgs(code, x.name))).flatMap(keysIn))
       // A key built from a template (`t(\`tier_${x}\`)`) counts as used through its prefix

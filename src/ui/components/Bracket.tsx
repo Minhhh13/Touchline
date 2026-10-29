@@ -4,6 +4,7 @@ import { TrophyArt, type TrophyKind } from './TrophyArt'
 import { playSound } from '../sound/synth'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
+import { logicLine } from '../i18n/logicText'
 
 const tr = translator(summary)
 
@@ -108,8 +109,8 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
           return (
             <div key={round.name} className={`br-col ${r === 0 ? 'first' : ''} ${r === view.rounds.length - 1 && !tree ? 'last' : ''}`} data-testid={`${testId}-round-${r}`} style={{ gridColumn: r + 1 }}>
               <div className="br-head">
-                <span className="br-round">{round.name}</span>
-                {!round.ties.length && round.pending && <span className="br-pending small muted">{round.pending}</span>}
+                <span className="br-round">{logicLine(round.name)}</span>
+                {!round.ties.length && round.pending && <span className="br-pending small muted">{logicLine(round.pending)}</span>}
               </div>
               <div className="br-body">
                 {pairs.map((pair) => {
