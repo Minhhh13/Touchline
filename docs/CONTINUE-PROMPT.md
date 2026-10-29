@@ -48,6 +48,17 @@ Then run `npm ci`, `npm run typecheck`, `npm test` and `npm run build`.
 
 **A2. The Daily rotation is live too** (PR #87, squash 1df6a32): `touchline-e7` was redeployed at 17:56 UTC pinning `verifier-533df0bd10128be8.js`. Nothing left to do for it.
 
+**B-1. Round 9 is running** (started 2026-10-29 02:00 UTC, seven cloud sessions from `main` at d76e552, tag `touchline-r9`; none opens a PR, each pushes its own branch):
+- `claude/r9-a11y-names`: every switch named (accessibility round 5).
+- `claude/r9-firstload`: the first download back to 320 KB JS and 50 KB CSS.
+- `claude/r9-qa`: QA round 4 on round 8's features; look for `SEVERE:` commits first.
+- `claude/r9-office-ui`: the Office polished and given more depth.
+- `claude/r9-visual`: a whole-app visual consistency pass.
+- `claude/r9-docs`: README, FEATURES, GAME_DESIGN, How it works and CLAUDE.md's stale "Work in progress" section.
+- `claude/r9-engine8`: engine 8 prepared, not released. It holds `45f5754`, the version bump, the re-based pins and e7's bundle in `public/edge`, plus a "Release engine 8" runbook. Release it only at 00:00 UTC on a Monday.
+
+Integrate them as round 8 was integrated: one batch branch from `main`, then `-s ours` of any squashed base the branches share. Merge them in this order: qa, firstload, a11y-names, visual, office-ui, docs. Put engine 8 last, in its own release.
+
 **B0. Round 8 is integrated in PR #88** (`claude/youthful-mccarthy-a57idu`, batch5): every `claude/r8-*` branch except `r8-a11y` (still running when this was written; merge it next), with `45f5754` reverted and held for engine 8. It renames the edge bundle to `verifier-ecc269657e48639b.js`: after #88 is live, rebuild the loader from `main` at the deployed commit and redeploy `touchline-e7` (Verify JWT off), as in A2. The first-download budget was raised to 330 KB JS and 56 KB CSS (`budget.test.ts`, docs/PERFORMANCE.md); splitting `week.ts` and this round's styles out of the first download would win it back.
 
 **B. Integrate the waiting branches** (done for all but `r8-a11y`; kept for reference) (all based on `release-e7`).
