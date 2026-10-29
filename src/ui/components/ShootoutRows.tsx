@@ -31,7 +31,7 @@ export function ShootoutRows({ kicks, ourCode, theirCode, name, pending = false 
             {side.map((k, i) => {
               const who = name(k)
               return (
-                <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`} aria-label={t(k.scored ? 'kickScored' : 'kickMissed', { name: who })} data-testid="shootout-kick">
+                <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`} role="img" aria-label={t(k.scored ? 'kickScored' : 'kickMissed', { name: who })} data-testid="shootout-kick">
                   {who} <span aria-hidden="true">{k.scored ? '✓' : '✗'}</span>
                 </span>
               )
