@@ -356,3 +356,21 @@ describe('Run-in: balance guard', () => {
     expect(met).toBeLessThanOrEqual(60)
   }, 300000)
 })
+
+describe('the run-in Dugout strip (r9)', () => {
+  it('shows no "last week" on the takeover week, then the first week played from the carried table', async () => {
+    const { weekChanges } = await import('../logic/seasonPlay')
+    for (const seed of ['r9-strip-1', 'r9-strip-2', 'r9-strip-3']) {
+      const g = takenOver(WEST_HAM, seed)
+      expect(g.season!.matchweek).toBe(g.season!.takeoverAt)
+      expect(weekChanges(g)).toBeNull()
+      const from = positionOf(seasonTable(g.season!), USER_TEAM)
+      playMatchweek(g, u, true)
+      if (g.phase === 'match') g.phase = 'week'
+      const w = weekChanges(g)!
+      expect(w.matchweek).toBe(g.season!.takeoverAt! + 1)
+      expect(w.result).toBeDefined()
+      expect(w.positionFrom).toBe(from)
+    }
+  })
+})

@@ -40,6 +40,12 @@ export function startingTeamName(random: () => number = Math.random): string {
   return savedTeamName() ?? generateTeamName(random).name
 }
 
+/** The name and code a game takes with no setup screen (the Daily Arena from Home or the World board): `startingTeamName` and its code. */
+export function startingTeam(random: () => number = Math.random): { teamName: string; shortName: string } {
+  const teamName = startingTeamName(random)
+  return { teamName, shortName: teamShortName(teamName) }
+}
+
 /**
  * The team name field's state for a setup screen: `value` and `setValue` for the field, `name` the one a game starts
  * with (the field, or the invented spare shown as its placeholder when the field is blank), `fallback` that spare.

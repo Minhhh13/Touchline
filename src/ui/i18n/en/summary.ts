@@ -283,4 +283,6 @@ export const summary = catalog('summary', {
   groupThrough: 'Through to the quarter-finals',
   groupOut: 'Out',
   groupKey: 'The top two of each group go through to the quarter-finals',
+  weeklyCounted: "This week's Weekly is in: {points, plural, one {# point} other {# points}} · {streak, plural, one {a #-week streak} other {a #-week streak}} · a new wheel on Monday (UTC)",
+  weeklyPractice: "A practice run: this week's counted result stays {points, plural, one {# point} other {# points}}",
 })

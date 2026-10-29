@@ -280,11 +280,13 @@ export interface WeekChanges {
 /**
  * The last played matchweek as the season remembers it: the user's result, the league position before and after it,
  * and what the week's inbox held. Read from the fixtures and the news alone, so it needs nothing stored and is the same
- * after a reload. Null before the first matchweek, and once the season is over.
+ * after a reload. Null before the first matchweek (a run-in's takeover week, played before the manager came, included), and once the season is over.
  */
 export function weekChanges(game: Game): WeekChanges | null {
   const s = game.season
   if (!s || s.matchweek <= 0 || s.matchweek >= s.matchweeks || s.sacked || game.phase === 'preseason') return null
+  // A run-in's takeover week was played before the manager arrived (its table is carried in): no "last week" to show
+  if (s.takeoverAt !== undefined && s.matchweek <= s.takeoverAt) return null
   const mw = s.matchweek
   const f = s.fixtures.find((x) => x.matchweek === mw && x.result && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
   const home = f?.homeTeamId === USER_TEAM

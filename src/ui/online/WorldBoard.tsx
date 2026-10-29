@@ -5,6 +5,7 @@ import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
 import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, CasualKind, CasualRow, CasualSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
+import { startingTeam } from '../teamName'
 import { PAGE } from '../../online/boards'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
 import { dailyStartSettings, weeklyStartSettings } from '../../online/daily'
@@ -676,7 +677,9 @@ function ArenaDailyPlay() {
     const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
     if (open && !(await askConfirm(tr('arenaAbandonWorld', { team: open.settings.teamName }), { ok: tr('startOk'), danger: true }))) return
     if (!open && done && !(await askConfirm(tr('arenaAgainWorld', { label: done.label }), { ok: tr('playAgainOk') }))) return
-    startGame(dailyArenaGameSettings(u, seed))
+    // The manager's own team name (the remembered one, or an invented one), never the logic's "Touchline XI" fallback
+    const team = startingTeam()
+    startGame({ ...dailyArenaGameSettings(u, seed, team.teamName), shortName: team.shortName })
   }
   return (
     <PlayCard

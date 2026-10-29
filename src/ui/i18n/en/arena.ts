@@ -102,6 +102,7 @@ export const arena = catalog('arena', {
   rungNextTip: 'Rung {n}: {club}{note}',
   rungNextSr: 'Up next, rung {n} v {club}{note}: ',
   rungAheadTip: 'Rung {n}{note}',
+  rungBonus: ' · a bonus spin after it',
   takePens: 'Take the penalties',
   penalties: 'Penalties',
   pensHelp: 'Level at 90. Pick the order: the pressure grows on kicks four and five and in sudden death, so composure counts there.',
@@ -253,4 +254,9 @@ export const arena = catalog('arena', {
   fieldHint_europe: 'The top four of every league in its latest complete season. Loads all seven leagues',
   newRunTip: 'Set up a new arena run',
   againTip: 'The same format on a new wheel',
+  dailyCounted: "Today's Daily Arena is in: {label} · {streak, plural, one {a #-day streak} other {a #-day streak}} · a new one at midnight (UTC)",
+  dailyPractice: "A practice run: today's counted result stays {label}",
+  shootout: 'Penalty shoot-out',
+  kickScored: '{name}, scored',
+  kickMissed: '{name}, missed',
 })

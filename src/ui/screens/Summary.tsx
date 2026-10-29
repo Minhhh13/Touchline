@@ -57,7 +57,8 @@ import { RankedStatus } from '../online/RankedStatus'
 import { ChaseStatus } from '../online/ChaseStatus'
 import { CasualStatus } from '../online/CasualStatus'
 import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
-import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
+import { finishedRecord, honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
+import { streakStanding } from '@game/logic/casualStreak'
 import { CupRuns } from '../components/CupRuns'
 import { GroupTables } from '../components/GroupTables'
 import { Bracket } from '../components/Bracket'
@@ -342,6 +343,9 @@ export function Summary() {
   // The pundit's verdict on the result (display only, picked by a hash of the season's id); not for a run-in or the arena
   const verdictInput = game.settings.mode === 'runin' || game.settings.mode === 'arena' ? null : verdictInputOf(game, table.length || 20)
   const verdict = verdictInput ? punditVerdict(verdictInput) : null
+  // The Weekly Challenge: the week's counted result and the streak, or that this go was practice after it
+  const weeklyRun = game.settings.mode === 'weekly' ? finishedRecord(game) : null
+  const weeklyStanding = weeklyRun ? streakStanding(profile.weekly, game.settings.seed, { points: weeklyRun.points, tier: weeklyRun.tier }) : null
   const euroRound = (r: ReturnType<typeof continentalRun>) => {
     const round = r ?? 'R16'
     return t(`euroRound_${round}`)
@@ -455,6 +459,11 @@ export function Summary() {
         {!replay.playing && verdict && (
           <p className="tier-blurb pundit-verdict" data-testid="pundit-verdict">
             <Mic size={13} aria-hidden="true" /> {rich(t('pundit', { verdict }), B)}
+          </p>
+        )}
+        {!replay.playing && weeklyStanding && (
+          <p className="tier-blurb" data-testid="weekly-standing">
+            {weeklyStanding.practice ? t('weeklyPractice', { points: weeklyStanding.counted.points }) : t('weeklyCounted', { points: weeklyStanding.counted.points, streak: weeklyStanding.streak })}
           </p>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}

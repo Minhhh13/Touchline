@@ -4,7 +4,8 @@ import { clubIdOfKey } from '@engine/knockout'
 import { GAUNTLET_RUNGS } from '@engine/gauntlet'
 import type { ArenaState, ChallengeSettings } from '@game/types'
 import { ghostStepLine } from '@game/logic/arenaClaim'
-import { arenaClubName, stepWon } from '@game/logic/arena'
+import { arenaClubName, GAUNTLET_BONUS_AFTER, stepWon } from '@game/logic/arena'
+import { Gift } from 'lucide-react'
 import { ClubBadge } from './bits'
 import { playSound } from '../sound/synth'
 
@@ -34,6 +35,15 @@ export function GauntletLadder({ u, a, ghost }: { u: LoadedUniverse; a: ArenaSta
   const fell = ghost?.arena && !ghost.arena.claim.w ? ghost.arena.claim.g.length - 1 : -1
   const mark = (i: number) => (i === fell ? ' 👻' : '')
   const note = (i: number) => (ghost?.arena ? ` · ${ghostStepLine(ghost, i)}` : '')
+  // A rung still to climb that a bonus spin follows (after rungs 2, 4, 6 and 8) carries a gift, so the reward shows ahead
+  const bonus = (i: number) => GAUNTLET_BONUS_AFTER.includes(i + 1)
+  const gift = (i: number) =>
+    bonus(i) ? (
+      <>
+        <Gift size={12} aria-hidden="true" className="rung-gift" />
+        <span className="sr-only">{t('rungBonus')}</span>
+      </>
+    ) : null
   return (
     <div className="row wrap" style={{ gap: 6 }} role="list" aria-label={t('rungsLabel')} data-testid="gauntlet-ladder">
       {Array.from({ length: GAUNTLET_RUNGS }, (_, i) => {
@@ -51,18 +61,20 @@ export function GauntletLadder({ u, a, ghost }: { u: LoadedUniverse; a: ArenaSta
         }
         if (i === a.step && !a.over && a.next) {
           return (
-            <span key={i} role="listitem" className="chip gold" title={t('rungNextTip', { n: i + 1, club: arenaClubName(u, a.next), note: note(i) })} data-testid="rung-next">
+            <span key={i} role="listitem" className="chip gold" title={t('rungNextTip', { n: i + 1, club: arenaClubName(u, a.next), note: note(i) }) + (bonus(i) ? t('rungBonus') : '')} data-testid="rung-next">
               <span className="sr-only">{t('rungNextSr', { n: i + 1, club: arenaClubName(u, a.next), note: note(i) })}</span>
               <span aria-hidden="true" className="row" style={{ gap: 4 }}>
                 <ClubBadge clubId={clubIdOfKey(a.next)} size={18} /> {i + 1}
               </span>
+              {gift(i)}
               {mark(i)}
             </span>
           )
         }
         return (
-          <span key={i} role="listitem" className="chip rung-ahead" title={ghost?.arena ? t('rungAheadTip', { n: i + 1, note: note(i) }) : undefined}>
+          <span key={i} role="listitem" className="chip rung-ahead" title={ghost?.arena || bonus(i) ? t('rungAheadTip', { n: i + 1, note: note(i) }) + (bonus(i) ? t('rungBonus') : '') : undefined}>
             {i + 1}
+            {gift(i)}
             {mark(i)}
           </span>
         )
