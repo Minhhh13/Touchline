@@ -230,7 +230,9 @@ describe('R11-13: the head-to-head draft log in the viewer’s language', () => 
     } finally {
       setLocaleMessages({ id: 'en', messages: {} })
     }
-    expect(src('screens/H2H.tsx')).toContain('<li key={i}>{logicLine(l)}</li>')
-    expect(src('online/Rooms.tsx')).toContain('<li key={i}>{logicLine(roomLogLine(l, view.managers))}</li>')
+    // Both draft logs are the shared box (round 13), which says each line through logicLine; the room's in its own form
+    expect(src('components/H2HBoard.tsx')).toContain('<li key={i}>{logicLine(l)}</li>')
+    expect(src('screens/H2H.tsx')).toContain('log={d.log}')
+    expect(src('online/Rooms.tsx')).toContain('log={d.log.map((l) => roomLogLine(l, view.managers))}')
   })
 })
