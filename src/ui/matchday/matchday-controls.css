@@ -110,6 +110,14 @@
   min-width: 112px;
   text-align: left;
 }
+/* A phone at large text: the clock drops under the score rather than push the board past the window (round 5) */
+@media (max-width: 720px) {
+  .matchday .scoreboard {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 2px;
+  }
+}
 
 /* ------------------------------------------------------------------ drawers */
 .matchday .md-drawer-back {

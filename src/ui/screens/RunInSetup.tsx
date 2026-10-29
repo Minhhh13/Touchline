@@ -96,7 +96,7 @@ export function RunInSetup() {
               <Info label={t('aboutRunIn')}>{t('runInInfo')}</Info>
             </p>
           </div>
-          <div className="row">
+          <div className="row wrap">
             <button className="btn" onClick={() => void playWeek()} data-testid="runin-week" title={t('weekTip')}>
               {t('weekButton')}
             </button>
