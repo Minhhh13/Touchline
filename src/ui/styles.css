@@ -1973,8 +1973,10 @@ label.field,
 .ss-cell.band-bottom {
   background: color-mix(in srgb, var(--good) 9%, var(--panel-2));
 }
+/* A week with no match: a dashed edge and no fill, no opacity (it took the week's number under AA; a11y round 7) */
 .ss-cell.free {
-  opacity: 0.6;
+  background: transparent;
+  border-style: dashed;
 }
 .ss-cell.next {
   border-color: var(--primary);
@@ -1997,6 +1999,8 @@ label.field,
 }
 .ss-chips {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 2px;
   min-height: 18px;
 }
@@ -2015,8 +2019,10 @@ label.field,
   font-size: 0.85em;
 }
 @media (max-width: 720px) {
+  /* Columns of at least 3.6rem: five at the default size on a 390 px phone, three at 200 % text, where five ran the
+     last week's "1-1 D" past the window (a11y round 7) */
   .season-strip {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr));
   }
 }
 /* Deadline day on the Market tab: the latest market news running along one line */

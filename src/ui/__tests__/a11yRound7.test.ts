@@ -121,6 +121,10 @@ describe('contrast and larger text on the game screens', () => {
     expect(rule('.office-view .chip')).toMatch(/white-space: normal/)
     // The match report's stats labels on a phone
     expect(css).toMatch(/table\.tbl\.match-stats th \{\s*white-space: normal;/)
+    // The Fixtures calendar on a phone: columns by the text size, and a free week never faded
+    expect(css).toMatch(/\.season-strip \{\s*grid-template-columns: repeat\(auto-fill, minmax\(3\.6rem, 1fr\)\);/)
+    expect(rule('.ss-cell.free')).not.toMatch(/opacity/)
+    expect(rule('.ss-chips')).toMatch(/flex-wrap: wrap/)
     // The Gauntlet hub's lifeline beside the opponent's name
     expect(rule('.arena-opp-row')).toMatch(/flex-wrap: wrap/)
     expect(read('../screens/Arena.tsx')).toContain('className="row between arena-opp-row"')
