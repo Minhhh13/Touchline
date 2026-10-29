@@ -8455,13 +8455,15 @@ dl.kv {
   .club-header {
     gap: var(--space-3);
   }
+  /* minmax(0, 1fr): at 200 % text "£152M" widened a 1fr column 3 px past a 390 px window (a11y round 7) */
   .stat-strip {
     width: 100%;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3) var(--space-4);
   }
   .stat-strip .stat .value {
     font-size: var(--fs-h2);
+    overflow-wrap: anywhere;
   }
   .stat-strip .stat .bar {
     width: 100%;
