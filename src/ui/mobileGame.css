@@ -39,9 +39,9 @@
     scroll-snap-type: x proximity;
   }
   .topbar nav button {
-    flex-direction: column;
-    gap: 2px;
-    min-width: 48px;
+    justify-content: center;
+    gap: 0;
+    min-width: 44px;
     padding: 5px;
     scroll-snap-align: start;
   }
@@ -50,16 +50,12 @@
     display: none;
   }
   .topbar nav .nav-label {
-    position: static;
-    width: auto;
-    height: auto;
-    max-width: 64px;
+    position: absolute;
+    width: 1px;
+    height: 1px;
     overflow: hidden;
-    clip: auto;
-    text-overflow: ellipsis;
+    clip: rect(0 0 0 0);
     white-space: nowrap;
-    font-size: 11px;
-    line-height: 1;
   }
   .topbar .theme-switch {
     margin: 0;
@@ -479,24 +475,24 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .dugout-page .tab-body:has(> .grid.dugout) {
+  .dugout-page .tab-body:has(> .grid.dugout[data-squad-pane]) {
     display: flex;
     flex-direction: column;
     gap: 6px;
     overflow: hidden;
   }
-  .dugout-page .tab-body:has(> .grid.dugout) > * {
+  .dugout-page .tab-body:has(> .grid.dugout[data-squad-pane]) > * {
     flex-shrink: 0;
     margin-bottom: 0 !important;
   }
-  .dugout-page .tab-body > .grid.dugout {
+  .dugout-page .tab-body > .grid.dugout[data-squad-pane] {
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
     margin: 0;
   }
-  .dugout-page .dugout-pitch-column {
+  .dugout-page .grid.dugout[data-squad-pane] .dugout-pitch-column {
     display: contents;
   }
   .dugout-page [data-squad-block] {
@@ -634,6 +630,100 @@
     overflow-y: auto;
     padding: 8px 10px;
     margin: 0;
+  }
+
+  /* Reading and management screens use one page scroller on iPhone. Nested viewport scrollers made a swipe work only
+     when it started inside the exact panel, and the Dugout action row then covered the last items. Draft, kick-off,
+     playback and match day keep their purpose-built full-screen workspaces above. */
+  .app:has(> .home),
+  .app:has(> .dugout-page),
+  .app:has(> .page.summary),
+  .app:has(> .arena-setup) {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .app:has(> .home) > .topbar,
+  .app:has(> .dugout-page) > .topbar,
+  .app:has(> .page.summary) > .topbar,
+  .app:has(> .arena-setup) > .topbar {
+    position: sticky;
+    top: 0;
+  }
+  .app:has(> .home) > .page,
+  .app:has(> .dugout-page) > .page,
+  .app:has(> .page.summary) > .page,
+  .app:has(> .arena-setup) > .page {
+    flex: none;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .app > .dugout-page,
+  .app.shell > .dugout-page {
+    overflow: visible;
+    padding-bottom: calc(12px + var(--safe-bottom));
+  }
+  .dugout-page > .tab-body,
+  .dugout-page .tab-body:has(> .grid.dugout[data-squad-pane]),
+  .dugout-page .tab-body > .grid.dugout[data-squad-pane],
+  .dugout-page [data-squad-block],
+  .dugout-page [data-squad-block='list'] > .plist {
+    flex: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+  .page.summary:has(.h2h-sides) > .tier-banner {
+    padding: 14px 10px;
+  }
+  .page.summary:has(.h2h-sides) .h2h-sides {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .page.summary:has(.h2h-sides) .h2h-side {
+    min-width: 0;
+    gap: 6px;
+    padding: 10px 6px;
+  }
+  .page.summary:has(.h2h-sides) .h2h-side .club-head {
+    min-width: 0;
+  }
+  .page.summary:has(.h2h-sides) .h2h-side h3 {
+    overflow: hidden;
+    font-size: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .page.summary:has(.h2h-sides) .h2h-side .record {
+    gap: 7px;
+    font-size: 22px;
+  }
+  .page.summary:has(.h2h-sides) .h2h-side .banner-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+  }
+  .page.summary:has(.h2h-sides) .h2h-side .stat .label {
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+  .page.summary:has(.h2h-sides) .h2h-side .stat .value {
+    font-size: 15px;
+  }
+  .page.summary:has(.h2h-sides) > .tier-banner > .banner-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .page.summary:has(.h2h-sides) > .tier-banner > .banner-actions .btn {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 7px;
+    white-space: normal;
   }
 }
 

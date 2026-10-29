@@ -169,7 +169,7 @@ node scripts/import/build.mjs
 
 See `docs/DATA.md` for sources, method, cache location (`.cache/datasets` or `DATA_CACHE`) and the nationality enrichment step.
 
-For the iOS development app, run `npm run ios:sync` and `npm run ios:open` on a Mac with Xcode. The app bundles the game and league packs with Capacitor; iPhone layouts account for the notch, home indicator and touch controls. The labelled phone app bar keeps at most five primary destinations (Guide remains under Home → More); phone workspaces use tabs for Home, Setup, the Draft, pre-season, squad management and the live match, keeping the active task in the viewport. Player choices scroll with the page, while long reference lists scroll inside their panels. See [the iOS guide](docs/IOS.md) for Simulator, signing and release steps.
+For the iOS development app, run `npm run ios:sync` and `npm run ios:open` on a Mac with Xcode. The app bundles the game and league packs with Capacitor; iPhone layouts account for the notch, home indicator and touch controls. The phone app bar keeps at most five icon-only primary destinations with accessible names (Guide remains under Home → More). Home, the Dugout, head-to-head results, the arena setup and Summary use one natural page scroller; bounded task workspaces remain for the Draft, kick-off, playback and the live match. Player choices scroll with their page, while only wide reference tables keep horizontal panel scrolling. See [the iOS guide](docs/IOS.md) for Simulator, signing and release steps.
 
 ## Project structure
 

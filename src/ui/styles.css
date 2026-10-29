@@ -3686,6 +3686,9 @@ table.tbl.contracts .btn.sm {
   width: auto;
   align-self: stretch;
 }
+.daily-play-short {
+  display: none;
+}
 /* The second row: compact tiles, an icon and two short lines each */
 .home-tiles {
   display: grid;

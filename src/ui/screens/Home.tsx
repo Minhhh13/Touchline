@@ -179,6 +179,8 @@ export function Home() {
     if (settings) withViewTransition(() => startGame(settings))
   }
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? `${done}${streak ? ` · streak ${streak}` : ''}` : streak ? `Streak ${streak} · ${fallback}` : fallback)
+  const dailyPlayLabel = !dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"
+  const dailyPlayShort = !dailyReady ? 'Wait' : dailyUnderWay ? 'Resume' : dailyDone ? 'Again' : 'Play'
   return (
     <div className="page home" data-phone-tab={phoneTab}>
       <section className="hero">
@@ -323,8 +325,9 @@ export function Home() {
               </span>
             </span>
           </button>
-          <button type="button" className={`btn block${newcomer ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
-            {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
+          <button type="button" className={`btn block${newcomer ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play" aria-label={dailyPlayLabel}>
+            <span className="daily-play-long">{dailyPlayLabel}</span>
+            <span className="daily-play-short">{dailyPlayShort}</span>
           </button>
         </div>
         <button className="mode-card" onClick={() => go('setup', 'season')}>

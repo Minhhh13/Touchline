@@ -9,7 +9,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    overflow: hidden;
+    overflow: visible;
   }
   .home > .hero {
     flex: none;
@@ -67,10 +67,10 @@
     flex: none;
   }
   .home-phone-content {
-    display: flex;
-    flex: 1 1 0;
-    min-height: 0;
-    position: relative;
+    display: block;
+    flex: none;
+    min-height: auto;
+    position: static;
   }
   .home .home-phone-panel {
     display: flex;
@@ -78,18 +78,13 @@
     gap: 10px;
     width: 100%;
     min-width: 0;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    min-height: auto;
+    overflow: visible;
   }
   .home[data-phone-tab='play'] [data-phone-panel]:not([data-phone-panel='play']),
   .home[data-phone-tab='challenges'] [data-phone-panel]:not([data-phone-panel='challenges']),
   .home[data-phone-tab='more'] [data-phone-panel]:not([data-phone-panel='more']) {
-    position: absolute;
-    inset: 0;
-    visibility: hidden;
-    pointer-events: none;
-    overflow: hidden;
+    display: none;
   }
   .home .resume-list {
     display: flex;
@@ -133,39 +128,56 @@
   }
   .home .modes {
     display: grid;
-    flex: 1 0 auto;
+    flex: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-    min-height: 0;
+    min-height: auto;
+    align-items: stretch;
   }
-  .home .mode-card,
-  .home .mode-card-body {
+  .home .mode-card {
     min-width: 0;
     min-height: 0;
     flex-direction: column;
   }
+  .home .mode-card:not(.daily),
+  .home .mode-card-body {
+    flex-direction: row;
+    align-items: stretch;
+  }
   .home .mode-card-body {
     flex: 1 1 auto;
   }
+  .home .mode-card.daily {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+  }
+  .home .mode-card.daily > .mode-card-body {
+    grid-column: 1;
+    min-width: 0;
+  }
   .home .mode-art {
-    display: flex;
-    flex: 0 0 40px;
-    align-items: center;
-    width: 100%;
-    min-height: 40px;
-    padding: 8px 12px 0;
+    display: grid;
+    flex: 0 0 48px;
+    place-items: start center;
+    width: 48px;
+    min-height: 0;
+    padding: 10px 0 0;
+    background: var(--panel-2);
+    border-right: var(--border);
   }
   .home .mode-art .mode-scene {
     display: none;
   }
   .home .mode-icon {
     position: static;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
   }
   .home .mode-text {
     flex: 1 1 auto;
-    padding: 8px 12px 12px;
+    min-width: 0;
+    padding: 10px;
   }
   .home .mode-card h3 {
     font-size: 17px;
@@ -173,17 +185,32 @@
   .home .mode-card p {
     font-size: 12px;
     line-height: 1.4;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
   .home .mode-card .foot {
     flex-wrap: wrap;
     gap: 4px;
+    margin-top: 4px;
+    padding-top: 0;
     font-size: 11px;
   }
   .home .mode-card.daily > .btn {
     min-height: 44px;
-    margin: 0 8px 8px;
-    padding: 6px;
+    width: 62px;
+    min-width: 62px;
+    margin: 8px 8px 8px 0;
+    padding: 6px 8px;
+    align-self: center;
     font-size: 12px;
+  }
+  .home .daily-play-long {
+    display: none;
+  }
+  .home .daily-play-short {
+    display: inline;
   }
   .home .home-tiles,
   .home .home-tiles.casual {
@@ -413,16 +440,44 @@
       margin-top: 8px;
     }
     .home .mode-art {
-      flex-basis: 26px;
-      min-height: 26px;
-      padding: 4px 10px 0;
+      flex-basis: 44px;
+      width: 44px;
+      min-height: 0;
+      padding: 7px 0 0;
     }
     .home .mode-icon {
       width: 22px;
       height: 22px;
     }
     .home .mode-text {
-      padding: 6px 10px 8px;
+      padding: 8px;
     }
+  }
+
+  /* Arena setup has no Team/Rules workspace tabs. Let both numbered panels follow one another in the page instead of
+     squeezing the first panel into the remaining row behind the second one. */
+  .app > .page.arena-setup.has-bottom-bar {
+    display: block;
+    overflow: visible;
+    padding-bottom: calc(12px + var(--safe-bottom));
+  }
+  .arena-setup .setup-flow,
+  .arena-setup .setup-grid,
+  .arena-setup .setup-box {
+    min-height: auto;
+    overflow: visible;
+  }
+  .arena-setup .setup-grid {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+  }
+  .arena-setup .setup-start.bottom-bar {
+    position: static;
+    padding: 10px 0 0;
+    border: 0;
+    border-top: var(--border);
+    border-radius: 0;
+    background: transparent;
   }
 }

@@ -19,7 +19,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    overflow: hidden;
+    overflow: visible;
   }
   .summary > .result-banner {
     display: flex;
@@ -106,27 +106,26 @@
     letter-spacing: 0;
   }
   .app .page.summary .result-banner .banner-actions {
-    display: flex;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     margin: 0;
     padding-bottom: 2px;
-    overflow-x: auto;
+    overflow: visible;
   }
   .app .page.summary .result-banner .banner-actions > .btn,
   .app .page.summary .result-banner .banner-actions > .btn:nth-child(-n + 2),
   .app .page.summary .result-banner .banner-actions > .btn.primary {
-    flex: 0 0 calc((100% - 18px) / 4);
+    flex: none;
     order: 3;
-    width: auto;
+    width: 100%;
     min-width: 0;
     max-width: none;
     min-height: 44px;
     padding: 8px;
-    font-size: 11px;
+    font-size: 12px;
     justify-content: center;
-    white-space: nowrap;
+    white-space: normal;
   }
   .summary .banner-actions > .btn > svg {
     display: none;
@@ -147,14 +146,17 @@
   .summary .banner-actions > [data-testid='summary-new-game'] {
     order: 2;
   }
+  .summary .banner-actions > [data-testid='summary-next-year'] {
+    grid-column: 1 / -1;
+  }
   .summary > .summary-body {
     display: flex;
-    flex: 1 1 0;
+    flex: none;
     flex-direction: column;
     gap: 8px;
-    min-height: 0;
+    min-height: auto;
     margin: 0;
-    overflow: hidden;
+    overflow: visible;
   }
   .summary .summary-phone-status {
     display: flex;
@@ -167,12 +169,11 @@
   }
   .summary .summary-phone-pane {
     display: flex;
-    flex: 1 1 0;
+    flex: none;
     flex-direction: column;
     gap: 8px;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    min-height: auto;
+    overflow: visible;
   }
   .summary .summary-phone-pane > * {
     flex-shrink: 0;
@@ -196,7 +197,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .summary [data-summary-pane='stats'] .tbl-wrap {
-    max-height: min(42dvh, 340px);
-    overflow: auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
   }
 }
