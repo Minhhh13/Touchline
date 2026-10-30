@@ -1168,6 +1168,14 @@ export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason
  * Stops short of the squad size when the wheel has run dry (a one-nation draft).
  */
 export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng, get?: (id: string) => PlayerSeason | undefined): void {
+  // The spin showing when Auto-complete starts is the assistant's first pick (engine 9, playtest round 2's P1): before, it
+  // was logged as skipped and the assistant spun again. It draws nothing; a spin it passes on is discarded as before
+  if (d.current) {
+    const cs = spinClubSeason(u, d)
+    const best = cs ? assistantChoice(u, d, cs, get) : null
+    if (best) pick(u, d, best.id, best.slot)
+    else discardSpin(d)
+  }
   let guard = 0
   while (!isComplete(d) && guard++ < 200) {
     if (!canSpin(u, d)) break
@@ -1180,11 +1188,19 @@ export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng, get?: (id:
       // A spin the assistant passes on (nobody usable, or only a keeper the squad has no room for) is logged as a
       // discarded spin, as the store logs the one showing when Auto-complete starts: it drew from the stream, so a
       // challenge replay spins it too (engine 6; before, it left no row and the replay fell out of step)
-      if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, skipped: true, ...(d.twist ? { twist: d.twist } : {}), ...(targetSlot(d) ? { target: targetSlot(d)!.id } : {}) })
-      d.current = null
-      d.twist = null
+      discardSpin(d)
     }
   }
+}
+
+/**
+ * Discard the spin showing: it drew from the stream, so it stays in the history as a skipped row with its twist (and,
+ * under Position First, the slot being filled, which stays chosen) for a challenge replay to spin again. No RNG.
+ */
+export function discardSpin(d: DraftState): void {
+  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, skipped: true, ...(d.twist ? { twist: d.twist } : {}), ...(targetSlot(d) ? { target: targetSlot(d)!.id } : {}) })
+  d.current = null
+  d.twist = null
 }
 
 /**

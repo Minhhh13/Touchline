@@ -1054,13 +1054,8 @@ export const useStore = create<Store>()(
           mutate((g, u) => {
             if (!g.draft) return
             const rng = Rng.fromState(g.rngState)
-            // A pending spin is discarded with its twist, but it consumed the RNG, so it stays in the history
-            // as a skipped row (a challenge replay needs every spin) and the assistant's first `canSpin` sees the plain wheel
-            // Position First keeps the slot being filled, so the assistant fills it next and a replay can set it again
-            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: targetSlot(g.draft)!.id } : {}) })
-            g.draft.current = null
-            g.draft.twist = null
-            // The lookup sees a Dynasty summer's own players (their keepers count towards the squad's limits). The engine
+            // The spin showing is the assistant's first pick (engine 9; `autoDraft` discards it only when nobody on it
+            // is usable). The lookup sees a Dynasty summer's own players (their keepers count towards the squad's limits). The engine
             // runs on a plain copy of the draft, put back after: its pool scans read the draft thousands of times, and
             // through Immer's proxies Auto-complete took about 2 s on a 4x-throttled phone (the same functions on the same
             // data, so the same draft)

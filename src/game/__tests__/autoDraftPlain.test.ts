@@ -10,7 +10,7 @@ vi.hoisted(() => {
 import { produce } from 'immer'
 import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
-import { autoDraft, QUICK_RULES, SEASON_RULES, targetSlot, type DraftRules } from '@engine/draft'
+import { autoDraft, QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
 import { createGame } from '../logic/setup'
 import { playerLookup } from '../logic/players'
 import type { Game, GameSettings } from '../types'
@@ -22,14 +22,11 @@ function game(seed: string, mode: GameSettings['mode'], rules: DraftRules): Game
   return createGame({ mode, seed, formationId: '4-3-3', teamName: 'Plain XI', shortName: 'PLN', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2023, rules: { ...rules, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
 }
 
-/** The recipe as it stood before: the engine's autoDraft run on the Immer draft itself. */
+/** The recipe as it stood before: the engine's autoDraft run on the Immer draft itself (engine 9: the spin showing is its first pick). */
 function reference(g: Game): Game {
   return produce(g, (x) => {
     if (!x.draft) return
     const rng = Rng.fromState(x.rngState)
-    if (x.draft.current) x.draft.history.push({ ...x.draft.current, pickedId: null, slotId: null, skipped: true, ...(x.draft.twist ? { twist: x.draft.twist } : {}), ...(targetSlot(x.draft) ? { target: targetSlot(x.draft)!.id } : {}) })
-    x.draft.current = null
-    x.draft.twist = null
     autoDraft(u, x.draft, rng, playerLookup(x, u))
     x.rngState = rng.getState()
   })
@@ -49,7 +46,7 @@ describe('Auto-complete on a plain copy of the draft', () => {
       for (const [mode, rules] of variants) {
         const g = game(`plain-auto-${i}`, mode, rules)
         useStore.setState({ universe: u, loadedLeagues: ['england'], game: g, toast: null })
-        // Half of them with a spin showing, which Auto-complete logs as skipped
+        // Half of them with a spin showing, which Auto-complete picks from (engine 9)
         if (i % 2) useStore.getState().spin()
         const start = useStore.getState().game!
         useStore.getState().autoDraftRest()

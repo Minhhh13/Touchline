@@ -178,7 +178,7 @@ describe('position first through the game', () => {
     expect(replayChallenge(u, tampered).verified).toBe('no')
   })
 
-  it('in the store: asks for a slot, spins for it and keeps it on the row Auto-complete skips', () => {
+  it('in the store: asks for a slot, spins for it, and Auto-complete fills it from that spin (engine 9)', () => {
     const g = createGame(settings({ seed: 'POS-STORE', rules: { ...QUICK_RULES, draftMode: 'position', leagues: ['england'] } }))
     useStore.setState({ universe: u, loadedLeagues: ['england'], game: g, toast: null })
     const st = useStore.getState()
@@ -192,8 +192,9 @@ describe('position first through the game', () => {
     expect(useStore.getState().game!.draft!.current).not.toBeNull()
     st.autoDraftRest()
     const d = useStore.getState().game!.draft!
-    expect(d.history[0]).toMatchObject({ skipped: true, target: gk.id })
-    expect(d.history[1].slotId).toBe(gk.id)
+    // Engine 8 skipped the spin showing and spun again for the keeper; engine 9 drafts him from it (P1)
+    expect(d.history[0].slotId).toBe(gk.id)
+    expect(d.history[0].skipped).toBeUndefined()
     expect(isComplete(d)).toBe(true)
     useStore.setState({ universe: null, loadedLeagues: [], game: null, toast: null })
   })
