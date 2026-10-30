@@ -2,7 +2,7 @@ import type { TierOdds } from '@game/logic/tierOdds'
 import { shownOdds } from '@game/logic/oddsDisplay'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
-import { oddsNote, reelTierName, tierColour } from '../i18n/engineText'
+import { oddsNote, reelTierName, tierColour, tierWord } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -34,6 +34,12 @@ export function SpinOdds({ odds, label }: { odds: readonly TierOdds[]; label: st
           </span>
         ))}
       </div>
+      {/* The colours are the club-seasons' strength, strongest first: a phone has no hover for each one's name */}
+      {odds.length > 1 && (
+        <div className="muted small spin-odds-key" data-testid="spin-odds-key" aria-hidden="true">
+          {t('oddsKey', { top: tierColour(odds[0].tier), topWord: tierWord(odds[0].tier), bottom: tierColour(odds[odds.length - 1].tier), bottomWord: tierWord(odds[odds.length - 1].tier) })}
+        </div>
+      )}
     </div>
   )
 }

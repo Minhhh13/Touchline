@@ -337,6 +337,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
               )
             })}
           </div>
+          {!hide && choices.length > 0 && <p className="small muted" data-testid="january-spin-key">{t('slotRatingKey')}</p>}
           <div className="row wrap" style={{ gap: 10 }}>
             <button type="button" className="btn primary" disabled={!chosen || busy} aria-busy={busy || undefined} onClick={() => chosen && void closeJanuarySpin(chosen.slotId)} data-testid="january-spin-sign">
               {chosen ? t('bringInFor', { name: surname(p.name), out: surname(chosen.outName) }) : t('chooseSlot')}
