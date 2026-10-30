@@ -14,6 +14,14 @@ export function reelMark(scope: string, spinKey: number, target: { clubId: strin
   return `${scope}|${spinKey}|${target.clubId}@${target.season}`
 }
 
+/**
+ * An item reel's mark (the manager spin, the end-of-draft case, the January spin): the game's id, which reel, and what
+ * it lands on (`ItemReel`'s `scope`, round 14's R16-O1). The item was drawn before the reel turned.
+ */
+export function itemReelMark(scope: string, reel: string, lands: string): string {
+  return `${scope}|${reel}|${lands}`
+}
+
 /** This run is the last one that landed on this device. */
 export function landedBefore(mark: string, stored: string | null): boolean {
   return !!mark && stored === mark

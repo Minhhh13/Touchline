@@ -632,5 +632,29 @@ Branch `claude/r16-qa`, from `main` at 05e0c05 (round 15, #101). Same rules as b
 
 | Id | Severity | Where | What happens | Why not fixed here |
 | --- | --- | --- | --- | --- |
-| R16-O1 | Note | The manager spin, the end-of-draft case and the January spin after a reload | Their reels (`ItemReel`) still turn again, as the Draft's did before P7 | Each has its own landing state; a pass of its own, as P7 did for `CaseReel` |
-| R16-O2 | Note | The online room's draft after a reload | Its reel turns again (P7 left the room's `CaseReel` without a `scope` on purpose) | The room's spins come from the server's log; a scope keyed by the room code and spin would do it, a design call for the rooms |
+| R16-O1 | Note | The manager spin, the end-of-draft case and the January spin after a reload | Their reels (`ItemReel`) still turn again, as the Draft's did before P7 | Each has its own landing state; a pass of its own, as P7 did for `CaseReel`. **Closed** on `claude/r16-reload` (round 15 below) |
+| R16-O2 | Note | The online room's draft after a reload | Its reel turns again (P7 left the room's `CaseReel` without a `scope` on purpose) | The room's spins come from the server's log; a scope keyed by the room code and spin would do it, a design call for the rooms. **Closed** on `claude/r16-reload` (round 15 below) |
+
+
+# Round 15: round 14's reload items closed (r16, 2026-10-30)
+
+Branch `claude/r16-reload`, from `claude/r16-qa` at 5b9e123. Same rules: nothing moves a draw or a seeded outcome, ENGINE_VERSION `'7'`, nothing in the edge verifier's graph is touched (the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`), no save field, no migration. Presentation only: every reel here slides onto what was drawn before it turned.
+
+## R15-1. What was tested
+
+- **Every reel that can land and then be reloaded** (Playwright on `vite preview`, scripts not committed; Quick spin on, a reload straight after each landing, the stage read at once): the manager spin, the end-of-draft case and the January spin through a whole Quick Draft at 1280 (both themes), 390x844 (touch) and 844x390 on its side: back landed every time, no Skip, no Spin button, the same three managers; the Draft's XI spin and its bench spin at the same three sizes; a Gauntlet's bonus spin after rung 2 at the same three sizes, landed after a reload at the landing and turning again after a reload mid-reel (that tab had not seen it land); the online room on `scripts/online/room-mock.mjs` (an online build pointed at the local mock, never the project; rebuilt offline afterwards), two contexts drafting to the end at 1280 and 390x844 (touch), six reloads at a landing on each run, every one back landed. No page error anywhere.
+- **What happened before** (read from the code and the round's run): the manager spin went back to its Spin 3 button after a reload, so the reels turned again on a press; the end case and the January spin did not turn again but came back on a still card (the case's gift box, the January spin's one landed card) rather than their reel. All three now mount their reel landed for what this device saw land; a case or January spin opened but never seen land (a reload mid-reel) still shows its result at once, as before.
+- **P5, the 38-0 chase line, in the browser** (two Quick Drafts each at 1280, 390x844 and 844x390, both themes): the kick-off says "The goal: 38-0, the perfect season"; the playback says "Still perfect: 1 win from 1", "Still perfect: 2 wins from 2", "Still perfect: 4 wins from 4", "34 to go for 38-0", "Perfect run over in game 3"; the Profile's longest perfect run "2 wins". No chase line anywhere read N-0 but the target.
+- **P10, the small words, in the browser** (the same runs): the live table's 19 small badges are colours only; a badge unlocked on the first result and left without Got it was not shown on the second; the Weekly's rules line says "calibrated so an average draft finishes mid-table" and never "calibrated difficulty"; the Cup setup says "(colours only: your side plays as itself)"; the Run-in setup's seed and its three jobs were the same on a second visit; the Gauntlet hub's captain list says "mentality N"; a Gauntlet bonus spin shows no bench tip. All as round 15 built them; nothing to fix.
+
+## R15-2. Fixed
+
+| Id | Severity | What was wrong | Fix | Test |
+| --- | --- | --- | --- | --- |
+| R16-O1 | Note | The manager spin turned its reels again after a reload; the end case and the January spin came back on a still card, not their reel | `ItemReel` takes a `scope` (`itemReelMark` in `src/ui/reelLanded.ts`: the game's id, the reel and what it lands on) and mounts landed, silent, for the device's last landed reel; the manager spin keeps one mark for its three reels (`restored`) and comes back with the three cards and their Pick buttons; the end case and the January spin mount their reel landed once seen | `src/ui/__tests__/qaR16ItemReels.test.ts` (server renders over seeded Quick Drafts: seen, unseen, another game's mark, the managers in another order; the game unchanged by every render) |
+| R16-O2 | Note | The online room's reel turned again after a reload | The room's `CaseReel` takes `scope={`room:${view.code}`}` (the spin count and the club-season come from the server's log, the same on every reload); a Dynasty summer's draft keys its reel by the year as well (`${game.id}:${game.year}`), so a new summer's first spins can never match the last summer's mark | `qaR16ItemReels.test.ts` |
+
+## R15-3. Open
+
+Nothing new.
+
