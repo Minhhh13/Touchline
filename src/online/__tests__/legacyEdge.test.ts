@@ -7,7 +7,7 @@ import { EDGE_GLOBAL } from '../../../scripts/online/edgeBundle.mjs'
 
 // An outgoing engine's edge bundle, served byte for byte from public/edge/ so its deployed loader (which fetches
 // edge/verifier-<hash16>.js from the live site and refuses any other SHA-256) keeps working for its last 7 days
-// after the site moves to the next engine (docs/ONLINE.md section 7, "Release engine 5", "Release engine 6", "Release engine 7" and "Release engine 8"). Each entry is the exact
+// after the site moves to the next engine (docs/ONLINE.md section 7, "Release engine 5", "Release engine 6", "Release engine 7", "Release engine 8" and "Release engine 9"). Each entry is the exact
 // SHA-256 that function's loader pins. Remove the file and its entry when that function is deleted.
 const LEGACY: Record<string, { engine: string; sha256: string; retireOnOrAfter: string }> = {
   // touchline-e4: built from main at c897f2c (#80), the bundle the live site served before engine 5
@@ -22,6 +22,10 @@ const LEGACY: Record<string, { engine: string; sha256: string; retireOnOrAfter: 
   // touchline-e7's loader pins since its redeploy of 2026-10-28 20:03 UTC; check it against the live build.json before
   // engine 8 ships (ONLINE.md section 7, "Release engine 8")
   'verifier-ecc269657e48639b.js': { engine: '7', sha256: 'ecc269657e48639b6cedd5b60fe6df4b0e877577f9a829611824af01356469de', retireOnOrAfter: "7 days after engine 8's release" },
+  // touchline-e8: built from claude/r16-engine9's base (claude/r10-engine8 at 5e04f67 with main at #101, 05e0c05, merged
+  // in; the same bytes as engine 8's dry run of 2026-10-29), the bundle the engine 8 site serves; check it against the
+  // live build.json before engine 9 ships (ONLINE.md section 7, "Release engine 9")
+  'verifier-3253bc81bf95d2ed.js': { engine: '8', sha256: '3253bc81bf95d2ed412c9008e787c2be26d41d8106eb841da1442d755c41587e', retireOnOrAfter: "7 days after engine 9's release" },
 }
 
 const dir = path.resolve(__dirname, '../../../public/edge')

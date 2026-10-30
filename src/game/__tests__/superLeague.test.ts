@@ -355,7 +355,7 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
  */
 describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
   it('reproduces the pinned results of the commit before the Super League', () => {
-    expect(ENGINE_VERSION).toBe('8')
+    expect(ENGINE_VERSION).toBe('9')
     const play = (s: GameSettings): Game => {
       const g = drafted(s)
       kickOff(g, u)

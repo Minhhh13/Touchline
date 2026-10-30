@@ -35,18 +35,18 @@ function quickPlayed(seed: string): Game {
 }
 
 describe('after the engine bump', () => {
-  it('runs on engine 8', () => {
-    expect(ENGINE_VERSION).toBe('8')
+  it('runs on engine 9', () => {
+    expect(ENGINE_VERSION).toBe('9')
   })
 
-  it('opens a challenge link made on engine 7 (or 6, 5, 4) as unverified, with its draft resolved', () => {
+  it('opens a challenge link made on engine 8 (or 7, 6, 5, 4) as unverified, with its draft resolved', () => {
     const g = quickPlayed('bump-link')
     const c = challengeFromGame(g, u, 'Minh')!
-    for (const engine of ['7', '6', '5', '4']) {
+    for (const engine of ['8', '7', '6', '5', '4']) {
       const old = decodeChallenge(encodeChallenge({ ...c, engine }))
       const out = replayChallenge(u, old)
       expect(out.verified).toBe('unverified')
-      expect(out.reason).toBe(`built with engine ${engine}, this build is 8`)
+      expect(out.reason).toBe(`built with engine ${engine}, this build is 9`)
       expect(out.picks.length).toBeGreaterThan(0)
     }
     // The same link on this engine verifies

@@ -338,7 +338,7 @@ describe('depth in the match engine', () => {
 
   it('a seeded match is deterministic and pinned to the engine version', () => {
     // Engines 7 and 8 changed no match draw: the literals below held from engine 6
-    expect(ENGINE_VERSION).toBe('8')
+    expect(ENGINE_VERSION).toBe('9')
     const play = () => {
       const rng = new Rng('depth-pin')
       const home: MatchTeamInput = teamInputFromPool('E', 'Elite', 'ELI', tacticsForStyle('possession', '4-3-3'), elite)
