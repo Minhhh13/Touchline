@@ -304,4 +304,15 @@ describe('arena: saves and the store', () => {
       expect(useStore.getState().playingWeek).toBe(false)
     }
   }, 120_000)
+
+  it('opens a simmed step on its report and a managed one on the dashboard (playtest P4)', async () => {
+    for (const live of [false, true]) {
+      useStore.setState({ universe: u, loadedLeagues: ['england'], game: finalGame(`arena-view-${live}`), screen: 'game', playingWeek: false, matchView: live ? 'report' : 'ticker' })
+      useStore.getState().playArenaStep(live)
+      expect(useStore.getState().matchView).toBe(live ? 'ticker' : 'report')
+      useStore.setState({ game: finalGame(`arena-view-${live}`), matchView: live ? 'report' : 'ticker' })
+      await useStore.getState().playArenaStepSoon(live)
+      expect(useStore.getState().matchView).toBe(live ? 'ticker' : 'report')
+    }
+  }, 60_000)
 })

@@ -716,7 +716,6 @@ export const logicText = catalog('logicText', {
 
   // game/logic/perfect.ts
   perfect_thePerfectSeason: '{target}. The perfect season',
-  perfect_stillPerfect0: 'Still perfect: {won}-0',
   perfect_chasing: 'Chasing {target}',
   perfect_toGoFor: '{played} to go for {target}',
   perfect_winEveryGame: 'Win every game',
@@ -725,8 +724,8 @@ export const logicText = catalog('logicText', {
   perfect_unbeatenRunEndedAt: 'Unbeaten run ended at {unbeatenRun}',
   perfect_perfectRunOverInGame: 'Perfect run over in game {x}',
   perfect_thePerfectSeason2: 'The perfect season',
-  perfect_perfectRun0UnbeatenFor: 'Perfect run {p}-0 · unbeaten for the first {u}',
-  perfect_perfectRun0: 'Perfect run {p}-0',
+  perfect_perfectRunOfWinsUnbeatenFor: 'Perfect run of {p} wins · unbeaten for the first {u}',
+  perfect_perfectRunOfWins: 'Perfect run of {p} wins',
   perfect_unbeatenForTheFirstGames: 'Unbeaten for the first {u} games',
   perfect_perfectRunEndedInGame: 'Perfect run ended in game 2',
 
@@ -1684,6 +1683,7 @@ export const logicText = catalog('logicText', {
   transferRequests_isNotConvincedPromise: '{name} is not convinced, though he holds you to the promise of {promised}.{last, select, yes { He will hear no more: list him or refuse.} other {}}',
   transferTalks_accept: '{club} accept £{fee}M{instalments, plural, one {} other { in # instalments}}. Now agree personal terms with {name}.',
   transferTalks_acceptSellOn: '{club} accept £{fee}M with a {sellOn}% sell-on{instalments, plural, one {} other { in # instalments}}. Now agree personal terms with {name}.',
+  perfect_stillPerfectWinsFrom: 'Still perfect: {won, plural, one {# win} other {# wins}} from {played}',
   transferTalks_laughItOff: '{club} laugh it off. Come back with a serious offer ({rounds, plural, one {# more round} other {# more rounds}}).',
   transferTalks_want: '{club} want £{counter}M{sellOn, select, yes { with the sell-on} other {}}{instalments, plural, one {} other { in # instalments}}.',
   transferTalks_instalments: '£{now}M now and {payments, plural, one {# × £{later}M at the next window} other {# × £{later}M at the next windows}}',

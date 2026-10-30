@@ -16569,4 +16569,11 @@ button.home-nudge.linklike:hover {
     max-width: 100%;
     white-space: normal;
   }
+  /* Home's resume card: Continue and Abandon wrap under each other rather than widen the page (200 % text on a 360 px
+     phone made the page 378 px wide, so the phone zoomed out and the dock sat below the screen; QA r15, R15-1) */
+  .resume-actions {
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
+  }
 }

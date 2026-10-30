@@ -22,7 +22,7 @@ const t = translator(common)
 // The tab strip's own `t` (a tab) shadows the translator inside it
 const tc = translator(common)
 
-export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
+export function ClubBadge({ clubId, size = 32, blank }: { clubId: string; size?: number; /** Colours only, no letters: the name is printed beside it (a two-letter cut of the code read as another code; playtest round 2, P10). */ blank?: boolean }) {
   const u = useStore((s) => s.universe)
   const club = u?.clubById[clubId]
   const primary = club?.colours.primary ?? '#555'
@@ -35,7 +35,7 @@ export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number
   const ring = small ? 1.5 : Math.max(2, size * 0.07)
   return (
     <span className="badge" title={club?.name ?? clubId} style={{ width: size, height: size, background: primary, color: inkOn(primary), fontSize, letterSpacing: small ? 0 : undefined, boxShadow: `inset 0 0 0 ${ring}px ${secondary}` }}>
-      {code}
+      {blank ? null : code}
     </span>
   )
 }
