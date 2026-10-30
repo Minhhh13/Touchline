@@ -69,7 +69,7 @@ export const draft = catalog('draft', {
   respin: '{n, plural, =0 {No re-spins left} other {Re-spin · # left}}',
   respinTip: '{n, plural, =0 {No re-spins left: every spin stands.} one {Swap this club-season for a new spin. # re-spin left for the whole draft; it does not cost a pick.} other {Swap this club-season for a new spin. # re-spins left for the whole draft; they do not cost a pick.}}',
   autoConfirm: 'Let the assistant finish the draft? It makes every pick that is left.',
-  autoConfirmShowing: 'Let the assistant finish the draft? It makes every pick that is left and passes on {club}, the spin showing now: pick from it first if you want one of its players.',
+  autoConfirmShowing: 'Let the assistant finish the draft? It makes every pick that is left, starting with the spin showing now, {club}.',
   autoComplete: 'Auto-complete',
   autoCompleting: 'Drafting…',
   stillNeed: 'Still need',
