@@ -17,6 +17,7 @@ import { Pos } from './bits'
 import { CaptainAndPenalties, TeamInstructions } from './TacticsControls'
 import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
+import { itemReelMark, landedSeen } from '../reelLanded'
 import { SpinOdds } from './SpinOdds'
 import { UpgraderStage } from './Upgrader'
 import { armAudio, unlockAudio } from '../sound/synth'
@@ -206,7 +207,9 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
   const hide = ratingHidden(game.settings.rules, 'offer')
   const pool = useMemo(() => januarySpinPool(game, u, game.lineup, game.bench, playerLookup(game, u)), [game, u])
   const odds = useMemo(() => januarySpinOdds(pool), [pool])
-  const [opened, setOpened] = useState(false)
+  // The spin's reel, kept per device once it lands: a reload after the landing shows the reel landed (`reelLanded.ts`)
+  const mark = j.spin ? itemReelMark(game.id, 'january-spin', j.spin.playerSeasonId) : ''
+  const [opened, setOpened] = useState(() => !!mark && landedSeen(mark))
   // Landed already when the case was opened before this step was shown (a reload)
   const [landed, setLanded] = useState(!!j.spin)
   const [skip, setSkip] = useState(0)
@@ -256,7 +259,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
       )}
       <div className={`jw-reel${spinning ? ' running' : ''}`} onClick={() => spinning && setSkip((n) => n + 1)}>
         {spin && deal && opened ? (
-          <ItemReel deal={deal} timing={quick ? QUICK_TIMING : FULL_TIMING} skip={skip} onSettled={() => setLanded(true)} testId="january-spin-reel" />
+          <ItemReel deal={deal} scope={spin ? itemReelMark(game.id, 'january-spin', spin.playerSeasonId) : undefined} timing={quick ? QUICK_TIMING : FULL_TIMING} skip={skip} onSettled={() => setLanded(true)} testId="january-spin-reel" />
         ) : (
           <div className={`reel-run item-reel${spin ? ' stage-landed' : ' idle'}`} data-tier={spin?.tier}>
             <div className="reel-window" aria-hidden="true">

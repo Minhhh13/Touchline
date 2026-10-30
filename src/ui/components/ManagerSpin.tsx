@@ -22,6 +22,7 @@ import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { B, rich } from '../i18n/rich'
 import { reelSkipKey } from '../reelKeys'
+import { itemReelMark, landedSeen, rememberLanded } from '../reelLanded'
 import { edgeHintText, edgeText, styleHelp, styleLabel } from '../i18n/engineText'
 
 const t = translator(season)
@@ -40,7 +41,8 @@ function origin(u: LoadedUniverse, m: Manager): string {
  * The manager spin (`DraftRules.managerSpin`): three case reels side by side, spun at once like a multi-case opening,
  * each landing on one of the three managers the game already rolled (`game.managerSpin`, from a fork of its stream);
  * then the three cards, one of which the user picks (`pickManager`). The reels are presentation only: a reload shows
- * the same three again. Tap or Space skips to the landing; Quick spin (Profile) runs the short timing. Under the reels,
+ * the same three again, and three this device saw land come back landed, with no slide and no sound (`reelLanded.ts`).
+ * Tap or Space skips to the landing; Quick spin (Profile) runs the short timing. Under the reels,
  * what each style would do for this XI (`managerEdge`), the landed styles lit.
  */
 export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
@@ -54,8 +56,11 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
     return Object.fromEntries(MANAGER_STYLES.map((st) => [st, managerEdge(game, st, get)])) as Record<Manager['style'], ReturnType<typeof managerEdge>>
   }, [u, game])
   const [quick] = usePref(quickSpinPref)
-  const [run, setRun] = useState(0)
-  const [landedAt, setLandedAt] = useState<boolean[]>([])
+  // These three, landed on this device before a reload: the reels mount landed and the cards show
+  const mark = itemReelMark(game.id, 'manager-spin', options.map((m) => m.id).join(','))
+  const [restored] = useState(() => options.length > 0 && landedSeen(mark))
+  const [run, setRun] = useState(restored ? 1 : 0)
+  const [landedAt, setLandedAt] = useState<boolean[]>(() => (restored ? options.map(() => true) : []))
   const landed = landedAt.filter(Boolean).length
   const [skip, setSkip] = useState(0)
   useEffect(armAudio, [])
@@ -71,7 +76,10 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
   const done = run > 0 && landed >= options.length
   // All three in: the shortlist's three bells (the first reel already rang its landing)
   useEffect(() => {
-    if (done) playSound({ id: 'manager-landed' })
+    if (!done || restored) return
+    rememberLanded(mark)
+    playSound({ id: 'manager-landed' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done])
   const timing = quick ? QUICK_TIMING : FULL_TIMING
   const stagger = quick ? STAGGER_MS / 2 : STAGGER_MS
@@ -110,7 +118,7 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
           return (
             <div key={m.id} className="mspin-col" data-testid={`mspin-col-${i}`}>
               {run > 0 ? (
-                <ItemReel key={run} deal={deals[i]} timing={timing} stagger={i * stagger} sound={i === 0} skip={skip} onSettled={() => setLandedAt((a) => Object.assign([...a], { [i]: true }))} testId={`mspin-reel-${i}`} />
+                <ItemReel key={run} deal={deals[i]} restored={restored} timing={timing} stagger={i * stagger} sound={i === 0} skip={skip} onSettled={() => setLandedAt((a) => Object.assign([...a], { [i]: true }))} testId={`mspin-reel-${i}`} />
               ) : (
                 <div className="reel-run item-reel idle">
                   <div className="reel-window" aria-hidden="true">

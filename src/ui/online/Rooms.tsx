@@ -586,7 +586,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
       log={d.log.map((l) => roomLogLine(l, view.managers))}
       controls={
         <>
-          <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(currentKey)} />
+          <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} scope={`room:${view.code}`} onSettled={() => setSettled(currentKey)} />
           <TurnBanner mine={mine} line={busy && mine ? t('sendingPick') : turnLine} testId="room-turn" />
           <TurnTimer view={view} mine={mine} name={picking === null ? null : managers[picking].name} watching={seat === null} />
           <RoomTurnPill view={view} mine={mine} line={busy && mine ? t('sendingPick') : turnLine} />
