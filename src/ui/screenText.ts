@@ -81,12 +81,12 @@ export function distinctLabels(labels: readonly string[]): string[] {
 
 /**
  * The quick summary's runs line under the record: this season's runs (`runsLine`) and the Profile's longest perfect
- * start, named as such ("best perfect start 5-0": a bare "best run 1-0" read as a score). A best of one game says
+ * start, named as such ("best perfect start: 5 wins": a bare "best run 1-0", even "5-0", read as a score). A best of one game says
  * nothing a player wants to hear, so it shows from two; null when there is nothing to say. When `thisRun` (this
  * season's perfect run) is the best, the line says so instead of repeating it.
  */
 export function runsSummary(runs: string | null, longestPerfectRun: number | undefined, thisRun?: number): string | null {
-  // This season set the best: say so rather than print its run twice ("Perfect run 2-0 · best perfect start 2-0")
+  // This season set the best: say so rather than print its run twice ("Perfect run of 2 wins · best perfect start: 2 wins")
   if (runs && thisRun !== undefined && thisRun >= 2 && thisRun === longestPerfectRun) return t('yourBestStart', { runs })
   const best = (longestPerfectRun ?? 0) >= 2 ? t(runs ? 'bestStartAfter' : 'bestStart', { n: longestPerfectRun }) : null
   const parts = [runs, best].filter(Boolean)

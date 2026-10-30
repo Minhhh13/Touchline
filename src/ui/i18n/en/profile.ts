@@ -90,6 +90,7 @@ export const profile = catalog('profile', {
   bestRecord: 'Best record',
   recordPoints: '{record} · {n} pts',
   longestRun: 'Longest perfect run',
+  winsRun: '{n, plural, one {# win} other {# wins}}',
   perfectSeasons: 'Perfect seasons',
   chaseHelp: 'Quick Draft and Daily seasons in this browser. The goal: win every game.',
   all: 'All',

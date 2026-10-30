@@ -85,7 +85,7 @@ export const arena = catalog('arena', {
   noOpponent: 'No opponent drawn.',
   manageTip: 'Manage it through half time, the 70th minute and any shoot-out',
   manage: 'Manage this one',
-  simTip: 'The assistant picks the side and plays the match, penalties included',
+  simTip: 'The assistant picks the side and plays the match, penalties included; the report opens on the result',
   simTie: 'Sim this tie',
   simRung: 'Sim this rung',
   simFinal: 'Sim the final',

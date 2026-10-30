@@ -161,6 +161,9 @@ function* playWeekSteps(g: Game, u: LoadedUniverse, mode: MatchPlayMode): Genera
 }
 
 /** localStorage key the whole game is persisted under. */
+/** The match view an arena step opens on: managed live, the dashboard; simmed by the assistant, the report (playtest P4). */
+export const arenaStepView = (live: boolean): 'ticker' | 'report' => (live ? 'ticker' : 'report')
+
 export const SAVE_KEY = 'touchline-save-v1'
 /** Persist version of the saved state (a change needs a `migrate`). */
 export const SAVE_VERSION = 1
@@ -1458,8 +1461,8 @@ export const useStore = create<Store>()(
             playArenaStep(g, u, live)
             if (live && g.live) byHand(g)
           })
-          // Either way the match opens on its replay dashboard (one screen); the report is a tab away
-          set({ matchView: 'ticker' })
+          // Managed live, the match opens on its dashboard; simmed, on its report (the result, as Sim result does in a Season), the replay a tab away
+          set({ matchView: arenaStepView(live) })
         },
         playArenaStepSoon: async (live, prepare) => {
           const { game: g0, universe: u0, playingWeek } = get()
@@ -1491,7 +1494,7 @@ export const useStore = create<Store>()(
               await nextTask()
             }
             if (moved()) return get().playArenaStep(live)
-            set({ game: next, matchView: 'ticker', playingWeek: false })
+            set({ game: next, matchView: arenaStepView(live), playingWeek: false })
           } finally {
             if (get().playingWeek) set({ playingWeek: false })
           }
