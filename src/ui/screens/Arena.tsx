@@ -36,6 +36,7 @@ import { translator } from '../i18n'
 import { arena } from '../i18n/en/arena'
 import { trainingBlurb, trainingLabel } from '../i18n/engineText'
 import { logicLine } from '../i18n/logicText'
+import { useTallBar } from '../tallBar'
 
 const t = translator(arena)
 
@@ -64,6 +65,8 @@ export function Arena() {
   // On a phone the action bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
+  // A bar taller than a third of the window (large text on a small phone) sits at the page's foot instead
+  const tallBar = useTallBar(barHeight)
   useEffect(() => {
     const el = barRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -115,7 +118,7 @@ export function Arena() {
   return (
     // One screen on a desktop (DESIGN_SYSTEM.md section 13): the head, then three boxes side by side that scroll inside
     // themselves: the opponent (and the ladder or the draw), the team sheet or tactics, the pitch with the calls and Play
-    <div className="page fit arena-hub has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page fit arena-hub has-bottom-bar${tallBar ? ' bar-static' : ''}`} style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="fit-head">
         <div className="row" style={{ gap: 10 }}>
           <TeamBadge code={game.settings.shortName} size={40} />

@@ -2251,15 +2251,31 @@ details.opposition {
     padding-inline: 7px;
   }
 }
-/* The arena's team talk on a phone: the four choices share the row's width instead of wrapping Fire up alone onto a second line (visual audit, QA round 8) */
+/* The arena's team talk on a phone: the four choices share the row's width instead of wrapping Fire up alone onto a second line (visual audit, QA round 8).
+   Each takes its word's width plus a share of the rest (phones, round 12: equal quarters ran "Encourage" into "Demand"
+   at 360 px); at 200 % text the row wraps rather than overlap */
 @media (max-width: 520px) {
   .arena-prep .segmented {
     display: flex;
-    flex-wrap: nowrap;
+    width: 100%;
+    flex-wrap: wrap;
   }
   .arena-prep .segmented button {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
     padding-inline: 4px;
+  }
+}
+/* The player card on a phone (phones, round 12): its tabs were 26 px tall and its shortlist star 28 x 24. The strip
+   scrolls sideways (overflow), which would clip an invisible target, so the tabs grow by padding; the star by size */
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
+  .pc-tabs button {
+    min-height: 44px;
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+  .pc-star {
+    width: 44px;
+    height: 44px;
   }
 }

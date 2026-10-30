@@ -16148,15 +16148,21 @@ button.home-nudge.linklike:hover {
   }
 }
 /* The keyboard: while a text field has the focus on a phone, the dock and the screen's bottom bars stand down, so a
-   window the keyboard has shrunk (Android) gives its height to the field and not to bars riding on the keyboard */
+   window the keyboard has shrunk (Android) gives its height to the field and not to bars riding on the keyboard.
+   `data-typing-hold` keeps that layout through the tap that ends the typing, so the bar tapped stays under the finger until
+   its click (typingHold.ts, QA r14 R14-1) */
 @media (max-width: 720px) {
-  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) {
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus),
+  .app:not(.bar-hidden):not(.dock-off)[data-typing-hold] {
     --dock-h: 0px;
     --dock-safe: var(--safe-bottom);
   }
   .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) > .topbar nav,
   .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .bottom-bar,
-  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .cta-bar {
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .cta-bar,
+  .app[data-typing-hold] > .topbar nav,
+  .app[data-typing-hold] .bottom-bar,
+  .app[data-typing-hold] .cta-bar {
     visibility: hidden;
   }
 }
@@ -16423,5 +16429,144 @@ button.home-nudge.linklike:hover {
   .office-choice {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
+  }
+}
+
+/* Phones, round 12 (docs/QA.md, "Round 12: phones"; docs/DESIGN_SYSTEM.md section 13). Last in the sheet, so each rule
+   wins over the one it corrects at the same specificity. */
+/* A phone on its side: a screen's own content keeps clear of the notch and the rounded corners. The bars already pad
+   by the side insets; the page takes them as a transparent border, which no screen's padding rule reaches (each of
+   them sets `padding`), and which is 0 px upright, on a tablet and in a browser tab */
+.app > .page {
+  border-inline: 0 solid transparent;
+  border-left-width: var(--safe-left);
+  border-right-width: var(--safe-right);
+}
+/* The skip links show on focus at the top left: below the status bar, clear of the notch; off the screen they rise by
+   the inset too */
+.skip-link {
+  top: calc(var(--space-2) + var(--safe-top));
+  left: calc(var(--space-2) + var(--safe-left));
+  transform: translateY(calc(-100% - var(--space-4) - var(--safe-top)));
+}
+.skip-link:focus {
+  transform: none;
+}
+/* A phone on its side zooms into a field under 16 px as an upright one does */
+@media (max-height: 500px) and (pointer: coarse) {
+  .input,
+  select.input,
+  .input.sm,
+  table.tbl select.input.sm,
+  .step-head-row .season-pick {
+    font-size: 16px; /* px: 16 px so iOS does not zoom */
+  }
+  /* The shortlist star keeps its invisible target on its side too (it had one only upright) */
+  button.star {
+    position: relative;
+  }
+  button.star::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
+}
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
+  /* A text link's invisible target reaches 44 px (it was 43: a 19 px line and 12 px each side) */
+  .linklike::after {
+    inset: -13px -4px;
+  }
+  /* Explore's record holders wrap onto lines 24 px apart, and each one's 48 px target covered the middle of the
+     holder above it, so a tap opened the wrong club-season: each holder is a 44 px row of its own now */
+  .link-btn.holder {
+    min-height: 44px;
+  }
+  .link-btn.holder::after {
+    inset: 0 -2px;
+  }
+  /* Explore's league page: a season's top-rated players are rows to tap (28 px tall) */
+  .top-line {
+    min-height: 44px;
+  }
+  /* A switch row (Classic seasons, player power, head-to-head's Classic) is the target of its box: 42 px, and the
+     era slider's Classic chip 29 px */
+  .toggle,
+  .toggle.era-classic {
+    min-height: 44px;
+  }
+}
+/* The dock's captions: a cell takes its word's width plus a share of the rest, so "Summary" is whole at 360 px (equal
+   sevenths cut it to "Summ…") */
+@media (max-width: 720px) and (min-height: 501px) {
+  .app:not(.dock-off) > .topbar nav button {
+    flex: 1 1 auto;
+  }
+}
+/* A small phone on its side (iPhone SE, 667 x 375): the arena hub's calls took 157 of its 375 px over the page; like
+   the Dugout's call bar they go back to the foot of their box there */
+@media (max-width: 720px) and (max-height: 500px) {
+  .arena-actions.bottom-bar,
+  .cta-bar {
+    /* In the page's flow a bar's z-index (it is a flex item) would paint it over the sticky top bar */
+    z-index: auto;
+  }
+  .arena-actions.bottom-bar {
+    position: static;
+    padding: var(--space-3) var(--panel-pad);
+    box-shadow: none;
+  }
+  .page.arena-hub.has-bottom-bar {
+    padding-bottom: calc(80px + var(--safe-bottom));
+  }
+}
+/* A fixed bottom bar that would take more than a third of the window (src/ui/tallBar.ts: 200 % text on a small
+   phone) sits at the foot of the page instead, so the screen above it stays readable */
+@media (max-width: 1099.98px) {
+  .page.bar-static .bottom-bar,
+  .page.bar-static .cta-bar {
+    position: static;
+    z-index: auto;
+    box-shadow: none;
+  }
+  .page.bar-static.has-bottom-bar {
+    padding-bottom: calc(80px + var(--dock-h));
+  }
+}
+/* 200 % text on a phone: a wide call wraps its words rather than cut them at its edge ("…rt drafting your squ…"), a
+   heading's long word breaks (with a hyphen where the browser can), and the player card's chips wrap inside the card */
+@media (max-width: 720px) {
+  .btn.big,
+  .btn.block,
+  .decision-sheet .btn,
+  .bottom-bar .btn,
+  .cta-bar .btn {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+  h1,
+  h2,
+  h3,
+  .mode-card p {
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+  /* A W-D-L record wraps rather than run past its card (head-to-head's result at 200 %) */
+  .record {
+    flex-wrap: wrap;
+    column-gap: 0.6em;
+  }
+  /* The fixture list's matchweek column grows with its text ("MW15" ran into the opponent's place at 200 %) */
+  .fixture-list .fixture {
+    grid-template-columns: minmax(38px, max-content) minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  /* The Dugout's club strip: two figures a row while two fit, one under 200 % text ("£119M" ran into the board's 55) */
+  .stat-strip {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  }
+  .mode-card .daily-today,
+  .pc-head .chip {
+    max-width: 100%;
+    white-space: normal;
   }
 }

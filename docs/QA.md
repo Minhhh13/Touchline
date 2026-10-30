@@ -494,3 +494,90 @@ Branch `claude/r13-h2h-look`, from `main` at #96 with round 12's integration bra
 
 - The hot-seat setup still scrolls its body at 1280x800 (as the room's setup does): Manager 1's and Manager 2's formation tiles are the long part. Start stays in view at the foot.
 
+
+# Round 11: what round 13 changed (r14, 2026-10-29)
+
+Branch `claude/r14-qa`, from `main` at #98 (round 13). Same rules as before: every fix has a test that fails without it, nothing moves a draw or a seeded outcome (pins, `noMove`, `marketPin`, `dailyPin` green, ENGINE_VERSION `'7'`), nothing in the edge verifier's graph is touched, and the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`. No save field, no migration, no commit titled `FIX (moves draws):` or `BUNDLED:`.
+
+## R11-1. What was tested
+
+- **Squad complete's odds, before and after the stepping** (round 13's `oddsLeagueSteps`). A worktree of `main` at #97 (before the stepping) beside this branch, one script on both, not committed: 30 seeded games (Premier League, La Liga, a Quick Draft bench, the Super League with and without its ease, every third one with an attacking mentality) give byte-identical `preSeasonOdds`. In the browser, the same saved game was opened at Squad complete on both builds (`vite preview` of each, the save copied across): five drafted squads showed the same projected finish, expected points and seven chances to the tenth of a per cent. New sweep `src/game/__tests__/qaR14Odds.test.ts`: over five more setups, the league built a step at a time (with a half-built league dropped first, as a tactics change does) and the seasons in uneven slices equal the odds in one go, and the game never moves.
+- **Explore's wheel chances kept across universes** (round 13's `wheelsByPool`). New sweep `src/game/__tests__/qaR14Wheel.test.ts`: as the browser loads them (England alone, then Spain beside it, then the classic pack added to the same objects, the name tidy each time), every kept wheel is the one a never-seen universe works out, each wheel sums to 1, and a universe whose pool differs by one club-season is never handed a kept wheel. In the browser, Explore's club page fills its chances after the paint at 390 and 1280 with no page error. Found R14-2.
+- **The hot-seat head-to-head, end to end** (Playwright on `vite preview`, scripts not committed): setup, spins, the assistant's picks and one pick by hand, the result, Rematch (a new seed, both names kept, the old game cleared), at 1280x800 and 390x844 (touch), Floodlit and Daylight, English and the pseudo-locale, with and without a reload mid-draft: no page error in any run. Three all-assistant runs (one with a reload, one at 390 in the pseudo-locale) replayed through the engine (`h2hSpin`/`h2hAutoPick` from the run's saved start, then `runH2HSeason`) on this branch and on `main` at #97 give the browser's drafts, log and result exactly; `pins.test.ts` (the head-to-head log), `noMove` and `dailyPin` green. Found R14-1.
+- **Keyboard only**: the hot-seat from the nav to Rematch by Tab and Enter (11 spins, 21 assistant picks, one pick by hand through a squad row and "Put at"): every control reached is in view and uncovered when focused. See R14-O2.
+- **Reloads**: 60 reloads straight after a pick or a spin (the reel running or skipped, both languages, 390 and 1280) came back to the same draft with nothing lost; 50 more with the service worker in control (Home and a draft), 60 timed ones with the worker and 60 without, and 12 during the worker's install, all came back. See R14-O1.
+- **The online room** through `scripts/online/room-mock.mjs` and an online build: host and guest in two contexts, joined by the link or by a code typed lower case with an en dash (R13-2), drafted to the result and into the rematch, at 1280 and 390 (touch), both themes, both languages, with a reload of the guest mid-draft: four runs, no page error.
+- **How it works** (round 13's text) in the pseudo-locale at 390 and 1280: nothing left in English but the data credits, which are the packs' `sources` (data, not translated by convention).
+
+## R11-2. Fixed
+
+| Id | Severity | What was wrong | Fix | Test |
+| --- | --- | --- | --- | --- |
+| R14-1 | Medium (phone) | The first tap after typing did nothing on a phone. While a text field has the focus the dock and the bars resting on it stand down (round 8, styles.css "The keyboard"); the tap on a button resting on the dock (the head-to-head setup's Start after typing a seed or a name, the same for any bar on `--dock-h`) moved the focus off the field at the press, the dock came back and the button jumped 58 px from under the finger, so press and release landed on different elements and no click was sent. Seen with a touch tap and with a mouse in a narrow window | `src/ui/typingHold.ts` (`watchTypingHold`, started in `App.tsx`): a press that starts while a field has the focus puts `data-typing-hold` on `.app` (an attribute, so React's className never drops it), which holds the typing layout until that press's click has gone out (or 700 ms when no click comes); styles.css's keyboard rule takes the attribute too, with a selector that outranks the dock's `--dock-h` | `src/ui/__tests__/typingHold.test.ts`, `phoneDock.test.ts`; Playwright (the setup's Start after typing a seed: tap, mouse and touch-emulated click all start the draft) |
+| R14-2 | Low (display) | Explore's club table showed "–" (never on the wheel) for every season while round 13's `useWheelChances` worked the wheel out after the paint, then the figures | The cell shows "…" with `aria-busy` while its wheel is unknown, as the wheel line beside it does | `src/ui/__tests__/qaR14Ui.test.ts` (a server render before and after each wheel, the classic seasons included) |
+
+Also: the hot-seat's spin, assistant, finish and draft buttons and the nav's Head-to-head take test ids (`h2h-spin`, `h2h-auto`, `h2h-finish`, `h2h-draft-btn`, `nav-h2h`), so a smoke drives them in any language.
+
+## R11-3. Open
+
+| Id | Severity | Where | What happens | Why not fixed here |
+| --- | --- | --- | --- | --- |
+| R14-O1 | Low | A reload under the service worker | Twice, in about 80 reloads made every two seconds or so (the pseudo-locale, a hot-seat game whose reel was replaying), the page came back as "This screen did not load. It needs a connection the first time" (the screen boundary's chunk error) instead of the draft; its Reload button brought the draft back with nothing lost. The previous page's screen prefetches were aborted by the reload each time | Not reproduced in 60 timed reloads with the worker in control, 60 without, or 12 during its install, so the cause (the worker, the prefetch or the browser's module map) is not pinned down; a person does not reload that fast |
+| R14-O2 | Note (keyboard) | The hot-seat draft | After a spin the focus lands on the club's name (as in the Draft: the squad is the next Tab), so "Let the assistant pick" is about 40 Tabs forward (three Shift+Tab back) | As before round 13; the room has no assistant button to match |
+| R14-O3 | Note | The hot-seat draft after a reload | A spin landed but not picked turns its reel again on reload (2.7 s with Quick spin) before the pick can be made | The known "a reload replays the reels" (HANDOVER section 7); presentation only |
+
+## R11-4. Coverage notes
+
+- Round 13's own changes held up where they were aimed: the stepped odds and the kept wheels are exact, the hot-seat's draws are the engine's, the rooms read every code tried. The bug was older than round 13 (round 8's keyboard rule against the setup's Start, sticky on the dock on a phone) and shows only when a field is typed in just before the tap, as the full playthrough does with its seed.
+- The smokes' first two reload variants failed because the script reloaded on every pass while the replayed reel turned (a page reloaded every two seconds); that loop also produced R14-O1's two sightings.
+- Not covered: real iOS and Android keyboards (the tap fix was checked with Chromium's touch emulation and a mouse), sound, the share card's canvas.
+
+# Round 12: phones (r14, 2026-10-29)
+
+Branch `claude/r14-phones`, from `main` at #98 (round 13). The owner plays on phones: a layout pass on real phone sizes. Display only: CSS, two small presentation hooks (`src/ui/useSheetDrag.ts`, moved out of `bits.tsx`, and `src/ui/tallBar.ts`), no draw, no save field, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.
+
+## R12P-1. How it was checked
+
+- **Devices.** iPhone SE 375x667 (insets 20/0, a status bar and no home indicator), iPhone 15 393x852 (59/34), iPhone 15 Pro Max 430x932 (59/34), Pixel 8 412x915 (24/0) and a small Android 360x800 (24/0), each upright and on its side (the iPhones 59 px each side and a 21 px home indicator; the SE and the Androids none), with Playwright's touch (`hasTouch`, `isMobile`, a 2x screen) and the insets through the safe-area tokens (the override `safeAreaOverride` makes; the round's phones are now in `DEVICE_INSETS`). Both themes; then upright at `html { font-size: 200% }` (iOS Dynamic Type's largest step).
+- **States, 74 in all,** saved once by driving every flow through the UI on an online build pointed at `scripts/online/room-mock.mjs` (docs/ONLINE.md 5e), then loaded fresh on each device: Home new and returning; Setup for Quick Draft, the Daily, the Weekly, Season, Dynasty, the Gauntlet, the Cup and the Run-in; the Draft (start, a landed spin, complete) for Quick, Season, Cup and Run-in; the manager spin, the end case before and after, Squad complete, the playback, January, its end; the quick Summary and its cup night; the Season summary; the Dugout before the season and at matchweek 6 on all 13 of its tabs (the Office included; Europe has no tab that season), the digest, a player card; the match day at half time, live, at 70' and its report, the half-time substitution board and a drawer; the Gauntlet's and the Cup's hub, report, after a round and summary; the Run-in's dugout and summary; head-to-head setup (this device and online), draft, complete and result; Explore (Clubs, League, Search, Compare, Records), Profile, World, Account, How it works, Privacy. The online room separately, host and guest in two contexts (waiting, join, draft, result) on every phone, both orientations and themes: 120 shots.
+- **What each shot was probed for, by script:** a page wider than the window; a field under 16 px (iOS zooms the page into it); a control whose target (an invisible `::after` counted) is under 44 px; each control scrolled to the middle of its scroller and checked to be on top at its centre (the dock, a fixed bar, a sticky foot or a neighbour's target over it); a control in the status bar's or the notch's strip; at 200 %, text cut by its box with no ellipsis, and text past the window. Each sheet pulled down from its grip or header by pointer. The before run is `main` at #98, the after run this branch; about sixty shots (every flagged state, every screen at least once) were also looked at by eye on contact sheets. The 200 % pass (370 shots, upright) ran on this branch once its first commit was in, then after the large-text fixes: text cut by its box with nothing to show it (a call's label, a heading, a chip, a record), or past the window, went from 19 kinds of finding to 6; the fixture list, the record and a call holding one long word ("Take over Middlesbrough" on a Pixel 8) were fixed after that run and checked by eye, and the 2 kinds left are the probe's false positives (a contract name's 12 px tap padding counted as cut). O-3's open half (a phone on its side's page content) is closed by #1.
+
+## R12P-2. Before and after
+
+Probe counts over the 740 dark-theme shots (5 phones, upright and on their side, 74 states; the light theme's shots differ only in colour and were checked by eye on the iPhone 15 and the small Android):
+
+| Probe | Before (`main`) | After |
+| --- | --- | --- |
+| Fields under 16 px | 258 in 96 shots (every phone on its side) | 0 |
+| A control in the notch's strip | 148 in 134 shots | 0 (the 3 left are the half-time board's own pitch scrolled inside the sheet) |
+| A control covered at its centre | 81 in 11 shots | 2 in 1 (two of the half-time board's shirts on a 225 px pitch) |
+| Targets under 44 px | 2,956 in 201 shots | 2,710 in 153 shots, every one listed in R12P-3 |
+| A page wider than the window | 0 | 0 |
+| Page errors | 0 | 0 |
+
+| # | Screen, device, theme | Before | After |
+| --- | --- | --- | --- |
+| 1 | Every screen, every iPhone on its side, both | A page's content ran under the notch and the rounded corners (16 px from the edge with a 59 px inset; the half of O-3 left open in round 3) | The page takes the side insets as a transparent border (`.app > .page`), 0 px upright, on a tablet and in a browser tab |
+| 2 | Every field, every phone on its side, both | Fields at 12 to 14 px (the setup's team name and season, Explore's search and filters, the market's focus, the Tactics tab's roles, the arena's captain and training, the match day's pickers, the room's boxes, Account's email): iOS zoomed the page into each | 16 px on a short touch screen too, as upright |
+| 3 | Every screen, iPhones, both | The skip links (Skip to content, Setup's Skip to Start) showed under the status bar and, on its side, under the notch | Below the status bar and clear of the notch; hidden above the inset |
+| 4 | The match day, every phone, both | The drawers (Tactics, Instructions, Shouts, Set pieces, Substitutions) are bottom sheets on a phone but could not be pulled down to close (Modal's sheets could); their ✕ was 28 px | A grip and the same pull-down close (`useSheetDrag`, now one hook for both); the ✕ takes 44 px |
+| 5 | Arena hub, team talk, 360 px Android, both | Equal quarters ran "Encourage" into "Demand" | Each choice takes its word's width plus a share; wraps at 200 % |
+| 6 | The dock, 360 to 412 px, both | The game's cell read "Summ…" (equal sevenths) | Cells sized by caption: "Summary" whole at 360 px |
+| 7 | Explore, League, every phone | The record holders wrapped 24 px apart with 48 px targets, so a tap on "Man City 2017-18" opened "Man City 2018-19" or "Liverpool 2019-20" | Each holder a 44 px row with its own target |
+| 8 | Explore League's top-rated rows, text links ("How it works", "change"), switch rows (Classic, player power, head-to-head's Classic), the player card's tabs and star, a bench card on the substitution board, the shortlist star on its side | 28, 43, 29 to 42, 26, 24, 40 px | 44 px |
+| 9 | Arena hub, iPhone SE on its side, both | The fixed calls took 157 of 375 px; controls behind them | Back at the foot of their box, as the Dugout's call bar on a small phone on its side |
+| 10 | Half-time substitution board, iPhone SE on its side, both | The pitch stacked over the bench in 375 px and scrolled away once a bench card had the focus; the two calls stacked (113 px) | The pitch beside the bench, the calls on one row (63 px) |
+| 11 | Dugout, Setup (every mode), the arena's setup and hub, Run-in setup; 200 % text on an iPhone SE and iPhone 15 | The fixed bottom bar took 330 of 667 px (the Dugout) and left a strip of the tab | A bar over a third of the window sits at the foot of the page (`tallBar.ts`, `.bar-static`); untouched at 100 % (163 of 667 on the SE) |
+| 12 | 200 % text, every phone | Setup's Start cut to "…rt drafting your squ…", the Gauntlet's Draft, Squad complete's Simulate season, Play your first draft, the spin and Run-in calls cut the same way; the stop panel's "Let the assistant decide" and "Finish the match" ran off a 360 px screen; the Dugout's "Elderbridge United" and "£119M" ran past the strip into the board's 55; the Daily card's "Challenge" and the player card's "Rotation · 65% of minutes lately" chip past the card | Wide calls, a bar's and a stop panel's buttons wrap their words (a word longer than the call breaks); a heading's long word breaks (hyphenated where the browser can); the club strip takes one figure a row when two no longer fit; the card's chips wrap |
+| 13 | 200 % text: the Dugout's Fixtures tab, head-to-head's result, every phone, both | The fixture list's 38 px matchweek column ran "MW15" into the opponent's place; "23W 7D 8L" ran past the result card | The matchweek column grows with its text; a record wraps |
+| 14 | A bar put back in the page (#9, #11), every phone | As a flex item it kept its z-index and painted over the sticky top bar while the page scrolled | No z-index in the flow |
+
+## R12P-3. Checked and left as is
+
+- **Dense chips at 35 px:** the Dugout's depth chart, the planner's need chips, the Key toggle, the draft log's pick grades (29 px, a tooltip). They wrap in rows 28 px apart; 44 px targets would overlap the next row's (the holders' bug, #7). Above WCAG 2.5.8's 24 px.
+- **Pitch discs at 36 px** on a narrow pitch: the slot (disc and name) is the target, 50 px or more.
+- **The match day on its side** keeps its tools, panel tabs and highlights picker at 31 to 32 px (round 8's decision, so the pitch keeps its height in 393 px), and a bench card at 30 px.
+- **The setup cards' "i"** stays 32 px: it sits on a card's corner, and a larger target would take the card's own taps.
+- **The Dugout's call bar on an upright phone at 100 %** (Match, Play, To big match, Sim 5, Sim to end) takes 163 of an iPhone SE's 667 px with the dock's 58 under it: nothing is covered (the page pads for it) but a third of the screen is controls. A compact bar (the play mode as a menu on Play) is a design change for the owner.
+- **Hyphens:** Chromium on Linux has no hyphenation dictionary, so at 200 % a long heading breaks without one there; Safari on iOS hyphenates.
+- No page scroll sideways, no page error, the online room flows to its result on every phone in both orientations and themes.
