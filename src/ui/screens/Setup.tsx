@@ -517,7 +517,8 @@ export function Setup() {
                 <div className="field setup-league">
                   {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
                   <Segmented label={t('leagueChoice')} value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: logicLine(SUPER_LEAGUE_LINE), testId: 'league-super' }] : [])]} />
-                  {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: logicLine(SUPER_LEAGUE_LINE) }) : t('europeWheel')}</span>}
+                  {/* The season picked here is the one played; a new player took it for the wheel's seasons, which Era sets */}
+                  <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: logicLine(SUPER_LEAGUE_LINE) }) : europe ? t('europeWheel') : t(isManage ? 'seasonPlayedManage' : 'seasonPlayed', { n: Math.max(0, clubsInLeague.length - 1) })}</span>
                 </div>
                 {isManage && (
                   <div className="setup-replace" data-testid="you-replace">

@@ -114,6 +114,8 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
             </span>
           </h3>
           <PositionMap spots={positionMap(p)} />
+          {/* The map's figures are his attributes weighed for each position, not the overall on his badge */}
+          <p className="small muted pc-map-note" data-testid="card-map-note">{t('positionsNote')}</p>
           {state && (
             <>
               <h3 className="pc-title">{form.length ? t('formLast', { n: form.length }) : t('form')}</h3>

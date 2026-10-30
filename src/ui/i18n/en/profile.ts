@@ -51,7 +51,7 @@ export const profile = catalog('profile', {
   regulars: 'Most often in charge of',
   locker: 'Locker',
   lockerAbout: 'About the locker',
-  lockerInfo: "Power-ups from end-of-draft cases. Unpack one in a Quick Draft played without the power-up tray; each works once, as the tray's does.",
+  lockerInfo: "Power-ups from end-of-draft cases. Unpack one in a Quick Draft played with the Power-ups mode off; each works once.",
   lockerEmpty: 'Empty: open a case at the end of a Quick Draft',
   cabinet: 'Trophy cabinet',
   honoursBoard: 'Honours board',
