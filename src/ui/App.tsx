@@ -38,6 +38,7 @@ import { shell } from './i18n/en/shell'
 import { useLanguage } from './i18n/language'
 import { B, rich } from './i18n/rich'
 import { shellLogicLine } from './i18n/logicLine'
+import { playbackUnfinished } from './playbackResume'
 // The summer's player stories ride in their own chunk, with the history catalogue (the first download stays as it was)
 const SummerStories = lazy(() => import('./components/SummerStories').then((m) => ({ default: m.SummerStories })))
 
@@ -268,7 +269,9 @@ export function App() {
 
   let body: React.ReactNode
   // The quick season's playback after kick-off runs in the summary phase: the nav still calls it the season until it closes
-  const seasonPlaying = !!game && game.phase === 'summary' && !!(playback || game.quickOpen) && !!game.quickResult?.results?.length
+  // (a reload too: a playback this device left part way comes back to its place, R16-2)
+  const seasonGames = game?.phase === 'summary' ? game.quickResult?.results?.length ?? 0 : 0
+  const seasonPlaying = !!game && seasonGames > 0 && !!(playback || game.quickOpen || playbackUnfinished(game.id, seasonGames))
   // The game's own nav entry, named for where the game is
   const gameNav = !game ? '' : t(game.phase === 'draft' ? 'navDraft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'navSeason' : game.phase === 'summary' ? 'navSummary' : game.arena ? 'navArena' : 'navDugout')
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);

@@ -61,3 +61,13 @@ export function writePlaybackMark(mark: PlaybackMark): void {
     // Storage blocked: a reload starts where it always did
   }
 }
+
+/**
+ * The season's playback was left part way on this device (QA r16, R16-2): a reload after the kick-off of a season with
+ * no bench (no `Game.quickOpen`), or after the January window, comes back to the playback where it stopped instead of
+ * the summary with every game shown. Only the season's own playback counts (phase `summary`); a finished or skipped
+ * one has shown every game, so it is not unfinished.
+ */
+export function playbackUnfinished(gameId: string, games: number): boolean {
+  return games > 0 && resumePlayback(readPlaybackMark(), playbackKey(gameId, 'summary', games), games) !== null
+}

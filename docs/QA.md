@@ -607,3 +607,30 @@ Branch `claude/r15-qa`, from `claude/youthful-mccarthy-a57idu` at 76b2907 (round
 | --- | --- | --- | --- | --- |
 | R15-O1 | Note | The Draft (every quick and season mode) after a reload | A landed spin turns its reel again, as the hot-seat's did (HANDOVER section 7, "A reload replays the reels") | `reelLanded.ts` is written for it (a scope per screen); the Draft's re-spins and twists need their own key and a pass of their own |
 
+
+# Round 14: what round 15 changed (r16, 2026-10-30)
+
+Branch `claude/r16-qa`, from `main` at 05e0c05 (round 15, #101). Same rules as before: every fix has a test that fails without it, nothing moves a draw or a seeded outcome (pins, `noMove`, `marketPin`, `dailyPin` green, ENGINE_VERSION `'7'`), nothing in the edge verifier's graph is touched, and the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`. No save field, no migration, no commit titled `FIX (moves draws):` or `BUNDLED:`.
+
+## R14-1. What was tested
+
+- **P8, head-to-head Auto-complete** (`src/game/__tests__/qaR16H2HAuto.test.ts`, through the store): from the start on 18 seeds (30, 12 and 12 with `QA_FULL=1`) over England, Spain and England with Germany, six formations, Hard mode on every fourth, the whole game state byte-equal to Spin and Let the assistant pick pressed in turn, 11 men a side and 22 picks in the log; from a part made by hand (3 to 27 presses, a hand pick of any eligible man every third pick) on 8 seeds (24), the season played after it on half of them, byte-equal; a second Auto-complete, or one after the season, changes nothing. In the browser (keyboard only, 1280 and 390, both themes): the nav to the result by Tab and Enter, Escape on the question gives the focus back to the button, the focus lands on Play the season after it, a reload of the complete draft turns no reel; at 200 % text on 360x800, 375x667 and 667x375, both themes, nothing wider than the window.
+- **P7 and R15-O1, the Draft's reel after a reload** (Playwright on `vite preview`, scripts not committed): a first draft at 390 (touch), 844x390 on its side and 1280, both themes, Quick spin on: 36 reloads straight after a landing came back landed with no slide, every reload mid-reel turned again (the tab had not seen it land), a re-spin landed and reloaded came back landed; by keyboard alone (1280 and 390), eleven picks with a reload after the fifth and ninth landing, the focus back on the club's name each time, four to seven Tabs to the first row. R15-O1 was closed by round 15's P7 (`CaseReel`'s `scope={game.id}` on the Draft); nothing left to do there.
+- **P6, the playback's place**: paused before game 1, paused mid-run and playing, reloaded, at 390, on its side and 1280 in both themes: the same matchweek each time. A whole first draft with a reload at every screen (the draft, Squad complete, the first half, January, the second half, the summary): the second half lost its place (R16-2, fixed).
+- **P4, a simmed arena step**: the Daily Arena drafted with Auto-complete, every step simmed and reloaded on the hub and on its report, at 390, on its side and 1280, both themes: the step opens on its report, but a reload there played it again from 0-0 (R16-1, fixed).
+- **R14-O1's chunk reload** (round 15's fix), in the browser: the head-to-head chunk aborted once at 1280, 390 and 844x390: one reload, back on its setup, no card; aborted for good: one reload, then the card, no loop.
+- **P5 and P10** were read through the logic mirror's tests (`logicMirror.test.ts`, `playtestR2.test.ts`); no browser pass of their own.
+
+## R14-2. Fixed
+
+| Id | Severity | What was wrong | Fix | Test |
+| --- | --- | --- | --- | --- |
+| R16-1 | Medium | A reload on a finished match opened its replay from 0-0: a simmed arena rung (the very thing playtest P4 fixed, back after a reload), a Season's Sim result, a friendly. The match view is transient and started as `'ticker'` | The store's first `matchView` is `'report'`: every action that opens a match sets its own view (a live match is the dashboard whatever the view), so the first value reaches only a page loaded on a finished match. The replay is a tab away | `src/ui/__tests__/qaR16Reload.test.ts` (Gauntlet rungs and a Season's Sim result read back after a reload; a watched match still opens live) |
+| R16-2 | Low | A season with no bench (the first draft, any Quick Draft without one) plays its games in phase `summary`, and the shell sent a reload there to the summary with every game shown: P6's mark was only read for a bench season (`Game.quickOpen`) or the first half | `App.tsx` also shows the playback when this device's mark for it (`playbackUnfinished` in `src/ui/playbackResume.ts`) stopped short of the last game; a finished or skipped one, the first half's mark or another game's goes to the summary as before | `src/ui/__tests__/qaR16Playback.test.ts` |
+
+## R14-3. Open
+
+| Id | Severity | Where | What happens | Why not fixed here |
+| --- | --- | --- | --- | --- |
+| R16-O1 | Note | The manager spin, the end-of-draft case and the January spin after a reload | Their reels (`ItemReel`) still turn again, as the Draft's did before P7 | Each has its own landing state; a pass of its own, as P7 did for `CaseReel` |
+| R16-O2 | Note | The online room's draft after a reload | Its reel turns again (P7 left the room's `CaseReel` without a `scope` on purpose) | The room's spins come from the server's log; a scope keyed by the room code and spin would do it, a design call for the rooms |
