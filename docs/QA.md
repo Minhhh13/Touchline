@@ -581,3 +581,28 @@ Probe counts over the 740 dark-theme shots (5 phones, upright and on their side,
 - **The Dugout's call bar on an upright phone at 100 %** (Match, Play, To big match, Sim 5, Sim to end) takes 163 of an iPhone SE's 667 px with the dock's 58 under it: nothing is covered (the page pads for it) but a third of the screen is controls. A compact bar (the play mode as a menu on Play) is a design change for the owner.
 - **Hyphens:** Chromium on Linux has no hyphenation dictionary, so at 200 % a long heading breaks without one there; Safari on iOS hyphenates.
 - No page scroll sideways, no page error, the online room flows to its result on every phone in both orientations and themes.
+
+# Round 13: what round 14 changed (r15, 2026-10-30)
+
+Branch `claude/r15-qa`, from `claude/youthful-mccarthy-a57idu` at 76b2907 (round 14, PR #100, still open). Same rules as before: every fix has a test that fails without it, nothing moves a draw or a seeded outcome (pins, `noMove`, `marketPin`, `dailyPin` green, ENGINE_VERSION `'7'`), nothing in the edge verifier's graph is touched, and the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`. No save field, no migration, no commit titled `FIX (moves draws):` or `BUNDLED:`.
+
+## R13-1. What was tested
+
+- **The hot-seat with reloads mid-flow** (Playwright on `vite preview`, scripts not committed): the iPhone SE 375x667, iPhone 15 393x852, iPhone 15 Pro Max 430x932, Pixel 8 412x915, a 360x800 Android (touch) and 1280x800, Floodlit and Daylight, Quick spin on: 12 drafts to their result, 11 spins each, a reload while the reel turned every fourth spin (it turned again: correct, the tab had not seen it land), a reload after the landing every third spin and between the two managers' picks (72 in all: every one came back landed at once with the assistant's button), and on the desktop one Tab from the landing's focus to the assistant (12 of 12). No page error, no page overflow at 1280.
+- **A screen chunk that does not load** (R14-O1): the first request for the head-to-head chunk aborted, at 393 (touch) and 1280, both themes. Chromium keeps a failed module import in its module map, so a second render or a Back to home and back never fetches it again (checked: one request, the card each time); only a new page loads it. Now the page reloads once by itself and comes back to the head-to-head setup (four runs: one reload, no card). With the chunk blocked for good: one reload, then the card stays (four runs, no loop).
+- **Round 14's phone pass held**: see R13-4.
+
+## R13-2. Fixed
+
+| Id | Severity | What was wrong | Fix | Test |
+| --- | --- | --- | --- | --- |
+| R14-O1 | Low | A screen chunk that failed to load (a reload while the previous page's imports were in flight) showed "This screen did not load" until the player pressed Reload, and a tap on Head-to-head, Explore or a setup that failed so came back on Home after it | `ScreenBoundary` reloads the page once by itself over a chunk error when online, at most once a minute per tab (`chunkReloadDue`, sessionStorage `touchline-chunk-reload`), and the page that comes back goes to the screen it was showing (`chunkReturnOf`, `touchline-chunk-screen`; a game's screen comes back from the save). Offline, or a second failure within the minute, the card stays | `src/ui/__tests__/qaR15Chunk.test.ts` |
+| R14-O2 | Note (keyboard) | After a spin the focus lands on the club's name and "Let the assistant pick" was about 40 Tabs on, past the squad | The button sits right after the club's name in the offer panel (`OfferPanel`'s `headAction`; the online room passes none): one Tab | `qaR15Hotseat.test.ts` (no control between the club's name and the button, the button before the first row) |
+| R14-O3 | Note | A spin landed but not picked turned its reel again on a reload (2.7 s with Quick spin) | The hot-seat remembers the spin this tab saw land (`src/ui/reelLanded.ts`, sessionStorage `touchline-reel-landed`: the seed, the spin count and the club-season) and `CaseReel`'s `landed` shows it landed at once, no slide, no sound; a spin the tab did not see land still turns | `qaR15Hotseat.test.ts` (eight seeded drafts through the store, every spin's key new, the saved draft read back after a reload) |
+
+## R13-3. Open
+
+| Id | Severity | Where | What happens | Why not fixed here |
+| --- | --- | --- | --- | --- |
+| R15-O1 | Note | The Draft (every quick and season mode) after a reload | A landed spin turns its reel again, as the hot-seat's did (HANDOVER section 7, "A reload replays the reels") | `reelLanded.ts` is written for it (a scope per screen); the Draft's re-spins and twists need their own key and a pass of their own |
+

@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Rng } from '@engine/rng'
-import { chunkReloadDue, CHUNK_RELOAD_KEY, CHUNK_RELOAD_WINDOW_MS, ScreenBoundary } from '../lazyScreens'
+import { chunkReloadDue, chunkReturnOf, CHUNK_RELOAD_KEY, CHUNK_RELOAD_WINDOW_MS, CHUNK_RETURN_KEY, ScreenBoundary, takeChunkReturn } from '../lazyScreens'
 
 const chunkError = () => new TypeError('Failed to fetch dynamically imported module: https://touchline.quest/assets/H2H-abc.js')
 
@@ -38,6 +38,21 @@ describe('QA r15: reloading over a chunk that did not load', { timeout: 60_000 }
     expect(chunkReloadDue(1000, 5000, true)).toBe(true)
   })
 
+  it('goes back to the screen it reloaded over, only from Home and only to a screen it can rebuild', () => {
+    expect(chunkReturnOf('setup:quick', 'home')).toEqual({ screen: 'setup', mode: 'quick' })
+    expect(chunkReturnOf('explore', 'home')).toEqual({ screen: 'explore' })
+    expect(chunkReturnOf('h2h', 'home')).toEqual({ screen: 'h2h' })
+    // A game's screen comes back from the save by itself: never sent anywhere else
+    expect(chunkReturnOf('explore', 'game')).toBe(null)
+    expect(chunkReturnOf('explore', 'h2h')).toBe(null)
+    for (const bad of [null, '', 'game', 'home', 'room', 'setup:nope', 'explore:', ':quick', '__proto__', 'toString']) {
+      const r = chunkReturnOf(bad, 'home')
+      if (bad === 'setup:nope') expect(r).toEqual({ screen: 'setup' })
+      else if (bad === 'explore:') expect(r).toEqual({ screen: 'explore' })
+      else expect(r).toBe(null)
+    }
+  })
+
   describe('the boundary', () => {
     afterEach(() => vi.unstubAllGlobals())
     const page = (online: boolean) => {
@@ -48,8 +63,8 @@ describe('QA r15: reloading over a chunk that did not load', { timeout: 60_000 }
       vi.stubGlobal('navigator', { onLine: online })
       return { mem, reload }
     }
-    const caught = (error: Error) => {
-      const b = new ScreenBoundary({ resetKey: 'h2h||setup', onHome: () => {}, children: null })
+    const caught = (error: Error, returnTo = 'setup:season') => {
+      const b = new ScreenBoundary({ resetKey: 'h2h||setup', onHome: () => {}, returnTo, children: null })
       vi.spyOn(console, 'error').mockImplementation(() => {})
       b.componentDidCatch(error, { componentStack: '' })
     }
@@ -59,6 +74,11 @@ describe('QA r15: reloading over a chunk that did not load', { timeout: 60_000 }
       caught(chunkError())
       expect(reload).toHaveBeenCalledTimes(1)
       expect(Number(mem.get(CHUNK_RELOAD_KEY))).toBeGreaterThan(0)
+      // The page that comes back reads where to go once
+      expect(mem.get(CHUNK_RETURN_KEY)).toBe('setup:season')
+      vi.stubGlobal('sessionStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) })
+      expect(takeChunkReturn()).toBe('setup:season')
+      expect(takeChunkReturn()).toBe(null)
       // The page that came back fails again straight away: no second reload
       caught(chunkError())
       expect(reload).toHaveBeenCalledTimes(1)

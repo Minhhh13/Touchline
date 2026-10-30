@@ -3,7 +3,7 @@ import { useStore } from '@game/store'
 import { loadRules, rules } from '@game/rulesHook'
 import { useStorePick } from './useStorePick'
 import { Home } from './screens/Home'
-import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
+import { chunkReturnOf, lazyScreen, prefetchScreens, ScreenBoundary, takeChunkReturn } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { SaveBanner } from './components/SaveBanner'
 import { SaveIssue } from './components/SaveIssue'
@@ -97,6 +97,12 @@ export function App() {
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
   const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
   // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back
+  // A reload over a screen's chunk that did not load (lazyScreens.tsx, R14-O1) comes back to that screen, not Home
+  useEffect(() => {
+    const back = chunkReturnOf(takeChunkReturn(), useStore.getState().screen)
+    if (back) go(back.screen, back.mode)
+    // Once, on the page's first mount
+  }, [])
   const flipTheme = () => withViewTransition(() => setTheme(toggledTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')))
   const [barHidden, toggleBar] = useViewerFlag(TOPBAR_HIDDEN_KEY)
   // Focus follows the control that replaces the one just pressed (the toggle and the restore pill sit in the same spot)
@@ -367,7 +373,7 @@ export function App() {
           <span>{t('showBar')}</span>
         </button>
       )}
-      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} key={locale} onHome={() => go('home')} atHome={screen === 'home'}>
+      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} key={locale} onHome={() => go('home')} atHome={screen === 'home'} returnTo={screen === 'setup' ? `setup:${setupMode}` : screen}>
         {body}
       </ScreenBoundary>
       <Toast />
