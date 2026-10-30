@@ -796,7 +796,8 @@ export const useStore = create<Store>()(
         saveIssue: null,
         offseason: null,
         digest: null,
-        matchView: 'ticker',
+        // Every action that opens a match sets its view; a page that loads on a finished match (a reload) opens on its report, the replay a tab away (QA r16, R16-1)
+        matchView: 'report',
         simStop: null,
         liveAuto: false,
         pendingChallenge: null,
