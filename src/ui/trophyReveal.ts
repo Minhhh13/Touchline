@@ -3,7 +3,7 @@
  * device, never the save. The summaries reveal what is new (`components/BadgeUnlocks.tsx`); the Trophy Room marks it
  * new once, then seen. Presentation only.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { badgeStates } from '@engine/badges'
 import type { LoadedUniverse } from '@engine/universe'
 import { leaguesWon, normaliseCabinet } from '@game/logic/cabinet'
@@ -59,4 +59,38 @@ export function useTrophyReveal(items: readonly TrophyItem[]): { fresh: TrophyIt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig])
   return { fresh: seenSig === sig ? [] : fresh, markSeen }
+}
+
+/** The leave-filing behind `useSeenOnLeave`, apart from React so it can be tested: mount, unmount, the Trophy Room. */
+export function makeLeaveFiler(file: () => void): { mount: () => void; unmount: () => void; toRoom: () => void } {
+  let alive = false
+  let room = false
+  return {
+    mount: () => void (alive = true),
+    unmount: () => {
+      alive = false
+      // A remount in the same commit (React's StrictMode) comes back before the microtask: nothing is filed then
+      queueMicrotask(() => {
+        if (!alive && !room) file()
+      })
+    },
+    toRoom: () => void (room = true),
+  }
+}
+
+/**
+ * An unlock card shown on one result is filed as seen when the viewer leaves that result, Got it or not: closed
+ * without it, the same badge used to come back as new on the next result, even a runner-up season (playtest round 2,
+ * P10). `toRoom` is called before opening the Trophy Room, which marks the new tiles New and files them itself.
+ */
+export function useSeenOnLeave(shown: boolean, earned: readonly string[]): { toRoom: () => void } {
+  const keys = useRef(earned)
+  keys.current = earned
+  const [filer] = useState(() => makeLeaveFiler(() => writeRevealed([...(readRevealed() ?? []), ...keys.current])))
+  useEffect(() => {
+    if (!shown) return
+    filer.mount()
+    return filer.unmount
+  }, [shown, filer])
+  return { toRoom: filer.toRoom }
 }

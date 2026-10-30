@@ -327,7 +327,7 @@ export function ArenaSetup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={4} title={t('stepSpin')} />
               <div className="small muted" data-testid="arena-summary">
-                {preview ? logicList(summariseArena(u, preview), ', ') : <LeagueWait needs={needs} />}
+                {preview ? <>{logicList(summariseArena(u, preview), ', ')} {t('coloursOnly')}</> : <LeagueWait needs={needs} />}
                 {' · '}
                 <button
                   type="button"

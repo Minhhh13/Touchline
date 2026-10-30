@@ -99,10 +99,10 @@ export interface SeasonPlayback extends SeasonReplay {
  * `PLAYBACK_STEP_MS / speed` ms (3000, 1500, 750 or 375) up to `stopAt` (the January pause, or the last game). Pause, speed
  * and skip are UI state only: the season itself was simulated before the first game is shown.
  */
-export function useSeasonPlayback(total: number, from: number, stopAt = total, /** The wait before the game after `revealed`, from the step at this speed (the title race's last weeks slow down, seasonDrama.ts). */ paceOf?: (revealed: number, baseMs: number) => number): SeasonPlayback {
+export function useSeasonPlayback(total: number, from: number, stopAt = total, /** The wait before the game after `revealed`, from the step at this speed (the title race's last weeks slow down, seasonDrama.ts). */ paceOf?: (revealed: number, baseMs: number) => number, /** Start paused on game `from` (a reload resuming a paused playback). */ paused = false): SeasonPlayback {
   const cap = Math.min(total, stopAt)
   const [revealed, setRevealed] = useState(() => Math.min(from, cap))
-  const [playing, setPlaying] = useState(() => from < cap)
+  const [playing, setPlaying] = useState(() => !paused && from < cap)
   const [speed, setSpeedState] = useState<PlaybackSpeed>(readSpeed)
   const setSpeed = (v: PlaybackSpeed) => {
     setSpeedState(v)

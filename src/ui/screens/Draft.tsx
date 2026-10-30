@@ -412,7 +412,7 @@ export function Draft() {
                 <b>{t('picksMade', { n: picksMade(d) })}</b>
               </div>
             ) : (
-              <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} onSettled={() => setSettled(d.current)} />
+              <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} scope={game.id} onSettled={() => setSettled(d.current)} />
             )}
             {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
             {ghost && challenge && revealed && (
@@ -502,7 +502,8 @@ export function Draft() {
                   <Pos key={p} p={p} />
                 ))}
               </div>
-              {!fillingStarters && !dry && !signings && <Tip id="draft-bench">{t('benchTip')}</Tip>}
+              {/* Not on a Dynasty summer's or a Gauntlet's bonus spins: the squad is already built, and the tip sat under the summer card (playtest round 2, P10) */}
+              {!fillingStarters && !dry && !signings && !isDynastySummer && !gauntletBonus && <Tip id="draft-bench">{t('benchTip')}</Tip>}
             </div>
           )}
           {(d.history.length > 0 || puLog.length > 0) && boxes.on('log') && (

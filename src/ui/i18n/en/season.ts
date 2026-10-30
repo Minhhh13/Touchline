@@ -47,7 +47,7 @@ export const season = catalog('season', {
   linksLine: '{links, plural, =0 {no two from the same club-season} one {# pair from the same club-season} other {# pairs from the same club-season}} · {clubs, plural, one {# club} other {# clubs}}, {nations, plural, one {# nation} other {# nations}}',
   momentTop: 'Top of the league!',
   momentTop4: 'Into the top four',
-  momentPerfect: '{n}-0 and counting',
+  momentPerfect: '{n, plural, one {# win} other {# wins}} from {n} and counting',
   beatKicker: 'Matchweek {n}',
   beatTitle: 'Title sealed!',
   beatRelegated: 'Relegation confirmed',

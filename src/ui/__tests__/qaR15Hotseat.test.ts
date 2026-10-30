@@ -2,7 +2,7 @@
  * QA round 13 (r15, docs/QA.md): the hot-seat draft's two open items from round 11, through the store and a server
  * render of the screen. R14-O2: once a spin has landed, "Let the assistant pick" is the first control after the club's
  * name (where the landing puts the focus), before the squad's rows. R14-O3: a spin this tab saw land comes back landed
- * after a reload (the saved draft read back, sessionStorage kept), and a spin it did not see never does.
+ * after a reload (the saved draft read back, the device's last landed reel kept), and a spin it did not see never does.
  */
 import { describe, expect, it, vi } from 'vitest'
 vi.hoisted(() => {
@@ -20,7 +20,7 @@ import { h2hComplete } from '@engine/h2h'
 import { Rng } from '@engine/rng'
 import { useStore, type H2HGame } from '@game/store'
 import { H2HScreen } from '../screens/H2H'
-import { landedBefore, landedKey, rememberLanded, REEL_LANDED_KEY } from '../reelLanded'
+import { landedKey, landedSeen, rememberLanded, REEL_LANDED_KEY } from '../reelLanded'
 import { markupProblems, show } from './qaSsr'
 
 const u = loadTestUniverse(['england'])
@@ -48,7 +48,7 @@ describe('QA r15: the hot-seat draft after a landing and a reload', { timeout: 6
     for (let s = 0; s < 8; s++) {
       const seed = `qa-r15-h2h-${s}`
       start(seed)
-      sessionStorage.clear()
+      localStorage.clear()
       for (let i = 0; i < 200 && !h2hComplete(useStore.getState().h2h!.draft); i++) {
         const h = useStore.getState().h2h!
         if (h.draft.picking === null) {
@@ -71,7 +71,7 @@ describe('QA r15: the hot-seat draft after a landing and a reload', { timeout: 6
         // Reloaded mid-spin (before or between the two managers' picks): the same key, so the reel stays landed
         if (i % 2 === 0) reload()
         const after = useStore.getState().h2h!
-        expect(landedBefore(key(after))).toBe(true)
+        expect(landedSeen(key(after))).toBe(true)
         {
           const html = render()
           const head = html.search(/<h2 tabindex="-1"/)
@@ -96,19 +96,19 @@ describe('QA r15: the hot-seat draft after a landing and a reload', { timeout: 6
   it('forgets a landing for another game, another spin and blocked storage', () => {
     const k = landedKey('h2h', 'seed-a', 3, { clubId: 'everton', season: 2019 })
     rememberLanded(k)
-    expect(landedBefore(k)).toBe(true)
-    expect(landedBefore(landedKey('h2h', 'seed-b', 3, { clubId: 'everton', season: 2019 }))).toBe(false)
-    expect(landedBefore(landedKey('h2h', 'seed-a', 4, { clubId: 'everton', season: 2019 }))).toBe(false)
-    expect(landedBefore(landedKey('h2h', 'seed-a', 3, { clubId: 'everton', season: 2020 }))).toBe(false)
-    expect(landedBefore(landedKey('h2h', 'seed-a', 3, null))).toBe(false)
-    expect(sessionStorage.getItem(REEL_LANDED_KEY)).toBe(k)
-    const real = globalThis.sessionStorage
-    Object.defineProperty(globalThis, 'sessionStorage', { get: () => { throw new Error('blocked') }, configurable: true })
+    expect(landedSeen(k)).toBe(true)
+    expect(landedSeen(landedKey('h2h', 'seed-b', 3, { clubId: 'everton', season: 2019 }))).toBe(false)
+    expect(landedSeen(landedKey('h2h', 'seed-a', 4, { clubId: 'everton', season: 2019 }))).toBe(false)
+    expect(landedSeen(landedKey('h2h', 'seed-a', 3, { clubId: 'everton', season: 2020 }))).toBe(false)
+    expect(landedSeen(landedKey('h2h', 'seed-a', 3, null))).toBe(false)
+    expect(localStorage.getItem(REEL_LANDED_KEY)).toBe(k)
+    const real = globalThis.localStorage
+    Object.defineProperty(globalThis, 'localStorage', { get: () => { throw new Error('blocked') }, configurable: true })
     try {
-      expect(landedBefore(k)).toBe(false)
+      expect(landedSeen(k)).toBe(false)
       expect(() => rememberLanded(k)).not.toThrow()
     } finally {
-      Object.defineProperty(globalThis, 'sessionStorage', { value: real, configurable: true })
+      Object.defineProperty(globalThis, 'localStorage', { value: real, configurable: true })
     }
   })
 })

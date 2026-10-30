@@ -74,7 +74,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
                 </span>
               )}
               <span className="lt-club">
-                {!me && <ClubBadge clubId={r.teamId} size={16} />}
+                {!me && <ClubBadge clubId={r.teamId} size={16} blank />}
                 <span className="lt-name">{me ? teamName : nameOf(r.teamId)}</span>
               </span>
               <span className="num">{r.played}</span>

@@ -16,7 +16,7 @@ import { h2hTurnKey, nextFirstPicker } from '@game/logic/h2hView'
 import { useFlash } from '../useFlash'
 import { classicFromIndex, estimatedNote } from '@game/logic/era'
 import { CaseReel } from '../components/CaseReel'
-import { landedBefore, landedKey, rememberLanded } from '../reelLanded'
+import { landedKey, landedSeen, rememberLanded } from '../reelLanded'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge, EstimatedChip, Info, Segmented, Stat, TeamBadge } from '../components/bits'
 import { BoardMessage, DraftBoard, H2HHead, H2HSteps, ManagerCard, ManagerFields, OfferPanel, OfferRows, SquadPitches, TurnBanner, TurnPill } from '../components/H2HBoard'
@@ -215,7 +215,7 @@ export function H2HSetup() {
 }
 
 export function H2HScreen() {
-  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStorePick('universe', 'h2h', 'h2hSpin', 'h2hPick', 'h2hAuto', 'h2hFinish', 'abandonH2H', 'go', 'showToast', 'ensureLeagues', 'loadingLeagues')
+  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hAutoDraft, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStorePick('universe', 'h2h', 'h2hSpin', 'h2hPick', 'h2hAuto', 'h2hAutoDraft', 'h2hFinish', 'abandonH2H', 'go', 'showToast', 'ensureLeagues', 'loadingLeagues')
   // A head-to-head renders only against the packs it was drafted from: its leagues and, for a classic one, the classic
   // seasons (a reload whose classic pack failed, or a head-to-head restored from the cloud); they load here, Retry when offline
   const needs = h2h ? [...new Set([h2h.leagueId, ...(h2h.wheelLeagues ?? [])])] : []
@@ -230,7 +230,7 @@ export function H2HScreen() {
   // A spin this tab has already seen land comes back landed after a reload (R14-O3, reelLanded.ts)
   const reelKey = landedKey('h2h', h2h?.seed ?? '', d?.spins ?? 0, d?.current)
   // As in the Draft: the spin whose reel has landed, and a selection that belongs to its spin
-  const [settled, setSettled] = useState<H2HDraft['current']>(() => (landedBefore(reelKey) ? (d?.current ?? null) : null))
+  const [settled, setSettled] = useState<H2HDraft['current']>(() => (landedSeen(reelKey) ? (d?.current ?? null) : null))
   const [picked, setPicked] = useState<{ id: string; turn: string } | null>(null)
   const spinning = !!d?.current && settled !== d.current
   const revealed = !!d?.current && settled === d.current
@@ -336,7 +336,7 @@ export function H2HScreen() {
         log={d.log}
         controls={
           <>
-            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} landed={landedBefore(reelKey)} onSettled={() => { rememberLanded(reelKey); setSettled(d.current) }} />
+            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} scope={`h2h:${h2h.seed}`} onSettled={() => { rememberLanded(reelKey); setSettled(d.current) }} />
             <TurnBanner mine={due || complete} line={turnLine} testId="h2h-turn" />
             <TurnPill mine={due || complete} line={turnLine} testId="h2h-turn-pill" />
             {!d.current && !complete && <SpinOdds odds={odds} label={t('nextSpin')} />}
@@ -348,6 +348,11 @@ export function H2HScreen() {
             {complete && (
               <button ref={finishRef} className="btn primary spin-btn display" onClick={() => h2hFinish()} data-testid="h2h-finish">
                 {t('playSeason')}
+              </button>
+            )}
+{!complete && !spinning && (
+              <button className="btn sm ghost" title={t('autoAllTip')} onClick={() => void askConfirm(t('autoAllConfirm'), { ok: t('autoAll') }).then((ok) => { if (ok) h2hAutoDraft() })} data-testid="h2h-auto-all">
+                {t('autoAll')}
               </button>
             )}
             <button className="btn ghost sm danger" onClick={() => void askConfirm(t('abandonConfirm'), { ok: t('abandon'), danger: true }).then((ok) => { if (ok) abandonH2H() })} data-testid="h2h-abandon">
