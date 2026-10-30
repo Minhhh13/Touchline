@@ -253,8 +253,9 @@ export function autoPickLineup(
  * the repair tries the left-out natural there and the cover in a slot of his own position, whose man drops out, and
  * takes the move that adds most to the XI's total score (the same score as the greedy: the role rating at the slot's
  * position times condition and sharpness), only when it adds something; a man playing out of position stays when that
- * still makes the XI stronger. Repeats until no move helps (at most once per slot and round). Pure, no RNG; ties keep
- * pool and formation order. AI clubs keep `autoPickLineup` (their lineups, and engine 6's calibration, do not move).
+ * still makes the XI stronger. Engine 9 (P3) adds a third move: a natural for the slot already in the XI elsewhere swaps
+ * places with the cover, when the swap raises the total. Repeats until no move helps. Pure, no RNG; ties keep pool and
+ * formation order. AI clubs keep `autoPickLineup` (their lineups, and engine 6's calibration, do not move).
  */
 export function assistantLineup(
   formation: Formation,
@@ -270,13 +271,22 @@ export function assistantLineup(
     const mods = liveModifiers(getState(p.id))
     return roleRating(p, getRole(tactics.roles[slot.id] ?? DEFAULT_ROLE[slot.position]), slot.position) * mods.condition * mods.sharpness
   }
-  for (let round = 0; round < formation.slots.length; round++) {
+  // Every move strictly raises the XI's total, so the rounds end well before the bound
+  for (let round = 0; round < 2 * formation.slots.length; round++) {
     const used = new Set(Object.values(lineup))
     const out = available.filter((p) => !used.has(p.id))
     let best: { slot: string; q: string; target?: string; gain: number } | null = null
     for (const slot of formation.slots) {
       const p = byId.get(lineup[slot.id])
       if (!p || positionFactor(p, slot.position) >= 1) continue
+      // A natural for this slot already in the XI elsewhere: the two swap places (engine 9, playtest round 2's P3:
+      // Bruno Fernandes at DM while Lukić, a natural DM, played CM; Hazard at RW with David Silva at LW)
+      for (const t of formation.slots) {
+        const r = byId.get(lineup[t.id])
+        if (t.id === slot.id || !r || !r.positions.includes(slot.position)) continue
+        const gain = score(r, slot) + score(p, t) - score(p, slot) - score(r, t)
+        if (gain > 1e-9 && (!best || gain > best.gain + 1e-9)) best = { slot: slot.id, q: r.id, target: t.id, gain }
+      }
       for (const q of out) {
         if (!q.positions.includes(slot.position)) continue
         const base = score(q, slot) - score(p, slot)
@@ -291,6 +301,7 @@ export function assistantLineup(
       }
     }
     if (!best) break
+    // The cover moves to the target slot (its man leaves the XI, or, for a swap, is the one coming in)
     if (best.target) lineup[best.target] = lineup[best.slot]
     lineup[best.slot] = best.q
   }

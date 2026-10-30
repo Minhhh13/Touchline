@@ -59,7 +59,9 @@ const ENGINE_BASELINE = '738c872e6bcc42f88fd9024547dcd47d0d4a3f8427b1c57b2b032e4
 // `afterLeagueMatch`), so the stream before the window differs; the 200 engine windows, the market itself, still hold.
 // Re-baselined on '8': a simmed week with an event waiting now starts its stream after the assistant answers it
 // (`playMatchweekSteps`), so the 19 matchweeks before the window play differently; the 200 engine windows still hold
-const GAME_BASELINE = '15742c4687412d4d7dfde4b9846dfc9cfc62db635174a7caf8351e23adc3780f'
+// Re-baselined on '9': the assistant's lineups swap two men of the XI into their natural slots (P3), so the 19
+// matchweeks before the window play differently; the 200 engine windows still hold
+const GAME_BASELINE = '1c6ab520c8e674ebca42b9dd4b34d440a1a845f9d64484d52058851d1a263021'
 
 describe('a market with no recruitment focus is unchanged', () => {
   it('opens and ticks 200 seeded windows exactly as before', () => {

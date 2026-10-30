@@ -77,7 +77,9 @@ function quickPin(s: GameSettings): string {
 // week's stream (it rebuilt a stale one before), which moves these Seasons from their first drawn tie; the Quick Draft
 // and the Daily hold. Re-baselined on '8': a simmed week with an event waiting starts its stream after the assistant
 // answers it (`playMatchweekSteps`), which moves these Seasons from their first event; the Quick Draft and the Daily hold
-const SEASON_BASELINE = '38367abc51e9a68747aff59684b6aa766e84d835a635d7f42c210f00697314ca'
+// Re-baselined on '9': the assistant's lineups swap two men of the XI into their natural slots (P3), which moves these
+// Seasons; the Quick Draft and the Daily hold (their quick seasons field the draft's XI and have no bench)
+const SEASON_BASELINE = '257b89d73296a6570b8eea516bc38d1bca5081541da6ac2c776531af609d042c'
 const QUICK_BASELINE = '4e07e3cec479ea921e46c0f8026e70fde73381812bf31118bb6bb6ed61dc5e6f'
 const DAILY_BASELINE = '7a1c2fc4be66cb66acb142dd66c60def02c9df91e6c0f0b77746e301694b4c53'
 

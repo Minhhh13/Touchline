@@ -95,7 +95,9 @@ describe('promise clocks', () => {
     for (const seed of ['office-clock-1', 'office-clock-2', 'office-clock-3']) {
       const g = seasonGame(u, seed, 4)
       const xi = new Set(Object.values(g.lineup))
-      const bench = Object.keys(g.squad).find((id) => !xi.has(id) && !g.contracts[id]?.loan)!
+      // The weakest man out of the XI, whom the week's auto-pick never puts back in (engine 9's lineups moved these seeds)
+      const get = playerLookup(g, u)
+      const bench = Object.keys(g.squad).filter((id) => !xi.has(id) && !g.contracts[id]?.loan).sort((x, y) => get(x)!.overall - get(y)!.overall)[0]
       expect(makePromise(g, u, bench, 'minutes').ok).toBe(true)
       const promise = g.office!.promises![0]
       const first = promiseClock(g, u, promise)

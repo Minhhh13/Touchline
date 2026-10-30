@@ -226,8 +226,10 @@ describe('the three ways to play a match', () => {
   // real clubs move every match). Seed 3 re-pinned inside engine 6 for round 6 item 6 (`assistantLineup`): its opening XI
   // plays L. Cattermole (DM/CM) at DM and K. De Bruyne in central midfield where the greedy had De Bruyne at DM and
   // M. Ødegaard (AM/CM) in the second CM slot, so its matches from the third on play differently; the other five hold.
+  // Seed 0 re-pinned on '9' (P3, `assistantLineup` swaps two men of the XI into their natural slots): its XI changes from
+  // the fourth matchweek; the other five hold.
   const NO_CHANGES: Record<string, string> = {
-    'nochange-0': '2-1:18 1-0:23 1-2:17 6-2:22 1-0:21 2-2:22 3-1:23 1-2:21 | {"a":1362070130,"b":-1576045394,"c":-968363829,"d":1139297449}',
+    'nochange-0': '2-1:18 1-0:23 1-2:17 6-2:25 2-1:22 0-1:22 1-0:13 2-1:21 | {"a":-1450391299,"b":-799331883,"c":-1258049715,"d":-1110436269}',
     'nochange-1': '2-0:16 0-4:28 2-0:22 1-3:22 6-2:27 1-0:21 2-2:23 8-0:24 | {"a":-389107817,"b":-1618643938,"c":-1402842227,"d":-263829867}',
     'nochange-2': '1-1:15 1-3:33 3-2:25 0-1:24 1-2:29 5-2:27 3-1:29 2-1:21 | {"a":-56275523,"b":1002495087,"c":69327956,"d":708468319}',
     'nochange-3': '2-2:28 1-0:16 1-2:31 6-1:35 0-1:27 1-0:17 2-3:23 1-0:18 | {"a":2083309972,"b":-1540408604,"c":415754315,"d":60811828}',
