@@ -44,7 +44,9 @@ Then run `npm ci`, `npm run typecheck`, `npx vitest run` (about nine minutes on 
 
 ## 3. What to do now
 
-1. **Engine 8, Monday 2026-11-02 just before 00:00 UTC.** It is ready on `claude/r10-engine8`. Follow "Release engine 8" in that branch's `docs/ONLINE.md` section 7 (`git show origin/claude/r10-engine8:docs/ONLINE.md`): merge `main` into it, run every check, merge into `main` at about 23:30 UTC on Sunday, deploy the new `touchline-e8` loader from the deployed commit, smoke it, and check the next day's Daily and Weekly pin on engine 8. If you miss that Monday, wait for the next one.
+State on 2026-10-30: `main` is live through round 14 (the last PR merges round 14's phones and QA round 11). Open on GitHub: PR #72 (the friend's iOS work) and nothing else. Running when Claude stopped: `claude/r15-playtest` (a new-player playtest, round 2); integrate it like any batch if it has pushed, and read its summary in `docs/PLAYTEST.md` "Round 2".
+
+1. **Engine 8, Monday 2026-11-02 just before 00:00 UTC.** It is ready on `claude/r10-engine8` (level with `main` at #98 on 2026-10-29; merge `main` into it again first). Follow `docs/RELEASE-ENGINE8.md` on that branch (`git show origin/claude/r10-engine8:docs/RELEASE-ENGINE8.md`), a copy-paste checklist with the exact commands, what success looks like and how to roll back; the reasons are in that branch's `docs/ONLINE.md` section 7, "Release engine 8". In short: preflight on Sunday, merge into `main` at about 23:30 UTC, wait for Render, build the `touchline-e8` loader from the deployed commit, deploy it (Verify JWT off), smoke it, then check after midnight that the new day's Daily and the week's Weekly pin on engine 8. If you miss that Monday, wait for the next one.
 2. **Retire the old functions** on time (`touchline-e4` from 2026-11-03, `-e5` from 2026-11-04, `-e6` from 2026-11-05, `-e7` from 2026-11-09 once engine 8 is live), each with its `public/edge/` file, `legacyEdge.test.ts` entry and `supabase/config.toml` block.
 3. **Then** the next items in `docs/BACKLOG.md` and HANDOVER section 8, one batch and one PR at a time.
 
