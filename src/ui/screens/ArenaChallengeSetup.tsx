@@ -67,7 +67,7 @@ export function ArenaChallengeSetup() {
       <div className="panel col" style={{ marginTop: 12 }}>
         <TeamNameField label={t('teamName')} value={team.value} onChange={team.setValue} fallback={team.fallback} testId="arena-challenge-name" />
         <div className="small muted" data-testid="arena-summary">
-          {summariseArena(u, settings)}
+          {summariseArena(u, settings)} {t('coloursOnly')}
         </div>
         <LeagueRetry needs={[settings.leagueId, ...settings.wheelLeagues]} />
         <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues} data-testid="arena-challenge-start">

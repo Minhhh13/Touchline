@@ -20,8 +20,16 @@ import { matchLogicLine } from '../i18n/logicText'
 import { show } from './qaSsr'
 import { parsePlaybackMark, playbackKey, PLAYBACK_RESUME_KEY, readPlaybackMark, resumePlayback, writePlaybackMark } from '../playbackResume'
 import { landedBefore, readLandedReel, REEL_LANDED_KEY, reelMark, rememberLandedReel } from '../reelLanded'
+import { keepRunInSeed, readRunInSeed, RUN_IN_SEED_KEY, startingRunInSeed } from '../runInSeed'
+import { makeLeaveFiler } from '../trophyReveal'
+import { ClubBadge } from '../components/bits'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+import { arena } from '../i18n/en/arena'
 
 const u = loadTestUniverse(['england'])
+const ts = translator(setup)
+const ta = translator(arena)
 const st = () => useStore.getState()
 const choices = (seed: string) => ({ teamName: 'Fifteen FC', formationId: '4-3-3', wheelLeagues: ['england'], difficulty: 'calibrated' as const, seed, hardMode: false, twists: true })
 
@@ -32,6 +40,12 @@ describe('P4: Sim this rung reads like a result', () => {
     st().startGame(gauntletGameSettings(u, choices('r15-sim-rung'), 'FIF'))
     st().autoDraftRest()
     st().finishDraft()
+    // P10: the arena hub's captain list names the number it shows, as Quick Draft's kick-off and the Dugout do
+    show({ matchView: 'ticker' })
+    const { Arena } = await import('../screens/Arena')
+    const hub = renderToString(createElement(Arena)).replace(/<!-- -->/g, '')
+    expect(hub).toMatch(/\(mentality \d+\)/)
+    expect(hub).not.toContain('composure')
     st().playArenaStep(false)
     const g = st().game!
     expect(g.phase).toBe('match')
@@ -99,5 +113,64 @@ describe('P7: a landed reel stays landed after a reload', () => {
     expect(landedBefore(reelMark('game-1', 4, { clubId: 'arsenal', season: 2016 }), readLandedReel())).toBe(false)
     expect(landedBefore(reelMark('h2h:seed', 4, { clubId: 'arsenal', season: 2015 }), readLandedReel())).toBe(false)
     expect(landedBefore('', '')).toBe(false)
+  })
+})
+
+describe('P10: the small words', () => {
+  it('says what calibrated means on the Weekly and a challenge, with no bare "difficulty"', () => {
+    expect(ts('weeklyNotice', { week: 'W44', theme: 'x', formation: '4-3-3', article: 'the ', league: 'Premier League', season: '2024-25', difficulty: ts('diff_calibrated') })).not.toMatch(/difficulty/)
+    expect(ts('challengeRules', { difficulty: ts('diff_calibrated'), extras: '', seed: 'S' })).toBe('Same seed, same wheel, its clubs calibrated so an average draft finishes mid-table. Seed S.')
+    expect(ts('diff_realistic')).toBe('its clubs at their real strength')
+  })
+
+  it('names the arena colours as colours only', () => {
+    expect(ta('coloursOnly')).toMatch(/colours only/)
+    expect(ta('captainOption', { name: 'A', n: 80 })).toBe('A (mentality 80)')
+  })
+
+  it('a live table badge carries colours, not a two-letter cut of the code', () => {
+    useStore.setState({ universe: u })
+    const plain = renderToString(createElement(ClubBadge, { clubId: 'arsenal', size: 16 }))
+    const blank = renderToString(createElement(ClubBadge, { clubId: 'arsenal', size: 16, blank: true }))
+    expect(plain).toMatch(/>AR<\/span>/)
+    expect(blank).toMatch(/><\/span>$/)
+    expect(blank).toContain('title="Arsenal"')
+  })
+
+  it('files a shown badge when its result is left, but not for the Trophy Room or a StrictMode remount', async () => {
+    const tick = () => new Promise<void>((r) => queueMicrotask(r))
+    let filed = 0
+    const left = makeLeaveFiler(() => filed++)
+    left.mount()
+    left.unmount()
+    await tick()
+    expect(filed).toBe(1)
+    const strict = makeLeaveFiler(() => filed++)
+    strict.mount()
+    strict.unmount()
+    strict.mount()
+    await tick()
+    expect(filed).toBe(1)
+    const room = makeLeaveFiler(() => filed++)
+    room.mount()
+    room.toRoom()
+    room.unmount()
+    await tick()
+    expect(filed).toBe(1)
+  })
+
+  it('keeps the Run-in setup\'s seed until a run starts', () => {
+    let made = 0
+    const fresh = () => `fresh-${++made}`
+    expect(startingRunInSeed(null, fresh)).toBe('fresh-1')
+    expect(startingRunInSeed('  ', fresh)).toBe('fresh-2')
+    expect(startingRunInSeed('x'.repeat(65), fresh)).toBe('fresh-3')
+    expect(startingRunInSeed('ABC123', fresh)).toBe('ABC123')
+    keepRunInSeed('ABC123')
+    expect(readRunInSeed()).toBe('ABC123')
+    keepRunInSeed(null)
+    expect(localStorage.getItem(RUN_IN_SEED_KEY)).toBeNull()
+    keepRunInSeed('')
+    expect(readRunInSeed()).toBeNull()
   })
 })

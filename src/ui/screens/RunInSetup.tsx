@@ -6,6 +6,7 @@ import { RUN_IN_LEAGUES, runInCatalogue, suggestRunIns, type RunInJob, type RunI
 import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
 import { randomSeed } from '@engine/rng'
+import { keepRunInSeed, readRunInSeed, startingRunInSeed } from '../runInSeed'
 import { runInWeekSeed } from '@game/logic/runinWeekly'
 import { RUN_IN_SPINS, runInGameSettings, summariseRunIn } from '@game/logic/runin'
 import { ClubBadge, Info, Segmented } from '../components/bits'
@@ -27,7 +28,13 @@ export function RunInSetup() {
   const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, startRunInWeek, showToast } = useStorePick('universe', 'startGame', 'go', 'ensureLeagues', 'loadingLeagues', 'loadedLeagues', 'game', 'parked', 'startRunInWeek', 'showToast')
   const [template, setTemplate] = useState<RunInTemplate>('survival')
   const [leagueId, setLeagueId] = useState<string>('england')
-  const [seed, setSeed] = useState(() => randomSeed())
+  // Kept until a run starts, so the three jobs suggested are the same on the next visit (runInSeed.ts)
+  const [seed, setSeedState] = useState(() => startingRunInSeed(readRunInSeed(), randomSeed))
+  const setSeed = (v: string) => {
+    setSeedState(v)
+    keepRunInSeed(v)
+  }
+  useEffect(() => keepRunInSeed(seed), [])
   const [picked, setPicked] = useState<string | null>(null)
   const [formation, setFormation] = useState<string>('club')
   const barRef = useRef<HTMLDivElement>(null)
@@ -68,6 +75,7 @@ export function RunInSetup() {
   const start = async () => {
     if (!job) return
     if (unfinished && !(await askConfirm(t('newJobConfirm', { team: unfinished.settings.teamName }), { ok: t('takeJobOk'), danger: true }))) return
+    keepRunInSeed(null)
     startGame(runInGameSettings(u, job, { seed: seedValue, formationId }))
   }
   // The Run-in of the week: one job for everyone, ranked on the World leaderboard when the assistant plays it from the draft
