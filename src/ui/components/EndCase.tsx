@@ -24,6 +24,7 @@ import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { reelSkipKey } from '../reelKeys'
+import { itemReelMark, landedSeen } from '../reelLanded'
 import { caseRowLine, caseRowTitle, powerUpLine, powerUpTitle, rarityText } from '../i18n/engineText'
 
 const t = translator(season)
@@ -39,9 +40,12 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   const { openCase, subCaseIcon, finishCase, profile } = useStorePick('openCase', 'subCaseIcon', 'finishCase', 'profile')
   const c = game.endCase!
   const [quick] = usePref(quickSpinPref)
+  // The case's reel, kept per device once it lands: a reload after the landing shows the reel landed (`reelLanded.ts`)
+  const mark = itemReelMark(game.id, 'end-case', c.drop.kind === 'icon' ? c.drop.id : c.drop.powerUp)
+  const [seen] = useState(() => !!c.opened && landedSeen(mark))
   // 0: not opened in this view; 1: the reel is running or has landed
-  const [run, setRun] = useState(0)
-  const [landed, setLanded] = useState(false)
+  const [run, setRun] = useState(seen ? 1 : 0)
+  const [landed, setLanded] = useState(seen)
   const [skip, setSkip] = useState(0)
   useEffect(armAudio, [])
   const deal = useMemo<ItemDeal | null>(() => (run ? dealItems(caseDropCard(c.drop), caseFillers(), Math.random) : null), [run, c.drop])
@@ -90,7 +94,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
         <div className="col case-left">
         <div className="panel col case-main" onClick={() => spinning && setSkip((n) => n + 1)}>
           {run > 0 && deal ? (
-            <ItemReel deal={deal} timing={quick ? QUICK_TIMING : FULL_TIMING} skip={skip} onSettled={() => setLanded(true)} testId="case-reel" />
+            <ItemReel deal={deal} scope={mark} timing={quick ? QUICK_TIMING : FULL_TIMING} skip={skip} onSettled={() => setLanded(true)} testId="case-reel" />
           ) : (
             <div className="reel-run item-reel idle" data-testid="case-idle">
               <div className="reel-window" aria-hidden="true">

@@ -412,7 +412,7 @@ export function Draft() {
                 <b>{t('picksMade', { n: picksMade(d) })}</b>
               </div>
             ) : (
-              <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} scope={game.id} onSettled={() => setSettled(d.current)} />
+              <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} scope={isDynastySummer ? `${game.id}:${game.year}` : game.id} onSettled={() => setSettled(d.current)} />
             )}
             {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
             {ghost && challenge && revealed && (
