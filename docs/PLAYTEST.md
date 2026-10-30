@@ -181,6 +181,43 @@ Larger ones, written up as proposals (each needs a change to bundled logic, the 
   even a runner-up season; the Dynasty summer's bench tip shows under the summer card; the Run-in's three jobs change on
   every visit to its setup (a new seed each time), so a job seen and left is gone.
 
+### Proposals built (round 15, `claude/r15-proposals`)
+
+No draw moved, no save field, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`; no
+`FIX (moves draws):` or `BUNDLED:` commit was needed. Tests: `src/ui/__tests__/playtestR2.test.ts` (P4 to P7, P10) and
+`src/game/__tests__/h2hAutoDraft.test.ts` (P8).
+
+- **P4, built.** A simmed arena step (Sim this rung, Sim this tie, Sim the final) opens on its report, the result, as
+  Sim result does in a Season; the replay is a tab away (`arenaStepView` in `store.ts`). Managed live it still opens on
+  the dashboard. On the replay the button reads "Continue →" until the report, so "Next: Rung 2 →" or "Run summary →"
+  no longer gives the result away. The Sim button's tip says the report opens on the result.
+- **P5, built.** The chase counts wins: "Still perfect: 12 wins from 12", "Perfect run of 12 wins · unbeaten for the
+  first 15", "best perfect start: 5 wins", the playback's moment "12 wins from 12 and counting" and the Profile's
+  longest perfect run "12 wins". Only the target keeps the N-0 form ("Chasing 38-0"). `perfect.ts` turned out not to be
+  in the edge bundle (no bundled module imports it), so this needed no `BUNDLED:` commit; the logic mirror's messages
+  moved with it.
+- **P6, built.** The playback remembers the game it reached, per viewer (`touchline-playback-resume`,
+  `src/ui/playbackResume.ts`, keyed by the game, its phase and its number of games); a reload resumes there, paused if
+  it was paused. Without a mark for that playback it behaves as before.
+- **P7, built.** The last reel to land is kept per viewer (`touchline-reel-landed`, `src/ui/reelLanded.ts`: the draft,
+  the spin count and the club-season). The Draft's and the hot-seat's reel mount landed for it after a reload, with no
+  slide and no sound; a new spin, a re-spin or another draft still runs its reel. The online room's reel is unchanged.
+- **P8, built.** Head-to-head's "Auto-complete the draft" (asks first): Spin, then the assistant's pick for whoever
+  picks, until both squads are full (`h2hAutoComplete` in `src/game/logic/h2hAutoDraft.ts`, the store's
+  `h2hAutoDraft`). The test holds it equal, game state and stream, to pressing Spin and Let the assistant pick by hand,
+  from the start and from a half-made draft, and the season played after it.
+- **P10, built.** The arena hub's captain list says "mentality" (the number it shows, as the kick-off and the Dugout
+  say); the Weekly's and a challenge's rules line say "its clubs calibrated so an average draft finishes mid-table" (or
+  "at their real strength") instead of "calibrated difficulty"; the arena setup's line ends "(colours only: your side
+  plays as itself)"; the live table's small badges show the club colours without the two-letter cut of the code (the
+  name is beside them); a badge shown on a result is filed as seen when the viewer leaves the result (unless for the
+  Trophy Room, which marks it New), so the next result never shows it again; the bench tip stays off a Dynasty summer's
+  and a Gauntlet's bonus spins; the Run-in setup keeps its seed, and so its three jobs, until a run starts
+  (`touchline-runin-seed`, `src/ui/runInSeed.ts`).
+- **Left out:** P1, P2 and P3 change what the assistant picks or fields (Auto-complete from the spin showing, a bench
+  man started at kick-off through the bundled `quick.ts`, the assistant's lineups in `ratings.ts`): they move seeded
+  outcomes, so they wait for a later engine. P9 (scoring on Calibrated) is engine feel, for `docs/ENGINE6.md`'s list.
+
 ## 3. How to rerun
 
 As round 1 (section 4 above). The helper used here kept each mode's save in a Playwright `storageState` file between
