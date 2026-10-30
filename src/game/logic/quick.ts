@@ -20,10 +20,13 @@ import { isUpgradeBoost } from '@engine/upgrader'
 import { difficultyOf } from '@engine/draft'
 import { quickManagerBoost, rollManagerSpin, settleManager } from './managers'
 import { caseIconIn, rollEndCase } from './endCase'
-import { applyChange, canPlayFor, fieldXI, injuredThrough, QUICK_CHANGES, quickBenchRule } from './quickBench'
+import { applyChange, canPlayFor, fieldXI, injuredThrough, QUICK_CHANGES, quickBenchRule, startBetterBench } from './quickBench'
 import { isSuperLeague, quickLeague, SUPER_LEAGUE_GAMES } from './superLeague'
 
-/** The drafted XI as the quick season fields it: the draft's lineup, every empty slot filled by `autoPickLineup` (no RNG). */
+/**
+ * The drafted XI as the quick season fields it: the draft's lineup, every empty slot filled by `autoPickLineup`, then a
+ * bench man who outrates a starter in his slot in that starter's place (`startBetterBench`, engine 9). No RNG.
+ */
 export function quickXI(game: Game, u: LoadedUniverse): { lineup: Lineup; bench: string[] } {
   const d = game.draft!
   const get = playerLookup(game, u)
@@ -39,7 +42,8 @@ export function quickXI(game: Game, u: LoadedUniverse): { lineup: Lineup; bench:
     const xi = new Set(Object.values(lineup))
     bench = bench.filter((id) => !xi.has(id))
   }
-  return { lineup, bench }
+  // A bench man who outrates a starter in his slot starts (engine 9, P2)
+  return startBetterBench(formation, lineup, bench, get, canPlayFor(game))
 }
 
 /**

@@ -48,6 +48,38 @@ export function fieldXI(formation: Formation, chosen: Lineup, bench: string[], i
 }
 
 /**
+ * The XI at kick-off (engine 9, playtest round 2's P2): a bench man starts in a slot where his rating at its position
+ * beats the starter's, who takes his place on the bench. The playtest's assistant benched David Raya (88) and started
+ * Dúbravka (83) in goal, because the bench is drafted once the XI is full. The largest gain goes first (bench order,
+ * then formation order, break ties), under the same rules as injury cover (`canPlay`, the draft's position rule; never a
+ * keeper-only man outfield), until no bench man outrates a starter; every swap strictly raises the XI's total, so it
+ * ends. New objects, no RNG.
+ */
+export function startBetterBench(formation: Formation, chosen: Lineup, chosenBench: string[], get: (id: string) => PlayerSeason | undefined, canPlay: (p: PlayerSeason, position: Position) => boolean = () => true): { lineup: Lineup; bench: string[] } {
+  const lineup: Lineup = { ...chosen }
+  const bench = [...chosenBench]
+  for (let guard = 0; guard < formation.slots.length * Math.max(1, bench.length); guard++) {
+    let best: { at: number; slotId: string; gain: number } | null = null
+    bench.forEach((id, at) => {
+      const p = get(id)
+      if (!p) return
+      for (const slot of formation.slots) {
+        const starter = get(lineup[slot.id])
+        if (!starter || !eligibleReplacement(p, slot.position) || !canPlay(p, slot.position)) continue
+        const gain = ratingAt(p, slot.position) - ratingAt(starter, slot.position)
+        if (gain > 1e-9 && (!best || gain > best.gain + 1e-9)) best = { at, slotId: slot.id, gain }
+      }
+    })
+    if (!best) break
+    const { at, slotId } = best
+    const outId = lineup[slotId]
+    lineup[slotId] = bench[at]
+    bench[at] = outId
+  }
+  return { lineup, bench }
+}
+
+/**
  * One change applied to an XI and its bench: the bench player into the slot, the starter there onto the bench in the
  * bench player's place. New objects; throws when the slot is empty or the player is not on the bench.
  */

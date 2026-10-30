@@ -3,7 +3,7 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, benchPlaces, benchRoom, canCloseBench, closeBench, eligibleSlots, fillingXI, isComplete, pick, QUICK_RULES, spin, type DraftRules } from '@engine/draft'
 import { decodeChallenge, encodeChallenge, isRulesDiff, replayDraft, type QuickChallengePayload } from '@engine/challenge'
-import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, quickSquadAt, runQuickSeason, toKickoff } from '../logic/quick'
+import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, quickSquadAt, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
 import { applyChange, canPlayFor, changesLine, fieldXI, injuredThrough, QUICK_CHANGES } from '../logic/quickBench'
 import type { QuickGameResult } from '../types'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
@@ -168,13 +168,20 @@ describe('the bench in the quick season', { timeout: 300_000 }, () => {
     let covered = 0
     let compared = 0
     for (const seed of [...SEEDS, 'bench-5', 'bench-6', 'bench-7', 'bench-8', 'bench-9', 'bench-10']) {
-      const plain = drafted({ seed, leagueSeason: 2008, hostClubId: 'hull-city' }, era)
       const benched = drafted({ seed, leagueSeason: 2008, hostClubId: 'hull-city' }, { ...era, benchPicks: 5 })
+      // The same XI with no bench: engine 9 starts a bench man who outrates a starter (P2), so the plain season fields
+      // the XI the benched one kicks off with
+      const xi = quickXI(benched, u)
+      const plain = clone(benched)
+      plain.settings.rules = { ...plain.settings.rules, benchPicks: 0 }
+      plain.draft!.lineup = { ...xi.lineup }
+      plain.draft!.bench = []
+      toKickoff(plain, u)
       kickOff(plain, u)
       kickOff(benched, u)
       const games = benched.quickResult!.results!
       covered += games.filter((r) => r.covers?.length).length
-      if (benched.draft!.bench.some((id) => leagueMen.has(u.index[id].playerId))) continue
+      if (xi.bench.some((id) => leagueMen.has(u.index[id].playerId))) continue
       compared++
       const first = games.findIndex((r) => r.covers?.length)
       const upTo = first < 0 ? games.length : first
@@ -190,12 +197,13 @@ describe('the bench in the quick season', { timeout: 300_000 }, () => {
       const g = drafted({ seed }, { benchPicks: 5 })
       kickOff(g, u)
       const games = g.quickResult!.results!
-      const bench = g.draft!.bench
+      // The XI and bench at kick-off (engine 9: a bench man who outrates a starter starts)
+      const { lineup, bench } = quickXI(g, u)
       for (let i = 0; i < games.length; i++) {
         const through = injuredThrough(games, i)
         for (const c of games[i].covers ?? []) {
           expect(bench).toContain(c.inId)
-          expect(g.draft!.lineup[c.slotId]).toBe(c.outId)
+          expect(lineup[c.slotId]).toBe(c.outId)
           expect(through[c.outId]).toBeGreaterThanOrEqual(games[i].matchweek)
           expect((through[c.inId] ?? 0) < games[i].matchweek).toBe(true)
           const slot = getFormation(g.tactics.formationId).slots.find((s) => s.id === c.slotId)!
@@ -254,12 +262,13 @@ describe('the bench in the quick season', { timeout: 300_000 }, () => {
     const g = drafted({ seed: 'bench-3' }, { benchPicks: 5 })
     kickOff(g, u)
     const games = playbackResults(g)
+    const xi = quickXI(g, u)
     const slotId = getFormation(g.tactics.formationId).slots[1].id
-    expect(quickChangeProblem(g, u, games, 3, { slotId, inId: g.draft!.lineup[slotId] })).toMatch(/not on the bench/)
+    expect(quickChangeProblem(g, u, games, 3, { slotId, inId: xi.lineup[slotId] })).toMatch(/not on the bench/)
     // Nobody comes on out of position: the draft's fit rule holds for a change as for a pick
     const get = playerLookup(g, u)
     const f = getFormation(g.tactics.formationId)
-    const misfit = f.slots.flatMap((s) => g.draft!.bench.filter((id) => !canPlayFor(g)(get(id)!, s.position)).map((id) => ({ slotId: s.id, inId: id })))[0]
+    const misfit = f.slots.flatMap((s) => xi.bench.filter((id) => !canPlayFor(g)(get(id)!, s.position)).map((id) => ({ slotId: s.id, inId: id })))[0]
     if (misfit) expect(quickChangeProblem(g, u, games, 3, misfit)).toMatch(/cannot play/)
     for (let i = 1; i < games.length; i++) {
       const v = quickSquadAt(g, u, games, i)
