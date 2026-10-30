@@ -16148,15 +16148,21 @@ button.home-nudge.linklike:hover {
   }
 }
 /* The keyboard: while a text field has the focus on a phone, the dock and the screen's bottom bars stand down, so a
-   window the keyboard has shrunk (Android) gives its height to the field and not to bars riding on the keyboard */
+   window the keyboard has shrunk (Android) gives its height to the field and not to bars riding on the keyboard.
+   `data-typing-hold` keeps that layout through the tap that ends the typing, so the bar tapped stays under the finger until
+   its click (typingHold.ts, QA r14 R14-1) */
 @media (max-width: 720px) {
-  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) {
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus),
+  .app:not(.bar-hidden):not(.dock-off)[data-typing-hold] {
     --dock-h: 0px;
     --dock-safe: var(--safe-bottom);
   }
   .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) > .topbar nav,
   .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .bottom-bar,
-  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .cta-bar {
+  .app:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']):focus, textarea:focus) .cta-bar,
+  .app[data-typing-hold] > .topbar nav,
+  .app[data-typing-hold] .bottom-bar,
+  .app[data-typing-hold] .cta-bar {
     visibility: hidden;
   }
 }

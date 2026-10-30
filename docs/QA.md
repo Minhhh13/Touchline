@@ -495,6 +495,43 @@ Branch `claude/r13-h2h-look`, from `main` at #96 with round 12's integration bra
 - The hot-seat setup still scrolls its body at 1280x800 (as the room's setup does): Manager 1's and Manager 2's formation tiles are the long part. Start stays in view at the foot.
 
 
+# Round 11: what round 13 changed (r14, 2026-10-29)
+
+Branch `claude/r14-qa`, from `main` at #98 (round 13). Same rules as before: every fix has a test that fails without it, nothing moves a draw or a seeded outcome (pins, `noMove`, `marketPin`, `dailyPin` green, ENGINE_VERSION `'7'`), nothing in the edge verifier's graph is touched, and the bundle is still `verifier-ecc269657e48639b.js` after `npm run build`. No save field, no migration, no commit titled `FIX (moves draws):` or `BUNDLED:`.
+
+## R11-1. What was tested
+
+- **Squad complete's odds, before and after the stepping** (round 13's `oddsLeagueSteps`). A worktree of `main` at #97 (before the stepping) beside this branch, one script on both, not committed: 30 seeded games (Premier League, La Liga, a Quick Draft bench, the Super League with and without its ease, every third one with an attacking mentality) give byte-identical `preSeasonOdds`. In the browser, the same saved game was opened at Squad complete on both builds (`vite preview` of each, the save copied across): five drafted squads showed the same projected finish, expected points and seven chances to the tenth of a per cent. New sweep `src/game/__tests__/qaR14Odds.test.ts`: over five more setups, the league built a step at a time (with a half-built league dropped first, as a tactics change does) and the seasons in uneven slices equal the odds in one go, and the game never moves.
+- **Explore's wheel chances kept across universes** (round 13's `wheelsByPool`). New sweep `src/game/__tests__/qaR14Wheel.test.ts`: as the browser loads them (England alone, then Spain beside it, then the classic pack added to the same objects, the name tidy each time), every kept wheel is the one a never-seen universe works out, each wheel sums to 1, and a universe whose pool differs by one club-season is never handed a kept wheel. In the browser, Explore's club page fills its chances after the paint at 390 and 1280 with no page error. Found R14-2.
+- **The hot-seat head-to-head, end to end** (Playwright on `vite preview`, scripts not committed): setup, spins, the assistant's picks and one pick by hand, the result, Rematch (a new seed, both names kept, the old game cleared), at 1280x800 and 390x844 (touch), Floodlit and Daylight, English and the pseudo-locale, with and without a reload mid-draft: no page error in any run. Three all-assistant runs (one with a reload, one at 390 in the pseudo-locale) replayed through the engine (`h2hSpin`/`h2hAutoPick` from the run's saved start, then `runH2HSeason`) on this branch and on `main` at #97 give the browser's drafts, log and result exactly; `pins.test.ts` (the head-to-head log), `noMove` and `dailyPin` green. Found R14-1.
+- **Keyboard only**: the hot-seat from the nav to Rematch by Tab and Enter (11 spins, 21 assistant picks, one pick by hand through a squad row and "Put at"): every control reached is in view and uncovered when focused. See R14-O2.
+- **Reloads**: 60 reloads straight after a pick or a spin (the reel running or skipped, both languages, 390 and 1280) came back to the same draft with nothing lost; 50 more with the service worker in control (Home and a draft), 60 timed ones with the worker and 60 without, and 12 during the worker's install, all came back. See R14-O1.
+- **The online room** through `scripts/online/room-mock.mjs` and an online build: host and guest in two contexts, joined by the link or by a code typed lower case with an en dash (R13-2), drafted to the result and into the rematch, at 1280 and 390 (touch), both themes, both languages, with a reload of the guest mid-draft: four runs, no page error.
+- **How it works** (round 13's text) in the pseudo-locale at 390 and 1280: nothing left in English but the data credits, which are the packs' `sources` (data, not translated by convention).
+
+## R11-2. Fixed
+
+| Id | Severity | What was wrong | Fix | Test |
+| --- | --- | --- | --- | --- |
+| R14-1 | Medium (phone) | The first tap after typing did nothing on a phone. While a text field has the focus the dock and the bars resting on it stand down (round 8, styles.css "The keyboard"); the tap on a button resting on the dock (the head-to-head setup's Start after typing a seed or a name, the same for any bar on `--dock-h`) moved the focus off the field at the press, the dock came back and the button jumped 58 px from under the finger, so press and release landed on different elements and no click was sent. Seen with a touch tap and with a mouse in a narrow window | `src/ui/typingHold.ts` (`watchTypingHold`, started in `App.tsx`): a press that starts while a field has the focus puts `data-typing-hold` on `.app` (an attribute, so React's className never drops it), which holds the typing layout until that press's click has gone out (or 700 ms when no click comes); styles.css's keyboard rule takes the attribute too, with a selector that outranks the dock's `--dock-h` | `src/ui/__tests__/typingHold.test.ts`, `phoneDock.test.ts`; Playwright (the setup's Start after typing a seed: tap, mouse and touch-emulated click all start the draft) |
+| R14-2 | Low (display) | Explore's club table showed "–" (never on the wheel) for every season while round 13's `useWheelChances` worked the wheel out after the paint, then the figures | The cell shows "…" with `aria-busy` while its wheel is unknown, as the wheel line beside it does | `src/ui/__tests__/qaR14Ui.test.ts` (a server render before and after each wheel, the classic seasons included) |
+
+Also: the hot-seat's spin, assistant, finish and draft buttons and the nav's Head-to-head take test ids (`h2h-spin`, `h2h-auto`, `h2h-finish`, `h2h-draft-btn`, `nav-h2h`), so a smoke drives them in any language.
+
+## R11-3. Open
+
+| Id | Severity | Where | What happens | Why not fixed here |
+| --- | --- | --- | --- | --- |
+| R14-O1 | Low | A reload under the service worker | Twice, in about 80 reloads made every two seconds or so (the pseudo-locale, a hot-seat game whose reel was replaying), the page came back as "This screen did not load. It needs a connection the first time" (the screen boundary's chunk error) instead of the draft; its Reload button brought the draft back with nothing lost. The previous page's screen prefetches were aborted by the reload each time | Not reproduced in 60 timed reloads with the worker in control, 60 without, or 12 during its install, so the cause (the worker, the prefetch or the browser's module map) is not pinned down; a person does not reload that fast |
+| R14-O2 | Note (keyboard) | The hot-seat draft | After a spin the focus lands on the club's name (as in the Draft: the squad is the next Tab), so "Let the assistant pick" is about 40 Tabs forward (three Shift+Tab back) | As before round 13; the room has no assistant button to match |
+| R14-O3 | Note | The hot-seat draft after a reload | A spin landed but not picked turns its reel again on reload (2.7 s with Quick spin) before the pick can be made | The known "a reload replays the reels" (HANDOVER section 7); presentation only |
+
+## R11-4. Coverage notes
+
+- Round 13's own changes held up where they were aimed: the stepped odds and the kept wheels are exact, the hot-seat's draws are the engine's, the rooms read every code tried. The bug was older than round 13 (round 8's keyboard rule against the setup's Start, sticky on the dock on a phone) and shows only when a field is typed in just before the tap, as the full playthrough does with its seed.
+- The smokes' first two reload variants failed because the script reloaded on every pass while the replayed reel turned (a page reloaded every two seconds); that loop also produced R14-O1's two sightings.
+- Not covered: real iOS and Android keyboards (the tap fix was checked with Chromium's touch emulation and a mouse), sound, the share card's canvas.
+
 # Round 12: phones (r14, 2026-10-29)
 
 Branch `claude/r14-phones`, from `main` at #98 (round 13). The owner plays on phones: a layout pass on real phone sizes. Display only: CSS, two small presentation hooks (`src/ui/useSheetDrag.ts`, moved out of `bits.tsx`, and `src/ui/tallBar.ts`), no draw, no save field, ENGINE_VERSION `'7'`, the edge bundle still `verifier-ecc269657e48639b.js`.

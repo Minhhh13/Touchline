@@ -338,17 +338,17 @@ export function H2HScreen() {
             <TurnPill mine={due || complete} line={turnLine} testId="h2h-turn-pill" />
             {!d.current && !complete && <SpinOdds odds={odds} label={t('nextSpin')} />}
             {!complete && (
-              <button ref={spinRef} className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
+              <button ref={spinRef} className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()} data-testid="h2h-spin">
                 {d.current ? (spinning ? t('spinning') : t('picks', { name: manager?.name ?? '' })) : t('spinFirst', { name: firstName })}
               </button>
             )}
             {complete && (
-              <button ref={finishRef} className="btn primary spin-btn display" onClick={() => h2hFinish()}>
+              <button ref={finishRef} className="btn primary spin-btn display" onClick={() => h2hFinish()} data-testid="h2h-finish">
                 {t('playSeason')}
               </button>
             )}
             {picking !== null && revealed && (
-              <button className="btn sm ghost" onClick={() => h2hAuto()}>
+              <button className="btn sm ghost" onClick={() => h2hAuto()} data-testid="h2h-auto">
                 {t('assistantPick', { name: manager?.name })}
               </button>
             )}
@@ -357,7 +357,7 @@ export function H2HScreen() {
             </button>
           </>
         }
-        offer={<OfferPanel u={u} current={current} tier={tier} spinning={spinning} revealed={revealed} complete={complete} waitingTitle={t('spinPicksFirst', { name: firstName })} waitingLine={t('oneSpin')} headRef={clubHeadRef} notice={manager && <div className="notice" aria-live="polite" aria-atomic="true">{t('pickPlayer', { name: manager.name, slot: selected ? 'yes' : 'no', player: selected?.name })}</div>} testId="h2h-squad" rows={current && <OfferRows current={current} managers={h2h.managers} takenBy={(p) => d.drafts.findIndex((x) => x.takenPlayers.includes(p.playerId) && (Object.values(x.lineup).includes(p.id) || x.bench.includes(p.id)))} usableIds={usableIds} selectedId={selectedPlayer} hide={hide} onPick={onPick} />} />}
+        offer={<OfferPanel u={u} current={current} tier={tier} spinning={spinning} revealed={revealed} complete={complete} waitingTitle={t('spinPicksFirst', { name: firstName })} waitingLine={t('oneSpin')} headRef={clubHeadRef} notice={manager && <div className="notice" aria-live="polite" aria-atomic="true">{t('pickPlayer', { name: manager.name, slot: selected ? 'yes' : 'no', player: selected?.name })}</div>} testId="h2h-squad" rows={current && <OfferRows current={current} managers={h2h.managers} takenBy={(p) => d.drafts.findIndex((x) => x.takenPlayers.includes(p.playerId) && (Object.values(x.lineup).includes(p.id) || x.bench.includes(p.id)))} usableIds={usableIds} selectedId={selectedPlayer} hide={hide} onPick={onPick} draftTestId="h2h-draft-btn" />} />}
         pitches={<SquadPitches u={u} d={d} managers={h2h.managers} picking={picking} placing={picking} selected={selected} eligible={eligible} slotClick={(i) => (picking === i && selected ? (s) => onSlot(i, s) : undefined)} onSlot={onSlot} />}
       />
     </div>

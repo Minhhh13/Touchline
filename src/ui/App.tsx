@@ -23,6 +23,7 @@ import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { watchFocusRescue } from './focusRescue'
+import { watchTypingHold } from './typingHold'
 import { skipToMain, watchMainLandmark } from './landmarks'
 import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, CalendarClock, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
@@ -155,6 +156,8 @@ export function App() {
   useEffect(() => watchScrollFocus(), [])
   // A focus whose control leaves the page goes back to the nearest box, or to the new screen's page
   useEffect(() => watchFocusRescue(), [])
+  // A tap that ends typing on a phone keeps the bar it lands on still until its click (the dock waits for it)
+  useEffect(() => watchTypingHold(), [])
 
   // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
   // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
@@ -311,7 +314,7 @@ export function App() {
               <span className="nav-tiny" aria-hidden="true">{gameNav}</span>
             </button>
           )}
-          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')}>
+          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')} data-testid="nav-h2h">
             <Swords size={16} />
             <span className="nav-tiny">{t('navTinyH2H')}</span>
             <span className="nav-label">{t('navH2H')}</span>
