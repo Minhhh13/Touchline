@@ -9,8 +9,8 @@
  * assistant takes the stops still to come) and Sim result (straight to the
  * report while a stop is still ahead).
  */
-import { useEffect, useRef } from 'react'
-import { Clapperboard } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronUp, Clapperboard, SlidersHorizontal } from 'lucide-react'
 import type { Mentality } from '@engine/types'
 import { scoreAt } from '@engine/matchFeed'
 import { MENTALITY_HELP } from '@engine/tactics'
@@ -125,7 +125,7 @@ export interface HighlightsControl {
   setKeyMoments?(on: boolean): void
 }
 
-export function TopBar({ feed, clock, minute, home, away, label, hand, playback, highlights }: TopBarProps & { hand: ManagerHand; minute?: number; playback?: LivePlayback; highlights?: HighlightsControl }) {
+export function TopBar({ feed, clock, minute, home, away, label, hand, playback, highlights, collapsible = false }: TopBarProps & { hand: ManagerHand; minute?: number; playback?: LivePlayback; highlights?: HighlightsControl; collapsible?: boolean }) {
   // The minute the panels show: a goal counts once the ball is over the line
   const t = minute ?? clock.clock
   const score = scoreAt(feed.events, t)
@@ -133,9 +133,8 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
   // The board lights up for the minute after a goal, and while one is celebrated
   const flash = celebrating || feed.events.some((e) => GOALS.has(e.type) && e.minute <= t && e.minute >= t - 1)
   const state = { atStop: clock.atStop, stopAt: clock.stopAt, finished: clock.finished, final: clock.final, addedTime: feed.addedTime }
-  return (
-    <div className="md-topbar" role="group" aria-label={label}>
-      <Tools hand={hand} />
+  const [controlsOpen, setControlsOpen] = useState(false)
+  const board = (
       <div className={`scoreboard ${flash ? 'flash' : ''}`} role="group" aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
         <span className="md-sb-code" style={{ background: home.colour, color: textColourFor(home.colour) }} title={home.name}>
           {home.code}
@@ -152,6 +151,8 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           {score.home + score.away > 0 ? `${home.name} ${score.home}, ${away.name} ${score.away}` : ''}
         </span>
       </div>
+  )
+  const playbackBar = (
       <div className="md-playback">
         <div className="md-playback-speed">
           {!clock.finished && (
@@ -209,6 +210,30 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           )}
         </div>
       </div>
+  )
+  if (collapsible) {
+    return (
+      <div className={`md-topbar md-phone-topbar ${controlsOpen ? 'controls-open' : ''}`} role="group" aria-label={label}>
+        {board}
+        <button type="button" className="btn md-controls-toggle" aria-expanded={controlsOpen} aria-controls="match-controls-drawer" onClick={() => setControlsOpen((open) => !open)} data-testid="match-controls-toggle">
+          <SlidersHorizontal size={17} aria-hidden="true" /> Match controls <ChevronUp size={16} className={controlsOpen ? 'flip' : ''} aria-hidden="true" />
+        </button>
+        <div className="md-control-drawer" id="match-controls-drawer" hidden={!controlsOpen}>
+          <div className="row between md-control-drawer-head">
+            <b>Match controls</b>
+            <button type="button" className="btn ghost sm" onClick={() => setControlsOpen(false)}>Close</button>
+          </div>
+          <Tools hand={hand} />
+          {playbackBar}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="md-topbar" role="group" aria-label={label}>
+      <Tools hand={hand} />
+      {board}
+      {playbackBar}
     </div>
   )
 }

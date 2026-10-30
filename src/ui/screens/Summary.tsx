@@ -581,7 +581,7 @@ export function Summary() {
           replay={replay}
           orderToggle
           strip={false}
-          fold={8}
+          scrollRows={6}
           onHighlights={
             canShowHighlights(game)
               ? (r) => {
@@ -595,7 +595,7 @@ export function Summary() {
       )}
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
       {story && !replay.playing && on('story') && <SeasonStoryPanel story={story} opponentName={(id) => sideName(id)} />}
-      {!q && story && on('games') && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} compact fold={8} />}
+      {!q && story && on('games') && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} scrollRows={6} />}
 
       {q?.january && on('january') && (
         <div className="panel" data-testid="january-summary">
@@ -817,6 +817,11 @@ export function Summary() {
                   <button className={`btn sm ${chosen ? '' : 'primary'}`} onClick={() => acceptJob(chosen ? null : i)}>
                     {chosen ? 'Change your mind' : 'Accept'}
                   </button>
+                  {chosen && (
+                    <button className="btn sm primary" onClick={() => nextSeason()} disabled={loadingLeagues} data-testid="job-next-season">
+                      {loadingLeagues ? 'Loading…' : `Join ${clubName(u, o.clubId)} now →`}
+                    </button>
+                  )}
                 </div>
               )
             })}

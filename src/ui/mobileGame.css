@@ -156,8 +156,25 @@
     display: none;
   }
   .draft-page .draft-wheel > .panel {
-    padding: 12px;
-    gap: 8px;
+    padding: 14px 12px;
+    gap: 10px;
+  }
+  .draft-page > .phone-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: hidden;
+  }
+  .draft-page > .phone-tabs button {
+    width: 100%;
+    min-width: 0;
+  }
+  .draft-page[data-phone-tab='spin'] .draft-wheel > .panel:first-child {
+    min-height: min(590px, calc(100dvh - 315px));
+    justify-content: space-between;
+  }
+  .draft-page[data-phone-tab='spin'] .case-reel,
+  .draft-page[data-phone-tab='spin'] .reel {
+    min-height: 150px;
   }
   .draft-page .spin-btn {
     min-height: 48px;
@@ -451,12 +468,24 @@
   }
   .dugout-page .briefing.checklist {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px 10px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
   .dugout-page .briefing.checklist .brief {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
     min-width: 0;
-    flex-wrap: wrap;
+    min-height: 48px;
+    padding: 6px 8px;
+    gap: 8px;
+    border: var(--border);
+    border-radius: var(--radius-s);
+    background: var(--panel-2);
+  }
+  .dugout-page .briefing.checklist .brief > .btn {
+    min-height: 38px;
+    min-width: 82px;
+    justify-content: center;
   }
   .dugout-page .briefing {
     font-size: 12px;

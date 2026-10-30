@@ -61,6 +61,22 @@ describe('QA screen fixes', () => {
     show({ game: null, screen: 'explore' })
     expect(renderProblems(Explore)).toEqual([])
   })
+
+  it('renders the experimental tactics board with an XI, bench and explicit edit actions', () => {
+    const u = loadTestUniverse(['england'])
+    const g = createGame({ mode: 'season', seed: 'qa-tactics-board', formationId: '4-3-3', teamName: 'QA', shortName: 'QAA', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2024, rules: { ...SEASON_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    show({ universe: u, loadedLeagues: ['england'], game: g, screen: 'game' })
+    const html = renderToString(createElement(TacticsTab))
+    expect(html).toContain('data-testid="tactics-board"')
+    expect(html).toContain('data-testid="tactics-bench"')
+    expect(html).toContain('data-testid="change-formation"')
+    expect(html).toContain('data-testid="swap-players"')
+    expect(markupProblems(html)).toEqual([])
+  })
 })
 
 describe('QA-4: a screen that throws while rendering', () => {

@@ -66,4 +66,22 @@ describe('phone layout CSS', () => {
     expect(game).toMatch(/\.dugout-page \.depth-row \{[^}]*grid-template-columns: 28px minmax\(0, 1fr\);/)
     expect(game).toMatch(/\.explore-head-actions \{[^}]*width: 100%;[^}]*justify-content: space-between;/)
   })
+
+  it('uses the extra phone room for setup, draft and a tidy pre-season checklist', () => {
+    const game = css('mobileGame.css')
+    const setup = css('mobileSetup.css')
+    expect(setup).toMatch(/\.setup-page \.formations \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
+    expect(setup).toMatch(/\.setup-page \.setup-preview \.pitch-mini \{[^}]*max-width: 210px;/)
+    expect(game).toMatch(/\.draft-page > \.phone-tabs \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/)
+    expect(game).toMatch(/\.draft-page\[data-phone-tab='spin'\] \.draft-wheel > \.panel:first-child \{[^}]*min-height:/)
+    expect(game).toMatch(/\.dugout-page \.briefing\.checklist \{[^}]*grid-template-columns: minmax\(0, 1fr\);/)
+  })
+
+  it('keeps the live score and commentary visible above a bottom controls drawer', () => {
+    const match = css('matchday/mobileMatch.css')
+    expect(match).toMatch(/\.md-phone-topbar \.scoreboard \{[^}]*grid-template-areas: 'home score away' 'clock clock clock';/)
+    expect(match).toMatch(/\.md-controls-toggle \{[^}]*position: fixed;/)
+    expect(match).toMatch(/\.md-control-drawer \{[^}]*position: fixed;/)
+    expect(match).toMatch(/\.md-phone-commentary \{[^}]*flex: none;/)
+  })
 })

@@ -276,7 +276,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
         simResult: !final && onSimToEnd ? () => onSimToEnd() : undefined,
       }
     : undefined
-  const top = <TopBar feed={feed} clock={clock} minute={minute} home={home} away={away} label={label} control={control} hand={hand} playback={playback} highlights={highlights} />
+  const phoneControls = useMediaQuery('(max-width: 720px), (max-width: 1199px) and (max-height: 499px) and (pointer: coarse)')
+  const top = <TopBar feed={feed} clock={clock} minute={minute} home={home} away={away} label={label} control={control} hand={hand} playback={playback} highlights={highlights} collapsible={phoneControls} />
   const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} hideRatings={ratingHidden(game.settings.rules, 'squad')} /> : null
   const pitch = (
     <LivePitch

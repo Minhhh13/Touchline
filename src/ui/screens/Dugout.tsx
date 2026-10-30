@@ -979,6 +979,9 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
 export function TacticsTab({ boxes }: { boxes?: Boxes }) {
   const store = useStore()
   const { universe: u, game } = store
+  const [showFormationPicker, setShowFormationPicker] = useState(false)
+  const [swapMode, setSwapMode] = useState(false)
+  const [sheetSlot, setSheetSlot] = useState<string | null>(null)
   if (!u || !game) return null
   const on = (id: string) => boxes?.on(id) ?? true
   const left = ['formation', 'instructions', 'training', 'set-pieces'].some(on)
@@ -988,6 +991,8 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
   const t = game.tactics
   const strength = teamStrength(game, u)
   const familiarity = teamFamiliarity(game)
+  const inXI = new Set(Object.values(game.lineup))
+  const benchIds = [...game.bench, ...Object.keys(game.squad).filter((id) => !inXI.has(id) && !game.bench.includes(id))]
   return (
     <>
       <Tip id="tactics-first">A role moves a player's quality between units; rating in role is what the engine uses, and the team rating updates as you change it.</Tip>
@@ -995,10 +1000,53 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
         {left && (
         <div className="col">
           {on('formation') && (
-          <div className="panel">
-            <h3>Formation</h3>
-            <FormationPicker value={t.formationId} onChange={(id) => store.setFormation(id)} blurbs />
-            <p className="help">Changing shape mid-season knocks tactical familiarity back a little.</p>
+          <div className="panel tactics-board" data-testid="tactics-board">
+            <div className="panel-head tactics-board-head">
+              <span className="head-title">
+                <h3>Current XI</h3>
+                <span className="chip">{formation.name}</span>
+              </span>
+              <span className="toolbar">
+                <button type="button" className={`btn sm ${showFormationPicker ? 'active' : ''}`} aria-expanded={showFormationPicker} onClick={() => setShowFormationPicker((v) => !v)} data-testid="change-formation">
+                  Change formation
+                </button>
+                <button type="button" className={`btn sm ${swapMode ? 'primary' : ''}`} aria-pressed={swapMode} onClick={() => setSwapMode((v) => !v)} data-testid="swap-players">
+                  {swapMode ? 'Done swapping' : 'Swap players'}
+                </button>
+              </span>
+            </div>
+            {showFormationPicker && (
+              <div className="tactics-formation-picker" data-testid="tactics-formation-picker">
+                <FormationPicker value={t.formationId} onChange={(id) => store.setFormation(id)} blurbs />
+                <p className="help">Changing shape mid-season knocks tactical familiarity back a little.</p>
+              </div>
+            )}
+            {swapMode && <div className="notice small">Tap a position on the pitch, then choose its replacement. The current player can move straight to the bench.</div>}
+            <div className={`tactics-xi-pitch ${swapMode ? 'swapping' : ''}`}>
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={swapMode ? setSheetSlot : undefined} showRoles={Object.fromEntries(formation.slots.map((slot) => [slot.id, slot.position]))} />
+            </div>
+            <div className="tactics-bench" data-testid="tactics-bench">
+              <div className="row between">
+                <h3>Bench</h3>
+                <span className="small muted">{benchIds.length} players</span>
+              </div>
+              <div className="tactics-bench-list">
+                {benchIds.map((id) => {
+                  const p = get(id)
+                  if (!p) return null
+                  const state = game.squad[id]
+                  return (
+                    <span key={id} className="tactics-bench-player" title={`${p.name} · ${p.positions.join(', ')}`}>
+                      <Rating value={p.overall} />
+                      <span className="tactics-bench-name">{p.name}</span>
+                      <Pos p={p.positions[0]} />
+                      {state?.injury && <span className="chip bad">Inj</span>}
+                    </span>
+                  )
+                })}
+                {benchIds.length === 0 && <span className="muted small">No substitutes available.</span>}
+              </div>
+            </div>
           </div>
           )}
           {on('instructions') && (
@@ -1137,6 +1185,7 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
         </div>
         )}
       </div>
+      <SlotSheet slotId={sheetSlot} onClose={() => setSheetSlot(null)} />
     </>
   )
 }

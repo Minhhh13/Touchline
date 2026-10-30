@@ -275,7 +275,9 @@
     height: 22px;
   }
   .setup-page .setup-preview:not(.setup-preview-only) {
-    display: none;
+    display: flex;
+    align-items: center;
+    padding-top: 2px;
   }
   .setup-page .setup-name .team-field > label {
     position: absolute;
@@ -298,31 +300,32 @@
     width: 120px;
     min-width: 0;
   }
-  .setup-page .setup-preview-only .pitch-mini {
-    max-width: 120px;
+  .setup-page .setup-preview .pitch-mini {
+    width: min(100%, 210px);
+    max-width: 210px;
     margin-inline: auto;
   }
   .setup-page .formations {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 5px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
   }
   .setup-page .formations button {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    min-height: 44px;
-    padding: 5px 3px;
-    gap: 3px;
+    min-height: 62px;
+    padding: 7px 8px;
+    gap: 7px;
     text-align: left;
   }
   .setup-page .formations .fthumb {
-    width: 22px;
+    width: 34px;
   }
   .setup-page .formations .fname {
-    font-size: 13px;
+    font-size: 15px;
   }
   .setup-page .formations .fname-sub {
-    font-size: 10px;
+    font-size: 11px;
   }
   .setup-page .setup-league > .segmented {
     flex-wrap: nowrap;

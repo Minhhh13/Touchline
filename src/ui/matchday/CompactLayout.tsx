@@ -53,6 +53,7 @@ export function CompactLayout({ d, crumb, top, pitch, stop, banner, momentum, st
     <div ref={root} className="matchday compact phone" data-view={view} data-testid="match-mobile">
       {crumb}
       {top}
+      {banner && <div className="md-phone-commentary">{banner}</div>}
       <div className="md-mobile-tabs" role="tablist" aria-label="Match view">
         {views.map((tab) => (
           <button key={tab} type="button" role="tab" id={`${id}-tab-${tab}`} data-view-tab={tab} data-testid={`match-view-${tab}`} aria-selected={view === tab} aria-controls={`${id}-panel-${tab}`} tabIndex={view === tab ? 0 : -1} onClick={() => choose(tab)} onKeyDown={(e) => {
@@ -67,7 +68,6 @@ export function CompactLayout({ d, crumb, top, pitch, stop, banner, momentum, st
         {/* Keep the live pitch mounted while another view is open, so changing tabs never restarts its clock. */}
         <section className="md-mobile-view md-mobile-pitch" role="tabpanel" id={`${id}-panel-pitch`} aria-labelledby={`${id}-tab-pitch`} hidden={view !== 'pitch'}>
           <div className="md-pitch">{pitch}</div>
-          {banner}
         </section>
         {(pulse || panels) && (
           <section className="md-mobile-view md-mobile-stats" role="tabpanel" id={`${id}-panel-stats`} aria-labelledby={`${id}-tab-stats`} hidden={view !== 'stats'}>

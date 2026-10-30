@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { QuickGameResult } from '@game/types'
 import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, scorersLabel, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ChevronDown, Play, SkipForward } from 'lucide-react'
@@ -246,7 +246,7 @@ function readOrder(fallback: GameOrder): GameOrder {
   }
 }
 
-export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights, order: fixedOrder, orderToggle = false, total = results.length, fold }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void; /** Newest game at the top, or matchweek 1 first (the default). */ order?: GameOrder; /** Offer a Newest / Oldest switch, remembered per viewer; starts newest first. */ orderToggle?: boolean; /** Games in the whole season, when `results` holds only part of it (the playback before January). */ total?: number; /** Show only this many games until "Show all" (the replay always shows every game it has revealed). */ fold?: number }) {
+export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights, order: fixedOrder, orderToggle = false, total = results.length, fold, scrollRows }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void; /** Newest game at the top, or matchweek 1 first (the default). */ order?: GameOrder; /** Offer a Newest / Oldest switch, remembered per viewer; starts newest first. */ orderToggle?: boolean; /** Games in the whole season, when `results` holds only part of it (the playback before January). */ total?: number; /** Show only this many games until "Show all" (the replay always shows every game it has revealed). */ fold?: number; /** Keep every game in one internally scrolling box this many rows tall. */ scrollRows?: number }) {
   const revealed = replay ? replay.revealed : results.length
   const playing = replay?.playing ?? false
   const [chosen, setChosen] = useState<GameOrder>(() => (orderToggle ? readOrder('newest') : 'oldest'))
@@ -271,10 +271,10 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
     } else if (playing && newestRef.current) newestRef.current.scrollIntoView({ block: 'nearest' })
   }, [playing, revealed, compact, order])
   const [expanded, setExpanded] = useState(false)
-  const shown = gamesInOrder(results, revealed, order).slice(0, shownGames(revealed, fold, expanded, playing))
+  const shown = gamesInOrder(results, revealed, order).slice(0, scrollRows ? revealed : shownGames(revealed, fold, expanded, playing))
   const newestWeek = revealed ? results[revealed - 1].matchweek : null
   return (
-    <div className={`panel gbg ${compact ? 'compact' : ''} ${onHighlights ? 'with-hl' : ''}`} data-testid="game-by-game" data-order={order}>
+    <div className={`panel gbg ${compact ? 'compact' : ''} ${onHighlights ? 'with-hl' : ''} ${scrollRows ? 'scroll-rows' : ''}`} style={scrollRows ? ({ '--gbg-visible-rows': scrollRows } as CSSProperties) : undefined} data-testid="game-by-game" data-order={order}>
       <div className="panel-head">
         <h3>{title}</h3>
         <span className="row" style={{ gap: 8 }}>
@@ -338,7 +338,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
           )
         })}
       </ol>
-      {fold !== undefined && !playing && revealed > fold && (
+      {!scrollRows && fold !== undefined && !playing && revealed > fold && (
         <button type="button" className="btn ghost sm block gbg-more" onClick={() => setExpanded((e) => !e)} aria-expanded={expanded}>
           {expanded ? 'Show fewer' : `Show all ${revealed} games`} <ChevronDown size={14} className={expanded ? 'flip' : ''} aria-hidden="true" />
         </button>

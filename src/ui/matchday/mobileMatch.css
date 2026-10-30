@@ -25,6 +25,81 @@
     gap: 4px;
     padding: 5px 6px;
   }
+  .matchday.compact.phone[data-view] .md-phone-topbar {
+    display: block;
+    padding: 0;
+    background: transparent;
+    border: 0;
+  }
+  .matchday.compact.phone[data-view] .md-phone-topbar .scoreboard {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    grid-template-areas: 'home score away' 'clock clock clock';
+    justify-content: center;
+    width: 100%;
+    padding: 8px 12px 6px;
+    border: var(--border-strong);
+    border-radius: var(--radius-s);
+    background: var(--panel);
+  }
+  .matchday.compact.phone[data-view] .md-phone-topbar .md-sb-code:first-child { grid-area: home; }
+  .matchday.compact.phone[data-view] .md-phone-topbar .score { grid-area: score; }
+  .matchday.compact.phone[data-view] .md-phone-topbar .md-sb-code:nth-of-type(3) { grid-area: away; }
+  .matchday.compact.phone[data-view] .md-phone-topbar .clock {
+    grid-area: clock;
+    min-width: 0;
+    padding: 2px 0 0;
+    border: 0;
+    text-align: center;
+  }
+  .matchday.compact.phone[data-view] .md-controls-toggle {
+    position: fixed;
+    z-index: 88;
+    left: max(12px, var(--safe-left));
+    right: max(12px, var(--safe-right));
+    bottom: max(8px, var(--safe-bottom));
+    display: flex;
+    justify-content: center;
+    min-height: 48px;
+    box-shadow: var(--shadow);
+    background: var(--panel);
+  }
+  .matchday.compact.phone[data-view] .md-controls-toggle .flip {
+    transform: rotate(180deg);
+  }
+  .matchday.compact.phone[data-view] .md-control-drawer {
+    position: fixed;
+    z-index: 87;
+    left: max(8px, var(--safe-left));
+    right: max(8px, var(--safe-right));
+    bottom: calc(64px + var(--safe-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(58dvh, 520px);
+    padding: 12px;
+    overflow-y: auto;
+    border: var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: var(--shadow-lg, var(--shadow));
+  }
+  .matchday.compact.phone[data-view] .md-control-drawer[hidden] {
+    display: none;
+  }
+  .matchday.compact.phone[data-view] .md-control-drawer .md-tools,
+  .matchday.compact.phone[data-view] .md-control-drawer .md-playback {
+    display: flex;
+  }
+  .matchday.compact.phone[data-view] .md-phone-commentary {
+    flex: none;
+  }
+  .matchday.compact.phone[data-view] .md-phone-commentary .md-banner {
+    min-height: 46px;
+  }
+  .matchday.compact.phone[data-view] .md-mobile-body {
+    padding-bottom: calc(58px + var(--safe-bottom));
+  }
   .matchday.compact.phone[data-view] .scoreboard {
     gap: 6px;
     padding: 4px 8px;
