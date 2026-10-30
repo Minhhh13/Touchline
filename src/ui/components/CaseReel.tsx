@@ -48,6 +48,8 @@ export interface CaseReelProps {
   onSettled?: (spinKey: number) => void
   /** The drawn club-season is a classic one: its ratings are TouchLine's estimate. */
   estimated?: boolean
+  /** This run has already landed in this tab (a reload, `reelLanded.ts`): it shows landed at once, with no slide and no sound. Read when the run mounts. */
+  landed?: boolean
 }
 
 function prefersReducedMotion(): boolean {
@@ -163,7 +165,7 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   )
 }
 
-function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, timing: runTiming }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming }) {
+function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, landed: landedAlready, timing: runTiming }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming }) {
   // Dealt once per run; Math.random only shuffles cosmetic filler cards and the stop jitter, never the game
   const [deal] = useState<ReelDeal>(() => dealReel(u, { leagues, pool, target }, Math.random))
   const [reduced] = useState(prefersReducedMotion)
@@ -240,6 +242,14 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
       if (!settled.current) {
         settled.current = true
         settledCb.current?.(spinKey)
+      }
+    }
+    // Landed before a reload: straight to the landing, no slide and no sound
+    if (landedAlready) {
+      land()
+      return () => {
+        alive = false
+        observer?.disconnect()
       }
     }
     if (reduced || typeof strip.animate !== 'function') {

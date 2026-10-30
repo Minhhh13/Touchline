@@ -167,7 +167,7 @@ export function DraftLog({ lines }: { lines: string[] }) {
 }
 
 /** The middle box: the club-season on the wheel and its squad, or what comes next while there is none. */
-export function OfferPanel({ u, current, tier, spinning, revealed, complete, waitingTitle, waitingLine, notice, headRef, rows, testId }: { u: LoadedUniverse; current: ClubSeason | null; tier?: DisplayTier; spinning: boolean; revealed: boolean; complete: boolean; waitingTitle: string; waitingLine?: string; notice?: ReactNode; headRef?: Ref<HTMLHeadingElement>; rows: ReactNode; testId?: string }) {
+export function OfferPanel({ u, current, tier, spinning, revealed, complete, waitingTitle, waitingLine, notice, headRef, headAction, rows, testId }: { u: LoadedUniverse; current: ClubSeason | null; tier?: DisplayTier; spinning: boolean; revealed: boolean; complete: boolean; waitingTitle: string; waitingLine?: string; notice?: ReactNode; headRef?: Ref<HTMLHeadingElement>; headAction?: ReactNode; rows: ReactNode; testId?: string }) {
   return (
     <div className="panel col">
       {!current && (
@@ -214,6 +214,7 @@ export function OfferPanel({ u, current, tier, spinning, revealed, complete, wai
               </div>
             </div>
           </div>
+          {revealed && headAction && <div className="row wrap">{headAction}</div>}
           {revealed && notice}
           {revealed && (
             <div className="plist lined draft-list" data-testid={testId}>
