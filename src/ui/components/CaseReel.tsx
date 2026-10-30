@@ -13,6 +13,7 @@ import { armAudio, unlockAudio } from '../sound/synth'
 import { useSoundOn } from '../sound/prefs'
 import { FULL_TIMING, OVERSHOOT, QUICK_TIMING, reelKeyframes, reelPosition, type ReelTiming } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
+import { landedBefore, readLandedReel, reelMark, rememberLandedReel } from '../reelLanded'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
 import { reelTierName, tierColour, tierWord } from '../i18n/engineText'
@@ -48,6 +49,11 @@ export interface CaseReelProps {
   onSettled?: (spinKey: number) => void
   /** The drawn club-season is a classic one: its ratings are TouchLine's estimate. */
   estimated?: boolean
+  /**
+   * The draft this reel belongs to (a game's id, the hot-seat's seed): a run that already landed for it on this device
+   * shows landed at once after a reload, with no sound (`reelLanded.ts`). Without it every mount runs the reel.
+   */
+  scope?: string
 }
 
 function prefersReducedMotion(): boolean {
@@ -163,13 +169,16 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   )
 }
 
-function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, timing: runTiming }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming }) {
+function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, scope, timing: runTiming }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming }) {
   // Dealt once per run; Math.random only shuffles cosmetic filler cards and the stop jitter, never the game
   const [deal] = useState<ReelDeal>(() => dealReel(u, { leagues, pool, target }, Math.random))
   const [reduced] = useState(prefersReducedMotion)
   // Fixed for the run: turning Quick spin on mid-run changes the next one
   const [timing] = useState(runTiming)
-  const [stage, setStage] = useState<Stage>('season')
+  // This run landed on this device before a reload: it mounts landed, with no slide and no sound
+  const mark = scope ? reelMark(scope, spinKey, target) : ''
+  const [already] = useState(() => landedBefore(mark, readLandedReel()))
+  const [stage, setStage] = useState<Stage>(already ? 'landed' : 'season')
   const rootRef = useRef<HTMLDivElement>(null)
   const windowRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
@@ -237,9 +246,19 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
       strip.style.transform = stripTo
       sound?.land(deal.target.tier)
       setStage('landed')
+      if (mark) rememberLandedReel(mark)
       if (!settled.current) {
         settled.current = true
         settledCb.current?.(spinKey)
+      }
+    }
+    // Landed before a reload: straight to the stop, before the first paint
+    if (already) {
+      land()
+      skipRef.current = () => undefined
+      return () => {
+        alive = false
+        observer?.disconnect()
       }
     }
     if (reduced || typeof strip.animate !== 'function') {

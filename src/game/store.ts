@@ -111,6 +111,7 @@ const noteSeasonEnd = late('noteSeasonEnd')
 const summerSnapshot = late('summerSnapshot')
 const summerStories = late('summerStories')
 const h2hAutoPick = late('h2hAutoPick')
+const h2hAutoComplete = late('h2hAutoComplete')
 const h2hComplete = late('h2hComplete')
 const h2hPick = late('h2hPick')
 const h2hSpin = late('h2hSpin')
@@ -457,6 +458,8 @@ interface Store {
   h2hSpin: () => void
   h2hPick: (playerSeasonId: string, slotId: string | 'bench') => void
   h2hAuto: () => void
+  /** Auto-complete the hot-seat draft: Spin and the assistant's pick in turn until both squads are full, the same draws as the buttons (`h2hAutoDraft.ts`). */
+  h2hAutoDraft: () => void
   h2hFinish: () => void
   abandonH2H: () => void
   /** A finished online head-to-head room this device held a seat in: one mark on the Trophy Room's online shelf (`won`: this device's manager finished higher). */
@@ -1878,6 +1881,11 @@ export const useStore = create<Store>()(
           const { h2h, universe } = get()
           if (!h2h || !universe) return
           set({ h2h: produce(h2h, (h) => void h2hAutoPick(universe, h.draft)) })
+        },
+        h2hAutoDraft: () => {
+          const { h2h, universe } = get()
+          if (!h2h || !universe || h2h.result || h2hComplete(h2h.draft)) return
+          set({ h2h: produce(h2h, (h) => void h2hAutoComplete(universe, h)) })
         },
         h2hFinish: () => {
           const { h2h, universe, profile } = get()

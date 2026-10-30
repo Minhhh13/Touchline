@@ -214,7 +214,7 @@ export function H2HSetup() {
 }
 
 export function H2HScreen() {
-  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStorePick('universe', 'h2h', 'h2hSpin', 'h2hPick', 'h2hAuto', 'h2hFinish', 'abandonH2H', 'go', 'showToast', 'ensureLeagues', 'loadingLeagues')
+  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hAutoDraft, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStorePick('universe', 'h2h', 'h2hSpin', 'h2hPick', 'h2hAuto', 'h2hAutoDraft', 'h2hFinish', 'abandonH2H', 'go', 'showToast', 'ensureLeagues', 'loadingLeagues')
   // A head-to-head renders only against the packs it was drafted from: its leagues and, for a classic one, the classic
   // seasons (a reload whose classic pack failed, or a head-to-head restored from the cloud); they load here, Retry when offline
   const needs = h2h ? [...new Set([h2h.leagueId, ...(h2h.wheelLeagues ?? [])])] : []
@@ -333,7 +333,7 @@ export function H2HScreen() {
         log={d.log}
         controls={
           <>
-            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
+            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} scope={`h2h:${h2h.seed}`} onSettled={() => setSettled(d.current)} />
             <TurnBanner mine={due || complete} line={turnLine} testId="h2h-turn" />
             <TurnPill mine={due || complete} line={turnLine} testId="h2h-turn-pill" />
             {!d.current && !complete && <SpinOdds odds={odds} label={t('nextSpin')} />}
@@ -350,6 +350,11 @@ export function H2HScreen() {
             {picking !== null && revealed && (
               <button className="btn sm ghost" onClick={() => h2hAuto()} data-testid="h2h-auto">
                 {t('assistantPick', { name: manager?.name })}
+              </button>
+            )}
+            {!complete && !spinning && (
+              <button className="btn sm ghost" title={t('autoAllTip')} onClick={() => void askConfirm(t('autoAllConfirm'), { ok: t('autoAll') }).then((ok) => { if (ok) h2hAutoDraft() })} data-testid="h2h-auto-all">
+                {t('autoAll')}
               </button>
             )}
             <button className="btn ghost sm danger" onClick={() => void askConfirm(t('abandonConfirm'), { ok: t('abandon'), danger: true }).then((ok) => { if (ok) abandonH2H() })} data-testid="h2h-abandon">
