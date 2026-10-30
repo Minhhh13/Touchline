@@ -3536,7 +3536,7 @@ table.tbl.contracts .btn.sm {
   border-color: var(--primary);
   box-shadow: var(--shadow);
 }
-.mode-card:not(.daily):active {
+.mode-card:active {
   transform: translateY(-1px) scale(0.985);
   transition-duration: 60ms;
 }
@@ -3564,8 +3564,7 @@ table.tbl.contracts .btn.sm {
 .mode-art .neon-core {
   transition: opacity var(--dur-2) var(--ease-out);
 }
-.mode-card:hover .mode-scene,
-.mode-card-body:hover .mode-scene {
+.mode-card:hover .mode-scene {
   --neon-boost: 1.35;
 }
 .mode-icon {
@@ -3654,40 +3653,6 @@ table.tbl.contracts .btn.sm {
 }
 .mode-card:hover .mode-go svg {
   transform: translateX(3px);
-}
-/* The Daily card starts the puzzle itself; its body is the way to the full setup for a team name */
-.mode-card.daily {
-  cursor: default;
-}
-.mode-card.daily:hover {
-  transform: none;
-  box-shadow: var(--panel-shadow, none);
-}
-.mode-card-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  text-align: left;
-  padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.mode-card-body:hover .mode-text {
-  background: var(--panel-2);
-}
-.mode-card-body .mode-text {
-  padding-bottom: var(--space-3);
-  transition: background var(--dur-1) var(--ease-out);
-}
-.mode-card.daily > .btn {
-  /* block buttons are 100% wide; inside the card the margins must come out of that width */
-  margin: 0 var(--space-4) var(--space-4);
-  width: auto;
-  align-self: stretch;
-}
-.daily-play-short {
-  display: none;
 }
 /* The second row: compact tiles, an icon and two short lines each */
 .home-tiles {

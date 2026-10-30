@@ -100,11 +100,11 @@ export function Explore() {
             <Info label="About Explore">Each club-season has its real squad and the ratings the engine uses. Tap a player for his whole career; the star shortlists that season for the market.</Info>
           </div>
         </div>
-        <div className="head-actions">
-          {view === 'browse' && <BoxesMenu groups={[boxes]} />}
+        <div className="head-actions explore-head-actions">
           <button className="btn ghost" onClick={() => go('home')}>
             ← Home
           </button>
+          {view === 'browse' && <BoxesMenu groups={[boxes]} />}
         </div>
       </div>
       <div className="screen-body fill">

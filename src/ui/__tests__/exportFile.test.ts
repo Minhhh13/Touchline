@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { dataUrlBase64, shareNativeFile, type NativeExportBridge } from '../exportFile'
+import { dataUrlBase64, shareNativeFile, shareNativeImage, type NativeExportBridge } from '../exportFile'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -29,6 +29,15 @@ async function diskBridge(share: (uri: string) => Promise<void>): Promise<{ root
 }
 
 describe('native file export', () => {
+  it('passes PNG bytes to the native image sheet so iOS can offer Save Image', async () => {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2wS8AAAAASUVORK5CYII='
+    let shared: { data: string; filename: string } | undefined
+    await shareNativeImage(`data:image/png;base64,${png}`, '../Touchline: XI.png', {
+      shareImage: async (options) => { shared = options },
+    })
+    expect(shared).toEqual({ data: png, filename: '-Touchline- XI.png' })
+  })
+
   it('keeps a UTF-8 save available to the share sheet, then removes its cache copy', async () => {
     const save = JSON.stringify({ state: { teamName: 'Đội bóng 日本', seed: 'ios-save-export' }, version: 1 })
     let shared = ''

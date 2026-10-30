@@ -130,6 +130,7 @@
     display: grid;
     flex: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: 10px;
     min-height: auto;
     align-items: stretch;
@@ -137,24 +138,9 @@
   .home .mode-card {
     min-width: 0;
     min-height: 0;
-    flex-direction: column;
-  }
-  .home .mode-card:not(.daily),
-  .home .mode-card-body {
+    height: 100%;
     flex-direction: row;
     align-items: stretch;
-  }
-  .home .mode-card-body {
-    flex: 1 1 auto;
-  }
-  .home .mode-card.daily {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: stretch;
-  }
-  .home .mode-card.daily > .mode-card-body {
-    grid-column: 1;
-    min-width: 0;
   }
   .home .mode-art {
     display: grid;
@@ -188,7 +174,7 @@
     display: -webkit-box;
     overflow: hidden;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
   }
   .home .mode-card .foot {
     flex-wrap: wrap;
@@ -196,21 +182,6 @@
     margin-top: 4px;
     padding-top: 0;
     font-size: 11px;
-  }
-  .home .mode-card.daily > .btn {
-    min-height: 44px;
-    width: 62px;
-    min-width: 62px;
-    margin: 8px 8px 8px 0;
-    padding: 6px 8px;
-    align-self: center;
-    font-size: 12px;
-  }
-  .home .daily-play-long {
-    display: none;
-  }
-  .home .daily-play-short {
-    display: inline;
   }
   .home .home-tiles,
   .home .home-tiles.casual {

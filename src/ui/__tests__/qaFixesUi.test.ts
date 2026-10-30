@@ -16,6 +16,7 @@ import { H2HSetup } from '../screens/H2H'
 import { Dugout, TacticsTab } from '../screens/Dugout'
 import { MatchScreen } from '../screens/MatchScreen'
 import { Explore } from '../screens/Explore'
+import { Home } from '../screens/Home'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { StatsTab } from '../screens/StatsTab'
 import { useStore } from '@game/store'
@@ -28,6 +29,18 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 describe('QA screen fixes', () => {
+  it('keeps Daily as one equal mode card and places Explore navigation at opposite edges', () => {
+    const u = loadTestUniverse(['england'])
+    show({ universe: u, loadedLeagues: ['england'], game: null, parked: {}, screen: 'home' })
+    const home = renderToString(createElement(Home))
+    expect(home).toContain('data-testid="daily-card"')
+    expect(home).not.toContain('data-testid="daily-play"')
+    expect(home).not.toContain('data-testid="daily-ranked"')
+
+    const explore = readFileSync(join(__dirname, '..', 'screens', 'Explore.tsx'), 'utf8')
+    expect(explore).toMatch(/explore-head-actions[\s\S]*?← Home[\s\S]*?<BoxesMenu/)
+  })
+
   it('QA-2: the head-to-head setup renders while the chosen league is still loading (it was a white page)', () => {
     // England is the setup's first league; a universe without its pack is the moment after a new league is picked
     show({ universe: loadTestUniverse(['spain']), loadedLeagues: ['spain'], h2h: null, screen: 'h2h' })

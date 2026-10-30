@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
-import { useStore, todaysDailySeed, slotOf } from '@game/store'
-import { dailySettings } from '@game/logic/setup'
+import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
+import { useStore, slotOf } from '@game/store'
 import { modeLabel } from '@game/logic/modes'
 import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
@@ -9,12 +8,9 @@ import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
 import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
-import { dailyStartSettings } from '../../online/daily'
-import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
-import { useOnline } from '../../online/state'
 import { onlineAvailable } from '../../online/api'
 import { ConflictCards } from '../online/ConflictCard'
-import { seasonLabel, formationName } from '../format'
+import { seasonLabel } from '../format'
 import { TeamBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
@@ -121,30 +117,9 @@ export function Home() {
   const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
-  const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const openArenaSetup = (format: 'cup' | 'gauntlet') => withViewTransition(() => openArenaNow(format))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
-  const today = new Date().toISOString().slice(0, 10)
-  const dailyDone = !!profile.dailyResults[`daily-${today}`]
-  // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
-  // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
-  const dailyStart = dailyReady ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
-  const daily = dailyReady ? (dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, host: dailyStart.settings.hostClubId, season: dailyStart.settings.leagueSeason } : dailySettings(u, todaysDailySeed())) : null
-  // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
-  const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
-  const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)
-  const playDaily = () => {
-    if (!u || !dailyReady) return
-    if (isTodaysDaily(game)) {
-      go('game')
-      return
-    }
-    // Parked by an arena run or a Weekly: today's puzzle comes back as it was left
-    if (isTodaysDaily(parked.quick)) return resumeGame('quick')
-    // The button opens the Daily setup, as the card does: the team name, today's puzzle, and Start Draft there
-    go('setup', 'daily')
-  }
   const achievements = Object.keys(profile.achievements).length
   // The Daily Arena: today's run continues wherever it is (active or parked); any other unfinished arena run is only dropped on a yes
   const arenaSeed = arenaDailySeed()
@@ -179,8 +154,6 @@ export function Home() {
     if (settings) withViewTransition(() => startGame(settings))
   }
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? `${done}${streak ? ` · streak ${streak}` : ''}` : streak ? `Streak ${streak} · ${fallback}` : fallback)
-  const dailyPlayLabel = !dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"
-  const dailyPlayShort = !dailyReady ? 'Wait' : dailyUnderWay ? 'Resume' : dailyDone ? 'Again' : 'Play'
   return (
     <div className="page home" data-phone-tab={phoneTab}>
       <section className="hero">
@@ -297,44 +270,22 @@ export function Home() {
             <GoLabel />
           </span>
         </button>
-        <div className="mode-card daily" data-testid="daily-card">
-          <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title="Open the full setup to name your team">
-            <ModeArt kind="daily" icon={CalendarDays} />
-            <span className="mode-text">
-              <h3>Daily Challenge</h3>
-              <p>Same spins for everyone, every day.</p>
-              <span className="foot">
-                <TimeTag>5 min</TimeTag>
-                {daily && u && (
-                  <span className="daily-today" title={`Today: a ${formationName(daily.formationId)}, ${u.leagues.find((l) => l.id === u.clubById[daily.host]?.leagueId)?.name ?? ''} ${seasonLabel(daily.season)}`}>
-                    <LeagueFlag leagueId={u.clubById[daily.host]?.leagueId ?? 'england'} />
-                    {formationName(daily.formationId)} · {seasonLabel(daily.season)}
-                  </span>
-                )}
-                {pin && dailyStart && (
-                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? 'Every score on the world leaderboard is checked by replay' : PIN_NOTE[pinStanding(pin, dailyStart.source) as Exclude<PinStanding, 'ranked'>]}>
-                    {PIN_TAG[dailyStart.ranked ? 'ranked' : pinStanding(pin, dailyStart.source)]}
-                  </span>
-                )}
-                {profile.dailyStreak > 0 && (
-                  <span className="streak" title={dailyDone ? 'Played today' : 'Daily streak'}>
-                    <Flame size={13} />
-                    {profile.dailyStreak}
-                  </span>
-                )}
-              </span>
+        <button className="mode-card daily" onClick={() => go('setup', 'daily')} disabled={!dailyReady} data-testid="daily-card">
+          <ModeArt kind="daily" icon={CalendarDays} />
+          <span className="mode-text">
+            <h3>Daily Challenge</h3>
+            <p>Same wheel for everyone, every day.</p>
+            <span className="foot">
+              <TimeTag>5 min</TimeTag>
             </span>
-          </button>
-          <button type="button" className={`btn block${newcomer ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play" aria-label={dailyPlayLabel}>
-            <span className="daily-play-long">{dailyPlayLabel}</span>
-            <span className="daily-play-short">{dailyPlayShort}</span>
-          </button>
-        </div>
+            <GoLabel />
+          </span>
+        </button>
         <button className="mode-card" onClick={() => go('setup', 'season')}>
           <ModeArt kind="season" icon={ClipboardList} />
           <span className="mode-text">
             <h3>Season</h3>
-            <p>Draft eighteen, then manage every week.</p>
+            <p>Draft eighteen, manage every week.</p>
             <span className="foot">
               <TimeTag>45 min</TimeTag>
             </span>

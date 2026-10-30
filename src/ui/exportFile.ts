@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { saveBlob, saveDataUrl } from './saveFile'
 
 interface ExportFile {
@@ -12,6 +12,12 @@ export interface NativeExportBridge {
   share: (uri: string) => Promise<void>
   remove: (directory: string) => Promise<void>
 }
+
+export interface NativeImageShareBridge {
+  shareImage: (options: { data: string; filename: string }) => Promise<void>
+}
+
+const NativeImageShare = registerPlugin<NativeImageShareBridge>('TouchlineImageShare')
 
 let exportSequence = 0
 
@@ -43,6 +49,11 @@ export async function shareNativeFile(file: ExportFile, bridge: NativeExportBrid
   }
 }
 
+/** Share a real UIImage on iOS, so the system sheet offers Save Image / Save to Photos. */
+export async function shareNativeImage(dataUrl: string, filename: string, bridge: NativeImageShareBridge): Promise<void> {
+  await bridge.shareImage({ data: dataUrlBase64(dataUrl), filename: exportFilename(filename) })
+}
+
 async function nativeBridge(): Promise<NativeExportBridge> {
   const [{ Filesystem, Directory, Encoding }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')])
   return {
@@ -53,7 +64,7 @@ async function nativeBridge(): Promise<NativeExportBridge> {
 }
 
 export async function exportDataUrl(dataUrl: string, filename: string): Promise<void> {
-  if (Capacitor.isNativePlatform()) await shareNativeFile({ filename, data: dataUrlBase64(dataUrl), encoding: 'base64' }, await nativeBridge())
+  if (Capacitor.isNativePlatform()) await shareNativeImage(dataUrl, filename, NativeImageShare)
   else await saveDataUrl(dataUrl, filename)
 }
 

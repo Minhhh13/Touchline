@@ -393,7 +393,8 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    overflow: hidden;
+    overflow-x: clip;
+    overflow-y: hidden;
     padding-bottom: 10px;
   }
   .dugout-page > :not(.tab-body) {
@@ -440,13 +441,22 @@
   }
   .dugout-page .cta-main {
     gap: 6px;
-    max-height: 80px;
+    max-height: none;
     padding: 8px 10px;
     border: var(--border);
     border-radius: var(--radius);
     background: var(--panel);
-    overflow-y: auto;
+    overflow: visible;
     flex: none;
+  }
+  .dugout-page .briefing.checklist {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+  }
+  .dugout-page .briefing.checklist .brief {
+    min-width: 0;
+    flex-wrap: wrap;
   }
   .dugout-page .briefing {
     font-size: 12px;
@@ -520,11 +530,36 @@
     gap: 4px;
   }
   .dugout-page [data-squad-block='list'] .toolbar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    overflow: visible;
   }
   .dugout-page [data-squad-block='list'] .toolbar > * {
-    flex: none;
+    min-width: 0;
+  }
+  .dugout-page [data-squad-block='list'] .squad-views-seg {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+  .dugout-page [data-squad-block='list'] .squad-views-seg button {
+    min-width: 0;
+    padding-inline: 4px;
+  }
+  .dugout-page [data-squad-block='list'] .key-chip {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+  .dugout-page [data-squad-block='list'] .toolbar > .btn {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
   }
   .dugout-page .plist > * {
     flex-shrink: 0;
@@ -540,15 +575,14 @@
   }
   .dugout-page .cta-bar .btns,
   .dugout-page .panel.cta:has(.briefing.checklist) .cta-bar .btns {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+    width: 100%;
   }
   .dugout-page .cta-bar .btns .btn {
-    flex: 0 0 auto;
-    width: auto;
-    min-width: max-content;
+    width: 100%;
+    min-width: 0;
     min-height: 44px;
   }
   .dugout-page .cta-bar {
@@ -563,9 +597,12 @@
   .dugout-page .cta-bar .btns [data-testid='play-week'],
   .dugout-page .panel.cta:has(.briefing.checklist) .cta-bar .btns [data-testid='play-week'] {
     order: -1;
-    flex: 0 0 auto;
-    width: auto;
-    min-width: 140px;
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+  .dugout-page .cta-bar .match-play {
+    flex-wrap: wrap;
   }
   .dugout-page .cta-bar .match-play button {
     min-height: 44px;
@@ -641,7 +678,8 @@
   .app:has(> .arena-setup) {
     height: auto;
     min-height: 100dvh;
-    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
   }
   .app:has(> .home) > .topbar,
   .app:has(> .dugout-page) > .topbar,
@@ -661,8 +699,27 @@
   }
   .app > .dugout-page,
   .app.shell > .dugout-page {
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
     padding-bottom: calc(12px + var(--safe-bottom));
+  }
+  .dugout-page [data-squad-block],
+  .dugout-page .depth,
+  .dugout-page .depth-row,
+  .dugout-page .depth-names {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .dugout-page .depth-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+  .page > .screen-head:has(.explore-head-actions) {
+    align-items: stretch;
+  }
+  .explore-head-actions {
+    width: 100%;
+    justify-content: space-between;
   }
   .dugout-page > .tab-body,
   .dugout-page .tab-body:has(> .grid.dugout[data-squad-pane]),
