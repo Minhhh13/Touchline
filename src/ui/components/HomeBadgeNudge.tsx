@@ -8,6 +8,8 @@ import { translator } from '../i18n'
 import { home } from '../i18n/en/home'
 
 const t = translator(home)
+/** The badges whose count reads badly before "to go" and so have words of their own */
+type NudgeWords = 'globetrotter' | 'cup-collector' | 'ironman'
 
 /** Once the Profile screen's chunk has rendered, bring the outlined badge into view (up to 3 s, then give up). */
 function scrollToNextBadge(started = Date.now()) {
@@ -18,7 +20,7 @@ function scrollToNextBadge(started = Date.now()) {
 
 /**
  * Home's next-badge line: the badge nearest its next tier and what is left to earn it, in its own words ("1 league
- * title to go", not "0 of 1 for bronze"), opening the Trophy Room. Its own chunk (Home lazy-loads it),
+ * title to go", not "0 of 1 for bronze"; a badge whose count reads badly before "to go" has its own `nudgeLeft_` words), opening the Trophy Room. Its own chunk (Home lazy-loads it),
  * so the trophies' catalogue stays out of the first download.
  */
 export default function HomeBadgeNudge({ onOpen }: { onOpen: () => void }) {
@@ -32,7 +34,7 @@ export default function HomeBadgeNudge({ onOpen }: { onOpen: () => void }) {
         requestAnimationFrame(() => scrollToNextBadge())
       }} data-testid="badge-nudge">
       <Award size={14} aria-hidden="true" />
-      {t('nudgeBadge', { badge: badgeTitle(chase.state.badge), left: badgeCount(chase.state.badge, chase.left) })}
+      {t('nudgeBadge', { badge: badgeTitle(chase.state.badge), left: t.has(`nudgeLeft_${chase.state.badge.id}`) ? t(`nudgeLeft_${chase.state.badge.id as NudgeWords}`, { n: chase.left }) : badgeCount(chase.state.badge, chase.left) })}
     </button>
   )
 }

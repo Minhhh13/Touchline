@@ -1,12 +1,12 @@
 import { Share2, Trophy } from 'lucide-react'
 import { useStorePick } from '../useStorePick'
-import { nextToChase, unlockShareText, type TrophyItem } from '@game/logic/trophyChase'
+import { earnedKeys, nextToChase, unlockShareText, type TrophyItem } from '@game/logic/trophyChase'
 import { translator } from '../i18n'
 import { profile as profileText } from '../i18n/en/profile'
 import { badgeCount, badgeTitle, milestoneCount, milestoneTitle, progressText } from '../i18n/trophyText'
 import { shareOrCopy } from '../shareSheet'
 import { trophyIcon } from '../trophyIcons'
-import { profileTrophyItems, useTrophyReveal } from '../trophyReveal'
+import { profileTrophyItems, useSeenOnLeave, useTrophyReveal } from '../trophyReveal'
 import { useBadgeSound } from '../sound/useBadgeSound'
 import { prefersReducedMotion } from '../motion'
 import { Tip } from './bits'
@@ -57,6 +57,8 @@ export function BadgeUnlocks() {
   const { profile, universe, go, showToast } = useStorePick('profile', 'universe', 'go', 'showToast')
   const items = profileTrophyItems(profile, universe)
   const { fresh, markSeen } = useTrophyReveal(items)
+  // Leaving the result files what it showed, so the next result never shows it as new again
+  const { toRoom } = useSeenOnLeave(fresh.length > 0, earnedKeys(items))
   // The medal's ring, once, as the Trophy Room rings it (the same heard list)
   useBadgeSound(fresh.length ? items.flatMap((i) => (i.key ? [i.key] : [])) : [])
   const share = async (i: TrophyItem) => {
@@ -94,7 +96,10 @@ export function BadgeUnlocks() {
               type="button"
               className="btn sm"
               // The Trophy Room marks the new tiles New, then files them as seen itself
-              onClick={() => go('profile')}
+              onClick={() => {
+                toRoom()
+                go('profile')
+              }}
               data-testid="badge-unlock-room"
             >
               <Trophy size={14} aria-hidden="true" /> {t('openTrophyRoom')}

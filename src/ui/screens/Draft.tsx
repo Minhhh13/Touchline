@@ -221,7 +221,7 @@ export function Draft() {
   const target = targetSlot(d)
   const modeCards = activeModeCards(d.rules)
   // Hard shows as a mode chip when the Modes row is in play, so the tag line does not say it twice
-  const tags = rulesTags(d.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES).filter((tag) => !(tag === 'Hard' && modeCards.length > 1))
+  const tags = rulesTags(d.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' || game.settings.mode === 'runin' ? SEASON_RULES : QUICK_RULES).filter((tag) => !(tag === 'Hard' && modeCards.length > 1))
   const forced = forcedSlotOf(d)
   const surprise = d.surprise && d.surprise.atSpin === d.spins && !d.current ? d.surprise : null
   const complete = isComplete(d)
@@ -412,7 +412,7 @@ export function Draft() {
                 <b>{t('picksMade', { n: picksMade(d) })}</b>
               </div>
             ) : (
-              <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} onSettled={() => setSettled(d.current)} />
+              <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} scope={game.id} onSettled={() => setSettled(d.current)} />
             )}
             {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
             {ghost && challenge && revealed && (
@@ -464,6 +464,12 @@ export function Draft() {
                     {t('firstSpinHelp')}
                   </p>
                 )}
+                {/* An arena run opens straight on its draft (the Daily Arena from Home): say what the squad is for */}
+                {!firstDraft && game.settings.arena && made === 0 && !d.current && !spinning && !choosing && (
+                  <p className="help first-spin-help" data-testid="arena-spin-help">
+                    {t('arenaSpinHelp', { format: game.settings.arena.format === 'gauntlet' ? 'gauntlet' : game.settings.arena.size === 2 ? 'final' : 'cup', squad: d.rules.squadSize, size: game.settings.arena.size ?? 16 })}
+                  </p>
+                )}
                 {canClose && (
                   <button className="btn" disabled={spinning} onClick={() => finishDraft()} data-testid="finish-draft">
                     {d.bench.length ? t('kickOffWithBench', { n: d.bench.length }) : t('kickOffNoBench')}
@@ -473,7 +479,7 @@ export function Draft() {
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()} title={t('respinTip', { n: d.respinsLeft })} data-testid="respin">
                     {t('respin', { n: d.respinsLeft })}
                   </button>
-                  <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning || autoBusy} aria-busy={autoBusy || undefined} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) runAuto(() => autoDraftRest()) })}>
+                  <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning || autoBusy} aria-busy={autoBusy || undefined} onClick={() => void askConfirm(d.current && !isIcons(d.current) ? t('autoConfirmShowing', { club: `${clubName(u, d.current.clubId)} ${seasonLabel(d.current.season)}` }) : t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) runAuto(() => autoDraftRest()) })}>
                     {t(autoBusy ? 'autoCompleting' : 'autoComplete')}
                   </button>
                 </div>
@@ -489,14 +495,15 @@ export function Draft() {
           {!complete && boxes.on('needs') && (
             <div className="panel tight">
               <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
-                {fillingStarters ? t('stillNeed') : t('benchMore', { n: total - made, optional: places ? 'yes' : 'no' })}
+                {fillingStarters ? t('stillNeed') : signings ? t('signingsMore', { n: total - made }) : t('benchMore', { n: total - made, optional: places ? 'yes' : 'no' })}
               </div>
               <div className="pill-list">
                 {needs.map((p) => (
                   <Pos key={p} p={p} />
                 ))}
               </div>
-              {!fillingStarters && !dry && <Tip id="draft-bench">{t('benchTip')}</Tip>}
+              {/* Not on a Dynasty summer's or a Gauntlet's bonus spins: the squad is already built, and the tip sat under the summer card (playtest round 2, P10) */}
+              {!fillingStarters && !dry && !signings && !isDynastySummer && !gauntletBonus && <Tip id="draft-bench">{t('benchTip')}</Tip>}
             </div>
           )}
           {(d.history.length > 0 || puLog.length > 0) && boxes.on('log') && (
@@ -519,7 +526,7 @@ export function Draft() {
                   {gradeLine}
                 </div>
               )}
-              {/* A grade's note (the best play on that spin) on hover, focus or a tap, so a phone sees it too */}
+              {/* A grade's note (the best play on that spin) and a twist's name on hover, focus or a tap, so a phone sees them too */}
               <HoverTips testId="grade-tip" className="draft-log-tips">
               <ol className="draft-log">
                 {[...d.history].reverse().map((h, i) => {
@@ -543,7 +550,7 @@ export function Draft() {
                             </button>
                           )}
                           {h.twist && TwistIcon && (
-                            <span className="log-twist" title={TWIST_INFO[h.twist].title} role="img" aria-label={TWIST_INFO[h.twist].title}>
+                            <span className="log-twist" data-tip={TWIST_INFO[h.twist].title} role="img" aria-label={TWIST_INFO[h.twist].title}>
                               <TwistIcon size={12} aria-hidden="true" />
                             </span>
                           )}

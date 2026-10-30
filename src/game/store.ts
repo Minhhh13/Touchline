@@ -111,6 +111,7 @@ const noteSeasonEnd = late('noteSeasonEnd')
 const summerSnapshot = late('summerSnapshot')
 const summerStories = late('summerStories')
 const h2hAutoPick = late('h2hAutoPick')
+const h2hAutoComplete = late('h2hAutoComplete')
 const h2hComplete = late('h2hComplete')
 const h2hPick = late('h2hPick')
 const h2hSpin = late('h2hSpin')
@@ -161,6 +162,9 @@ function* playWeekSteps(g: Game, u: LoadedUniverse, mode: MatchPlayMode): Genera
 }
 
 /** localStorage key the whole game is persisted under. */
+/** The match view an arena step opens on: managed live, the dashboard; simmed by the assistant, the report (playtest P4). */
+export const arenaStepView = (live: boolean): 'ticker' | 'report' => (live ? 'ticker' : 'report')
+
 export const SAVE_KEY = 'touchline-save-v1'
 /** Persist version of the saved state (a change needs a `migrate`). */
 export const SAVE_VERSION = 1
@@ -454,6 +458,8 @@ interface Store {
   h2hSpin: () => void
   h2hPick: (playerSeasonId: string, slotId: string | 'bench') => void
   h2hAuto: () => void
+  /** Auto-complete the hot-seat draft: Spin and the assistant's pick in turn until both squads are full, the same draws as the buttons (`h2hAutoDraft.ts`). */
+  h2hAutoDraft: () => void
   h2hFinish: () => void
   abandonH2H: () => void
   /** A finished online head-to-head room this device held a seat in: one mark on the Trophy Room's online shelf (`won`: this device's manager finished higher). */
@@ -1458,8 +1464,8 @@ export const useStore = create<Store>()(
             playArenaStep(g, u, live)
             if (live && g.live) byHand(g)
           })
-          // Either way the match opens on its replay dashboard (one screen); the report is a tab away
-          set({ matchView: 'ticker' })
+          // Managed live, the match opens on its dashboard; simmed, on its report (the result, as Sim result does in a Season), the replay a tab away
+          set({ matchView: arenaStepView(live) })
         },
         playArenaStepSoon: async (live, prepare) => {
           const { game: g0, universe: u0, playingWeek } = get()
@@ -1491,7 +1497,7 @@ export const useStore = create<Store>()(
               await nextTask()
             }
             if (moved()) return get().playArenaStep(live)
-            set({ game: next, matchView: 'ticker', playingWeek: false })
+            set({ game: next, matchView: arenaStepView(live), playingWeek: false })
           } finally {
             if (get().playingWeek) set({ playingWeek: false })
           }
@@ -1875,6 +1881,11 @@ export const useStore = create<Store>()(
           const { h2h, universe } = get()
           if (!h2h || !universe) return
           set({ h2h: produce(h2h, (h) => void h2hAutoPick(universe, h.draft)) })
+        },
+        h2hAutoDraft: () => {
+          const { h2h, universe } = get()
+          if (!h2h || !universe || h2h.result || h2hComplete(h2h.draft)) return
+          set({ h2h: produce(h2h, (h) => void h2hAutoComplete(universe, h)) })
         },
         h2hFinish: () => {
           const { h2h, universe, profile } = get()

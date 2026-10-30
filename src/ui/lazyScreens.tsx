@@ -75,6 +75,69 @@ export function isChunkLoadError(error: unknown): boolean {
   return error.name === 'ChunkLoadError' || /dynamically imported module|Importing a module script failed|Unable to preload CSS|Loading (?:CSS )?chunk \S+ failed/i.test(error.message)
 }
 
+/** Per tab (sessionStorage): when this tab last reloaded itself over a chunk that did not load. */
+export const CHUNK_RELOAD_KEY = 'touchline-chunk-reload'
+/** At most one automatic reload in this long, so a chunk that really is missing shows the card instead of a reload loop. */
+export const CHUNK_RELOAD_WINDOW_MS = 60_000
+
+/**
+ * Whether a chunk that did not load reloads the page by itself (R14-O1): only online (offline, the card says why and a
+ * reload would not help), and only when this tab has not done so in the last `CHUNK_RELOAD_WINDOW_MS`. A reload made
+ * while the previous page's imports were in flight can leave one screen's module failed; a fresh page loads it. Pure.
+ */
+export function chunkReloadDue(now: number, lastAt: number | null, online: boolean): boolean {
+  if (!online) return false
+  if (lastAt === null || !Number.isFinite(lastAt)) return true
+  return now - lastAt >= CHUNK_RELOAD_WINDOW_MS || now < lastAt
+}
+
+/** Per tab: the screen a reload over a failed chunk goes back to (a screen with no game is not kept by the save). */
+export const CHUNK_RETURN_KEY = 'touchline-chunk-screen'
+/** The screens a reload can come back to with nothing but their name (and Setup's mode). */
+const RETURNABLE = ['setup', 'explore', 'profile', 'howto', 'h2h', 'world', 'privacy', 'account'] as const
+const RETURN_MODES = ['quick', 'daily', 'season', 'dynasty', 'arena', 'weekly', 'runin'] as const
+export type ChunkReturn = { screen: (typeof RETURNABLE)[number]; mode?: (typeof RETURN_MODES)[number] }
+
+/**
+ * Where the page that reloaded over a chunk goes back to: the screen it was showing ("setup:quick", "explore"), and
+ * only when the reload brought it home (a game's own screen comes back from the save by itself). Pure.
+ */
+export function chunkReturnOf(token: string | null, current: string): ChunkReturn | null {
+  if (!token || current !== 'home') return null
+  const [screen, mode] = token.split(':')
+  const s = RETURNABLE.find((x) => x === screen)
+  if (!s) return null
+  const m = RETURN_MODES.find((x) => x === mode)
+  return m ? { screen: s, mode: m } : { screen: s }
+}
+
+/** The return token a reload left for this page, read once (it is removed). */
+export function takeChunkReturn(): string | null {
+  try {
+    const token = sessionStorage.getItem(CHUNK_RETURN_KEY)
+    if (token !== null) sessionStorage.removeItem(CHUNK_RETURN_KEY)
+    return token
+  } catch {
+    return null
+  }
+}
+
+/** Reload once over a failed chunk, if due; false when the card should stay. */
+function reloadOverChunk(returnTo: string | undefined): boolean {
+  try {
+    const raw = sessionStorage.getItem(CHUNK_RELOAD_KEY)
+    const last = raw === null ? null : Number(raw)
+    const now = Date.now()
+    if (!chunkReloadDue(now, last, navigator.onLine !== false)) return false
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(now))
+    if (returnTo) sessionStorage.setItem(CHUNK_RETURN_KEY, returnTo)
+    location.reload()
+    return true
+  } catch {
+    return false
+  }
+}
+
 interface BoundaryProps {
   children: ReactNode
   /** The screen on show: a new key (another screen or phase) clears a caught error, so that screen gets its own try. */
@@ -82,6 +145,8 @@ interface BoundaryProps {
   onHome: () => void
   /** Home itself is the screen: Back to home would land on the same error, so only Reload is offered. */
   atHome?: boolean
+  /** The screen to come back to after a reload over a chunk (`chunkReturnOf`): "setup:quick", "explore". */
+  returnTo?: string
 }
 
 interface BoundaryState {
@@ -111,6 +176,8 @@ export class ScreenBoundary extends Component<BoundaryProps, BoundaryState> {
     console.error(chunk ? 'Screen chunk did not load' : 'Screen error', error, info.componentStack)
     // To the error reporter of an online build, if the player has not switched it off (src/online/errors.ts)
     signalError(chunk ? 'chunk' : 'boundary', error)
+    // Once, online: a fresh page loads what this one could not (the card shows meanwhile, and if the reload does not help)
+    if (chunk) reloadOverChunk(this.props.returnTo)
   }
 
   render(): ReactNode {

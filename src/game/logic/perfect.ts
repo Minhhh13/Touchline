@@ -68,11 +68,19 @@ export interface ChaseLine {
   justBroke: boolean
 }
 
+/**
+ * A count of wins in words: "1 win", "12 wins". The chase never prints a run as "12-0": beside real scores (7-1,
+ * 2-1) a new player read it as one (playtest round 2, P5).
+ */
+export function winsWord(n: number): string {
+  return `${n} win${n === 1 ? '' : 's'}`
+}
+
 export function chaseLine(c: ChaseState, games: number): ChaseLine {
   const target = perfectTarget(games)
   if (c.perfect) {
     const done = c.played >= games && games > 0
-    return { tone: 'perfect', headline: done ? `${target}. The perfect season` : c.played ? `Still perfect: ${c.won}-0` : `Chasing ${target}`, detail: done ? null : c.played ? `${games - c.played} to go for ${target}` : 'Win every game', justBroke: false }
+    return { tone: 'perfect', headline: done ? `${target}. The perfect season` : c.played ? `Still perfect: ${winsWord(c.won)} from ${c.played}` : `Chasing ${target}`, detail: done ? null : c.played ? `${games - c.played} to go for ${target}` : 'Win every game', justBroke: false }
   }
   const over = perfectOverLabel(c.perfectRun)
   const justBroke = c.perfectEndedAt === c.played || c.unbeatenEndedAt === c.played
@@ -100,7 +108,7 @@ export function versusPerfectLine(won: number, lost: number, games: number): str
 }
 
 /**
- * The runs under the summary's lead, in plain words: "Perfect run 12-0 · unbeaten for the first 15",
+ * The runs under the summary's lead, in plain words: "Perfect run of 12 wins · unbeaten for the first 15",
  * "Perfect run ended in game 2", "Unbeaten for the first 9 games". Null when it would say nothing more than the
  * line above it: a perfect season, unbeaten all season, or the first game not won and the unbeaten run no longer.
  */
@@ -109,7 +117,7 @@ export function runsLine(c: Pick<ChaseState, 'perfectRun' | 'unbeatenRun'>, game
   if (games > 0 && p >= games) return null
   // An unbeaten run worth naming: longer than the perfect one, two games or more, and not the whole season
   const u = c.unbeatenRun > p && c.unbeatenRun >= 2 && !(games > 0 && c.unbeatenRun >= games) ? c.unbeatenRun : 0
-  if (p >= 2) return u ? `Perfect run ${p}-0 · unbeaten for the first ${u}` : `Perfect run ${p}-0`
+  if (p >= 2) return u ? `Perfect run of ${p} wins · unbeaten for the first ${u}` : `Perfect run of ${p} wins`
   if (u) return `Unbeaten for the first ${u} games`
   return p === 1 ? 'Perfect run ended in game 2' : null
 }

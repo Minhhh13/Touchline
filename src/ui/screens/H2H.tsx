@@ -16,6 +16,7 @@ import { h2hTurnKey, nextFirstPicker } from '@game/logic/h2hView'
 import { useFlash } from '../useFlash'
 import { classicFromIndex, estimatedNote } from '@game/logic/era'
 import { CaseReel } from '../components/CaseReel'
+import { landedKey, landedSeen, rememberLanded } from '../reelLanded'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge, EstimatedChip, Info, Segmented, Stat, TeamBadge } from '../components/bits'
 import { BoardMessage, DraftBoard, H2HHead, H2HSteps, ManagerCard, ManagerFields, OfferPanel, OfferRows, SquadPitches, TurnBanner, TurnPill } from '../components/H2HBoard'
@@ -214,7 +215,7 @@ export function H2HSetup() {
 }
 
 export function H2HScreen() {
-  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStorePick('universe', 'h2h', 'h2hSpin', 'h2hPick', 'h2hAuto', 'h2hFinish', 'abandonH2H', 'go', 'showToast', 'ensureLeagues', 'loadingLeagues')
+  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hAutoDraft, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStorePick('universe', 'h2h', 'h2hSpin', 'h2hPick', 'h2hAuto', 'h2hAutoDraft', 'h2hFinish', 'abandonH2H', 'go', 'showToast', 'ensureLeagues', 'loadingLeagues')
   // A head-to-head renders only against the packs it was drafted from: its leagues and, for a classic one, the classic
   // seasons (a reload whose classic pack failed, or a head-to-head restored from the cloud); they load here, Retry when offline
   const needs = h2h ? [...new Set([h2h.leagueId, ...(h2h.wheelLeagues ?? [])])] : []
@@ -225,10 +226,12 @@ export function H2HScreen() {
     if (gate === 'loading' && !loadingLeagues) void ensureLeagues(needKey.split(','), needsClassic)
   }, [gate, loadingLeagues, needKey, needsClassic, ensureLeagues])
   const packsReady = gate === 'ready'
-  // As in the Draft: the spin whose reel has landed, and a selection that belongs to its spin
-  const [settled, setSettled] = useState<H2HDraft['current']>(null)
-  const [picked, setPicked] = useState<{ id: string; turn: string } | null>(null)
   const d = h2h?.draft
+  // A spin this tab has already seen land comes back landed after a reload (R14-O3, reelLanded.ts)
+  const reelKey = landedKey('h2h', h2h?.seed ?? '', d?.spins ?? 0, d?.current)
+  // As in the Draft: the spin whose reel has landed, and a selection that belongs to its spin
+  const [settled, setSettled] = useState<H2HDraft['current']>(() => (landedSeen(reelKey) ? (d?.current ?? null) : null))
+  const [picked, setPicked] = useState<{ id: string; turn: string } | null>(null)
   const spinning = !!d?.current && settled !== d.current
   const revealed = !!d?.current && settled === d.current
   // Keyed to the spin and the manager picking: both pick on one spin, so one manager's selection never carries to the other
@@ -333,23 +336,23 @@ export function H2HScreen() {
         log={d.log}
         controls={
           <>
-            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
+            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} scope={`h2h:${h2h.seed}`} onSettled={() => { rememberLanded(reelKey); setSettled(d.current) }} />
             <TurnBanner mine={due || complete} line={turnLine} testId="h2h-turn" />
             <TurnPill mine={due || complete} line={turnLine} testId="h2h-turn-pill" />
             {!d.current && !complete && <SpinOdds odds={odds} label={t('nextSpin')} />}
             {!complete && (
-              <button ref={spinRef} className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
+              <button ref={spinRef} className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()} data-testid="h2h-spin">
                 {d.current ? (spinning ? t('spinning') : t('picks', { name: manager?.name ?? '' })) : t('spinFirst', { name: firstName })}
               </button>
             )}
             {complete && (
-              <button ref={finishRef} className="btn primary spin-btn display" onClick={() => h2hFinish()}>
+              <button ref={finishRef} className="btn primary spin-btn display" onClick={() => h2hFinish()} data-testid="h2h-finish">
                 {t('playSeason')}
               </button>
             )}
-            {picking !== null && revealed && (
-              <button className="btn sm ghost" onClick={() => h2hAuto()}>
-                {t('assistantPick', { name: manager?.name })}
+{!complete && !spinning && (
+              <button className="btn sm ghost" title={t('autoAllTip')} onClick={() => void askConfirm(t('autoAllConfirm'), { ok: t('autoAll') }).then((ok) => { if (ok) h2hAutoDraft() })} data-testid="h2h-auto-all">
+                {t('autoAll')}
               </button>
             )}
             <button className="btn ghost sm danger" onClick={() => void askConfirm(t('abandonConfirm'), { ok: t('abandon'), danger: true }).then((ok) => { if (ok) abandonH2H() })} data-testid="h2h-abandon">
@@ -357,7 +360,12 @@ export function H2HScreen() {
             </button>
           </>
         }
-        offer={<OfferPanel u={u} current={current} tier={tier} spinning={spinning} revealed={revealed} complete={complete} waitingTitle={t('spinPicksFirst', { name: firstName })} waitingLine={t('oneSpin')} headRef={clubHeadRef} notice={manager && <div className="notice" aria-live="polite" aria-atomic="true">{t('pickPlayer', { name: manager.name, slot: selected ? 'yes' : 'no', player: selected?.name })}</div>} testId="h2h-squad" rows={current && <OfferRows current={current} managers={h2h.managers} takenBy={(p) => d.drafts.findIndex((x) => x.takenPlayers.includes(p.playerId) && (Object.values(x.lineup).includes(p.id) || x.bench.includes(p.id)))} usableIds={usableIds} selectedId={selectedPlayer} hide={hide} onPick={onPick} />} />}
+        offer={<OfferPanel u={u} current={current} tier={tier} spinning={spinning} revealed={revealed} complete={complete} waitingTitle={t('spinPicksFirst', { name: firstName })} waitingLine={t('oneSpin')} headRef={clubHeadRef} headAction={picking !== null && revealed && (
+          // Next to the club's name, where the landing puts the focus: one Tab, not the whole squad (R14-O2)
+          <button className="btn sm ghost" onClick={() => h2hAuto()} data-testid="h2h-auto">
+            {t('assistantPick', { name: manager?.name })}
+          </button>
+        )} notice={manager && <div className="notice" aria-live="polite" aria-atomic="true">{t('pickPlayer', { name: manager.name, slot: selected ? 'yes' : 'no', player: selected?.name })}</div>} testId="h2h-squad" rows={current && <OfferRows current={current} managers={h2h.managers} takenBy={(p) => d.drafts.findIndex((x) => x.takenPlayers.includes(p.playerId) && (Object.values(x.lineup).includes(p.id) || x.bench.includes(p.id)))} usableIds={usableIds} selectedId={selectedPlayer} hide={hide} onPick={onPick} draftTestId="h2h-draft-btn" />} />}
         pitches={<SquadPitches u={u} d={d} managers={h2h.managers} picking={picking} placing={picking} selected={selected} eligible={eligible} slotClick={(i) => (picking === i && selected ? (s) => onSlot(i, s) : undefined)} onSlot={onSlot} />}
       />
     </div>

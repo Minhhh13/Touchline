@@ -69,14 +69,14 @@ describe('distinctLabels', () => {
 describe('runsSummary', () => {
   it('names the best as a perfect start, from two games, beside the season runs', () => {
     expect(runsSummary('Unbeaten for the first 2 games', 1)).toBe('Unbeaten for the first 2 games')
-    expect(runsSummary('Unbeaten for the first 2 games', 6)).toBe('Unbeaten for the first 2 games · best perfect start 6-0')
-    expect(runsSummary(null, 6)).toBe('Best perfect start 6-0')
+    expect(runsSummary('Unbeaten for the first 2 games', 6)).toBe('Unbeaten for the first 2 games · best perfect start: 6 wins')
+    expect(runsSummary(null, 6)).toBe('Best perfect start: 6 wins')
     expect(runsSummary(null, 1)).toBeNull()
     expect(runsSummary(null, undefined)).toBeNull()
     // This season's run is the best: named once, not twice
-    expect(runsSummary('Perfect run 2-0 · unbeaten for the first 7', 2, 2)).toBe('Perfect run 2-0 · unbeaten for the first 7 · your best perfect start')
-    expect(runsSummary('Perfect run 2-0', 5, 2)).toBe('Perfect run 2-0 · best perfect start 5-0')
-    expect(runsSummary('Unbeaten for the first 4 games', 3, 1)).toBe('Unbeaten for the first 4 games · best perfect start 3-0')
+    expect(runsSummary('Perfect run of 2 wins · unbeaten for the first 7', 2, 2)).toBe('Perfect run of 2 wins · unbeaten for the first 7 · your best perfect start')
+    expect(runsSummary('Perfect run of 2 wins', 5, 2)).toBe('Perfect run of 2 wins · best perfect start: 5 wins')
+    expect(runsSummary('Unbeaten for the first 4 games', 3, 1)).toBe('Unbeaten for the first 4 games · best perfect start: 3 wins')
   })
 })
 

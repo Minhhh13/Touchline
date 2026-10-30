@@ -3,7 +3,7 @@ import { useStore } from '@game/store'
 import { loadRules, rules } from '@game/rulesHook'
 import { useStorePick } from './useStorePick'
 import { Home } from './screens/Home'
-import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
+import { chunkReturnOf, lazyScreen, prefetchScreens, ScreenBoundary, takeChunkReturn } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { SaveBanner } from './components/SaveBanner'
 import { SaveIssue } from './components/SaveIssue'
@@ -15,7 +15,7 @@ import { AHEAD_CAP, digestAhead } from '@game/logic/digestAhead'
 import type { NewsItem } from '@engine/season'
 import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
-import { digestWinRun } from './seasonDrama'
+import { DIGEST_MOOD_WORDINGS, digestMood, digestWinRun, digestWording } from './seasonDrama'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
@@ -23,6 +23,7 @@ import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { watchFocusRescue } from './focusRescue'
+import { watchTypingHold } from './typingHold'
 import { skipToMain, watchMainLandmark } from './landmarks'
 import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, CalendarClock, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
@@ -96,6 +97,12 @@ export function App() {
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
   const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
   // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back
+  // A reload over a screen's chunk that did not load (lazyScreens.tsx, R14-O1) comes back to that screen, not Home
+  useEffect(() => {
+    const back = chunkReturnOf(takeChunkReturn(), useStore.getState().screen)
+    if (back) go(back.screen, back.mode)
+    // Once, on the page's first mount
+  }, [])
   const flipTheme = () => withViewTransition(() => setTheme(toggledTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')))
   const [barHidden, toggleBar] = useViewerFlag(TOPBAR_HIDDEN_KEY)
   // Focus follows the control that replaces the one just pressed (the toggle and the restore pill sit in the same spot)
@@ -155,6 +162,8 @@ export function App() {
   useEffect(() => watchScrollFocus(), [])
   // A focus whose control leaves the page goes back to the nearest box, or to the new screen's page
   useEffect(() => watchFocusRescue(), [])
+  // A tap that ends typing on a phone keeps the bar it lands on still until its click (the dock waits for it)
+  useEffect(() => watchTypingHold(), [])
 
   // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
   // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
@@ -311,7 +320,7 @@ export function App() {
               <span className="nav-tiny" aria-hidden="true">{gameNav}</span>
             </button>
           )}
-          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')}>
+          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')} data-testid="nav-h2h">
             <Swords size={16} />
             <span className="nav-tiny">{t('navTinyH2H')}</span>
             <span className="nav-label">{t('navH2H')}</span>
@@ -364,7 +373,7 @@ export function App() {
           <span>{t('showBar')}</span>
         </button>
       )}
-      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} key={locale} onHome={() => go('home')} atHome={screen === 'home'}>
+      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} key={locale} onHome={() => go('home')} atHome={screen === 'home'} returnTo={screen === 'setup' ? `setup:${setupMode}` : screen}>
         {body}
       </ScreenBoundary>
       <Toast />
@@ -448,8 +457,14 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   // A run of three wins or more in the stretch flares beside the table line (seasonDrama.ts)
   const winRun = digestWinRun(league.map((r) => r.outcome))
   const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length && !office.length
+  // A line on the stretch as a whole and the quiet line, each worded by a hash of the game and its weeks (display only)
+  const mood = digestMood(league.map((r) => r.outcome), { from: d.positionFrom, to: d.positionTo, fromPreseason: d.fromMatchweek === 0 })
+  const said = (line: string, count = DIGEST_MOOD_WORDINGS) => digestWording(game?.id ?? '', d.fromMatchweek, d.toMatchweek, line, count)
+  const moodKey = mood ? (`digestMood_${mood}_${said('mood')}` as keyof typeof app.messages) : null
+  const quietKey = (`digestQuiet_${said('quiet')}` as keyof typeof app.messages)
   return (
     <div className="col digest" data-testid="digest">
+      {moodKey && <p className="digest-mood" data-testid="digest-mood">{t(moodKey, { n: Math.abs(d.positionTo - d.positionFrom) })}</p>}
       <div className="digest-results" data-testid="digest-results">
         {d.results.map((r, i) => (
           <span
@@ -513,7 +528,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
       <NewsGroup title={t('suspensions')} icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
       <NewsGroup title={t('transfers')} icon={<Banknote size={14} />} items={d.transfers} />
       <NewsGroup title={t('development')} icon={<TrendingUp size={14} />} items={d.development} />
-      {quiet && <p className="muted small">{t('digestQuiet')}</p>}
+      {quiet && <p className="muted small">{t(quietKey)}</p>}
       {d.truncated && <p className="muted small">{t('digestTruncated')}</p>}
       {/* Where the run leaves you: the next match and who misses it (r10) */}
       {ahead && (

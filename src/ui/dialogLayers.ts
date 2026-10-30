@@ -87,3 +87,19 @@ export function trapIndex(count: number, current: number, shift: boolean): numbe
 
 /** What counts as focusable inside a dialog. */
 export const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+
+/** The little of an element `focusHomeOf` reads (a fake in the tests). */
+export interface HomeLike<T> {
+  isConnected: boolean
+  closest(selector: string): T | null
+}
+
+/**
+ * The `data-focus-home` box a dialog's opener sits in (a11y round 7): read from the opener while it is on the page, or,
+ * when it has already left (a cup card's Play is replaced by its result before the cup night opens), from where the
+ * last focused control outside any dialog sat when it took the focus. Null when there is none.
+ */
+export function focusHomeOf<T>(opener: HomeLike<T> | null, lastOutside: unknown, lastOutsideHome: T | null): T | null {
+  if (opener?.isConnected) return opener.closest('[data-focus-home]')
+  return opener && opener === lastOutside ? lastOutsideHome : null
+}

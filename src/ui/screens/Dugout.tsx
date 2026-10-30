@@ -87,6 +87,7 @@ import { playStyleLabel, roleBlurb, roleName, staffLabel, staffTierBlurb, staffT
 import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
 import { onRadioGroupKey, radioTabIndex } from '../a11y'
 import { logicLine } from '../i18n/logicText'
+import { useTallBar } from '../tallBar'
 
 const t = translator(dugout)
 const tOffice = translator(officeText)
@@ -136,6 +137,8 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
   // On a phone the action bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
+  // A bar taller than a third of the window (large text on a small phone) sits at the page's foot instead
+  const tallBar = useTallBar(barHeight)
   useEffect(() => {
     const el = barRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -273,7 +276,7 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
   const tableGrid = tabBoxes.grid(TABLE_COLS)
 
   return (
-    <div className={`page dugout-page ${done ? '' : 'has-bottom-bar'} ${headBoxes.on('club-header') ? '' : 'no-club-header'}`} style={!done && barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page dugout-page ${done ? '' : 'has-bottom-bar'}${tallBar ? ' bar-static' : ''} ${headBoxes.on('club-header') ? '' : 'no-club-header'}`} style={!done && barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       {/* Header */}
       {headBoxes.on('club-header') && (
       <div className="panel club-header">
@@ -295,8 +298,8 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
           <Stat label={t('teamRating')} value={strength.overall.toFixed(1)} sub={<span title={t('balanceTip')}>{t('balanced', { pct: Math.round(strength.balance * 100) })}</span>} />
           <Stat label={t('budget')} value={money(game.finances.budget)} sub={<span title={t('wagesTip')}>{t('wagesOf', { bill: wage(squad.reduce((s, x) => s + x.p.wage, 0) + staffWages(game.staff)), cap: wage(game.finances.wageCap) })}</span>} />
           <div className="stat">
-            <span className="label">{t('board')}</span>
-            <span className="value">{Math.round(season.confidence)}</span>
+            <span className="label">{t('boardConfidence')}</span>
+            <span className="value" title={t('boardConfidenceTip')}>{Math.round(season.confidence)}</span>
             <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--good)' : season.confidence > 30 ? 'var(--meter-mid)' : 'var(--danger)'} />
             <span className="small muted">{t('target', { pos: season.boardTarget })}</span>
           </div>
@@ -601,8 +604,8 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
                 {[...new Set(formation.slots.map((sl) => sl.position))].map((pos) => {
                   const cover = squad
                     .filter((x) => canCover(x.p, pos, 'accomplished'))
-                    .map((x) => ({ ...x, r: Math.round(ratingAt(x.p, pos)) }))
-                    .sort((a, b) => b.r - a.r)
+                    .map((x) => ({ ...x, r: Math.round(ratingAt(x.p, pos)), disc: slotRating(x.p, pos).inSlot }))
+                    .sort((a, b) => b.disc - a.disc || b.r - a.r)
                     .slice(0, 4)
                   return (
                     <div key={pos} className="depth-row">
@@ -612,7 +615,7 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
                         {cover.map((x) => (
                           <PlayerPeek key={x.p.id} p={x.p} s={x.s}>
                             <button type="button" className={`chip ${inXI.has(x.p.id) ? 'info' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={t(!isAvailable(x.s) ? 'unavailable' : inXI.has(x.p.id) ? 'starting' : 'available')}>
-                              {surname(x.p.name)} {x.r}
+                              {surname(x.p.name)} {x.disc}
                             </button>
                           </PlayerPeek>
                         ))}
