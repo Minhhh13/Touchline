@@ -12252,6 +12252,27 @@ table.tbl tr.chase-perfect td:first-child {
 .board-you {
   margin-left: var(--space-2);
 }
+.board-ai-chip {
+  margin-left: var(--space-2);
+  color: var(--text-2);
+}
+.rank-pill.ai {
+  background: var(--panel-2);
+  border: var(--border);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+}
+table.tbl.board-table tr.board-ai td {
+  color: var(--text-2);
+}
+.board-ai-note {
+  flex: none;
+  margin-bottom: var(--space-2);
+}
+.world-simulated {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
 .board-table td.board-score {
   font-weight: 700;
   color: var(--text);
