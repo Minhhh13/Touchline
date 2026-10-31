@@ -32,7 +32,7 @@ import { translator } from '../i18n'
 import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
 import { templateText } from '../runInText'
-import { fillAlltimeBoard, isSimulatedAlltimeRow, simulatedGamesAt } from './simulatedActivity'
+import { fillAlltimeBoard, fillCasualBoard, fillChaseBoard, fillRankedBoard } from './exhibitionRows'
 
 const tr = translator(online)
 
@@ -180,16 +180,7 @@ export function BoardState({ rows, error, offline = false, retry, empty, hint }:
 }
 
 /** A row's place: the podium's three in their colours, and a mark when only the time of posting split it from a neighbour. */
-function RankCell({ position, level, simulated = false }: { position: number; level: boolean; simulated?: boolean }) {
-  if (simulated) {
-    return (
-      <td className="num board-rank">
-        <span className="rank-pill ai" title={tr('aiRank')}>
-          {tr('aiBadge')}
-        </span>
-      </td>
-    )
-  }
+function RankCell({ position, level }: { position: number; level: boolean }) {
   const podium = podiumOf(position)
   return (
     <td className="num board-rank">
@@ -205,13 +196,12 @@ function RankCell({ position, level, simulated = false }: { position: number; le
 }
 
 /** The manager's flag, name and, on your own row, the You chip. */
-function ManagerCell({ name, country, isMe, simulated = false }: { name: string; country: string | null; isMe: boolean; simulated?: boolean }) {
+function ManagerCell({ name, country, isMe }: { name: string; country: string | null; isMe: boolean }) {
   return (
     <td className="board-manager">
       <Flag code={country} />
       <span className="board-name">{name}</span>
       {isMe && <span className="chip info board-you">{tr('you')}</span>}
-      {simulated && <span className="chip board-ai-chip">{tr('aiBadge')}</span>}
     </td>
   )
 }
@@ -237,25 +227,12 @@ function MoreButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
   )
 }
 
-/** The display-only AI activity number ticks without making the whole World screen render every second. */
-function SimulatedGames() {
-  const [games, setGames] = useState(() => simulatedGamesAt())
-  useEffect(() => {
-    const tick = () => setGames(simulatedGamesAt())
-    const timer = window.setInterval(tick, 1_000)
-    return () => window.clearInterval(timer)
-  }, [])
-  return (
-    <span className="world-simulated" data-testid="world-simulated">
-      {tr('aiGamesSimulated', { n: games.toLocaleString(formatLocale()) })}
-    </span>
-  )
-}
-
 function RankedTable({ kind, boardKey, country, title, current }: { kind: RankedKind; boardKey: string; country: string | null; title: string; current: boolean }) {
   const openChallenge = useStore((s) => s.openChallenge)
   const b = useBoard<BoardRow, BoardSummary | null>(`${kind}|${boardKey}|${country}`, (offset) => api.board(kind, boardKey, country, offset), () => api.boardSummary(kind, boardKey, country))
-  const { rows, summary } = b
+  const realRows = b.rows
+  const rows = realRows ? fillRankedBoard(realRows, kind, country) : null
+  const summary = b.summary
   const meShown = !!rows?.some((r) => r.isMe)
   const race = !!rows?.some((r) => r.revealed && r.payload)
   const level = levelRows((rows ?? []).map((r) => `${r.points}|${r.lost}|${r.goalDiff}|${r.goalsFor}`))
@@ -328,18 +305,12 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
   const displayRows = rows ? fillAlltimeBoard(rows, order, country) : null
   const mine = b.summary
   const level = levelRows((displayRows ?? []).map((r) => (order === 'points' ? `${r.totalPoints}|${r.bestStreak}` : `${r.bestStreak}|${r.totalPoints}`)))
-  const hasSimulated = !!displayRows?.some(isSimulatedAlltimeRow)
   return (
     <section className="panel fit-panel" data-testid="board-alltime">
       <div className="panel-head">
         <h3>{tr('alltimeTitle')}</h3>
         <span className="small muted">{tr(order === 'points' ? 'byPoints' : 'byStreak')}</span>
       </div>
-      {hasSimulated && (
-        <div className="notice board-ai-note small" data-testid="board-ai-note">
-          {tr('aiExhibition')}
-        </div>
-      )}
       <div className="fit-scroll">
         <BoardState rows={displayRows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
         {displayRows && displayRows.length > 0 && (
@@ -357,11 +328,10 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
             </thead>
             <tbody>
               {displayRows.map((r, i) => {
-                const simulated = isSimulatedAlltimeRow(r)
                 return (
-                  <tr key={`${simulated ? 'ai' : r.position}-${r.name}`} className={simulated ? 'board-ai' : rowClass(r)} aria-current={r.isMe || undefined}>
-                    <RankCell position={r.position} level={!simulated && level[i]} simulated={simulated} />
-                    <ManagerCell name={r.name} country={r.country} isMe={r.isMe} simulated={simulated} />
+                  <tr key={`${r.position}-${r.name}`} className={rowClass(r)} aria-current={r.isMe || undefined}>
+                    <RankCell position={r.position} level={level[i]} />
+                    <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
                     <td className={`num${order === 'points' ? ' board-score' : ''}`}>{r.totalPoints.toLocaleString(formatLocale())}</td>
                     <td className="num">{r.played}</td>
                     <td className="num">{r.average}</td>
@@ -427,7 +397,9 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
   const openChallenge = useStore((s) => s.openChallenge)
   const u = useStore((s) => s.universe)
   const b = useBoard<ChaseRow, ChaseSummary | null>(`${scope}|${week}|${country}`, (offset) => api.chaseBoard(scope, week, country, offset), () => api.chaseSummary(scope, week, country))
-  const { rows, summary } = b
+  const realRows = b.rows
+  const rows = realRows ? fillChaseBoard(realRows, country) : null
+  const summary = b.summary
   const league = (id: string) => u?.available.find((l) => l.id === id)?.shortName ?? id
   const meShown = !!rows?.some((r) => r.isMe)
   const rec = summary?.record
@@ -615,7 +587,9 @@ function ChasePlay() {
 function CasualTable({ board, boardKey, country, title, current }: { board: CasualKind; boardKey: string; country: string | null; title: string; current: boolean }) {
   const openChallenge = useStore((s) => s.openChallenge)
   const b = useBoard<CasualRow, CasualSummary | null>(`${board}|${boardKey}|${country}`, (offset) => api.casualBoard(board, boardKey, country, offset), () => api.casualSummary(board, boardKey, country))
-  const { rows, summary } = b
+  const realRows = b.rows
+  const rows = realRows ? fillCasualBoard(realRows, board, country) : null
+  const summary = b.summary
   const arena = board === 'arena'
   const meShown = !!rows?.some((r) => r.isMe)
   // An arena or Weekly run is a link anyone can race once posting has closed; a run-in has no link
@@ -879,11 +853,7 @@ export function WorldBoard() {
       <div className="screen-head">
         <div className="screen-title">
           <h1>{tr('worldLeaderboard')}</h1>
-          <div className="screen-meta">
-            <span>{tr('worldMeta')}</span>
-            <span aria-hidden="true"> · </span>
-            <SimulatedGames />
-          </div>
+          <div className="screen-meta">{tr('worldMeta')}</div>
         </div>
         <button className="btn ghost" onClick={() => go('home')}>
           {tr('backHome')}
