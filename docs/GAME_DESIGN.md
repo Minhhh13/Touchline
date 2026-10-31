@@ -4,7 +4,7 @@ This document describes the game as implemented in `src/engine` and `src/game`. 
 
 ## 1. Name
 
-**TouchLine** is the product name, written as one word with a capital L and never in capitals. It is the manager's domain (the one place a manager is allowed to stand), it is short and it is brandable: it is the `<title>`, the manifest name, the wordmark in the top bar and the first line of the share text. The repository, the npm package and the save keys keep the lower-case slug `touchline`, and "Touchline XI" is the game logic's fallback team name; the setup screens open with an invented one (section 3). The logo, the palette and the type are in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+**TouchLine** is the product name, written as one word with a capital L and never in capitals. It is the manager's domain (the one place a manager is allowed to stand). The homepage title is “TouchLine – Football Draft & Management Game”. The manifest name, top bar wordmark and first line of the share text use the short name. The repository, the npm package and the save keys keep the lower-case slug `touchline`, and "Touchline XI" is the game logic's fallback team name; the setup screens open with an invented one (section 3). The logo, the palette and the type are in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
 
 Tagline: **Spin the wheel. Draft the XI. Manage the season.**
 
