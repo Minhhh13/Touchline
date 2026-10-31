@@ -56,6 +56,24 @@ describe('full World leaderboard display rows', () => {
     }
   })
 
+  it('varies names and board order without repeating an obvious surname block', () => {
+    const daily = fillRankedBoard([], 'daily', null)
+    const weekly = fillRankedBoard([], 'weekly', null)
+    const alltime = fillAlltimeBoard([], 'points', null)
+    expect(new Set(daily.slice(0, 12).map((row) => row.name.split(' ').at(-1))).size).toBeGreaterThan(8)
+    expect(daily.slice(0, 20).map((row) => row.name)).not.toEqual(weekly.slice(0, 20).map((row) => row.name))
+    expect(daily.slice(0, 20).map((row) => row.name)).not.toEqual(alltime.slice(0, 20).map((row) => row.name))
+  })
+
+  it('never duplicates a verified manager name in a generated place', () => {
+    const firstDisplayName = fillRankedBoard([], 'daily', null)[0].name
+    const real = { ...REAL_RANKED, name: firstDisplayName.toUpperCase() }
+    const rows = fillRankedBoard([real], 'daily', null)
+    expect(rows).toHaveLength(BOARD_SIZE)
+    expect(rows[0]).toBe(real)
+    expect(new Set(rows.map((row) => row.name.toLocaleLowerCase())).size).toBe(BOARD_SIZE)
+  })
+
   it('keeps verified rows and official positions first, then fills only the empty places', () => {
     const rankedInput = [REAL_RANKED]
     const ranked = fillRankedBoard(rankedInput, 'daily', null)
