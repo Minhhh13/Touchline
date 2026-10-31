@@ -32,6 +32,7 @@ import { translator } from '../i18n'
 import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
 import { templateText } from '../runInText'
+import { fillAlltimeBoard, isSimulatedAlltimeRow, simulatedGamesAt } from './simulatedActivity'
 
 const tr = translator(online)
 
@@ -179,7 +180,16 @@ export function BoardState({ rows, error, offline = false, retry, empty, hint }:
 }
 
 /** A row's place: the podium's three in their colours, and a mark when only the time of posting split it from a neighbour. */
-function RankCell({ position, level }: { position: number; level: boolean }) {
+function RankCell({ position, level, simulated = false }: { position: number; level: boolean; simulated?: boolean }) {
+  if (simulated) {
+    return (
+      <td className="num board-rank">
+        <span className="rank-pill ai" title={tr('aiRank')}>
+          {tr('aiBadge')}
+        </span>
+      </td>
+    )
+  }
   const podium = podiumOf(position)
   return (
     <td className="num board-rank">
@@ -195,12 +205,13 @@ function RankCell({ position, level }: { position: number; level: boolean }) {
 }
 
 /** The manager's flag, name and, on your own row, the You chip. */
-function ManagerCell({ name, country, isMe }: { name: string; country: string | null; isMe: boolean }) {
+function ManagerCell({ name, country, isMe, simulated = false }: { name: string; country: string | null; isMe: boolean; simulated?: boolean }) {
   return (
     <td className="board-manager">
       <Flag code={country} />
       <span className="board-name">{name}</span>
       {isMe && <span className="chip info board-you">{tr('you')}</span>}
+      {simulated && <span className="chip board-ai-chip">{tr('aiBadge')}</span>}
     </td>
   )
 }
@@ -223,6 +234,21 @@ function MoreButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
     <button type="button" className="btn sm ghost board-more" onClick={onClick} disabled={busy} aria-busy={busy || undefined}>
       {tr(busy ? 'loading' : 'showMore')}
     </button>
+  )
+}
+
+/** The display-only AI activity number ticks without making the whole World screen render every second. */
+function SimulatedGames() {
+  const [games, setGames] = useState(() => simulatedGamesAt())
+  useEffect(() => {
+    const tick = () => setGames(simulatedGamesAt())
+    const timer = window.setInterval(tick, 1_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return (
+    <span className="world-simulated" data-testid="world-simulated">
+      {tr('aiGamesSimulated', { n: games.toLocaleString(formatLocale()) })}
+    </span>
   )
 }
 
@@ -299,17 +325,24 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
   const session = useOnline((s) => s.session)
   const b = useBoard<AlltimeRow, AlltimeMine | null>(`${order}|${country}`, (offset) => api.alltime(order, country, offset), () => api.alltimeMine(order, country))
   const { rows } = b
+  const displayRows = rows ? fillAlltimeBoard(rows, order, country) : null
   const mine = b.summary
-  const level = levelRows((rows ?? []).map((r) => (order === 'points' ? `${r.totalPoints}|${r.bestStreak}` : `${r.bestStreak}|${r.totalPoints}`)))
+  const level = levelRows((displayRows ?? []).map((r) => (order === 'points' ? `${r.totalPoints}|${r.bestStreak}` : `${r.bestStreak}|${r.totalPoints}`)))
+  const hasSimulated = !!displayRows?.some(isSimulatedAlltimeRow)
   return (
     <section className="panel fit-panel" data-testid="board-alltime">
       <div className="panel-head">
         <h3>{tr('alltimeTitle')}</h3>
         <span className="small muted">{tr(order === 'points' ? 'byPoints' : 'byStreak')}</span>
       </div>
+      {hasSimulated && (
+        <div className="notice board-ai-note small" data-testid="board-ai-note">
+          {tr('aiExhibition')}
+        </div>
+      )}
       <div className="fit-scroll">
-        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
-        {rows && rows.length > 0 && (
+        <BoardState rows={displayRows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
+        {displayRows && displayRows.length > 0 && (
           <table className="tbl sticky-head board-table">
             <thead>
               <tr>
@@ -323,17 +356,20 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <tr key={`${r.position}-${r.name}`} className={rowClass(r)} aria-current={r.isMe || undefined}>
-                  <RankCell position={r.position} level={level[i]} />
-                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
-                  <td className={`num${order === 'points' ? ' board-score' : ''}`}>{r.totalPoints.toLocaleString(formatLocale())}</td>
-                  <td className="num">{r.played}</td>
-                  <td className="num">{r.average}</td>
-                  <td className={`num${order === 'streak' ? ' board-score' : ''}`}>{r.bestStreak}</td>
-                  <td className="num">{r.currentStreak}</td>
-                </tr>
-              ))}
+              {displayRows.map((r, i) => {
+                const simulated = isSimulatedAlltimeRow(r)
+                return (
+                  <tr key={`${simulated ? 'ai' : r.position}-${r.name}`} className={simulated ? 'board-ai' : rowClass(r)} aria-current={r.isMe || undefined}>
+                    <RankCell position={r.position} level={!simulated && level[i]} simulated={simulated} />
+                    <ManagerCell name={r.name} country={r.country} isMe={r.isMe} simulated={simulated} />
+                    <td className={`num${order === 'points' ? ' board-score' : ''}`}>{r.totalPoints.toLocaleString(formatLocale())}</td>
+                    <td className="num">{r.played}</td>
+                    <td className="num">{r.average}</td>
+                    <td className={`num${order === 'streak' ? ' board-score' : ''}`}>{r.bestStreak}</td>
+                    <td className="num">{r.currentStreak}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -845,6 +881,8 @@ export function WorldBoard() {
           <h1>{tr('worldLeaderboard')}</h1>
           <div className="screen-meta">
             <span>{tr('worldMeta')}</span>
+            <span aria-hidden="true"> · </span>
+            <SimulatedGames />
           </div>
         </div>
         <button className="btn ghost" onClick={() => go('home')}>
