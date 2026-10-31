@@ -129,7 +129,8 @@ export function MatchScreen() {
   const cupNext = !!game.live && holdLive
   // The arena: penalties first, then the run's summary or its next match
   const arena = game.arena
-  const continueLabel = arena ? (holdVerdict ? t('continue') : arenaContinueLabel(game)) : seasonOver ? t('seasonSummary') : cupNext ? t('nextTie', { round: game.live!.ctx.roundLabel ? logicLine(game.live!.ctx.roundLabel) : t('cupTie') }) : t('continue')
+  // A replay's button keeps the next step ("Next: Rung 2", "Run summary") to itself until the report: it would give the result away (playtest P4)
+  const continueLabel = arena ? (holdVerdict || matchView === 'ticker' ? t('continue') : arenaContinueLabel(game)) : seasonOver ? t('seasonSummary') : cupNext ? t('nextTie', { round: game.live!.ctx.roundLabel ? logicLine(game.live!.ctx.roundLabel) : t('cupTie') }) : t('continue')
   const onContinue = () => {
     if (arena) {
       closeMatch()

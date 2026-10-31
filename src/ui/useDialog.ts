@@ -1,17 +1,22 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 import { runAfterPaint } from './afterPaint'
-import { FOCUSABLE, closeLayer, isTopLayer, openLayer, trapIndex } from './dialogLayers'
+import { FOCUSABLE, closeLayer, focusHomeOf, isTopLayer, openLayer, trapIndex } from './dialogLayers'
 
 /**
  * The last control focused outside any dialog. A dialog that opens after its opener lost the focus (Sim 5 is disabled
  * while it runs, so the focus has fallen to <body> when the digest opens) gives the focus back to this one instead.
  */
 let lastOutside: HTMLElement | null = null
+/** The `data-focus-home` box `lastOutside` sat in when it took the focus (it may have left the page by the time a dialog opens). */
+let lastOutsideHome: HTMLElement | null = null
 if (typeof document !== 'undefined') {
   document.addEventListener(
     'focusin',
     (e) => {
-      if (e.target instanceof HTMLElement && e.target !== document.body && !e.target.closest('[role="dialog"]')) lastOutside = e.target
+      if (e.target instanceof HTMLElement && e.target !== document.body && !e.target.closest('[role="dialog"]')) {
+        lastOutside = e.target
+        lastOutsideHome = e.target.closest<HTMLElement>('[data-focus-home]')
+      }
     },
     true,
   )
@@ -37,6 +42,10 @@ export function useDialog(back: RefObject<HTMLElement | null>, dialog: RefObject
     const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : lastOutside
     // A screen may draw the opener afresh while the dialog is up: then the control with the same test id takes the focus
     const openerId = opener?.getAttribute('data-testid') ?? null
+    // The box the opener sits in (`data-focus-home`): when the opener is gone on closing (a cup card's Play becomes See
+    // the bracket, before the cup night even opens), the focus goes back into that box rather than to the page's first
+    // mark (a11y round 7)
+    const home = focusHomeOf<HTMLElement>(opener, lastOutside, lastOutsideHome)
     openLayer(backEl, document.body)
     const first = (initialFocus ? box.querySelector<HTMLElement>(initialFocus) : null) ?? box
     // The focus moves in once the dialog has painted: focusing now would force the page's whole style and layout
@@ -88,6 +97,8 @@ export function useDialog(back: RefObject<HTMLElement | null>, dialog: RefObject
         const into = mark ? mark.querySelector<HTMLElement>(FOCUSABLE) ?? mark : null
         into?.focus({ preventScroll: true })
       }
+      const homeControl = home?.isConnected ? home.querySelector<HTMLElement>(FOCUSABLE) : null
+      if (!target && homeControl) return homeControl.focus({ preventScroll: true })
       if (!target) return returnTo()
       if (!target.matches(':disabled')) return target.focus({ preventScroll: true })
       // A control disabled while the dialog was up may be enabled a moment later

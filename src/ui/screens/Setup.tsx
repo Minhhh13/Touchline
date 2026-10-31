@@ -55,6 +55,7 @@ import { B, rich } from '../i18n/rich'
 import { formationBlurb, modeCardInfo, modeCardLine, modeCardTitle, powerUpTitle, ruleChipsText } from '../i18n/engineText'
 import { weeklyThemeLineText, weeklyThemeText } from '../i18n/weeklyThemeText'
 import { logicLine, logicList } from '../i18n/logicText'
+import { useTallBar } from '../tallBar'
 
 const t = translator(setup)
 
@@ -168,6 +169,8 @@ export function Setup() {
   // On a phone the start bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
+  // A bar taller than a third of the window (large text on a small phone) sits at the page's foot instead
+  const tallBar = useTallBar(barHeight)
   useEffect(() => {
     const el = barRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -439,7 +442,7 @@ export function Setup() {
   }
   const teamField = <TeamNameField value={team.value} onChange={team.setValue} fallback={team.fallback} />
   return (
-    <div className="page setup-page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page setup-page has-bottom-bar${tallBar ? ' bar-static' : ''}`} style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">
         {/* Start is the last of about forty controls: a skip link, the screen's first Tab stop, goes straight to it (QA r11, R11-O1) */}
         <a className="skip-link" href={`#${SETUP_START_ID}`} onClick={(e) => skipToControl(SETUP_START_ID, e)} data-testid="setup-skip-start">
@@ -517,7 +520,8 @@ export function Setup() {
                 <div className="field setup-league">
                   {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
                   <Segmented label={t('leagueChoice')} value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: logicLine(SUPER_LEAGUE_LINE), testId: 'league-super' }] : [])]} />
-                  {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: logicLine(SUPER_LEAGUE_LINE) }) : t('europeWheel')}</span>}
+                  {/* The season picked here is the one played; a new player took it for the wheel's seasons, which Era sets */}
+                  <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: logicLine(SUPER_LEAGUE_LINE) }) : europe ? t('europeWheel') : t(isManage ? 'seasonPlayedManage' : 'seasonPlayed', { n: Math.max(0, clubsInLeague.length - 1) })}</span>
                 </div>
                 {isManage && (
                   <div className="setup-replace" data-testid="you-replace">

@@ -447,7 +447,7 @@ export function ProfileScreen() {
               <dt>{t('bestRecord')}</dt>
               <dd data-testid="best-record">{bests.bestRecord ? t('recordPoints', { record: recordLabel(bests.bestRecord.won, bests.bestRecord.drawn, bests.bestRecord.lost), n: bests.bestRecord.points }) : '—'}</dd>
               <dt>{t('longestRun')}</dt>
-              <dd data-testid="best-run">{bests.longestPerfectRun ? `${bests.longestPerfectRun}-0` : '—'}</dd>
+              <dd data-testid="best-run">{bests.longestPerfectRun ? t('winsRun', { n: bests.longestPerfectRun }) : '—'}</dd>
               <dt>{t('perfectSeasons')}</dt>
               <dd data-testid="perfect-seasons">{bests.perfectSeasons ?? 0}</dd>
             </dl>

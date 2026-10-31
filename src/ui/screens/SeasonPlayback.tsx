@@ -39,6 +39,7 @@ import { translator } from '../i18n'
 import { B, rich } from '../i18n/rich'
 import { season } from '../i18n/en/season'
 import { logicLine } from '../i18n/logicText'
+import { playbackKey, readPlaybackMark, resumePlayback, writePlaybackMark } from '../playbackResume'
 
 const t = translator(season)
 
@@ -57,13 +58,19 @@ export function SeasonPlayback() {
   const { universe: u, game, playback, endPlayback } = useStorePick('universe', 'game', 'playback', 'endPlayback')
   const j = game?.phase === 'january' ? game.quickJanuary ?? null : null
   const results = game ? playbackResults(game) : []
-  // A reload during the first half lands on the window; after the season the playback carries on where the window left it
-  const from = playback?.from ?? results.length
+  // A reload picks the playback up at the game the viewer had reached, paused as it was (playbackResume.ts); with no
+  // mark for it, a reload during the first half lands on the window and after the season on the last game
+  const resumeKey = game ? playbackKey(game.id, game.phase, results.length) : ''
+  const [resumed] = useState(() => (playback ? null : resumePlayback(readPlaybackMark(), resumeKey, results.length)))
+  const from = playback?.from ?? resumed?.from ?? results.length
   const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
   const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
   const fullSeason = game?.quickResult?.results?.length ?? (u && game ? quickSeasonGames(u, game.settings) : results.length)
   // The title race's last weeks slow down: the wait before each of the last games stretches while a race is on
-  const pb = useSeasonPlayback(results.length, from, results.length, (k, base) => raceDelay(base, j ? null : raceAt(tableAfterGame(tables, results, k), USER_TEAM, k, fullSeason)))
+  const pb = useSeasonPlayback(results.length, from, results.length, (k, base) => raceDelay(base, j ? null : raceAt(tableAfterGame(tables, results, k), USER_TEAM, k, fullSeason)), resumed?.paused)
+  useEffect(() => {
+    if (resumeKey) writePlaybackMark({ key: resumeKey, revealed: pb.revealed, paused: !pb.playing && !pb.done })
+  }, [resumeKey, pb.revealed, pb.playing, pb.done])
   const [hlWeek, setHlWeek] = useState<number | null>(null)
   // The phone's tab: the January window opens on the box that holds it, until another tab is chosen there
   const [tabState, setTabState] = useState<{ at: string; tab: 'list' | 'table' | 'chart' }>({ at: 'play', tab: 'list' })

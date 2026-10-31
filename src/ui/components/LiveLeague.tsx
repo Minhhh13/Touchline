@@ -74,7 +74,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
                 </span>
               )}
               <span className="lt-club">
-                {!me && <ClubBadge clubId={r.teamId} size={16} />}
+                {!me && <ClubBadge clubId={r.teamId} size={16} blank />}
                 <span className="lt-name">{me ? teamName : nameOf(r.teamId)}</span>
               </span>
               <span className="num">{r.played}</span>
@@ -147,9 +147,9 @@ export function PositionChart({ series, rivals, teams, games, unit = t('unitGame
   }, [])
   return (
     <div className="mchart pos-chart" data-testid="position-chart">
-      <div className="row between small">
+      <div className="row between wrap small">
         <span className="muted">{title}</span>
-        <span className="row small" style={{ gap: 10 }}>
+        <span className="row wrap small" style={{ gap: 10 }}>
           {rivals.map((r) => (
             <span key={r.teamId} className="pc-rival-key muted">
               {r.name}

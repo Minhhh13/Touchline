@@ -180,7 +180,7 @@ export function ClubView({ leagueId, clubId, onClub, onPlayer }: { leagueId: str
                     <td className="num">{l.table && l.cs.position > 0 ? l.cs.points : '–'}</td>
                     <td className="num mono hide-phone">{l.table && l.cs.position > 0 ? `${l.cs.won}-${l.cs.drawn}-${l.cs.lost}` : '–'}</td>
                     <td className="num">{fixed(l.xiAvg, 1)}</td>
-                    <td className="num small">{w ? oneIn(w.p).replace('1 in ', '1/') : '–'}</td>
+                    <td className="num small" aria-busy={w === undefined || undefined}>{w === undefined ? '…' : w ? oneIn(w.p).replace('1 in ', '1/') : '–'}</td>
                   </tr>
                 )
               })}

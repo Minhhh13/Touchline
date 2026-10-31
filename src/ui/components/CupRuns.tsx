@@ -98,7 +98,7 @@ function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: 
     if (revealing) endReveal()
   }
   return (
-    <div className={`cup-card ${comp}`} data-testid={`cup-${comp}`}>
+    <div className={`cup-card ${comp}`} data-testid={`cup-${comp}`} data-focus-home>
       <div className="row between wrap" style={{ gap: 8 }}>
         <h3 className="cup-title" style={{ margin: 0 }}>
           <CupIcon comp={comp} size={18} /> {t(`cupTitle_${comp}`)}

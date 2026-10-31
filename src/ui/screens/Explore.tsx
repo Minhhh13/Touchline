@@ -236,7 +236,7 @@ export function Explore() {
               <select className="input" style={{ width: 'auto' }} aria-label={t('season')} value={season} onChange={(e) => { setSeason(Number(e.target.value)); setClubId('') }}>
                 {seasons.map((s) => (
                   <option key={s} value={s}>
-                    {t('seasonOption', { season: seasonLabel(s), estimated: s < u.firstSeason ? 'yes' : 'no' })}
+                    {t('seasonOption', { season: seasonLabel(s), estimated: s < u.firstSeason ? 'yes' : s === u.currentSeason ? 'live' : 'no' })}
                   </option>
                 ))}
               </select>
@@ -357,7 +357,7 @@ export function Explore() {
               <option value="all">{t('allSeasons')}</option>
               {[...seasons].reverse().map((s) => (
                 <option key={s} value={s}>
-                  {t('seasonOption', { season: seasonLabel(s), estimated: s < u.firstSeason ? 'yes' : 'no' })}
+                  {t('seasonOption', { season: seasonLabel(s), estimated: s < u.firstSeason ? 'yes' : s === u.currentSeason ? 'live' : 'no' })}
                 </option>
               ))}
             </select>

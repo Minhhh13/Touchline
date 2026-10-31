@@ -90,4 +90,7 @@ export const home = catalog('home', {
   arenaDayCup: 'The Cup of {size} on the {wheel} wheel',
   dockTip: 'Head-to-head, Explore, your Profile and the guide are in the bar along the bottom.',
   nudgeBadge: 'Next badge: {badge}, {left} to go',
+  nudgeLeft_globetrotter: '{n, plural, one {a title in # more league} other {titles in # more leagues}}',
+  'nudgeLeft_cup-collector': '{n, plural, one {# more cup, season or arena} other {# more cups, season or arena}}',
+  nudgeLeft_ironman: '{n, plural, one {# more rung in one Gauntlet} other {# more rungs in one Gauntlet}}',
 })

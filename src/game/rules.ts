@@ -21,6 +21,7 @@ export { advanceToNextSeason, letContractGo, postRenewals } from './logic/dynast
 export { noteSeasonEnd, summerSnapshot, summerStories } from './logic/dynastyHistory'
 export { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft } from '@engine/h2h'
 export { runH2HSeason } from './logic/h2h'
+export { h2hAutoComplete } from './logic/h2hAutoDraft'
 export { h2hRulesFor } from './logic/h2hClassic'
 export { decodeChallenge, isArenaPayload } from '@engine/challenge'
 export { challengeSettings, replayChallenge } from './logic/challenge'
