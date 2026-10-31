@@ -30,10 +30,18 @@ enabled = true
 
 # The Edge Function (deployed per engine as touchline-e{ENGINE_VERSION}): withSupabase checks a user's JWT or the
 # publishable key itself, so guests can play the online head-to-head rooms (docs/ONLINE.md section 5e).
+[functions.touchline-e7]
+verify_jwt = false
+
+# The previous engines' functions stay deployed at least 7 days after the next ships (CLAUDE.md invariant 15;
+# docs/ONLINE.md section 7, "Release engine 5", "Release engine 6" and "Release engine 7"): touchline-e6 to 7 days
+# after engine 7's release, touchline-e5 to 2026-11-04, touchline-e4 to 2026-11-03. Drop each block when its
+# function is deleted.
+[functions.touchline-e6]
+verify_jwt = false
+
 [functions.touchline-e5]
 verify_jwt = false
 
-# The previous engine's function stays deployed at least 7 days after touchline-e5 ships (CLAUDE.md invariant 15;
-# docs/ONLINE.md section 7, "Release engine 5"); drop this block when it is deleted.
 [functions.touchline-e4]
 verify_jwt = false

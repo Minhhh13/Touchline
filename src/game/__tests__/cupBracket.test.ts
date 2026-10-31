@@ -49,37 +49,40 @@ const strip = (r: QuickCupRun | null | undefined) => (r ? { ties: r.ties, reache
 /**
  * The runs, the achievements and the RNG state of sixteen seeded seasons' cups as they were on main at 238b040,
  * before the bracket was kept: recording every tie and playing the field on after the user goes out moves none of it.
- * Re-baselined on ENGINE_VERSION '5' (the seasons before the cups moved with the playtest fixes), so they now pin
- * engine 5's cups.
+ * Re-baselined on ENGINE_VERSION '5' (the seasons before the cups moved with the playtest fixes) and '6' (the
+ * calibration and the user's men out of the field's squads) and '7' (the Continental Cup's groups and two legs: every
+ * continental run moved; the domestic cup's, and the seeds with no Continental Cup, bracket-4 and bracket-16, held).
  */
 const BEFORE_THE_BRACKET: Record<string, string> = {
-  'bracket-1': '7759665205ac1f91',
-  'bracket-2': '544ea84272d625f4',
-  'bracket-3': 'c0ecba76f13c0a8d',
-  'bracket-4': '2b3200aca61d9235',
-  'bracket-5': '6cce593cc04c8a98',
-  'bracket-6': '101e8c28f42d47e5',
-  'bracket-7': '9b67f307ec5b0aff',
-  'bracket-8': 'b7f8f518bc7d1ad3',
-  'bracket-9': '3fa11b6de7fe0816',
-  'bracket-10': 'a8137e909a9f1367',
-  'bracket-11': 'a707ca1f3dec7632',
-  'bracket-12': '6b00609e12c3f9c6',
-  'bracket-13': 'afff7a972e9f863a',
-  'bracket-14': '76b4546d1566e8f6',
-  'bracket-15': 'bfb7b1996375d57c',
-  'bracket-16': '6891d534fe03dc6e',
+  'bracket-1': 'f4cdecf2734290a5',
+  'bracket-2': '2e9bcff4e84569bc',
+  'bracket-3': '2956d5a6f9988ea2',
+  'bracket-4': 'b4ceebf526703ac8',
+  'bracket-5': '3553bdd005995272',
+  'bracket-6': 'b60f0e895d01af13',
+  'bracket-7': 'cb7c9fcabe0ade92',
+  'bracket-8': '9be71d8e43315ca6',
+  'bracket-9': '9a84e72dcda33d88',
+  'bracket-10': 'e3a559a41b1fec16',
+  'bracket-11': 'e9ac48c19eaa8ee3',
+  'bracket-12': 'd64dc6ad7aa4aea9',
+  'bracket-13': '3828733066297096',
+  'bracket-14': 'c0de68511ab11ceb',
+  'bracket-15': '6d43ed2d6665c980',
+  'bracket-16': '6f5055001f7e0d73',
 }
 
 /** Every structural rule a full sixteen-club bracket keeps. */
 function checkTree(view: BracketView, run: QuickCupRun) {
   expect(view.pathOnly).toBeUndefined()
-  expect(view.rounds.map((r) => r.ties.length)).toEqual([8, 4, 2, 1])
-  expect(view.rounds.map((r) => r.slots)).toEqual([8, 4, 2, 1])
-  // Sixteen different entrants, the user among them, each once
+  // Engine 7's Continental Cup starts its bracket at the quarter-finals, after the groups
+  const sizes = run.groups ? [4, 2, 1] : [8, 4, 2, 1]
+  expect(view.rounds.map((r) => r.ties.length)).toEqual(sizes)
+  expect(view.rounds.map((r) => r.slots)).toEqual(sizes)
+  // Every entrant of the first round different, the user among them unless out in the groups
   const first = view.rounds[0].ties.flatMap((t) => [t.home, t.away])
-  expect(new Set(first).size).toBe(16)
-  expect(first).toContain(USER_TEAM)
+  expect(new Set(first).size).toBe(sizes[0] * 2)
+  expect(first.includes(USER_TEAM)).toBe(run.reached !== 'G')
   for (let r = 0; r < view.rounds.length; r++) {
     for (const t of view.rounds[r].ties) {
       expect([t.home, t.away]).toContain(t.winner)
@@ -95,7 +98,7 @@ function checkTree(view: BracketView, run: QuickCupRun) {
         expect([next.home, next.away].sort()).toEqual([view.rounds[r].ties[2 * k].winner, view.rounds[r].ties[2 * k + 1].winner].sort())
       })
   }
-  expect(view.champion).toBe(view.rounds[3].ties[0].winner)
+  expect(view.champion).toBe(view.rounds.at(-1)!.ties[0].winner)
   expect(view.champion === USER_TEAM).toBe(run.reached === 'W')
   // The user's route is his run: the same opponents and scores, round by round, and nothing after he went out
   const route = userRoute(view)
@@ -124,13 +127,14 @@ describe('the post-season cups kept as a bracket', { timeout: 300_000 }, () => {
   it('keep every tie of every round to the final, in tree order, the user’s route matching his run', () => {
     let out = 0
     let won = 0
-    for (const seed of ['bracket-1', 'bracket-3', 'bracket-8', 'bracket-10']) {
+    // Engine 7: bracket-2 wins the cup and bracket-13 the Continental Cup; 1 and 3 go out
+    for (const seed of ['bracket-1', 'bracket-2', 'bracket-3', 'bracket-13']) {
       const g = played(seed)
       playCups(g)
       for (const comp of ['cup', 'continental'] as QuickCupComp[]) {
         const run = comp === 'cup' ? g.quickResult!.cup : g.quickResult!.continentalCup
         if (!run) continue
-        expect(run.bracket!.map((r) => r.length)).toEqual([8, 4, 2, 1])
+        expect(run.bracket!.map((r) => r.length)).toEqual(comp === 'continental' ? [4, 2, 1] : [8, 4, 2, 1])
         checkTree(quickCupBracket(run, comp), run)
         if (run.reached === 'W') won++
         else out++
@@ -314,7 +318,8 @@ describe('the Treble and the Double', { timeout: 300_000 }, () => {
   // treble-3 wins all three on ENGINE_VERSION '5' (found by sweeping; treble-11 did on '4')
   it('file a real Treble through the store: the cabinet, the honours board and the achievement', async () => {
     const all = loadTestUniverse(['england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'portugal'])
-    const g = createGame(settings('treble-3', { teamName: 'Treble XI', shortName: 'TRB', rules: { ...QUICK_RULES, leagues: ['england'], difficulty: 'easy' } }))
+    // A seed whose side wins the league and both cups (engine 7: treble-1; engine 6's treble-115 and engine 5's treble-3 no longer do)
+    const g = createGame(settings('treble-1', { teamName: 'Treble XI', shortName: 'TRB', rules: { ...QUICK_RULES, leagues: ['england'], difficulty: 'easy' } }))
     const rng = Rng.fromState(g.rngState)
     autoDraft(all, g.draft!, rng)
     g.rngState = rng.getState()

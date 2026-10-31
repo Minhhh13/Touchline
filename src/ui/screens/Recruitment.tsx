@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Binoculars, FileSearch, Star } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { canFullScout, focusActive, focusLabel, gradePlayer, knowledgeOf, maskedView, maxAssignments, scoutableLeagues } from '@game/logic/scouting'
 import type { RecruitFocus, ScoutReport } from '@game/types'
 import type { Position } from '@engine/types'
@@ -10,14 +10,14 @@ import { PlayerRow } from '../components/PlayerRow'
 import { Bar, Info, Modal, Pos, Rating } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, money, seasonLabel, wage } from '../format'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+import { logicLine } from '../i18n/logicText'
+
+const t = translator(dugout)
 
 const POSITIONS: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']
-const AGES: Array<{ value: NonNullable<RecruitFocus['age']>; label: string }> = [
-  { value: 'u21', label: '21 or under' },
-  { value: 'u24', label: '24 or under' },
-  { value: 'prime', label: '25 to 29' },
-  { value: 'veteran', label: '30 or over' },
-]
+const AGES: Array<NonNullable<RecruitFocus['age']>> = ['u21', 'u24', 'prime', 'veteran']
 const GRADE_CHIP: Record<ScoutReport['grade'], string> = { A: 'good', B: 'info', C: 'warn', D: 'bad' }
 
 /** A knowledge level as a bar colour: the middle band for a half-known league. */
@@ -31,7 +31,7 @@ function knowledgeColour(k: number): string {
  * free. Every rule lives in `src/game/logic/scouting.ts`.
  */
 export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'setAssignment', 'setRecruitFocus')
   const { universe: u, game } = store
   const [draft, setDraft] = useState<RecruitFocus>(() => game?.recruitFocus ?? {})
   if (!u || !game) return null
@@ -44,19 +44,19 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
       <div className="panel-head">
         <span className="head-title">
           <h3 className="icon-title">
-            <Binoculars size={18} aria-hidden="true" /> Recruitment
+            <Binoculars size={18} aria-hidden="true" /> {t('recruitment')}
           </h3>
-          <Info label="About recruitment">A focus narrows the transfer market to players who fit it and has your scouts file two graded reports a matchweek. Players from a league you know less than fully show their attributes as ranges; a full scout (one a market day, or a matchweek) reveals one exactly, hidden traits included.</Info>
+          <Info label={t('aboutRecruitment')}>{t('recruitmentInfo')}</Info>
         </span>
         <span className={`chip ${focusActive(focus) ? 'info' : ''}`} data-testid="focus-chip">
-          {focusActive(focus) ? 'Focus on' : 'No focus'}
+          {t(focusActive(focus) ? 'focusOn' : 'noFocus')}
         </span>
       </div>
       <div className="recruit-form">
         <label className="field">
-          Position
+          {t('positionField')}
           <select className="input sm" value={draft.position ?? ''} onChange={(e) => set({ position: (e.target.value || undefined) as Position | undefined })} data-testid="focus-position">
-            <option value="">Any</option>
+            <option value="">{t('any')}</option>
             {POSITIONS.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -65,26 +65,26 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
           </select>
         </label>
         <label className="field">
-          Age
+          {t('ageField')}
           <select className="input sm" value={draft.age ?? ''} onChange={(e) => set({ age: (e.target.value || undefined) as RecruitFocus['age'] })} data-testid="focus-age">
-            <option value="">Any</option>
+            <option value="">{t('any')}</option>
             {AGES.map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label}
+              <option key={a} value={a}>
+                {t(`age_${a}`)}
               </option>
             ))}
           </select>
         </label>
         <label className="field">
-          Max fee £M
-          <input className="input sm" type="number" min={0} step={1} placeholder="Any" value={draft.maxFee ?? ''} onChange={(e) => set({ maxFee: e.target.value === '' ? undefined : Number(e.target.value) })} data-testid="focus-fee" />
+          {t('maxFee')}
+          <input className="input sm" type="number" min={0} step={1} placeholder={t('any')} value={draft.maxFee ?? ''} onChange={(e) => set({ maxFee: e.target.value === '' ? undefined : Number(e.target.value) })} data-testid="focus-fee" />
         </label>
         <label className="field">
-          Deal
+          {t('deal')}
           <select className="input sm" value={draft.deal ?? ''} onChange={(e) => set({ deal: (e.target.value || undefined) as RecruitFocus['deal'] })}>
-            <option value="">Any</option>
-            <option value="permanent">Permanent</option>
-            <option value="loan">Loan</option>
+            <option value="">{t('any')}</option>
+            <option value="permanent">{t('permanent')}</option>
+            <option value="loan">{t('loan')}</option>
           </select>
         </label>
       </div>
@@ -96,7 +96,7 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
             onMessage(store.setRecruitFocus(draft).message)
           }}
         >
-          Set focus
+          {t('setFocus')}
         </button>
         {focusActive(focus) && (
           <button
@@ -106,13 +106,13 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
               onMessage(store.setRecruitFocus(null).message)
             }}
           >
-            Clear
+            {t('clear')}
           </button>
         )}
-        <span className="small muted one-line" title={focusLabel(focus)}>{focusLabel(focus)}</span>
+        <span className="small muted one-line" title={logicLine(focusLabel(focus))}>{logicLine(focusLabel(focus))}</span>
       </div>
       <div className="eyebrow" style={{ marginTop: 'var(--space-3)' }}>
-        Knowledge · {assigned.length}/{maxAssignments(game)} assignments
+        {t('knowledge', { n: assigned.length, max: maxAssignments(game) })}
       </div>
       <div className="knowledge-list">
         {leagues.map((id) => {
@@ -125,15 +125,15 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
               </span>
               <Bar value={k} colour={knowledgeColour(k)} />
               <span className="mono small">{k}</span>
-              <button type="button" className={`chip-btn ${on ? 'active' : ''}`} aria-pressed={on} onClick={() => onMessage(store.setAssignment(id, !on).message)} data-testid={`assign-${id}`} title={on ? 'End the assignment' : 'Send scouts: +5 knowledge a week'}>
-                {on ? 'Assigned' : 'Assign'}
+              <button type="button" className={`chip-btn ${on ? 'active' : ''}`} aria-pressed={on} onClick={() => onMessage(store.setAssignment(id, !on).message)} data-testid={`assign-${id}`} title={t(on ? 'endAssignment' : 'sendScouts')}>
+                {t(on ? 'assigned' : 'assign')}
               </button>
             </div>
           )
         })}
       </div>
       <div className="small muted" style={{ marginTop: 'var(--space-2)' }} data-testid="full-scout-state">
-        Full scout: {canFullScout(game) ? (game.window ? 'free today' : 'free this week') : game.window ? 'used today' : 'used this week'}. The season you play in is known exactly.
+        {t('fullScout', { state: canFullScout(game) ? (game.window ? 'freeToday' : 'freeWeek') : game.window ? 'usedToday' : 'usedWeek' })}
       </div>
     </div>
   )
@@ -141,7 +141,7 @@ export function RecruitmentPanel({ onMessage }: { onMessage: (m: string) => void
 
 /** The scout reports list: graded A to D on what the scouts can see, newest first. */
 export function ScoutReportsPanel({ onOpen }: { onOpen: (id: string) => void }) {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'shortlist')
   const { universe: u, game } = store
   if (!u || !game) return null
   const reports = (game.scoutReports ?? []).filter((r) => !!u.index[r.playerSeasonId])
@@ -150,13 +150,13 @@ export function ScoutReportsPanel({ onOpen }: { onOpen: (id: string) => void }) 
       <div className="panel-head">
         <span className="head-title">
           <h3 className="icon-title">
-            <FileSearch size={18} aria-hidden="true" /> Scout reports
+            <FileSearch size={18} aria-hidden="true" /> {t('scoutReports')}
           </h3>
-          <Info label="About scout reports">A grades a player who would walk into your side, B one level with your starter, C a squad option, D below what you have. Grades are on what the scouts can see: a full scout sharpens them.</Info>
+          <Info label={t('aboutReports')}>{t('reportsInfo')}</Info>
         </span>
         <span className="chip">{reports.length}</span>
       </div>
-      {reports.length === 0 && <div className="small muted">{focusActive(game.recruitFocus) ? 'Reports come in after each matchweek.' : 'Set a recruitment focus and your scouts start filing reports.'}</div>}
+      {reports.length === 0 && <div className="small muted">{t(focusActive(game.recruitFocus) ? 'reportsAfter' : 'setFocusFirst')}</div>}
       <div className="plist lined">
         {reports.map((r) => {
           const p = u.index[r.playerSeasonId]
@@ -174,7 +174,7 @@ export function ScoutReportsPanel({ onOpen }: { onOpen: (id: string) => void }) 
                   <span className={`chip ${GRADE_CHIP[r.grade]}`} data-testid="report-grade">
                     {r.grade}
                   </span>
-                  {store.shortlist.includes(p.id) && <Star size={14} role="img" aria-label="On your shortlist" />}
+                  {store.shortlist.includes(p.id) && <Star size={14} role="img" aria-label={t('onShortlist')} />}
                 </span>
               }
             />
@@ -191,7 +191,12 @@ export function ScoutReportsPanel({ onOpen }: { onOpen: (id: string) => void }) 
  * and what to do next.
  */
 export function ScoutModal({ id, onClose }: { id: string | null; onClose: () => void }) {
-  const store = useStore()
+  // Keyed by the player: the Dugout keeps the modal mounted, so a message about one man never shows on the next one opened
+  return <ScoutReport key={id ?? ''} id={id} onClose={onClose} />
+}
+
+function ScoutReport({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const store = useStorePick('universe', 'game', 'dismissReport', 'enquire', 'scoutPlayer', 'shortlist', 'toggleShortlist')
   const { universe: u, game } = store
   const [msg, setMsg] = useState<string | null>(null)
   if (!u || !game || !id) return null
@@ -209,19 +214,19 @@ export function ScoutModal({ id, onClose }: { id: string | null; onClose: () => 
             <Pos key={x} p={x} />
           ))}
         </span>
-        <span className="chip">{p.age} years</span>
+        <span className="chip">{t('ageYears', { n: p.age })}</span>
         <span className="chip">
           {clubName(u, p.clubId)} {seasonLabel(p.season)}
         </span>
         <span className="chip">{money(p.value)}</span>
         <span className="chip">{wage(p.wage)}</span>
-        {view.scouted && <span className="chip" title={personalityOf(p).blurb}>{personalityOf(p).label}</span>}
+        {view.scouted && <span className="chip" title={logicLine(personalityOf(p).blurb)}>{logicLine(personalityOf(p).label)}</span>}
       </div>
       <div className="row between wrap" style={{ gap: 'var(--space-2)', margin: 'var(--space-2) 0' }}>
         <span className="small">
-          <span className={`chip ${GRADE_CHIP[grade.grade]}`}>Grade {grade.grade}</span> {grade.note}
+          <span className={`chip ${GRADE_CHIP[grade.grade]}`}>{t('grade', { g: grade.grade })}</span> {grade.note}
         </span>
-        <span className="small muted">{view.exact ? (view.scouted ? 'Fully scouted' : 'Known exactly') : `Knowledge ${view.knowledge}: ranges of ±${Math.ceil((view.overall.hi - view.overall.lo) / 2)}`}</span>
+        <span className="small muted">{view.exact ? t(view.scouted ? 'fullyScouted' : 'knownExactly') : t('knowledgeRange', { k: view.knowledge, n: Math.ceil((view.overall.hi - view.overall.lo) / 2) })}</span>
       </div>
       <AttributePanel p={p} view={view} />
       {view.scouted && (view.pros.length > 0 || view.cons.length > 0) && (
@@ -241,19 +246,19 @@ export function ScoutModal({ id, onClose }: { id: string | null; onClose: () => 
       {msg && <div className="notice" style={{ marginTop: 'var(--space-3)' }}>{msg}</div>}
       <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
         {!view.exact && (
-          <button className="btn sm primary" data-testid="full-scout" disabled={!canFullScout(game)} title={canFullScout(game) ? 'Reveal him exactly, hidden traits included' : game.window ? 'One full scout a market day' : 'One full scout a matchweek'} onClick={() => setMsg(store.scoutPlayer(p.id).message)}>
-            Scout him
+          <button className="btn sm primary" data-testid="full-scout" disabled={!canFullScout(game)} title={t(canFullScout(game) ? 'revealTip' : game.window ? 'oneDay' : 'oneWeek')} onClick={() => setMsg(store.scoutPlayer(p.id).message)}>
+            {t('scoutHim')}
           </button>
         )}
         <button className="btn sm" onClick={() => store.toggleShortlist(p.id)}>
-          <Star size={14} aria-hidden="true" /> {store.shortlist.includes(p.id) ? 'Remove from shortlist' : 'Shortlist'}
+          <Star size={14} aria-hidden="true" /> {t(store.shortlist.includes(p.id) ? 'removeShortlist' : 'shortlist')}
         </button>
         {game.window && !listed && (
           <button className="btn sm" onClick={() => setMsg(store.enquire(p.id).message)}>
-            Enquire
+            {t('enquire')}
           </button>
         )}
-        {listed && <span className="small muted">On the market at {money(listed.asking)}: bid in the listings.</span>}
+        {listed && <span className="small muted">{t('onMarket', { m: money(listed.asking) })}</span>}
         {(game.scoutReports ?? []).some((r) => r.playerSeasonId === p.id) && (
           <button
             className="btn sm ghost"
@@ -262,7 +267,7 @@ export function ScoutModal({ id, onClose }: { id: string | null; onClose: () => 
               onClose()
             }}
           >
-            Dismiss report
+            {t('dismissReport')}
           </button>
         )}
       </div>

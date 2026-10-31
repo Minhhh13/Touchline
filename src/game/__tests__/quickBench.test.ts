@@ -11,6 +11,7 @@ import { createGame, describeRules, setupRules } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
 import { playerLookup } from '../logic/players'
 import { getFormation } from '@engine/formations'
+import { buildAiClubs } from '@engine/season'
 import type { Game, GameSettings } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
 vi.hoisted(() => {
@@ -159,19 +160,28 @@ describe('the bench in the quick season', { timeout: 300_000 }, () => {
   })
 
   it('draws the same as a season without a bench up to the first game an injured starter is covered', () => {
+    // Engine 6 (E6-2): the bench men are the user's too, so they leave their real clubs, and where one of them plays for a
+    // club of the league season the bench changes that club from the first game. So the wheel here is 2023-24 to 2025-26
+    // and the season 2008-09: a bench man rarely played then, and a seed where one did is not compared
+    const leagueMen = new Set(Object.values(buildAiClubs(u, 'england', 2008, 'hull-city')).flatMap((c) => c.squad.map((id) => u.index[id].playerId)))
+    const era = { fromSeason: 2023, toSeason: 2025 }
     let covered = 0
-    for (const seed of SEEDS) {
-      const plain = drafted({ seed })
-      const benched = drafted({ seed }, { benchPicks: 5 })
+    let compared = 0
+    for (const seed of [...SEEDS, 'bench-5', 'bench-6', 'bench-7', 'bench-8', 'bench-9', 'bench-10']) {
+      const plain = drafted({ seed, leagueSeason: 2008, hostClubId: 'hull-city' }, era)
+      const benched = drafted({ seed, leagueSeason: 2008, hostClubId: 'hull-city' }, { ...era, benchPicks: 5 })
       kickOff(plain, u)
       kickOff(benched, u)
       const games = benched.quickResult!.results!
+      covered += games.filter((r) => r.covers?.length).length
+      if (benched.draft!.bench.some((id) => leagueMen.has(u.index[id].playerId))) continue
+      compared++
       const first = games.findIndex((r) => r.covers?.length)
       const upTo = first < 0 ? games.length : first
       expect(bare(benched).slice(0, upTo)).toEqual(bare(plain).slice(0, upTo))
       if (first < 0) expect(benched.quickResult!.points).toBe(plain.quickResult!.points)
-      covered += games.filter((r) => r.covers?.length).length
     }
+    expect(compared).toBeGreaterThanOrEqual(3)
     expect(covered).toBeGreaterThan(0)
   })
 

@@ -7,9 +7,13 @@ import { newH2HDraft, h2hSpin } from '@engine/h2h'
 import type { Game, GameSettings, Profile } from '@game/types'
 import type { H2HGame } from '@game/store'
 import { beginSeason, createGame } from '@game/logic/setup'
+import { beginArena, cupGameSettings, simArenaToEnd } from '@game/logic/arena'
+import { beginRunIn, runInGameSettings, seedRunInDraft } from '@game/logic/runin'
+import { runInJob } from '@engine/scenario'
+import { compactGame } from '@game/logic/compact'
 import { normaliseGame } from '@game/logic/save'
 import { gzipText } from '../core/bytes'
-import { gameSlot, type SlotId } from '../core/slots'
+import { gameSlot, progressKey, saveMeta, type GameSlotId, type SlotId } from '../core/slots'
 import { freshRecord, type OnlineRecord } from '../localState'
 import { encodeSlot, SyncEngine, restorable, type SyncStoreLike, type SyncView } from '../sync'
 import { OnlineError } from '../transport'
@@ -57,7 +61,7 @@ class FakeStore implements SyncStoreLike {
   getState() {
     return this.s
   }
-  async importCloudGame(slot: 'quick' | 'season' | 'dynasty', raw: Game, mode: 'park' | 'replace') {
+  async importCloudGame(slot: GameSlotId, raw: Game, mode: 'park' | 'replace') {
     const g = normaliseGame(raw)
     if (!g || gameSlot(g) !== slot) return false
     const active = !!this.s.game && gameSlot(this.s.game) === slot
@@ -606,3 +610,240 @@ describe('cloud sync status while the connection is down', () => {
   })
 })
 
+
+/** A Cup of 8 drafted by the assistant and played `steps` ties in (the whole run with `steps` past the end). */
+function arenaRun(seed: string, steps = 99): Game {
+  const g = createGame(cupGameSettings(u, { teamName: 'Cloud XI', formationId: '4-3-3', field: 'wheel', wheelLeagues: ['england'], difficulty: 'calibrated', seed, hardMode: false, twists: true, size: 8 }, 'CXI'))
+  const rng = Rng.fromState(g.rngState)
+  autoDraft(u, g.draft!, rng)
+  g.rngState = rng.getState()
+  beginArena(g, u)
+  if (steps > 0) simArenaToEnd(g, u)
+  return normaliseGame(g)!
+}
+
+/** The playtest run-in (Norwich 2015-16, Survival), drafted and kicked off: its season starts from carried rows. */
+function runIn(seed: string): Game {
+  const g = createGame(runInGameSettings(u, runInJob(u, 'survival', 'england', 2015, 'norwich-city')!, { seed }))
+  seedRunInDraft(g, u)
+  const rng = Rng.fromState(g.rngState)
+  autoDraft(u, g.draft!, rng)
+  g.rngState = rng.getState()
+  beginRunIn(g, u)
+  return normaliseGame(g)!
+}
+
+/** The same run, `n` ties further on (the sync treats the save as opaque). */
+const arenaAhead = (g: Game, n: number): Game => {
+  const c = structuredClone(g)
+  c.arena!.step += n
+  return c
+}
+
+describe('cloud sync of arena runs and Run-ins', () => {
+  const run = arenaRun('SYNC-ARENA')
+  const otherRun = arenaRun('SYNC-ARENA-2')
+  const fresh = arenaRun('SYNC-ARENA-3', 0)
+  const ri = runIn('SYNC-RUNIN')
+  const season = managed('season', 'SYNC-SEAS-SLOTS')
+
+  it('gives each its own slot, a progress step for the arena and an arena summary in the row', () => {
+    expect(gameSlot(run)).toBe('arena')
+    expect(gameSlot(ri)).toBe('runin')
+    const key = progressKey({ slot: 'arena', kind: 'game', game: fresh, active: true })
+    expect(key).toHaveLength(6)
+    // The step is second, after the year (QA r8: the phase came first and ranked a report above the hub)
+    expect(progressKey({ slot: 'arena', kind: 'game', game: arenaAhead(fresh, 1), active: true })[1]).toBe(key[1] + 1)
+    expect(progressKey({ slot: 'runin', kind: 'game', game: ri, active: true })).toHaveLength(6)
+    const meta = saveMeta({ slot: 'arena', kind: 'game', game: run, active: true }, { dataVersion: 'd', engineVersion: 'e', appBuild: 'b', deviceLabel: 'x' })
+    expect(meta).toMatchObject({ mode: 'arena', arena: { format: 'cup', step: run.arena!.step, over: true } })
+    expect(JSON.stringify(meta).length).toBeLessThan(2048)
+    expect(saveMeta({ slot: 'runin', kind: 'game', game: ri, active: true }, { dataVersion: 'd', engineVersion: 'e', appBuild: 'b', deviceLabel: 'x' })).not.toHaveProperty('arena')
+  })
+
+  it('round-trips an arena run whole: the bracket, the log and the streams arrive on a fresh device unchanged', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: run, parked: { runin: ri } })
+    expect((await a.engine.sync()).ok).toBe(true)
+    expect(row(b, 'arena')).toMatchObject({ revision: 1, gameId: run.id })
+    expect(row(b, 'runin')).toMatchObject({ revision: 1, gameId: ri.id })
+    const d2 = device(b, 'b')
+    await d2.engine.sync()
+    const got = d2.store.s.parked.arena!
+    expect(got.id).toBe(run.id)
+    expect(got.arena!.bracket).toBeDefined()
+    expect(JSON.parse(JSON.stringify(got.arena))).toEqual(JSON.parse(JSON.stringify(run.arena)))
+    expect(JSON.parse(JSON.stringify(got))).toEqual(JSON.parse(JSON.stringify(normaliseGame(compactGame(run)))))
+    // the run-in keeps its carried table rows and its brief
+    const gotRi = d2.store.s.parked.runin!
+    expect(gotRi.season!.carryIn).toEqual(ri.season!.carryIn)
+    expect(JSON.parse(JSON.stringify(gotRi))).toEqual(JSON.parse(JSON.stringify(normaliseGame(compactGame(ri)))))
+    // and nothing moves on the next passes
+    const n = claims(b)
+    tick()
+    await a.engine.sync()
+    await d2.engine.sync()
+    expect(claims(b)).toBe(n)
+    expect(d2.last()).toMatchObject({ syncStatus: 'idle', conflicts: [] })
+  })
+
+  it('the arena run further along wins a same-run split, by its step (row 10)', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: fresh })
+    await a.engine.sync()
+    const d2 = device(b, 'b')
+    await d2.engine.sync()
+    tick()
+    const ahead = arenaAhead(d2.store.s.parked.arena!, 1)
+    d2.store.set({ parked: { arena: ahead } })
+    await d2.engine.sync()
+    expect(row(b, 'arena')!.revision).toBe(2)
+    a.store.set({ screen: 'home' })
+    tick()
+    await a.engine.sync()
+    expect(a.store.s.game!.arena!.step).toBe(fresh.arena!.step + 1)
+  })
+
+  it('asks when two different arena runs claim the slot (row 13), and keeps the other in the cloud history', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: run })
+    await a.engine.sync()
+    const d2 = device(b, 'b')
+    d2.store.set({ game: otherRun })
+    await d2.engine.sync()
+    expect(d2.last().conflicts).toEqual([expect.objectContaining({ kind: 'different', slot: 'arena' })])
+    await d2.engine.sync({ resolve: { slot: 'arena', choice: 'keep_local' } })
+    const r = row(b, 'arena')!
+    expect(r.gameId).toBe(otherRun.id)
+    expect(r.prevGameId).toBe(run.id)
+    expect(restorable(r)).toBe(true)
+  })
+
+  it('a Run-in abandoned on one device is a tombstone; the other is asked and can remove it (rows 3 and 5)', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: ri })
+    await a.engine.sync()
+    const d2 = device(b, 'b')
+    await d2.engine.sync()
+    expect(d2.store.s.parked.runin?.id).toBe(ri.id)
+    tick()
+    a.store.set({ game: null })
+    expect(a.rec().tombstones).toEqual([expect.objectContaining({ slot: 'runin', gameId: ri.id })])
+    await a.engine.sync()
+    expect(row(b, 'runin')!.deletedAt).not.toBeNull()
+    tick()
+    await d2.engine.sync()
+    expect(d2.last().conflicts).toEqual([expect.objectContaining({ kind: 'abandoned', slot: 'runin' })])
+    await d2.engine.sync({ resolve: { slot: 'runin', choice: 'remove' } })
+    expect(d2.store.s.parked.runin).toBeUndefined()
+  })
+
+  it('a Run-in uploads at most once every two minutes unless forced, like a Season', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: ri })
+    await a.engine.sync()
+    const moved = structuredClone(ri)
+    moved.season!.matchweek += 1
+    a.store.set({ game: moved })
+    tick(30000)
+    await a.engine.sync()
+    expect(row(b, 'runin')!.revision).toBe(1)
+    await a.engine.sync({ force: true })
+    expect(row(b, 'runin')!.revision).toBe(2)
+  })
+
+  it('a project without the new slots: the arena and the Run-in wait on the device, everything else syncs', async () => {
+    const b = new FakeBackend()
+    b.slots = ['quick', 'season', 'dynasty', 'h2h']
+    const a = device(b, 'a')
+    a.store.set({ game: run, parked: { season, runin: ri } })
+    const out = await a.engine.sync()
+    expect(out).toEqual({ ok: true, error: null })
+    expect(row(b, 'season')).toMatchObject({ gameId: season.id })
+    expect(row(b, 'arena')).toBeUndefined()
+    expect(row(b, 'runin')).toBeUndefined()
+    expect(b.profiles.size).toBe(1)
+    expect(a.last()).toMatchObject({ syncStatus: 'idle', syncMessage: null })
+    // set aside for the session: the next pass does not try them again, and leaves no object behind
+    const uploads = b.calls.filter((c) => c === 'upload').length
+    tick()
+    await a.engine.sync()
+    expect(b.calls.filter((c) => c === 'upload').length).toBe(uploads)
+    expect([...b.objects.keys()].some((k) => k.includes('/arena/') || k.includes('/runin/'))).toBe(false)
+  })
+
+  it('"Delete my cloud data" takes the arena and Run-in objects too', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: run, parked: { runin: ri } })
+    await a.engine.sync()
+    expect(b.objects.size).toBe(2)
+    await a.engine.deleteCloudData()
+    expect(b.objects.size).toBe(0)
+    expect(b.rows.size).toBe(0)
+    expect(a.store.s.game!.id).toBe(run.id)
+  })
+})
+
+describe('a refused claim leaves no object behind (r8 audit)', () => {
+  const season = managed('season', 'SYNC-R8-CLAIM')
+  const objects = (b: FakeBackend) => [...b.objects.keys()].filter((k) => k.startsWith('user-a/'))
+
+  /** The device's transport refuses the next claims with `errors`, one per claim. */
+  function refuseClaims(t: FakeTransport, errors: OnlineError[]) {
+    const real = t.claim.bind(t)
+    t.claim = async (a) => {
+      const e = errors.shift()
+      if (e) throw e
+      return real(a)
+    }
+  }
+
+  it('removes the upload when the database refuses the claim (the hourly limit), so retries never fill the 16-object folder', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    refuseClaims(a.transport, Array.from({ length: 20 }, () => new OnlineError('rate', 'too many cloud saves this hour', 'PT429', 429)))
+    for (let i = 0; i < 20; i++) {
+      tick()
+      const out = await a.engine.sync({ force: true })
+      expect(out.error?.kind).toBe('rate')
+      expect(objects(b)).toEqual([])
+    }
+    // Once the hour has passed, the next pass saves as usual
+    tick()
+    expect((await a.engine.sync({ force: true })).ok).toBe(true)
+    expect(row(b, 'season')).toMatchObject({ revision: 1, gameId: season.id })
+    expect(objects(b)).toEqual([row(b, 'season')!.objectPath])
+  })
+
+  it('removes the upload on a definite refusal (a bad request) too', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    refuseClaims(a.transport, [new OnlineError('bad', 'the upload has no usable size', '22023', 400)])
+    expect((await a.engine.sync({ force: true })).ok).toBe(false)
+    expect(objects(b)).toEqual([])
+  })
+
+  it('keeps the upload when the claim got no answer (it may have landed): the orphan sweep, which skips what a row names, takes it later', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    refuseClaims(a.transport, [new OnlineError('network', 'Load failed'), new OnlineError('unavailable', 'Bad gateway', '502', 502)])
+    await a.engine.sync({ force: true })
+    expect(objects(b)).toHaveLength(1)
+    tick()
+    await a.engine.sync({ force: true })
+    expect(objects(b)).toHaveLength(2)
+    tick()
+    expect((await a.engine.sync({ force: true })).ok).toBe(true)
+    await a.engine.sweepOrphans()
+    expect(objects(b)).toEqual([row(b, 'season')!.objectPath])
+  })
+})

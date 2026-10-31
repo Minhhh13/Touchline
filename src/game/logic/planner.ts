@@ -85,6 +85,8 @@ export interface ContractRow {
   loan: boolean
   renewed: boolean
   declined: boolean
+  /** Dynasty pre-season: his contract ran out and talks are open until the opener. */
+  outOfContract: boolean
   /** Leaves at the end of this season unless renewed. */
   expiring: boolean
 }
@@ -106,8 +108,9 @@ export function contractsOverview(game: Game, u: LoadedUniverse): ContractsOverv
     const loan = !!c?.loan
     const renewed = !!c?.renewed
     const declined = !!c?.declined
+    const outOfContract = !!c?.expired
     const status = statusOf(game, p.id)
-    return { id: p.id, name: p.name, age: p.age, position: p.positions[0], years, wage: p.wage, status, statusLabel: STATUS_LABEL[status], loan, renewed, declined, expiring: loan || declined || (years <= 1 && !renewed) }
+    return { id: p.id, name: p.name, age: p.age, position: p.positions[0], years, wage: p.wage, status, statusLabel: STATUS_LABEL[status], loan, renewed, declined, outOfContract, expiring: loan || declined || (years <= 1 && !renewed) }
   })
   rows.sort((a, b) => Number(b.expiring) - Number(a.expiring) || a.years - b.years || b.wage - a.wage || a.id.localeCompare(b.id))
   const leaving = rows.filter((r) => r.expiring)

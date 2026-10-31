@@ -1,7 +1,12 @@
 import type { AttributeKey, PlayerSeason } from '@engine/types'
 import type { MaskedView } from '@game/logic/scouting'
 import { attributeColumns, type AttrRow } from '@game/logic/playerCard'
+import { attrTone, groupAverage } from '@game/logic/playerProfile'
 import { Bar } from './bits'
+import { translator } from '../i18n'
+import { explore } from '../i18n/en/explore'
+
+const t = translator(explore)
 
 /**
  * Football Manager-style attributes in three even columns (Technical, Physical, Mental). Every row
@@ -18,14 +23,21 @@ export function AttributePanel({ p, view }: { p: PlayerSeason; view?: MaskedView
     <div className="attr-panel" data-testid="attribute-panel">
       {cols.map((c) => (
         <section key={c.title} className="attr-group">
-          <h4>{c.title}</h4>
+          <h4>
+            {c.title}
+            {!masked && groupAverage(c) !== null && (
+              <span className={`attr-avg tone-${attrTone(groupAverage(c)!)}`} title={t('groupAvgTip', { group: c.title, n: groupAverage(c)! })} data-testid="attr-group-avg">
+                {groupAverage(c)}
+              </span>
+            )}
+          </h4>
           {c.rows.map((r) => (
             <Row key={r.key} r={r} range={masked && r.kind === 'attr' ? view!.attrs[r.key as AttributeKey] : undefined} unknown={hidden && r.kind !== 'attr'} />
           ))}
           {c.rows.map((r) =>
             r.kind === 'risk' && !hidden ? (
               <p key="note" className="attr-note" data-testid="injury-note">
-                Injury risk {r.level}/5: {r.note}
+                {t('injuryNote', { level: r.level, note: r.note })}
               </p>
             ) : null,
           )}
@@ -43,18 +55,18 @@ function Row({ r, range, unknown }: { r: AttrRow; range?: { lo: number; hi: numb
   if (unknown)
     // A hidden trait or the injury risk before the scout has watched him
     return (
-      <div className="attr-row" title={`${r.label}: scout him to find out`}>
+      <div className="attr-row" title={t('scoutToFind', { label: r.label })}>
         <span className="attr-label">{r.label}</span>
         <span className="bar" />
         <span className="attr-value">
-          <span className="attr-badge low">Unknown</span>
+          <span className="attr-badge low">{t('unknown')}</span>
         </span>
       </div>
     )
   if (range)
     // An attribute the club can only see as a range: the bar spans it, the figure reads "62–70"
     return (
-      <div className="attr-row" title={`${r.label}: somewhere from ${range.lo} to ${range.hi}`}>
+      <div className="attr-row" title={t('rangeTip', { label: r.label, lo: range.lo, hi: range.hi })}>
         <span className="attr-label">{r.label}</span>
         <span className="bar range-bar">
           <span className="range-span" style={{ left: `${range.lo}%`, width: `${Math.max(2, range.hi - range.lo)}%`, background: band((range.lo + range.hi) / 2) }} />
@@ -66,16 +78,17 @@ function Row({ r, range, unknown }: { r: AttrRow; range?: { lo: number; hi: numb
     )
   if (r.kind === 'attr')
     return (
-      <div className="attr-row">
+      // FM style: the bar and the figure share the value's tone (elite, good, fair, poor, weak)
+      <div className={`attr-row tone-${attrTone(r.value)}`} data-tone={attrTone(r.value)}>
         <span className="attr-label">{r.label}</span>
-        <Bar value={r.value} colour={band(r.value)} />
+        <Bar value={r.value} colour="var(--tone)" />
         <span className="attr-value mono">{r.value}</span>
       </div>
     )
   if (r.kind === 'trait')
     // Hidden traits are a bar and a word, never a number
     return (
-      <div className="attr-row" title={`${r.label}: ${r.word === 'Avg' ? 'average' : r.word.toLowerCase()} (a hidden trait)`}>
+      <div className="attr-row" title={t('traitTip', { label: r.label, word: r.word === 'Avg' ? t('average') : r.word.toLowerCase() })}>
         <span className="attr-label">{r.label}</span>
         <Bar value={Math.round(r.value * 100)} colour={r.word === 'High' ? 'var(--good)' : r.word === 'Avg' ? 'var(--meter-mid)' : 'var(--text-3)'} />
         <span className="attr-value">
@@ -84,7 +97,7 @@ function Row({ r, range, unknown }: { r: AttrRow; range?: { lo: number; hi: numb
       </div>
     )
   return (
-    <div className="attr-row" title={`Injury risk ${r.level} of 5: ${r.note}`}>
+    <div className="attr-row" title={t('riskTip', { level: r.level, note: r.note })}>
       <span className="attr-label">{r.label}</span>
       <Bar value={r.level * 20} colour={r.level >= 4 ? 'var(--bad)' : r.level === 3 ? 'var(--meter-mid)' : 'var(--good)'} />
       <span className="attr-value" data-testid="injury-risk" data-level={r.level}>

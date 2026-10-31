@@ -7,9 +7,10 @@ import { autoDraft, peekActive, QUICK_RULES, SEASON_RULES, spinOdds } from '@eng
 import { canUpgrade } from '@engine/upgrader'
 import { powerUpUsed, powerUpsOn } from '@engine/powerups'
 import { Rng } from '@engine/rng'
-import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
+import { acceptOffer, bidFor, enquireFor, ownedHumans, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame, normaliseProfile } from '../logic/save'
+import { officeItems, officeTick } from '../logic/office'
 import { matchPlayOf } from '../logic/assistant'
 import { capOfGame } from '../logic/cap'
 import { chainOfGame } from '../logic/chain'
@@ -23,6 +24,7 @@ import { modeLabel } from '../logic/modes'
 import { arenaVerdictOf, challengeHeadline } from '../logic/arenaClaim'
 import type { Cabinet, Game, GameSettings, Profile, QuickCupRun } from '../types'
 import { creditH2H, creditH2HOnline, emptyCabinet, fileHonour, normaliseCabinet } from '../logic/cabinet'
+import { withFeats } from '../logic/feats'
 import { quickCupBracket } from '../logic/bracket'
 import { maskedView, setAssignment, setRecruitFocus } from '../logic/scouting'
 import { contractDemand } from '../logic/contracts'
@@ -180,6 +182,13 @@ describe('audit fixes: season and squad', () => {
     expect(ghost.settings.challenge?.arena).toBeUndefined()
     expect(challengeHeadline(ghost.settings.challenge!)).toBe('70 pts')
     expect(arenaVerdictOf(ghost)).toBeNull()
+    // No office from before the Office tab (round 8): absent, no player power, nothing waiting, and its tick writes nothing
+    expect(n.office).toBeUndefined()
+    expect(n.settings.playerPower).toBeUndefined()
+    expect(officeItems(n, u)).toEqual([])
+    const ticked = structuredClone(n)
+    officeTick(ticked, u)
+    expect(ticked).toEqual(n)
     // The match-play preference stays unset and reads as Watch (today's stops at 45 and 70)
     expect(n.settings.matchPlay).toBeUndefined()
     expect(matchPlayOf(n)).toBe('watch')
@@ -197,6 +206,9 @@ describe('audit fixes: season and squad', () => {
     expect(n.quickJanuary?.spin).toBeUndefined()
     expect(n.quickJanuary?.upgrade).toBeUndefined()
     expect(n.quickResult?.januaryGamble).toBeUndefined()
+    // Nobody retired from a squad saved before the retirement list: no one is barred from the summer wheel or the market
+    expect(n.retiredPlayers).toBeUndefined()
+    expect(ownedHumans(n, u).size).toBe(Object.keys(n.squad).length)
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
     // A quick result saved before the live table has no rounds; a January window before it, no first-half rounds
@@ -220,6 +232,12 @@ describe('audit fixes: season and squad', () => {
     delete oldCabinet.honours
     expect(normaliseCabinet(oldCabinet as Partial<Cabinet>).honours).toEqual([])
     expect(fileHonour(oldCabinet as unknown as Cabinet, { id: 'g-1', kind: 'treble', cups: ['cup', 'continental'], teamName: 'Old XI', mode: 'quick', leagueId: 'england', leagueSeason: 2025 }).honours).toHaveLength(1)
+    // Nor the r8 feats: the cabinet keeps none until it is caught up once from its board, then credits on top
+    const featless = normaliseCabinet(oldCabinet as Partial<Cabinet>)
+    expect(featless.feats).toBeUndefined()
+    const caught = withFeats(featless, { leaderboard: [{ id: 'o', date: '2026-01-01', mode: 'quick', teamName: 'Old', points: 90, won: 28, drawn: 6, lost: 4, position: 1, tier: 'CHAMPIONS', seed: 'o', leagueSeason: 1999, hostClubId: 'arsenal', xi: [] }] })
+    expect(caught.feats?.classicTitles).toBe(1)
+    expect(caught.feats?.seasonsTitled).toEqual([1999])
     // A post-season cup run from before the bracket keeps no bracket: the summary shows the user's own ties alone
     const oldRun: QuickCupRun = { ties: [{ round: 'R16', opponentId: 'arsenal', home: true, gf: 2, ga: 1, scorers: [], won: true }, { round: 'QF', opponentId: 'chelsea', home: false, gf: 0, ga: 1, scorers: [], won: false }], reached: 'QF' }
     const oldQuick = normaliseGame({ ...n, quickResult: { ...(n.quickResult ?? {}), cup: oldRun } } as unknown as Game)!

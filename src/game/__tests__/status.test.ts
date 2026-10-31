@@ -193,7 +193,8 @@ describe('squad status and playing time', () => {
   })
 
   it('suggests the status against the squad without the part-exchange player, and the bid carries exactly that status', () => {
-    const g = newGame(u, { seed: 'status-exchange' })
+    // A seed whose January window lists a man rated between our fourth and fifth best (engine 6: status-exchange-1)
+    const g = newGame(u, { seed: 'status-exchange-1' })
     while (g.season!.matchweek < 19) playMatchweek(g, u, true)
     expect(g.window?.kind).toBe('january')
     g.finances.budget = 999
@@ -220,10 +221,18 @@ describe('squad status and playing time', () => {
 
   it('records minutes per matchweek, cup minutes in the same week, and keeps six weeks', () => {
     const g = newGame(u, { seed: 'status-minutes' })
+    // A man out injured or banned records no week (engine 6, item 4), so only the men available every week have one each
+    const missed = new Set<string>()
     for (let w = 1; w <= 8; w++) {
+      for (const [id, s] of Object.entries(g.squad)) if (s.injury || s.suspension > 0) missed.add(id)
       playMatchweek(g, u, true)
-      for (const s of Object.values(g.squad)) expect(s.recentMinutes!.length).toBe(Math.min(w, RECENT_WEEKS))
+      for (const [id, s] of Object.entries(g.squad)) {
+        if (s.injury) missed.add(id)
+        if (missed.has(id)) expect(s.recentMinutes!.length).toBeLessThanOrEqual(Math.min(w, RECENT_WEEKS))
+        else expect(s.recentMinutes!.length).toBe(Math.min(w, RECENT_WEEKS))
+      }
     }
+    expect(Object.keys(g.squad).length - missed.size).toBeGreaterThan(10)
     // Matchweek 6 was followed by a cup tie: someone who played both has more than 90 in that week's entry
     const weekSix = Object.values(g.squad).map((s) => s.recentMinutes![5 - 2])
     expect(weekSix.some((m) => m > 90)).toBe(true)
@@ -248,6 +257,38 @@ describe('squad status and playing time', () => {
     expect(g.squad[x.p.id].morale).toBe(60)
     expect(playerLookup(g, u)(x.p.id)!.wage).toBe(Math.round(wage * 1.25))
     expect(STATUS_RANK.key).toBeGreaterThan(STATUS_RANK.backup)
+  })
+
+  it('never raises a wage twice when a man goes down and back up the Club tab (r8 audit)', () => {
+    for (const seed of ['status-creep-1', 'status-creep-2', 'status-creep-3']) {
+      const g = newGame(u, { seed })
+      const x = squadPlayers(g, u).find((y) => g.contracts[y.p.id].status === 'rotation' && !g.contracts[y.p.id].loan)!
+      const wage = x.p.wage
+      setSquadStatus(g, u, x.p.id, 'key')
+      const keyWage = playerLookup(g, u)(x.p.id)!.wage
+      expect(keyWage).toBe(Math.round(wage * (WAGE_MULT.key / WAGE_MULT.rotation)))
+      // Down and back up, twice: the wage stays the key man's
+      for (let i = 0; i < 2; i++) {
+        setSquadStatus(g, u, x.p.id, 'rotation')
+        setSquadStatus(g, u, x.p.id, 'first-team')
+        setSquadStatus(g, u, x.p.id, 'key')
+        expect(playerLookup(g, u)(x.p.id)!.wage, seed).toBe(keyWage)
+      }
+      // Paid for key, then down to backup and up to first-team: still no rise
+      setSquadStatus(g, u, x.p.id, 'backup')
+      setSquadStatus(g, u, x.p.id, 'first-team')
+      expect(playerLookup(g, u)(x.p.id)!.wage).toBe(keyWage)
+      expect(g.contracts[x.p.id].paidStatus).toBe('key')
+      // The paid status rides into the next season's contract
+      const y = squadPlayers(g, u).find((z) => g.contracts[z.p.id].status === 'backup' && !g.contracts[z.p.id].loan && z.p.id !== x.p.id)
+      if (y) {
+        setSquadStatus(g, u, y.p.id, 'rotation')
+        const once = playerLookup(g, u)(y.p.id)!.wage
+        setSquadStatus(g, u, y.p.id, 'backup')
+        setSquadStatus(g, u, y.p.id, 'rotation')
+        expect(playerLookup(g, u)(y.p.id)!.wage).toBe(once)
+      }
+    }
   })
 
   it('weighs the wants-minutes event at 6 for a short-changed key player and lets him go on the list', () => {

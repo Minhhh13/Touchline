@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
-import { beginMatch, pairingExpectation } from '@engine/match'
+import { beginMatch, pairingExpectation, softCeiling, XG_CEILING, XG_KNEE } from '@engine/match'
 import { USER_TEAM } from '@engine/season'
 import { createGame } from '../logic/setup'
+import { aiTeamInput, humansOf } from '@engine/season'
+import { quickLeague } from '../logic/superLeague'
 import { playerLookup } from '../logic/players'
 import { quickUserInput, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
-import { barFill, chanceLabel, emptyTally, ODDS_STEP, oddsFrom, oddsKey, oddsLeague, oddsRng, preSeasonOdds, sampleSeasons, squadBreakdown } from '../logic/odds'
+import { barFill, chanceLabel, emptyTally, matchDayXg, ODDS_STEP, oddsFrom, oddsKey, oddsLeague, oddsLeagueSteps, oddsRng, preSeasonOdds, ODDS_PAIRING_STEP, sampleSeasons, squadBreakdown } from '../logic/odds'
 import type { Game, GameSettings } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -31,6 +33,32 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
     const b = preSeasonOdds(clone(g), u, 300)
     expect(a).toEqual(b)
     expect(g).toEqual(before)
+  })
+
+  it('build the league a step at a time exactly as in one go, the pairings as the engine sums them (r13)', () => {
+    for (const seed of ['odds-steps-1', 'odds-steps-2', 'odds-steps-3']) {
+      const g = drafted(seed)
+      const before = clone(g)
+      const steps = oddsLeagueSteps(g, u)
+      let pauses = 0
+      let r = steps.next()
+      while (!r.done) {
+        pauses++
+        r = steps.next()
+      }
+      // The league as the old one-call build made it, written out here
+      const get = playerLookup(g, u)
+      const { lineup, bench } = quickXI(g, u)
+      const { ai, offset } = quickLeague(u, g.settings, humansOf([...Object.values(lineup), ...bench], get))
+      const ids = [USER_TEAM, ...Object.keys(ai)]
+      const inputs = ids.map((id) => (id === USER_TEAM ? quickUserInput(g, lineup, bench, g.tactics, g.captainId, get) : aiTeamInput(u, ai[id], offset)))
+      const pairings = []
+      for (let h = 0; h < ids.length; h++) for (let a = 0; a < ids.length; a++) if (h !== a) pairings.push({ home: h, away: a, ...pairingExpectation(inputs[h], inputs[a]) })
+      expect(r.value).toEqual({ ids, pairings })
+      expect(oddsLeague(g, u)).toEqual(r.value)
+      expect(pauses).toBeGreaterThanOrEqual(Math.floor(pairings.length / ODDS_PAIRING_STEP))
+      expect(g).toEqual(before)
+    }
   })
 
   it('give the same odds worked out a step at a time as in one go', () => {
@@ -89,7 +117,9 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
     }
     const strong = oddsFrom(sampleSeasons(league(5.8, 0.12), new Rng('odds-strong'), 200, emptyTally(ids.length)))
     expect(strong.title).toBeGreaterThan(0.99)
-    expect(strong.perfect).toBeGreaterThan(0.9)
+    // Under the engine's soft ceiling (about 4.6 goals expected at most) a 0-goal day still happens: ten wins in ten
+    // are about 85%, as the engine plays them (the old clamp at 5.8 said over 90%)
+    expect(strong.perfect).toBeGreaterThan(0.8)
     expect(strong.unbeaten).toBeGreaterThanOrEqual(strong.perfect)
     expect(strong.projectedFinish).toBe(1)
     expect(strong.relegation).toBe(0)
@@ -123,6 +153,26 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
     }
     expect(sum / 60).toBeGreaterThan(0.95)
     expect(sum / 60).toBeLessThan(1.06)
+  })
+
+  it("bend a big day's expected goals under the engine's soft ceiling, never the old 5.8 clamp (r8 audit)", () => {
+    const rng = new Rng('odds-ceiling')
+    for (const lam of [0.5, 1.4, 2.9, 3.4, 4.0, 4.5]) {
+      for (let i = 0; i < 400; i++) {
+        const g = rng.gaussian(0, 0.18)
+        const x = matchDayXg(lam, g)
+        expect(x).toBeLessThan(XG_CEILING)
+        expect(x).toBeGreaterThanOrEqual(0.12)
+        // Below the knee the engine's figure exactly: the pairing's times the variance
+        if (lam * Math.exp(g) <= XG_KNEE) expect(x).toBeCloseTo(lam * Math.exp(g), 12)
+        else expect(x).toBe(softCeiling(lam * Math.exp(g)))
+      }
+    }
+    // A dominant pairing still wins almost every time under the ceiling
+    const league = { ids: ['a', 'b'], pairings: [{ home: 0, away: 1, lamH: 4.5, lamA: 0.12, sigmaH: 0.18, sigmaA: 0.06 }] }
+    const t = sampleSeasons(league, new Rng('odds-ceiling-season'), 20000, emptyTally(2))
+    expect(t.seasons).toBe(20000)
+    expect(t.perfect / t.seasons).toBeGreaterThan(0.9)
   })
 
   it('track the real season: over many seeds the expected points sit close to the points the engine plays out', () => {

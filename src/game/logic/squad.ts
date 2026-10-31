@@ -2,21 +2,24 @@ import { staffWages } from '@engine/staff'
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
-import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
+import { assistantLineup, computeTeamStrength } from '@engine/ratings'
 import { retargetRoles } from '@engine/tactics'
 import { isAvailable, playerLookup, squadPlayers } from './players'
 import { logMorale } from './happiness'
 import type { Lineup } from '@engine/types'
 import { STATUS_RANK, WAGE_MULT, type SquadStatus } from '@engine/status'
 
-/** Fill the lineup with the best available players; keeps existing valid picks when `keep` is true. */
+/**
+ * Fill the lineup with the best available players; keeps existing valid picks when `keep` is true. The assistant's
+ * eleven (`assistantLineup`): a natural man in every slot unless a cover makes the XI stronger (round 6 item 6).
+ */
 export function autoPick(game: Game, u: LoadedUniverse, keep = false): void {
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
   const pool = squadPlayers(game, u).map((x) => x.p)
   const getState = (id: string) => game.squad[id]
   if (!keep) {
-    const { lineup, bench } = autoPickLineup(formation, pool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
+    const { lineup, bench } = assistantLineup(formation, pool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
     game.lineup = lineup
     game.bench = bench
     return
@@ -32,7 +35,7 @@ export function autoPick(game: Game, u: LoadedUniverse, keep = false): void {
     }
   }
   const remainingPool = pool.filter((p) => !used.has(p.id))
-  const { lineup: fill } = autoPickLineup({ ...formation, slots: formation.slots.filter((s) => !lineup[s.id]) }, remainingPool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
+  const { lineup: fill } = assistantLineup({ ...formation, slots: formation.slots.filter((s) => !lineup[s.id]) }, remainingPool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
   Object.assign(lineup, fill)
   game.lineup = lineup
   const inXI = new Set(Object.values(lineup))
@@ -109,6 +112,8 @@ export function squadWages(game: Game, u: LoadedUniverse): number {
  * Change a player's squad status from the Club tab. A promotion lifts his
  * morale 6 and his wage by the ratio of the two status multipliers; a demotion
  * costs 6 morale and leaves the wage where it is (contracts do not go down).
+ * The wage is paid for the highest status reached (`Contract.paidStatus`), so
+ * moving him down and back up never raises it twice.
  */
 export function setSquadStatus(game: Game, u: LoadedUniverse, playerSeasonId: string, status: SquadStatus): void {
   const c = game.contracts[playerSeasonId]
@@ -122,5 +127,10 @@ export function setSquadStatus(game: Game, u: LoadedUniverse, playerSeasonId: st
   const before = s.morale
   s.morale = Math.max(10, Math.min(100, s.morale + (up ? 6 : -6)))
   logMorale(s, game.season?.matchweek ?? 0, before, 'status', status)
-  if (up && !c.loan) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * (WAGE_MULT[status] / WAGE_MULT[from])) }
+  const paid = c.paidStatus ?? from
+  if (STATUS_RANK[status] > STATUS_RANK[paid]) {
+    if (!c.loan) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * (WAGE_MULT[status] / WAGE_MULT[paid])) }
+    delete c.paidStatus
+  } else if (STATUS_RANK[paid] > STATUS_RANK[status]) c.paidStatus = paid
+  else delete c.paidStatus
 }

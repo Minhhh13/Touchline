@@ -5,16 +5,17 @@
  */
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import { familiarityGainFactor } from './depth'
-import type { Rng } from './rng'
+import { compareText, type Rng } from './rng'
 import { isClassicSeason, ordinal, poolClubSeasons, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
-import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
+import type { MatchTeamInput, TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
 import { autoPickLineup, computeTeamStrength } from './ratings'
 import { getFormation } from './formations'
+import { aiLookup, reserveKeeper } from './reserve'
+import type { ContinentalGroup } from './continental'
 
 export const USER_TEAM = 'user'
-/** Matchweeks in a double round robin of `teams` clubs. */
 /** League matchweeks: a double round-robin; an odd number of clubs adds a bye slot. */
 export function matchweeksFor(teams: number): number {
   const slots = teams % 2 === 1 ? teams + 1 : teams
@@ -41,16 +42,36 @@ export interface CupTie {
   awayTeamId: string
   result?: MatchResult & { penalties?: { home: number; away: number } }
   winnerId?: string
+  /**
+   * A two-legged tie (the Continental Cup's quarter- and semi-finals from engine 7, `continental.ts`): the first leg,
+   * at `homeTeamId`'s ground after this matchweek, and its result once played. The tie's own `afterMatchweek` and
+   * `result` are then the second leg's, at `awayTeamId`'s ground: `result` keeps that match's own sides (its
+   * `homeTeamId` is the tie's `awayTeamId`). Absent on every single-match tie.
+   */
+  firstLeg?: { afterMatchweek: number; result?: MatchResult }
+  /**
+   * The settled score of an engine 7 Continental Cup tie from the tie's sides (`homeTeamId` first): goals over both
+   * legs (or the final) with extra time, whether the deciding match went to extra time, and the shoot-out. Read a
+   * tie's score through `tieScore` (`continental.ts`), which also reads a single tie's `result`.
+   */
+  agg?: { home: number; away: number; et?: true; pens?: { home: number; away: number } }
 }
 
 export type Competition = 'cup' | 'continental'
 
 export interface ContinentalState {
+  /** The knockout ties: from engine 7 the two-legged quarter- and semi-finals and the final, before it the four single rounds from the round of 16. */
   ties: CupTie[]
   /** Foreign clubs in the field, keyed by club id; the user is the sixteenth entrant. */
   clubs: Record<string, AiClub>
   eliminated: boolean
   won: boolean
+  /**
+   * Engine 7's group stage (`continental.ts`): four groups of four, home and away, the top two through to the
+   * quarter-finals. Absent on a Continental Cup drawn before engine 7, which plays on as the single-tie knockout from
+   * the round of 16 it was drawn as.
+   */
+  groups?: ContinentalGroup[]
 }
 
 export interface SeasonState {
@@ -86,6 +107,12 @@ export interface SeasonState {
   carryIn?: Record<string, CarryRow>
   /** Run-in: the matchweek the manager took over after; fixtures up to it carry no result ("before you arrived"). */
   takeoverAt?: number
+  /**
+   * Run-in in a play-off league (engine 7): the relegation play-off a 16th-placed finish leads to, two legs after the
+   * last matchweek against `scenario.ts`'s `playOffOpponent` (`opponent`, a club-season key `clubId@season`): the
+   * user at home first. Absent unless it was played.
+   */
+  playOff?: { opponent: string; tie: CupTie }
   /** Requests made to the board this season (`src/game/logic/board.ts`); absent until the first. */
   requests?: Array<{ kind: 'budget' | 'staff' | 'youth'; mw: number; accepted: boolean }>
 }
@@ -106,6 +133,8 @@ export interface NewsItem {
   body: string
   /** The player the item is about, when there is one, so the Inbox can offer to act on him. Absent on older saves. */
   playerId?: string
+  /** Posted by the manager's office (`src/game/logic/office.ts`): the Inbox's Office filter and the digest's office group read it. Absent elsewhere. */
+  office?: true
 }
 
 export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer> = {}): SquadPlayer {
@@ -158,21 +187,39 @@ export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
   return [...first.flat(), ...back.flat()]
 }
 
-export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
+/**
+ * The league's other clubs as AI sides. `taken` holds the real player ids (`PlayerSeason.playerId`) of the humans the
+ * user's side holds: none of them also plays for his real club, in any season (engine 6, E6-2).
+ */
+export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason && cs.clubId !== hostClubId)
-  for (const cs of clubs) ai[cs.clubId] = aiClubOf(u, cs)
+  for (const cs of clubs) ai[cs.clubId] = aiClubOf(u, cs, taken)
   return ai
 }
 
-/** One real club-season as an AI side: its style's tactics and shape, its squad, every player fresh. Draws nothing. */
-export function aiClubOf(u: LoadedUniverse, cs: ClubSeason): AiClub {
+/**
+ * One real club-season as an AI side: its style's tactics and shape, its squad (less any human in `taken`, by real
+ * player id), every player fresh. Draws nothing.
+ */
+export function aiClubOf(u: LoadedUniverse, cs: ClubSeason, taken?: ReadonlySet<string>): AiClub {
   const club = u.clubById[cs.clubId]
   const style = club?.style ?? 'balanced'
   const tactics = tacticsForStyle(style, formationForStyle(style))
+  const squad = taken?.size ? cs.squad.filter((p) => !taken.has(p.playerId)) : cs.squad
   const state: Record<string, SquadPlayer> = {}
-  for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
-  return { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
+  for (const p of squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
+  return { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: squad.map((p) => p.id), state }
+}
+
+/** The real player ids of a set of player-season ids (resolved through `get`): what `taken` holds. */
+export function humansOf(ids: Iterable<string>, get: (id: string) => PlayerSeason | undefined): Set<string> {
+  const out = new Set<string>()
+  for (const id of ids) {
+    const p = get(id)
+    if (p) out.add(p.playerId)
+  }
+  return out
 }
 
 /** An AI side's overall team strength as the season fields it: its auto-picked best XI rated by `computeTeamStrength`. Pure. */
@@ -181,15 +228,49 @@ export function aiStrength(u: LoadedUniverse, club: AiClub): number {
   return computeTeamStrength(club.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
 }
 
-export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0): MatchTeamInput {
-  const pool = club.squad.map((id) => u.index[id]).filter(Boolean)
+/**
+ * An AI side as the match engine fields it: the auto-picked best XI and bench of its fit, unsuspended men. `taken` (real
+ * player ids) leaves out humans who already play for the other side of this match (E6-2). A squad with no fit keeper
+ * left fields its reserve keeper (`src/engine/reserve.ts`, E6-5) rather than an outfielder in goal.
+ */
+export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0, taken?: ReadonlySet<string>): MatchTeamInput {
+  let pool = club.squad.map((id) => u.index[id]).filter(Boolean)
+  if (taken?.size) pool = pool.filter((p) => !taken.has(p.playerId))
   const formation = getFormation(club.tactics.formationId)
   const getState = (id: string) => club.state[id]
-  const { lineup, bench } = autoPickLineup(formation, pool, club.tactics, (p) => {
+  const fit = (p: PlayerSeason) => {
     const s = club.state[p.id]
     return !s || (!s.injury && s.suspension <= 0)
-  }, getState)
-  return { teamId: club.id, teamName: club.name, shortName: club.shortName, tactics: club.tactics, lineup, bench, getPlayer: (id) => u.index[id], getState, ratingOffset }
+  }
+  const reserve = pool.length && !pool.some((p) => p.positions.includes('GK') && fit(p)) ? reserveKeeper(u, pool[0].clubId, pool[0].season) : undefined
+  if (reserve) pool = [...pool, reserve]
+  const { lineup, bench } = autoPickLineup(formation, pool, club.tactics, fit, getState)
+  const getPlayer = aiLookup(u)
+  const goalFactor = leagueGoalFactor(u.clubById[club.clubId]?.leagueId)
+  return { teamId: club.id, teamName: club.name, shortName: club.shortName, tactics: club.tactics, lineup, bench, getPlayer, getState, ratingOffset, ...(goalFactor !== 1 ? { goalFactor } : {}) }
+}
+
+/**
+ * Each league's scoring level against the Premier League's (engine 6, E6-7), set so its all-AI seasons score what the
+ * real tables did from 2008-09 (England 2.78 a game, Spain 2.68, Italy 2.74, Germany 3.07): the packs rate La Liga's,
+ * Serie A's and the Bundesliga's sides closer together than their results were, so one base undershot them by 0.4 to
+ * 0.5 goals. France, the Netherlands and Portugal have no tables and keep England's.
+ */
+export const LEAGUE_GOAL_FACTOR: Readonly<Record<string, number>> = { spain: 1.21, italy: 1.22, germany: 1.22 }
+
+export function leagueGoalFactor(leagueId: string | undefined): number {
+  return (leagueId && LEAGUE_GOAL_FACTOR[leagueId]) || 1
+}
+
+/**
+ * Two AI sides for one match with no human on both (E6-2): a player listed for both clubs (a January move inside one
+ * league season, or two seasons of one club meeting in the arena) plays for the home side, which is fielded first.
+ */
+export function aiFixtureInputs(u: LoadedUniverse, home: AiClub, away: AiClub, offset = 0, taken?: ReadonlySet<string>): { home: MatchTeamInput; away: MatchTeamInput } {
+  const h = aiTeamInput(u, home, offset, taken)
+  const homeMen = humansOf([...Object.values(h.lineup), ...h.bench], h.getPlayer)
+  for (const id of taken ?? []) homeMen.add(id)
+  return { home: h, away: aiTeamInput(u, away, offset, homeMen) }
 }
 
 /**
@@ -248,7 +329,7 @@ export function computeTable(fixtures: Fixture[], teamIds: string[], carryIn?: R
     if (h.form.length > 5) h.form.shift()
     if (a.form.length > 5) a.form.shift()
   }
-  return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || x.teamId.localeCompare(y.teamId))
+  return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || compareText(x.teamId, y.teamId))
 }
 
 /**
@@ -321,16 +402,13 @@ export function drawNextRound(ties: CupTie[], round: CupTie['round'], rng: Rng, 
   return next
 }
 
-export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng, matchweeks: number): CupTie[] {
-  return drawNextRound(cup, round, rng, cupRounds(matchweeks))
-}
-
 /**
- * The Continental Cup field: the fifteen strongest clubs from the other loaded
- * leagues in the same season, by league position then squad rating. Leagues
- * without that season contribute their nearest one.
+ * The Continental Cup's field: the `n` strongest clubs of the other loaded leagues, four per league (its top four that
+ * season, by league position then squad rating; a league without that season gives its nearest one), topped up with
+ * the strongest other clubs within a season of it when that makes fewer than `n`, then the strongest `n` of them.
+ * `taken` as in `buildAiClubs`: the field is chosen on full squads, then the user's humans leave them.
  */
-export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15): Record<string, AiClub> {
+export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const others = u.leagues.filter((l) => l.id !== leagueId)
   const picked: ClubSeason[] = []
   // Classic club-seasons only enter the field of a classic league season
@@ -357,14 +435,7 @@ export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagu
   }
   const strongest = picked.sort((a, b) => avgTop(b) - avgTop(a)).slice(0, n)
   const clubs: Record<string, AiClub> = {}
-  for (const cs of strongest) {
-    const club = u.clubById[cs.clubId]
-    const style = club?.style ?? 'balanced'
-    const tactics = tacticsForStyle(style, formationForStyle(style))
-    const state: Record<string, SquadPlayer> = {}
-    for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
-    clubs[cs.clubId] = { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
-  }
+  for (const cs of strongest) clubs[cs.clubId] = aiClubOf(u, cs, taken)
   return clubs
 }
 
@@ -416,6 +487,21 @@ export function applyMatchToState(state: SquadPlayer, stats: { minutes: number; 
   const resultDelta = teamResult === 'W' ? 5 : teamResult === 'D' ? 0 : -5
   const perfDelta = (stats.rating - 6.8) * 2
   state.morale = clamp(state.morale + resultDelta + perfDelta, 10, 100)
+}
+
+/**
+ * An AI side's man after a match (engine 6, E6-3): fitness, sharpness, cards, suspensions, injuries and his season's
+ * figures move as a user's do; morale, familiarity and form stay where they began. A real squad already knows its
+ * system, and the AI never rotates or talks, so nothing would pull a winning side's morale and form back: managed
+ * leagues drifted from 2.7 to 3.7 goals a game and 100-point champions. Draws nothing.
+ */
+export function applyMatchToAiState(state: SquadPlayer, stats: Parameters<typeof applyMatchToState>[1], conditionLoss: number, cleanSheet: boolean, motm: boolean, teamResult: 'W' | 'D' | 'L'): void {
+  const { morale, familiarity } = state
+  const recent = [...state.recentRatings]
+  applyMatchToState(state, stats, true, conditionLoss, cleanSheet, motm, teamResult)
+  state.morale = morale
+  state.familiarity = familiarity
+  state.recentRatings = recent
 }
 
 export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, matchweeks = 38): SeasonTier {
@@ -507,7 +593,8 @@ export function updateConfidence(confidence: number, table: TableRow[], teamId: 
 }
 
 export function describeImportance(u: LoadedUniverse, hostClubId: string, opponentClubId: string, table: TableRow[] | null, matchweek: number, cupRound?: CupTie['round'], comp: Competition = 'cup'): { importance: number; label?: string } {
-  if (comp === 'continental' && cupRound) {
+  // Every Continental Cup match is a European night, an engine 7 group match (no round) included
+  if (comp === 'continental') {
     if (cupRound === 'F') return { importance: 1.5, label: 'Continental final' }
     if (cupRound === 'SF') return { importance: 1.35, label: 'Continental semi-final' }
     return { importance: 1.15, label: 'European night' }
@@ -546,11 +633,6 @@ export function userTeamInput(u: LoadedUniverse, t: UserTeamInput): MatchTeamInp
   return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk, captainId: t.captainId, talkSkill: t.talkSkill, markTarget: t.markTarget }
 }
 
-/** Play one match between two inputs, returning the full result. */
-export function playMatch(rng: Rng, home: MatchTeamInput, away: MatchTeamInput, importance: number, label: string | undefined, neutral: boolean, detail: 'full' | 'summary'): FullMatchResult {
-  return simulateMatch({ rng, home, away, importance, importanceLabel: label, neutral, detail })
-}
-
 /** Penalty shoot-out for drawn cup ties. */
 export function shootout(rng: Rng, homeMentality: number, awayMentality: number): { home: number; away: number } {
   let h = 0
@@ -577,8 +659,4 @@ export const EXTRA_TIME_RATE = 0.85 / 3
  */
 export function extraTime(rng: Rng, xg: { home: number; away: number }): { home: number; away: number } {
   return { home: rng.poisson(Math.max(0, xg.home) * EXTRA_TIME_RATE), away: rng.poisson(Math.max(0, xg.away) * EXTRA_TIME_RATE) }
-}
-
-export function clubSeasonFor(u: LoadedUniverse, clubId: string, season: number): ClubSeason | undefined {
-  return u.clubSeasonByKey[`${clubId}@${season}`]
 }

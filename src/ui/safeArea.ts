@@ -25,6 +25,16 @@ export const DEVICE_INSETS: Record<string, Insets & { width: number; height: num
   '440x956': { width: 440, height: 956, top: 62, right: 0, bottom: 34, left: 0 },
   // iPhone 12 and 13 Pro Max, 6.5" (the App Store's second size)
   '428x926': { width: 428, height: 926, top: 47, right: 0, bottom: 34, left: 0 },
+  // The phones pass (QA round 12): iPhone SE (a status bar, no notch, no home indicator), iPhone 15 (Dynamic Island),
+  // and two Androids in a home-screen app (a status bar; gesture navigation leaves no bottom inset)
+  '375x667': { width: 375, height: 667, top: 20, right: 0, bottom: 0, left: 0 },
+  '393x852': { width: 393, height: 852, top: 59, right: 0, bottom: 34, left: 0 },
+  '412x915': { width: 412, height: 915, top: 24, right: 0, bottom: 0, left: 0 },
+  '360x800': { width: 360, height: 800, top: 24, right: 0, bottom: 0, left: 0 },
+  // On their side: the island's side of the screen is inset on both sides (the phone can turn either way), with a
+  // shorter home indicator
+  '852x393': { width: 852, height: 393, top: 0, right: 59, bottom: 21, left: 59 },
+  '932x430': { width: 932, height: 430, top: 0, right: 59, bottom: 21, left: 59 },
 }
 
 /** A stylesheet that stands in for a device's insets in a browser that has none. */

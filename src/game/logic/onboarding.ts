@@ -6,13 +6,14 @@ import { defaultHostClub, setupRules, shortNameFor, startFormation } from './set
 import { leagueSeasonChoices } from './era'
 import { DEFAULT_CAP_CHOICE, withCap } from './cap'
 import { isQuickLike } from './modes'
+import { dailyLeagueOf } from './daily'
 
 /**
  * The first ten minutes: who counts as new, the one-tap first draft and what the first result points to next.
  * Pure, no draws; the first draft is exactly what an untouched Quick Draft setup would start.
  */
 
-/** The team name every untouched setup starts with. */
+/** The game logic's fallback team name: the first draft's when no name is passed (Home passes an invented one, `src/ui/teamName.ts`). */
 export const FIRST_TEAM_NAME = 'Touchline XI'
 
 /** The game in three steps, for the first-run panel on Home: a short title and one plain line each. */
@@ -38,9 +39,11 @@ export function isNewcomer(p: ProfileBits, gameWaiting: boolean): boolean {
 }
 
 /**
- * The Quick Draft an untouched setup starts (the Setup screen's defaults: the Premier League's newest complete
- * season, its mid-table club replaced, a 4-3-3, Normal, ratings on, Squad First, Prime ratings, all-time, twists,
- * a bench of one, the manager spin, the end case and the January window), on `seed`. Null until England is loaded.
+ * The first draft: the Quick Draft an untouched setup starts (the Setup screen's defaults: the Premier League's
+ * newest complete season, its mid-table club replaced, a 4-3-3, Normal, ratings on, Squad First, Prime ratings,
+ * all-time, twists, the manager settled for you and the January window), on `seed`, with only the core loop: no
+ * bench (eleven spins make the XI, as the first-run panel says), no manager spin and no end-of-draft case, the
+ * extras Setup offers from the second draft on. Null until England is loaded.
  */
 export function firstDraftSettings(u: LoadedUniverse, seed: string, teamName = FIRST_TEAM_NAME): GameSettings | null {
   const leagueId = 'england'
@@ -49,7 +52,7 @@ export function firstDraftSettings(u: LoadedUniverse, seed: string, teamName = F
   const first = stops[0] ?? u.firstSeason
   const last = stops[stops.length - 1] ?? u.lastSeason
   const [eraFrom, eraTo] = eraHandles('all', first, last)
-  const chosen = setupRules(QUICK_RULES, { difficulty: QUICK_RULES.difficulty ?? 'normal', showRatings: true, draftMode: 'squad', ratings: 'prime', eraFrom, eraTo, first, last, twists: !!QUICK_RULES.twists, leagues: [leagueId], benchPicks: 1, modes: [], powerUps: false, classic: false, superLeague: false, managers: true, managerSpin: true, endCase: true })
+  const chosen = setupRules(QUICK_RULES, { difficulty: QUICK_RULES.difficulty ?? 'normal', showRatings: true, draftMode: 'squad', ratings: 'prime', eraFrom, eraTo, first, last, twists: !!QUICK_RULES.twists, leagues: [leagueId], benchPicks: 0, modes: [], powerUps: false, classic: false, superLeague: false, managers: true, managerSpin: false, endCase: false })
   const rules = withCap({ ...chosen, onlyClub: undefined, onlyNation: undefined }, DEFAULT_CAP_CHOICE)
   // As Setup: the newest complete season loaded, kept when the league has it, else the league's newest
   const newest = Math.max(...u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season))
@@ -89,4 +92,37 @@ export function firstResultNext(p: ProfileBits, mode: Mode, dailyPlayedToday: bo
   if (mode !== 'daily' && !dailyPlayedToday) out.push('daily')
   out.push('quick')
   return out
+}
+
+/** The one mode Home points a new player to next, after the first result: today's Daily, the online boards, then Season. */
+export type NextUp = 'daily' | 'boards' | 'season'
+
+/** Results after which Home stops pointing: by then the player has found their way around. */
+export const NEXT_UP_UNTIL = 6
+
+/**
+ * Where Home points a player who has just started (one to `NEXT_UP_UNTIL` results finished): today's Daily until a
+ * Daily is played; then, on an online build, the world boards once (the Daily's score is on them); then Season, the
+ * managed mode, until one is finished. Null for a newcomer (the first-run panel is their step) and for everyone later.
+ */
+export function nextUpFor(p: ProfileBits, opts: { dailyPlayedToday: boolean; online: boolean; seasonWaiting?: boolean }): NextUp | null {
+  const n = resultsFinished(p)
+  if (n === 0 || n > NEXT_UP_UNTIL) return null
+  const dailyEver = opts.dailyPlayedToday || Object.keys(p.dailyResults).length > 0
+  if (!dailyEver) return 'daily'
+  if (opts.online && n <= 2) return 'boards'
+  const managed = p.leaderboard.some((e) => e.mode === 'season' || e.mode === 'dynasty')
+  // A Season or Dynasty already under way is on the resume strip: the marker would only send them to start another
+  return managed || opts.seasonWaiting ? null : 'season'
+}
+
+/**
+ * The Daily's league rotation as its setup's tip tells it: today's league and tomorrow's, for two daily seeds. Null
+ * when tomorrow repeats today's league (every day before the rotation's first, all Premier League), so the tip says
+ * nothing untrue. Pure, from the seeds alone (`dailyLeagueOf`).
+ */
+export function dailyRotation(todaySeed: string, tomorrowSeed: string): { today: string; tomorrow: string } | null {
+  const today = dailyLeagueOf(todaySeed)
+  const tomorrow = dailyLeagueOf(tomorrowSeed)
+  return today === tomorrow ? null : { today, tomorrow }
 }

@@ -10,11 +10,15 @@ import type { PlayerSeason } from '@engine/types'
 import { newSquadPlayer } from '@engine/season'
 import { squadPlayers } from './players'
 import { postNews } from './news'
+import { SQUAD_CAP } from './marketOps'
+import { ageFloors, barredByAge } from './departures'
 
 export const INTAKE_SIZE = 3
 
 export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): string[] {
   const owned = new Set(squadPlayers(game, u).map((x) => x.p.playerId))
+  // A man who retired from the squad never comes back as his younger self (`Game.retiredPlayers`)
+  for (const id of game.retiredPlayers ?? []) owned.add(id)
   // Anyone on the summer market is not also in the academy
   for (const l of game.window?.listings ?? []) {
     const pid = u.index[l.playerSeasonId]?.playerId
@@ -23,7 +27,9 @@ export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): strin
   const { fromSeason, toSeason, onlyNation } = game.settings.rules
   const inEra = (p: PlayerSeason) => (fromSeason === undefined || p.season >= fromSeason) && (toSeason === undefined || p.season <= toSeason)
   // A one-nation academy only brings through that nation's youngsters
-  const young = (p: PlayerSeason) => p.age <= 20 && p.overall >= 58 && p.overall <= 76 && !owned.has(p.playerId) && inEra(p) && (!onlyNation || p.nationality === onlyNation)
+  // A man who left the club never comes back through the academy as his younger self (Dynasty)
+  const floors = ageFloors(game)
+  const young = (p: PlayerSeason) => p.age <= 20 && p.overall >= 58 && p.overall <= 76 && !owned.has(p.playerId) && inEra(p) && (!onlyNation || p.nationality === onlyNation) && !barredByAge(floors, p)
   const seen = new Set<string>()
   const pickFrom = (pool: PlayerSeason[], n: number): PlayerSeason[] => {
     const out: PlayerSeason[] = []
@@ -61,7 +67,7 @@ export function signYouth(game: Game, u: LoadedUniverse, playerSeasonId: string 
   const p = u.index[playerSeasonId]
   if (!p) return { ok: false, message: 'Player not found.' }
   if (squadPlayers(game, u).some((x) => x.p.playerId === p.playerId)) return { ok: false, message: `${p.name} is already in your squad.` }
-  if (Object.keys(game.squad).length >= 23) return { ok: false, message: 'Squad is full (23). Make room first.' }
+  if (Object.keys(game.squad).length >= SQUAD_CAP) return { ok: false, message: `Squad is full (${SQUAD_CAP}). Make room first.` }
   game.squad[p.id] = newSquadPlayer(p.id, { familiarity: 30, sharpness: 60 })
   game.contracts[p.id] = { years: 3, status: 'prospect' }
   if (!game.bench.includes(p.id)) game.bench.push(p.id)

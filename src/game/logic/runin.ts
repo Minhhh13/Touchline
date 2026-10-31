@@ -12,17 +12,19 @@ import { newDraft, SEASON_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { formationForStyle, tacticsForStyle } from '@engine/tactics'
 import { autoPickLineup } from '@engine/ratings'
-import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, newSquadPlayer, positionOf, seasonTable, USER_TEAM, type SeasonState } from '@engine/season'
+import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, humansOf, matchweeksFor, newSquadPlayer, positionOf, seasonTable, USER_TEAM, type CupTie, type SeasonState } from '@engine/season'
 import { briefTarget, projectedCarryIn, relegatedDirectly, takeoverWeek, type RunInJob, type RunInTemplate } from '@engine/scenario'
+import { tieScore } from '@engine/continental'
 import type { Objective, ObjectiveId } from '@engine/objectives'
 import { startingFinances } from '@engine/market'
 import { defaultStatuses } from '@engine/status'
 import { ordinal, seasonLabel } from '@engine/universe'
 import { runInShareText } from '@engine/awards'
+import { historyKey, picksFromHistory } from '@engine/challenge'
 import type { Game, GameSettings, RunInEntry } from '../types'
 import { moveDraftToSquad } from './setup'
 import { autoPick, squadWages } from './squad'
-import { squadPlayers } from './players'
+import { playerLookup, squadPlayers } from './players'
 import { resultId } from './cabinet'
 import { storyForGame } from './story'
 
@@ -126,8 +128,15 @@ export function beginRunIn(game: Game, u: LoadedUniverse): void {
   const carryIn = projectedCarryIn(u, s.leagueId, s.leagueSeason, s.hostClubId)
   if (!carryIn) throw new Error(`${seasonLabel(s.leagueSeason)} has no complete table for a run-in`)
   const rng = Rng.fromState(game.rngState)
+  // The draft closes here: its rows stay for the Run-in of the week's ranked replay (no draw)
+  if (game.draft) {
+    const get = playerLookup(game, u)
+    game.runInDraft = { p: picksFromHistory(game.draft.history, (id) => get(id)?.playerId), k: historyKey(game.draft.history) }
+  }
   moveDraftToSquad(game, rng)
-  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
+  // The wheel's signings leave their real clubs (engine 6, E6-2)
+  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, humansOf(Object.keys(game.squad), playerLookup(game, u)))
+  const full = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
@@ -149,7 +158,7 @@ export function beginRunIn(game: Game, u: LoadedUniverse): void {
     cupEliminated: true,
     cupWon: false,
     ai,
-    aiOffset: aiRatingOffset(u, ai, s.difficulty),
+    aiOffset: aiRatingOffset(u, full, s.difficulty),
     news: [{ matchweek: takeoverAt, kind: 'board', title: 'The job is yours', body: `You take over ${s.teamName} after matchweek ${takeoverAt}, ${ordinal(pos)} on ${from[pos - 1].points} points (projected from the final table), with ${toPlay} to play. The board's brief: ${brief.label.toLowerCase()}.` }],
     confidence: RUN_IN_CONFIDENCE[template],
     boardTarget: target,
@@ -291,7 +300,10 @@ export function runInVerdict(game: Game, u: LoadedUniverse): RunInVerdict | null
   const position = positionOf(table, USER_TEAM)
   const points = table[position - 1].points
   const sacked = season.sacked
-  const met = !sacked && position <= season.boardTarget
+  // A Bundesliga 16th plays the relegation play-off (engine 7): the survival brief is met by winning it
+  const playOff = season.playOff?.tie.winnerId !== undefined ? season.playOff : null
+  const survivedPlayOff = !!playOff && playOff.tie.winnerId === USER_TEAM
+  const met = !sacked && (position <= season.boardTarget || (template === 'survival' && survivedPlayOff))
   const club = u.clubById[season.hostClubId]?.shortName ?? game.settings.teamName
   const fromPos = positionOf(start, USER_TEAM)
   const row = u.tables[season.leagueId]?.[season.leagueSeason]?.find((r) => r.clubId === season.hostClubId)
@@ -302,7 +314,9 @@ export function runInVerdict(game: Game, u: LoadedUniverse): RunInVerdict | null
   const mine = sacked
     ? `Sacked after MW ${lastPlayed} with ${club} ${ordinal(position)} on ${points}`
     : template === 'survival'
-      ? met
+      ? playOff
+        ? `${club} finished ${ordinal(position)} on ${points} under you and ${survivedPlayOff ? 'stayed up through' : 'went down in'} the relegation play-off, ${playOffLine(playOff.tie, u.clubById[playOff.tie.awayTeamId]?.name ?? playOff.tie.awayTeamId)}`
+        : met
         ? `You kept ${club} up on ${points}`
         : position <= clubs - relegatedDirectly(season.leagueId)
           ? `${club} finished ${ordinal(position)} on ${points} under you, in the relegation play-off place`
@@ -327,6 +341,13 @@ export function runInVerdict(game: Game, u: LoadedUniverse): RunInVerdict | null
     line: realText ? `${mine}; ${realText}` : mine,
     realLine: realText ? `📊 The real ${club} ${realFinish(real!, clubs, season.leagueId)}` : null,
   }
+}
+
+/** A play-off's two legs and aggregate from the user's side: `2-1 and 0-1 against Fortuna Düsseldorf, 2-2 on aggregate, 4-3 on penalties`. */
+export function playOffLine(tie: CupTie, opponentName: string): string {
+  const s = tieScore(tie)
+  if (!s) return `against ${opponentName}`
+  return `${(s.legs ?? []).map((l) => `${l.home}-${l.away}`).join(' and ')} against ${opponentName}, ${s.home}-${s.away} on aggregate${s.et ? ' after extra time' : ''}${s.pens ? `, ${s.pens.home}-${s.pens.away} on penalties` : ''}`
 }
 
 /** The share text: TouchLine · Run-in · West Ham 2025-26, the takeover, the verdict, the strip, the real club, the seed. */
@@ -370,19 +391,20 @@ export function runInUnlocks(game: Game, u: LoadedUniverse, position: number): s
   const clubs = Object.keys(season.ai).length + 1
   const real = u.tables[season.leagueId]?.[season.leagueSeason]?.find((r) => r.clubId === season.hostClubId)
   // A side that really went down: the Bundesliga's 16th went to a play-off, so only its two below count
-  if (game.settings.runIn?.template === 'survival' && real && real.position > clubs - relegatedDirectly(season.leagueId) && position <= clubs - 3) out.push('great-escape')
+  const stayedUp = position <= clubs - 3 || season.playOff?.tie.winnerId === USER_TEAM
+  if (game.settings.runIn?.template === 'survival' && real && real.position > clubs - relegatedDirectly(season.leagueId) && stayedUp) out.push('great-escape')
   if (position === 1) out.push('run-in-title')
   return out
 }
 
-/** A job in one line for the setup: `18th, 28 pts at MW28 (projected), 1 point behind safety`. */
+/** A job in one line for the setup: `18th, 28 points after matchweek 28 (projected), 1 point behind safety`. */
 export function jobLine(job: RunInJob): string {
-  return `${ordinal(job.projected.position)}, ${job.projected.points} pts at MW${job.takeover} (projected), ${gapLine(job.template, job.target, job.projected.position, job.gap)}`
+  return `${ordinal(job.projected.position)}, ${job.projected.points} points after matchweek ${job.takeover} (projected), ${gapLine(job.template, job.target, job.projected.position, job.gap)}`
 }
 
-/** Every choice a run-in starts with, in one line above Start: `West Ham United 2025-26 · Survival: stay up: finish 17th or better · 4-2-3-1 · Realistic · seed K7Q2-MX9A`. */
+/** Every choice a run-in starts with, in one line above Start: `West Ham United 2025-26 · Stay up: finish 17th or better · 4-2-3-1 · 4 spins · Realistic · seed K7Q2-MX9A`. */
 export function summariseRunIn(u: LoadedUniverse, s: GameSettings): string {
   const template = s.runIn?.template ?? 'survival'
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === s.leagueId && cs.season === s.leagueSeason).length
-  return `${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ${seasonLabel(s.leagueSeason)} · ${RUN_IN_TEMPLATE_LABEL[template]}: ${runInBrief(template, briefTarget(template, clubs)).label.toLowerCase()} · ${s.formationId} · ${RUN_IN_SPINS} spins · Realistic · seed ${s.seed}`
+  return `${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ${seasonLabel(s.leagueSeason)} · ${runInBrief(template, briefTarget(template, clubs)).label} · ${getFormation(s.formationId).name} · ${RUN_IN_SPINS} spins · Realistic · seed ${s.seed}`
 }

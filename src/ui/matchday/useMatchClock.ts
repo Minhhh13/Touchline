@@ -12,18 +12,17 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { GOAL_FLIGHT_MS, readout, reanchor, useLiveClock, type GoalHold } from '../match/clockStore'
-import { PITCH_MS } from '../match/timing'
+import { PITCH_MS, type PaceSpan } from '../match/timing'
 import type { MatchClockApi, Speed } from './types'
 
 /**
- * Milliseconds per match minute at 1x: the bare ticker, and the ticker with the pitch to watch.
+ * Milliseconds per match minute at 1x, the pitch to watch.
  * 1x is the pace of a console football match: a match minute takes 4.5 s (`PITCH_MS`), so a
  * 20-metre pass rolls for about two seconds, the man on the ball takes a touch and looks up
  * before he plays it, a corner stands three seconds while the box fills, and a half takes about
  * three and a half minutes plus the goals' celebrations. 0.5x is slower still (9 s a minute);
  * 2x, 3x and 4x are quicker (4x is about 1.1 s a minute).
  */
-export const TICKER_PERIOD = 110
 export const PITCH_PERIOD = PITCH_MS
 /** The speeds on offer, slowest first. */
 export const SPEEDS: Speed[] = [0.5, 1, 2, 3, 4]
@@ -73,6 +72,8 @@ export interface ClockOptions {
   holds?: GoalHold[]
   /** The moments the dashboard waits for (strikes and fouls, timing.ts `cueTimes`), sorted. */
   cues?: number[]
+  /** The picture's pace (timing.ts `matchPace`): a crowded minute plays longer. */
+  pace?: PaceSpan[]
   /** Reduced motion: the ball reaches the net at once. */
   reduced?: boolean
   /** Called once when the clock reaches the end of the `stopAt` minute. */
@@ -81,7 +82,7 @@ export interface ClockOptions {
 
 const NO_HOLDS: GoalHold[] = []
 
-export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, autoStart = true, holds = NO_HOLDS, cues, reduced = false, onFinish }: ClockOptions): MatchClockApi {
+export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, autoStart = true, holds = NO_HOLDS, cues, pace, reduced = false, onFinish }: ClockOptions): MatchClockApi {
   const end = stopAt + 1
   const flight = reduced ? 0 : GOAL_FLIGHT_MS
   // Until this match has taken the shared store, report the start (the store may still hold the last match)
@@ -98,7 +99,7 @@ export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, aut
   useLayoutEffect(() => {
     const now = performance.now()
     const { start: from, autoStart: go } = mounted.current
-    const anchor = { at: Math.min(from, end), since: now, spent: Infinity, running: go && from < end, speed: readSpeed(), boost: 1, period, stopAt, end, holds, cues }
+    const anchor = { at: Math.min(from, end), since: now, spent: Infinity, running: go && from < end, speed: readSpeed(), boost: 1, period, stopAt, end, holds, cues, pace }
     useLiveClock.setState({ ...anchor, ...readout(anchor, now, flight) })
     done.current = false
     setArmed(true)
@@ -109,11 +110,11 @@ export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, aut
   useLayoutEffect(() => {
     if (!armed) return
     const s = useLiveClock.getState()
-    if (s.holds === holds && s.cues === cues && s.stopAt === stopAt && s.end === end && s.period === period) return
+    if (s.holds === holds && s.cues === cues && s.pace === pace && s.stopAt === stopAt && s.end === end && s.period === period) return
     const now = performance.now()
-    const next = { ...s, ...reanchor(s, now), holds, cues, stopAt, end, period }
+    const next = { ...s, ...reanchor(s, now), holds, cues, pace, stopAt, end, period }
     useLiveClock.setState({ ...next, ...readout(next, now, flight), running: s.running && next.at < end })
-  }, [armed, holds, cues, stopAt, end, period, flight])
+  }, [armed, holds, cues, pace, stopAt, end, period, flight])
 
   const storeClock = useLiveClock((s) => s.clock)
   const speed = useLiveClock((s) => s.speed) as Speed

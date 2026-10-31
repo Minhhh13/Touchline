@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES, SEASON_RULES } from '@engine/draft'
 import { computeTable, USER_TEAM } from '@engine/season'
@@ -69,9 +69,16 @@ function quickPin(s: GameSettings): string {
 }
 
 // Re-baselined on ENGINE_VERSION '5' (the playtest fixes: fixtures, the assistant's placement, keeper subs, development)
-const SEASON_BASELINE = '39e10ac6a28f8ee460db3299fccd48787cc347c757c75c13ac5d44bc371b15df'
-const QUICK_BASELINE = '42390930bdeb20f07777789eb896b62d978dd20f2c6924b62cf4415d627a657c'
-const DAILY_BASELINE = '29510b95f4857fced7b41611de33ee8a130c6ec2a8da5739bb6ff72bec29243b'
+// and on '6' (every match moved: the goal calibration, cards, the reserve keeper, the user's men out of their real clubs;
+// the Season's finances follow the new economy and its squads the keeper limits), and again inside engine 6 for round 6
+// item 6 (`assistantLineup`): the three Seasons open with the greedy's XI, but the assistant re-picks every matchweek
+// with the squad's condition and some of those weeks now put a natural man where the greedy played a cover. The Quick
+// Draft and the Daily field the draft's XI and hold. Re-baselined on '7': a cup tie the assistant plays settles on its
+// week's stream (it rebuilt a stale one before), which moves these Seasons from their first drawn tie; the Quick Draft
+// and the Daily hold
+const SEASON_BASELINE = '56f1efcc7dd821e158279aac5df9e9dc205df06082d6de83153c90bd165053b1'
+const QUICK_BASELINE = '4e07e3cec479ea921e46c0f8026e70fde73381812bf31118bb6bb6ed61dc5e6f'
+const DAILY_BASELINE = '7a1c2fc4be66cb66acb142dd66c60def02c9df91e6c0f0b77746e301694b4c53'
 
 describe('the See your squad batch moves no seeded outcome', () => {
   it('plays three seeded Seasons to the same table, stream, finances and squad states', () => {
@@ -79,14 +86,22 @@ describe('the See your squad batch moves no seeded outcome', () => {
     expect(hash(pins)).toBe(SEASON_BASELINE)
   }, 300_000)
 
-  it('plays 30 seeded Quick Drafts to the same result', () => {
-    const pins = Array.from({ length: 30 }, (_, i) => quickPin(quickSettings(`pin-quick-${i}`)))
+  it('plays 30 seeded Quick Drafts to the same result', async () => {
+    const pins: string[] = []
+    for (let i = 0; i < 30; i++) {
+      if (i % 5 === 0) await breathe()
+      pins.push(quickPin(quickSettings(`pin-quick-${i}`)))
+    }
     expect(hash(pins)).toBe(QUICK_BASELINE)
   }, 300_000)
 
-  it('plays 60 Dailies to the same result', () => {
+  it('plays 60 Dailies to the same result', async () => {
     const seeds = Array.from({ length: 60 }, (_, i) => `daily-2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + (i % 28)).padStart(2, '0')}`)
-    const pins = seeds.map((seed) => quickPin(dailyGameSettings(u, seed, 'Pin XI')))
+    const pins: string[] = []
+    for (const [i, seed] of seeds.entries()) {
+      if (i % 5 === 0) await breathe()
+      pins.push(quickPin(dailyGameSettings(u, seed, 'Pin XI')))
+    }
     expect(hash(pins)).toBe(DAILY_BASELINE)
   }, 300_000)
 })

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { Lockup } from '../components/Logo'
+import { Lockup, TOUCH_WAVE_LOOPS, touchWaveOn } from '../components/Logo'
 import { LOCKUP, MARK, ballPanels, clothStops, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, tinyPanels, type MarkTier } from '../brand'
 
 const TIERS: MarkTier[] = ['full', 'mid', 'tiny']
@@ -111,8 +111,10 @@ describe('the mark', () => {
 describe('the lockup', () => {
   it('stands the flag and the ball on a short line, the ball clear of the pole and the pennant, left of the name', () => {
     const { ball, pole, pennant, name, rule, roll } = LOCKUP
-    // the pole's round foot ends at the line's top edge
-    expect(pole.y2 + pole.w / 2).toBeCloseTo(rule.y, 6)
+    // the pole runs into the line: its straight part reaches the line's top edge and its round foot ends inside the line,
+    // so no anti-aliased sliver of background shows between them at any size
+    expect(pole.y2).toBeCloseTo(rule.y, 6)
+    expect(pole.y2 + pole.w / 2).toBeLessThanOrEqual(rule.y + rule.w)
     expect(ball.cx - ball.r - (pole.x + pole.w / 2)).toBeGreaterThanOrEqual(5)
     const cy = rule.y - ball.r
     for (const [x, y] of points(pennantPath(pennant))) expect(Math.hypot(x - ball.cx, y - cy)).toBeGreaterThan(ball.r + 2.5)
@@ -254,5 +256,15 @@ describe('the lockup', () => {
     // each half of the name keeps a solid colour under its gradient, and forced colours get plain text
     expect(block('.tl-touch')).toContain('color: var(--text)')
     expect(css).toContain('@media (forced-colors: active)')
+  })
+
+  it('counts the touch-screen flutter once per page: a lockup mounted after its loops rest', () => {
+    const loopsMs = Math.round(TOUCH_WAVE_LOOPS * LOCKUP.wave.dur * 1000)
+    expect(loopsMs).toBe(7800)
+    // The first lockup flutters; another mounted while it still does flutters too; one mounted later rests
+    expect(touchWaveOn(500, null)).toBe(true)
+    expect(touchWaveOn(500 + loopsMs - 1, 500)).toBe(true)
+    expect(touchWaveOn(500 + loopsMs, 500)).toBe(false)
+    expect(touchWaveOn(60_000, 500)).toBe(false)
   })
 })

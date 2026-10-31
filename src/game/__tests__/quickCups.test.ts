@@ -3,9 +3,9 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, encodeChallenge , type QuickChallengePayload } from '@engine/challenge'
-import { EXTRA_TIME_RATE, extraTime } from '@engine/season'
+import { EXTRA_TIME_RATE, extraTime, USER_TEAM } from '@engine/season'
 import { kickOff, toKickoff } from '../logic/quick'
-import { addCupTrophies, cupLine, cupReachLabel, cupRoundLabel, cupScoreLabel, cupUnlocks, playQuickCup, QUICK_CONTINENTAL_PLACES, quickCupProblem, quickCupXI, quickCupStatus, skipQuickCup, type QuickCupComp } from '../logic/quickCups'
+import { addCupTrophies, cupLine, cupReachLabel, cupRoundLabel, cupScoreLabel, cupUnlocks, playQuickCup, QUICK_CONTINENTAL_PLACES, quickGroupTable, quickCupProblem, quickCupXI, quickCupStatus, skipQuickCup, type QuickCupComp } from '../logic/quickCups'
 import { challengeFromGame, claimCupsLine, claimOf, replayChallenge } from '../logic/challenge'
 import { createGame } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
@@ -18,6 +18,7 @@ vi.hoisted(() => {
   })
 })
 import { useStore } from '../store'
+import { emptyCabinet } from '../logic/cabinet'
 import { getFormation } from '@engine/formations'
 import { canPlayFor } from '../logic/quickBench'
 import { playerLookup } from '../logic/players'
@@ -46,15 +47,35 @@ const SEEDS = ['cup-1', 'cup-2', 'cup-3', 'cup-4', 'cup-5', 'cup-6']
 /** Every tie of a run follows the knockout's rules. */
 function checkRun(run: QuickCupRun, comp: QuickCupComp) {
   const rounds = run.ties.map((t) => t.round)
-  expect(['R16', 'QF', 'SF', 'F'].slice(0, rounds.length)).toEqual(rounds)
+  // Engine 7's Continental Cup: four groups of four, then two-legged quarter- and semi-finals and a one-off final
+  const order = comp === 'continental' ? ['QF', 'SF', 'F'] : ['R16', 'QF', 'SF', 'F']
+  expect(order.slice(0, rounds.length)).toEqual(rounds)
+  expect(!!run.groups).toBe(comp === 'continental')
+  if (run.groups) {
+    expect(run.groups).toHaveLength(4)
+    for (const g of run.groups) expect(g.matches).toHaveLength(12)
+    expect(new Set(run.groups.flatMap((g) => g.teams)).size).toBe(16)
+    expect(quickGroupTable(run.groups.find((g) => g.teams.includes(USER_TEAM))!).findIndex((r) => r.teamId === USER_TEAM) < 2).toBe(run.reached !== 'G')
+  }
   expect(run.ties.slice(0, -1).every((t) => t.won)).toBe(true)
-  const last = run.ties.at(-1)!
+  const last = run.ties.at(-1)
+  if (!last) {
+    expect(run.reached).toBe('G')
+    return
+  }
   expect(run.reached).toBe(last.won && last.round === 'F' ? 'W' : last.round)
   for (const t of run.ties) {
     const league = u.clubById[t.opponentId]?.leagueId
     if (comp === 'cup') expect(league).toBe('england')
     else expect(league).not.toBe('england')
     expect(!!t.neutral).toBe(t.round === 'F')
+    // Two legs before the final in the Continental Cup: the aggregate is the legs plus extra time
+    expect(!!t.legs).toBe(comp === 'continental' && t.round !== 'F')
+    if (t.legs) {
+      expect(t.legs.map((l) => l.home)).toEqual([t.home, !t.home])
+      expect(t.legs.reduce((n, l) => n + l.gf, 0) + (t.et?.for ?? 0)).toBe(t.gf)
+      expect(t.legs.reduce((n, l) => n + l.ga, 0) + (t.et?.against ?? 0)).toBe(t.ga)
+    }
     // Every goal has a scorer (an opponent's own goal as OG), extra time's in minutes 91 to 120
     expect(t.scorers.length).toBe(t.gf)
     if (t.et) {
@@ -259,7 +280,7 @@ describe('the post-season cups of a Quick Draft', { timeout: 120_000 }, () => {
   it('count a won cup in the trophy cabinet and the achievements through the store', async () => {
     for (const seed of SEEDS.slice(0, 4)) {
       const g = played({ seed })
-      useStore.setState({ universe: u, game: g, loadedLeagues: ['england', 'spain', 'italy', 'germany'], playback: null, profile: { ...useStore.getState().profile, trophies: { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }, achievements: {} } })
+      useStore.setState({ universe: u, game: g, loadedLeagues: ['england', 'spain', 'italy', 'germany'], playback: null, profile: { ...useStore.getState().profile, cabinet: emptyCabinet(), trophies: { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }, achievements: {} } })
       expect(await useStore.getState().playCup('cup')).toBe(true)
       const after = useStore.getState()
       const run = after.game!.quickResult!.cup!

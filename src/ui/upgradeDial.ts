@@ -63,3 +63,14 @@ export function needleAngle(ms: number, total: number, roll: number, turns = DIA
 export function ticksPassed(angle: number): number {
   return Math.floor(Math.max(0, angle) / TICK_DEG)
 }
+
+/**
+ * The Upgrader's one line for a screen reader (its live region stays mounted, so each moment is said once): the gamble
+ * while the dial turns, then the verdict. The dial itself is a picture. Ratings are left out when they are hidden.
+ */
+export function upgraderAnnouncement(r: { name: string; chance: number; boost: number; landed: boolean; won: boolean; locked: boolean; delta: number; base: number; hideRatings: boolean; roll: number }): string {
+  if (!r.landed) return `${r.name}: ${r.chance}% for plus ${r.boost}. The dial is turning.`
+  const head = r.won ? 'Upgraded!' : r.locked ? 'The lock held.' : 'Downgraded.'
+  const change = r.locked ? `${r.name} keeps his rating` : `${r.name} ${r.delta > 0 ? 'plus' : 'minus'} ${Math.abs(r.delta)}${r.hideRatings ? '' : `, ${r.base} to ${r.base + r.delta}`}`
+  return `${head} ${change}. Rolled ${r.roll} against ${r.chance}%.`
+}

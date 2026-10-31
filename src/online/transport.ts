@@ -31,6 +31,32 @@ export class OnlineError extends Error {
 /** Whether a failure is worth retrying later (as opposed to a definitive answer). */
 export const isTransient = (e: unknown) => !(e instanceof OnlineError) || e.kind === 'network' || e.kind === 'unavailable' || e.kind === 'rate'
 
+/** The longest a Data API, Storage or Auth request may go unanswered (supabase-js has no timeout of its own). */
+export const REQUEST_TIMEOUT_MS = 60000
+/** The longest an Edge Function call may take: a cold isolate archives the packs and builds a universe first. */
+export const FUNCTION_TIMEOUT_MS = 90000
+
+/**
+ * `fetch` that gives up after `ms`: an iOS tab put away mid-request can leave a fetch that never settles, and the sync
+ * engine, the outbox flush and the error reporter each wait for their one request in flight before the next, so one
+ * such fetch would stop them for the rest of the page's life. The caller's own signal still aborts it. A timeout
+ * rejects as the network failing does (supabase-js reports it as a request with no answer, `OnlineError` `network`).
+ */
+export function timedFetch(fetchImpl: typeof fetch, ms: number, timers: { set: (fn: () => void, ms: number) => unknown; clear: (t: unknown) => void } = { set: (fn, t) => setTimeout(fn, t), clear: (t) => clearTimeout(t as ReturnType<typeof setTimeout>) }): typeof fetch {
+  return (input, init = {}) => {
+    const ctl = new AbortController()
+    const outer = init.signal
+    const stop = () => ctl.abort(outer?.reason)
+    if (outer?.aborted) stop()
+    else outer?.addEventListener('abort', stop, { once: true })
+    const t = timers.set(() => ctl.abort(new DOMException('The request timed out', 'TimeoutError')), ms)
+    return fetchImpl(input, { ...init, signal: ctl.signal }).finally(() => {
+      timers.clear(t)
+      outer?.removeEventListener('abort', stop)
+    })
+  }
+}
+
 /** A PostgREST or Storage error (`{ code, message }` plus the HTTP status) as an `OnlineError`. */
 /** What a player reads when the backend does not have a feature yet. */
 export const NOT_READY = 'This online feature is not switched on yet. Your games are safe on this device; try again later.'
@@ -186,14 +212,14 @@ export function functionUrl(cfg: Pick<OnlineConfig, 'url' | 'functionName' | 're
 }
 
 const SAVE_COLUMNS ='slot, revision, game_id, content_hash, object_path, meta, device_id, client_saved_at, deleted_at, updated_at, prev_game_id, prev_object_path, prev_meta, prev_saved_at'
-const SLOTS: SlotId[] = ['quick', 'season', 'dynasty', 'h2h']
+const SLOTS: SlotId[] = ['quick', 'season', 'dynasty', 'h2h', 'arena', 'runin']
 
 /** The browser transport over a supabase-js client. */
 export class SupabaseTransport implements OnlineTransport {
   constructor(
     private readonly sb: SupabaseClient,
     private readonly cfg: OnlineConfig,
-    private readonly fetchImpl: typeof fetch = (...a) => fetch(...a),
+    private readonly fetchImpl: typeof fetch = timedFetch((...a) => fetch(...a), FUNCTION_TIMEOUT_MS),
   ) {}
 
   private async q<T>(p: PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null; status?: number }>): Promise<T> {

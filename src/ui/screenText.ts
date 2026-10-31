@@ -4,11 +4,15 @@
  * writes game state.
  */
 import type { Mode } from '@game/types'
+import { modeShort } from './i18n/modeText'
+import { translator } from './i18n'
+import { screenText } from './i18n/en/screenText'
+
+const t = translator(screenText)
 
 /** A mode as it is shown in a table cell or a chip. */
 export function modeLabel(mode: Mode): string {
-  const label: Record<Mode, string> = { quick: 'Quick draft', daily: 'Daily', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly', runin: 'Run-in' }
-  return label[mode]
+  return modeShort(mode)
 }
 
 /**
@@ -17,9 +21,8 @@ export function modeLabel(mode: Mode): string {
  */
 export function versusReal(ours: number, real: number): { delta: number; label: string } {
   const delta = real - ours
-  if (delta === 0) return { delta, label: 'Same place' }
-  const n = Math.abs(delta)
-  return { delta, label: `${n} place${n === 1 ? '' : 's'} ${delta > 0 ? 'higher' : 'lower'}` }
+  if (delta === 0) return { delta, label: t('samePlace') }
+  return { delta, label: t(delta > 0 ? 'placesHigher' : 'placesLower', { n: Math.abs(delta) }) }
 }
 
 /**
@@ -78,24 +81,24 @@ export function distinctLabels(labels: readonly string[]): string[] {
 
 /**
  * The quick summary's runs line under the record: this season's runs (`runsLine`) and the Profile's longest perfect
- * start, named as such ("best perfect start 5-0": a bare "best run 1-0" read as a score). A best of one game says
+ * start, named as such ("best perfect start: 5 wins": a bare "best run 1-0", even "5-0", read as a score). A best of one game says
  * nothing a player wants to hear, so it shows from two; null when there is nothing to say. When `thisRun` (this
  * season's perfect run) is the best, the line says so instead of repeating it.
  */
 export function runsSummary(runs: string | null, longestPerfectRun: number | undefined, thisRun?: number): string | null {
-  // This season set the best: say so rather than print its run twice ("Perfect run 2-0 · best perfect start 2-0")
-  if (runs && thisRun !== undefined && thisRun >= 2 && thisRun === longestPerfectRun) return `${runs} · your best perfect start`
-  const best = (longestPerfectRun ?? 0) >= 2 ? `${runs ? 'best' : 'Best'} perfect start ${longestPerfectRun}-0` : null
+  // This season set the best: say so rather than print its run twice ("Perfect run of 2 wins · best perfect start: 2 wins")
+  if (runs && thisRun !== undefined && thisRun >= 2 && thisRun === longestPerfectRun) return t('yourBestStart', { runs })
+  const best = (longestPerfectRun ?? 0) >= 2 ? t(runs ? 'bestStartAfter' : 'bestStart', { n: longestPerfectRun }) : null
   const parts = [runs, best].filter(Boolean)
   return parts.length ? parts.join(' · ') : null
 }
 
 /**
  * The playback's moment chip when the perfect run ends: the game that ended it ("Lost 0-1 to Brentford", "Drew 2-2
- * with Everton"), since the chase banner above already says "Perfect run over at 4-0".
+ * with Everton"), since the chase banner above already says "Perfect run over in game 5".
  */
 export function brokeMoment(gf: number, ga: number, opponent: string): string {
-  return gf < ga ? `Lost ${gf}-${ga} to ${opponent}` : `Drew ${gf}-${ga} with ${opponent}`
+  return t(gf < ga ? 'lostTo' : 'drewWith', { score: `${gf}-${ga}`, opponent })
 }
 
 /**
@@ -103,6 +106,6 @@ export function brokeMoment(gf: number, ga: number, opponent: string): string {
  * line): "Cup winners", "Continental champions", or both. Null with no cup won.
  */
 export function cupWinsLine(cups: ReadonlyArray<'cup' | 'continental'>): string | null {
-  const words = [cups.includes('cup') ? 'Cup winners' : null, cups.includes('continental') ? 'Continental champions' : null].filter((w): w is string => !!w)
+  const words = [cups.includes('cup') ? t('cupWinners') : null, cups.includes('continental') ? t('continentalChampions') : null].filter((w): w is string => !!w)
   return words.length ? words.join(' · ') : null
 }

@@ -7,7 +7,7 @@ import { ratingAt } from '@engine/positions'
 import { aiClubOf, aiStrength, computeTable, USER_TEAM } from '@engine/season'
 import { decodeChallenge, encodeChallenge, isRulesDiff } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
-import { buildSuperClubs, buildSuperRestClubs, rankedClubs, SUPER_LEAGUE_RIVALS, superLeagueField, superSeasons } from '@engine/superLeague'
+import { buildSuperClubs, buildSuperRestClubs, rankedClubs, SUPER_LEAGUE_HANDICAP, SUPER_LEAGUE_RIVALS, superLeagueField, superSeasons } from '@engine/superLeague'
 import type { ClubSeason } from '@engine/types'
 import { createGame, dailyGameSettings, describeRules, quickSetupLine, setupChips, setupRules, summariseSetup } from '../logic/setup'
 import { closeJanuary, kickOff, quickSeasonGames, runQuickSeason, toKickoff } from '../logic/quick'
@@ -75,9 +75,18 @@ describe('the Super League field', { timeout: 120_000 }, () => {
     expect(b).toEqual(a)
     const fresh = loadTestUniverse([...ALL])
     expect(superLeagueField(fresh, false).map((cs) => `${cs.clubId}@${cs.season}`)).toEqual(superLeagueField(u, false).map((cs) => `${cs.clubId}@${cs.season}`))
-    // The Super League plays at full strength: no calibration, whatever the opposition setting
+    // The Super League has no calibration, whatever the opposition setting: full strength without `superEase` (every
+    // game and link from before 2026-10-28), a rating point off with it (every game Setup starts since)
     expect(quickLeague(u, settings()).offset).toBe(0)
     expect(quickLeague(u, settings({ difficulty: 'realistic' })).offset).toBe(0)
+    const eased = settings({ rules: { ...QUICK_RULES, leagues: ALL, superLeague: true, superEase: true } })
+    expect(SUPER_LEAGUE_HANDICAP).toBe(1)
+    expect(quickLeague(u, eased).offset).toBe(SUPER_LEAGUE_HANDICAP)
+    expect(quickLeague(u, { ...eased, difficulty: 'realistic' }).offset).toBe(SUPER_LEAGUE_HANDICAP)
+    expect(Object.keys(quickLeague(u, eased).ai)).toEqual(a)
+    // The rule alone, without the Super League, changes no real league's calibration
+    const real = settings({ rules: { ...QUICK_RULES, leagues: ALL, superEase: true } }, false)
+    expect(quickLeague(u, real).offset).toBe(quickLeague(u, settings({}, false)).offset)
   })
 
   it('names each side with its season, and the Continental Cup field is the next fifteen clubs, none of them in the league', () => {
@@ -153,6 +162,22 @@ describe('a Super League season', { timeout: 300_000 }, () => {
     expect(real.quickResult!.table.map((r) => r.teamId)).not.toEqual(q.table.map((r) => r.teamId))
   })
 
+  it('an eased Super League link travels as version 2 with its rule and verifies; a full-strength one stays version 1', () => {
+    const g = drafted(settings({ seed: 'super-eased-1', january: false, rules: { ...QUICK_RULES, leagues: ALL, superLeague: true, superEase: true } }))
+    kickOff(g, u)
+    const link = challengeFromGame(g, u, 'Tester')!
+    expect(link.v).toBe(2)
+    expect(link.s.r.superEase).toBe(true)
+    expect(replayChallenge(u, decodeChallenge(encodeChallenge(link))).verified).toBe('yes')
+    // The same seed at full strength (an older link) plays the season it always played
+    const old = drafted(settings({ seed: 'super-eased-1', january: false }))
+    kickOff(old, u)
+    const oldLink = challengeFromGame(old, u, 'Tester')!
+    expect(oldLink.v).toBe(1)
+    expect(oldLink.s.r).not.toHaveProperty('superEase')
+    expect(replayChallenge(u, decodeChallenge(encodeChallenge(oldLink))).verified).toBe('yes')
+  })
+
   it('has no domestic cup; its Continental Cup meets the next fifteen after a top-seven finish', () => {
     const g = drafted(settings({ seed: 'super-cups', january: false }))
     kickOff(g, u)
@@ -162,8 +187,9 @@ describe('a Super League season', { timeout: 300_000 }, () => {
     g.quickResult!.position = 1
     playQuickCup(g, u, 'continental')
     const run = g.quickResult!.continentalCup!
-    expect(run.ties.length).toBeGreaterThan(0)
+    // Engine 7: the groups are the user and the fifteen, and every knockout opponent is one of them
     const rest = new Set(Object.keys(buildSuperRestClubs(u, false, 15)))
+    expect(new Set(run.groups!.flatMap((x) => x.teams))).toEqual(new Set([USER_TEAM, ...rest]))
     expect(run.ties.every((t) => rest.has(t.opponentId))).toBe(true)
   })
 
@@ -216,6 +242,54 @@ describe('a Super League season', { timeout: 300_000 }, () => {
     console.log(`P(38-0) elite XI, Super League, ${N} seeds: ${sup.perfect}/${N} perfect, unbeaten ${sup.unbeaten}, champions ${sup.champions}, mean wins ${sup.wins.toFixed(2)}`)
     expect(sup.wins).toBeGreaterThan(0)
   })
+  // The eased Super League (superEase, 2026-10-28): the same XIs on the same seeds, full strength against a point off.
+  // An XI of each slot's 16th-best player (team strength about 85.8, inside the field's 83.1 to 87.7) and the elite XI
+  const strong = (() => {
+    const used = new Set<string>()
+    const lineup: Record<string, string> = {}
+    for (const s of getFormation('4-3-3').slots) {
+      const seen = new Set<string>()
+      const list = Object.values(u.index)
+        .filter((p) => !used.has(p.playerId) && !u.clubSeasonByKey[`${p.clubId}@${p.season}`]?.classic)
+        .sort((a, b) => ratingAt(b, s.position) - ratingAt(a, s.position) || a.id.localeCompare(b.id))
+        .filter((p) => (seen.has(p.playerId) ? false : (seen.add(p.playerId), true)))
+      used.add(list[15].playerId)
+      lineup[s.id] = list[15].id
+    }
+    return lineup
+  })()
+  const season = (lineup: Record<string, string>, seed: string, ease: boolean) => {
+    const g = createGame(settings({ seed, january: false, rules: { ...QUICK_RULES, leagues: ALL, managers: false, superLeague: true, ...(ease ? { superEase: true } : {}) } }))
+    g.draft!.lineup = { ...lineup }
+    toKickoff(g, u)
+    runQuickSeason(g, u)
+    return g.quickResult!
+  }
+  for (const [name, lineup] of [['strong', strong], ['elite', elite]] as const) {
+    it(`eases the Super League a little for the ${name} XI: more points, as many titles or more, still no 38-0`, () => {
+      let full = 0
+      let eased = 0
+      let fullTitles = 0
+      let easedTitles = 0
+      let perfect = 0
+      for (let i = 0; i < N; i++) {
+        const a = season(lineup, `ease-${i}`, false)
+        const b = season(lineup, `ease-${i}`, true)
+        full += a.points
+        eased += b.points
+        fullTitles += a.position === 1 ? 1 : 0
+        easedTitles += b.position === 1 ? 1 : 0
+        if (b.won === b.results!.length) perfect++
+      }
+      console.log(`Super League eased, ${name} XI, ${N} seeds: ${(full / N).toFixed(1)} -> ${(eased / N).toFixed(1)} points, titles ${fullTitles} -> ${easedTitles}, perfect ${perfect}`)
+      // 250 seeds measured +6.5 (strong) and +6.0 (elite); 30 seeds stay well inside 2 to 11
+      expect(eased / N - full / N).toBeGreaterThan(2)
+      expect(eased / N - full / N).toBeLessThan(11)
+      expect(easedTitles).toBeGreaterThanOrEqual(fullTitles)
+      expect(perfect).toBe(0)
+    })
+  }
+
   it('the same XI on the same seeds in the Premier League 2025-26 wins far more: reported, not tuned', () => {
     const real = tally(false)
     console.log(`P(38-0) elite XI, Premier League 2025-26, ${N} seeds: ${real.perfect}/${N} perfect, unbeaten ${real.unbeaten}, champions ${real.champions}, mean wins ${real.wins.toFixed(2)}`)
@@ -232,8 +306,14 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
     expect(setupRules(QUICK_RULES, base)).not.toHaveProperty('superLeague')
     expect(setupRules(QUICK_RULES, { ...base, superLeague: false })).not.toHaveProperty('superLeague')
     expect(setupRules(QUICK_RULES, { ...base, superLeague: true }).superLeague).toBe(true)
+    // Setup's Super League is the eased one; without the choice neither key is written
+    expect(setupRules(QUICK_RULES, { ...base, superLeague: true }).superEase).toBe(true)
+    expect(setupRules(QUICK_RULES, base)).not.toHaveProperty('superEase')
+    expect(summariseSetup(u, settings({ rules: { ...QUICK_RULES, leagues: ALL, superLeague: true, superEase: true } }))).toContain('in the Super League, a point below full strength')
     const s = settings()
     expect(summariseSetup(u, s)).toContain('in the Super League, full strength')
+    // Its field loads every league, which is no European Nights wheel
+    expect(summariseSetup(u, s)).not.toContain('European Nights')
     expect(summariseSetup(u, settings({}, false))).toContain('in the Premier League 2025-26, calibrated')
     expect(describeRules(u, s.rules)).toContain('Super League')
     // The line above Spin and the chips name the Super League, not the all-league wheel's count or the opposition
@@ -269,12 +349,13 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
 /**
  * Adding the Super League changes no other game: these hashes were taken on the commit before it (57f3453) and must
  * not move. Re-baselined on ENGINE_VERSION '5' (the playtest fixes moved every quick season; two of the three odds
- * hashes held). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
+ * hashes held), and on '6' (every match moved: the calibration, the user's men out of their real clubs), and on '7' (the post-season
+ * Continental Cup's groups and two legs move the quick results that played it; the odds and the Daily held). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
  * classic seasons in La Liga 2015-16 (the Continental Cup included), the pundits' odds and today's Daily.
  */
 describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
   it('reproduces the pinned results of the commit before the Super League', () => {
-    expect(ENGINE_VERSION).toBe('5')
+    expect(ENGINE_VERSION).toBe('7')
     const play = (s: GameSettings): Game => {
       const g = drafted(s)
       kickOff(g, u)
@@ -291,9 +372,10 @@ describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
       return g
     }
     const pins: Record<string, string> = {
-      'pin-1': '6512045160711701 6788889306780096 8572552196302467',
-      'pin-2': '5734444457826963 7978705248904558 2241520542739478',
-      'pin-3': '7150402115234313 1436278297455982 8232083168600727',
+      'pin-1': '4444055295652043 3990114105311898 1925156832764192',
+      // pin-2's odds (the third hash) re-baselined 2026-10-28 (r8 audit): the odds' day xG now bends under the engine's soft ceiling, not the 5.8 clamp; the games are unchanged
+      'pin-2': '6943731497980684 7821072090189927 1889723377007754',
+      'pin-3': '6123748828687102 1977299536754919 7200968562615668',
     }
     for (const seed of Object.keys(pins)) {
       const s: GameSettings = { mode: 'quick', seed, formationId: '4-3-3', teamName: 'Pin XI', shortName: 'PIN', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated', january: true }
@@ -303,7 +385,7 @@ describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
       expect(`${hashString(JSON.stringify([g.quickResult, g.rngState]))} ${hashString(JSON.stringify([e.quickResult, e.rngState]))} ${hashString(JSON.stringify(odds))}`, seed).toBe(pins[seed])
     }
     const d = play(dailyGameSettings(u, 'daily-2026-10-25'))
-    expect(hashString(JSON.stringify([d.quickResult, d.rngState]))).toBe(1093606196752067)
+    expect(hashString(JSON.stringify([d.quickResult, d.rngState]))).toBe(8710513422125818)
     // The table helper the season uses is untouched by the field
     expect(computeTable([], [USER_TEAM]).length).toBe(1)
   })

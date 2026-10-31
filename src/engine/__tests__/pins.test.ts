@@ -10,7 +10,8 @@
  * such as a later fm-depth retune, the 1992-93 packs or a change to
  * `QUICK_RULES`. Recompute the literals on that branch; never copy them.
  * Baselined on ENGINE_VERSION '4' with the 2026-10-25 packs; re-baselined on '5' (the head-to-head assistant now places
- * by positional fit: spin 3 takes the natural keeper Given, not Robinho into a cover slot; both quick wheels held).
+ * by positional fit: spin 3 takes the natural keeper Given, not Robinho into a cover slot; both quick wheels held), and
+ * on '6' (the stamp only: the wheels and the head-to-head log draw no differently; engine 6 moved matches, not spins).
  */
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from './helpers'
@@ -26,7 +27,7 @@ const row = (h: DraftState['history'][number]) => `${h.clubId}@${h.season}${h.tw
 describe('pins', () => {
   it('pins the stamps the literals below were computed on', () => {
     const u = loadTestUniverse()
-    expect(ENGINE_VERSION).toBe('5')
+    expect(ENGINE_VERSION).toBe('7')
     expect(u.generatedAt).toBe('2026-10-25')
   })
 

@@ -3,7 +3,7 @@
  * every window, a market of real player-seasons from any era opens with asking
  * prices that move with form, age, demand and the clock.
  */
-import type { PlayerSeason, Position, SquadPlayer } from './types'
+import type { PlayerSeason, SquadPlayer } from './types'
 import type { Rng } from './rng'
 import { poolClubSeasons, type LoadedUniverse } from './universe'
 import { acceptsStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from './status'
@@ -117,6 +117,11 @@ export interface MarketContext {
    * Absent, the market lists and draws exactly as it always has.
    */
   focus?: (p: PlayerSeason) => boolean
+  /**
+   * Dynasty: real player id -> the youngest age a man who left may be listed at (never his younger self). Absent, or
+   * with nobody in it, the market lists exactly as before.
+   */
+  ageFloor?: Record<string, number>
 }
 
 function nationNameOf(u: LoadedUniverse, nation: string): string {
@@ -201,7 +206,7 @@ export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36)
       // Weighted towards the top of the squad but not exclusively.
       const idx = Math.min(sorted.length - 1, Math.floor(Math.pow(rng.next(), 1.8) * sorted.length))
       const p = sorted[idx]
-      if (!p || ctx.ownedPlayerIds.has(p.playerId) || seenHumans.has(p.playerId)) continue
+      if (!p || ctx.ownedPlayerIds.has(p.playerId) || seenHumans.has(p.playerId) || p.age < (ctx.ageFloor?.[p.playerId] ?? 0)) continue
       seenHumans.add(p.playerId)
       candidates.push(p)
     }
@@ -270,6 +275,8 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
     const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0) + (listed ? 0.6 : 0) + (shopped ? SHOPPED_BOOST : 0)
     if (desirability <= 0) continue
     if (rng.chance((listed || shopped ? 0.12 : 0.05) * desirability)) {
+      // No other club in the league, no buyer (the roll is still made, so every other day draws as it did)
+      if (!clubsInLeague.length) continue
       const { price } = askingPrice(p, ctx, state)
       const amount = roundM(price * rng.float(0.75, 1.1))
       const fromClubId = rng.pick(clubsInLeague)
@@ -362,6 +369,8 @@ export interface BidOutcome {
 export interface StatusTerms {
   status: SquadStatus
   squadOveralls: number[]
+  /** A weekly wage already agreed with him (the office's personal terms), GBP thousands: the wage-cap check reads it in place of his wage at the status. */
+  wage?: number
 }
 
 /**
@@ -380,7 +389,7 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
     const answer = acceptsStatus(p, terms.squadOveralls, terms.status)
     if (!answer.ok) return { accepted: false, message: answer.reason ?? `${p.name} will not sign as ${STATUS_LABEL[terms.status].toLowerCase()}.`, counterStatus: answer.counter }
   }
-  const wage = Math.round(p.wage * (terms ? WAGE_MULT[terms.status] : 1))
+  const wage = terms?.wage ?? Math.round(p.wage * (terms ? WAGE_MULT[terms.status] : 1))
   let credit = 0
   if (exchange) {
     const x = exchangeCredit(ctx, p, exchange)
@@ -456,28 +465,42 @@ export function startingFinances(u: LoadedUniverse, hostClubId: string, leagueSe
 }
 
 /**
- * Weekly cash flow: match-day and broadcast income roughly covers the wage
- * cap. Spending under the cap drips into the budget; over it drains.
+ * Weekly cash flow: match-day and broadcast income roughly covers the wage cap. A tenth of what the wages leave
+ * under the cap drips into the budget (the rest runs the club); spending over it drains in full. Engine 6: the whole
+ * headroom dripped before, so a Dynasty that signed nobody grew from £74M to £820M in four seasons (item 2).
  */
+export const HEADROOM_SHARE = 0.1
+
 export function weeklyCashFlow(finances: Finances, wages: number): number {
-  return (finances.wageCap - wages) / 1000
+  const headroom = finances.wageCap - wages
+  return (headroom > 0 ? headroom * HEADROOM_SHARE : headroom) / 1000
 }
 
-/** Prize money by final league position (GBP millions), roughly real-world shaped. */
-export function prizeMoney(position: number, cupWon: boolean): number {
-  const base = 100 - (position - 1) * 3.2
-  return roundM(base + (cupWon ? 12 : 0))
+/**
+ * The season's league money net of the club's running costs (GBP millions), by final position: +£20M for the
+ * champions down to −£20M for last place in a straight line (0 at mid-table), plus £10M for the cup. Success grows
+ * the budget modestly and failure shrinks it. Engine 6; before it a title paid £100M and last place £39M.
+ */
+export const PRIZE_SPREAD = 20
+export const CUP_PRIZE = 10
+
+export function prizeMoney(position: number, cupWon: boolean, clubs = 20): number {
+  const frac = clubs > 1 ? Math.min(1, Math.max(0, (position - 1) / (clubs - 1))) : 0
+  return roundM(PRIZE_SPREAD * (1 - 2 * frac) + (cupWon ? CUP_PRIZE : 0))
 }
 
-export const POSITION_NEEDS: Record<Position, string> = {
-  GK: 'a goalkeeper',
-  CB: 'a centre-back',
-  LB: 'a left-back',
-  RB: 'a right-back',
-  DM: 'a holding midfielder',
-  CM: 'a central midfielder',
-  AM: 'a creative midfielder',
-  LW: 'a left winger',
-  RW: 'a right winger',
-  ST: 'a striker',
+/** The board's least summer budget for a club not in debt, so a side that keeps finishing bottom can still sign a keeper */
+export const SUMMER_FLOOR = 10
+
+/**
+ * The budget once a season's league money (`net`, which may be negative) lands: running costs beyond the money take it
+ * down to nothing at worst; only a wage bill over the cap (the weekly cash flow) runs a club into debt. A club not in
+ * debt starts the summer with at least `SUMMER_FLOOR`; one in debt keeps it. Rounded to £0.1M.
+ */
+export function afterSeasonMoney(budget: number, net: number): number {
+  const after = Math.max(Math.min(budget, 0), budget + net)
+  return Math.round((budget < 0 ? after : Math.max(SUMMER_FLOOR, after)) * 10) / 10
 }
+
+/** The Continental Cup's money by the stage reached (GBP millions); engine 6 (4, 8, 15, 25 and 45 before), and engine 7's group stage (G) pays as the round of 16 did. */
+export const CONTINENTAL_PRIZE: Readonly<Record<string, number>> = { G: 2, R16: 2, QF: 4, SF: 7, F: 11, W: 18 }

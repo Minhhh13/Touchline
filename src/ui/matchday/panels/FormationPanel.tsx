@@ -4,6 +4,7 @@
  * the surname, card marks, a sub arrow on a changed slot and a greyed slot for a
  * man sent off or injured with nobody to replace him. Click a man for his heat map.
  */
+import type { CSSProperties } from 'react'
 import { getFormation } from '@engine/formations'
 import { tacticsAt } from '@engine/matchFeed'
 import { DEFAULT_ROLE, getRole } from '@engine/roles'
@@ -14,6 +15,11 @@ import { CardIcon, OnArrow } from '../icons'
 import { labelRoom, panelPoints, slotViews } from '../model'
 import type { PanelProps } from '../types'
 import { RatingPill, TeamCode } from './bits'
+import { translator } from '../../i18n'
+import { roleName } from '../../i18n/engineText'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away' }) {
   const fs = side === 'home' ? d.feed.home : d.feed.away
@@ -26,13 +32,13 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
   const points = panelPoints(formation, tactics)
   const room = labelRoom(points)
   return (
-    <section className="md-panel md-formation" aria-label={`${view.name} formation`}>
+    <section className="md-panel md-formation" aria-label={tx('formationOf', { name: view.name })}>
       <header className="md-panel-head">
         <TeamCode view={view} />
         <b>{formation.name}</b>
-        <span className="muted">in possession</span>
+        <span className="muted">{tx('inPossessionLower')}</span>
       </header>
-      <VerticalPitch label={`${view.name} in a ${formation.name}`}>
+      <VerticalPitch label={tx('inA', { name: view.name, formation: formation.name })}>
         {slots.map((s, i) => {
           const { left, top } = points[i]
           const gap = room[s.slotId]
@@ -47,11 +53,12 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
               type="button"
               className={`md-man ${s.out ? 'out' : ''} ${selected ? 'selected' : ''} ${lit ? 'lit' : ''}`}
               data-lit={lit ? 'yes' : undefined}
-              style={{ left: `${left}%`, top: `${top}%`, maxWidth: gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}% - 4px))` }}
+              // His place as per cent of the layer, moved by transform (`--x`, `--y`, matchday.css), so a change of shape glides without a reflow
+              style={{ '--x': left.toFixed(2), '--y': top.toFixed(2), '--md-name-max': gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}cqw - 4px))` } as CSSProperties}
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}
               aria-pressed={selected}
-              title={`${name ?? 'Empty'} · ${getRole(tactics.roles[s.slotId] ?? DEFAULT_ROLE[s.position]).name}${rating === undefined ? '' : ` · ${rating.toFixed(1)}`}${s.subbedOn ? `, on ${s.onAt}'` : ''}`}
+              title={`${name ?? tx('emptySlot')} · ${roleName(getRole(tactics.roles[s.slotId] ?? DEFAULT_ROLE[s.position]))}${rating === undefined ? '' : ` · ${rating.toFixed(1)}`}${s.subbedOn ? tx('cardOn', { m: s.onAt }) : ''}`}
             >
               <span className="md-man-shirt">
                 <Shirt colour={s.position === 'GK' ? view.keeper : view.colour} number={s.psId ? view.numbers[s.psId] : undefined} size={24} dim={s.out} />

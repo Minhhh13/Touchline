@@ -3,6 +3,10 @@ import { surnameOf } from '@game/logic/talks'
 import { leagueAwards, type LeagueAward } from '@game/logic/leagueAwards'
 import { AWARD_ICON } from './icons'
 import { Info, Pos } from './bits'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 /**
  * The league's end-of-season awards on the summary of a Season or Dynasty
@@ -10,7 +14,8 @@ import { Info, Pos } from './bits'
  * marked. Derived (`src/game/logic/leagueAwards.ts`), never saved.
  */
 export function LeagueAwards() {
-  const { universe: u, game } = useStore()
+  const u = useStore((s) => s.universe)
+  const game = useStore((s) => s.game)
   if (!u || !game?.season || (game.settings.mode !== 'season' && game.settings.mode !== 'dynasty')) return null
   const a = leagueAwards(game, u)
   if (!a) return null
@@ -26,7 +31,7 @@ export function LeagueAwards() {
             {label} · {w.value}
           </span>
         </span>
-        <span className={`chip ${w.mine ? 'info' : ''} one-line`}>{w.mine ? 'Yours' : w.teamName}</span>
+        <span className={`chip ${w.mine ? 'info' : ''} one-line`}>{w.mine ? t('yours') : w.teamName}</span>
       </div>
     )
   }
@@ -34,23 +39,23 @@ export function LeagueAwards() {
     <div className="panel" data-testid="league-awards">
       <div className="panel-head">
         <span className="head-title">
-          <h3>League awards</h3>
-          <Info label="About league awards">The same awards as your squad's, judged across every club in the league, all competitions.</Info>
+          <h3>{t('leagueAwards')}</h3>
+          <Info label={t('aboutLeagueAwards')}>{t('leagueAwardsInfo')}</Info>
         </span>
-        <span className="small muted">{a.mineInTeam} of yours in the team</span>
+        <span className="small muted">{t('mineInTeam', { n: a.mineInTeam })}</span>
       </div>
       <div className="league-awards">
-        {row('pots', 'Player of the season', a.playerOfTheSeason)}
-        {row('boot', 'Golden boot', a.goldenBoot)}
-        {row('playmaker', 'Playmaker', a.playmaker)}
-        {row('glove', 'Golden glove', a.goldenGlove)}
-        {row('young', 'Young player', a.youngPlayer)}
+        {row('pots', t('award_pots'), a.playerOfTheSeason)}
+        {row('boot', t('award_boot'), a.goldenBoot)}
+        {row('playmaker', t('award_playmaker'), a.playmaker)}
+        {row('glove', t('award_glove'), a.goldenGlove)}
+        {row('young', t('award_young'), a.youngPlayer)}
       </div>
-      <h4 style={{ marginTop: 'var(--space-3)' }}>Team of the season</h4>
+      <h4 style={{ marginTop: 'var(--space-3)' }}>{t('teamOfSeason')}</h4>
       <div className="tots">
-        {a.teamOfTheSeason.map((t) => (
-          <span key={t.playerSeasonId} className={`chip ${t.mine ? 'info' : ''}`} title={`${t.name}, ${t.teamName}: ${t.avgRating.toFixed(2)} average`}>
-            <Pos p={t.position} /> {surnameOf(t.name)}
+        {a.teamOfTheSeason.map((x) => (
+          <span key={x.playerSeasonId} className={`chip ${x.mine ? 'info' : ''}`} title={t('totsTip', { name: x.name, team: x.teamName, avg: x.avgRating.toFixed(2) })}>
+            <Pos p={x.position} /> {surnameOf(x.name)}
           </span>
         ))}
       </div>

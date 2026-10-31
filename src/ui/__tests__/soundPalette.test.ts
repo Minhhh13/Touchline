@@ -5,6 +5,8 @@ import { CATEGORY, FLOOR, GRADE_NOTES, LANDING_LEVEL, LANDING_TOP, MAX_LEVEL, WH
 import { SAFETY, renderScore, safetyCurve, type NoiseBank } from '../sound/render'
 import { armAudio, liveAudio, playLanding, playSound, playUpgradeResult, unlockAudio } from '../sound/synth'
 import { matchSoundOn } from '../sound/prefs'
+import { cueScore } from '../sound/voices'
+import { CUE_REQUESTS } from './cueRequests'
 
 /** One of every request the palette answers, with the variants that change its shape. */
 const REQUESTS: SoundRequest[] = [
@@ -34,6 +36,10 @@ const REQUESTS: SoundRequest[] = [
   { id: 'fanfare', treble: true, reduced: true },
   ...(['A', 'B', 'C', 'D'] as const).map((grade): SoundRequest => ({ id: 'grade', grade })),
   { id: 'click' },
+  { id: 'tick', rate: 0.92 },
+  { id: 'tick', rate: 1.2 },
+  { id: 'whoosh' },
+  { id: 'pop' },
 ]
 
 const name = (r: SoundRequest) => JSON.stringify(r)
@@ -224,8 +230,9 @@ describe('the noise', () => {
       return peak
     }
     const seen = new Set<string>()
-    for (const req of REQUESTS) {
-      for (const v of scoreFor(req).voices) {
+    // The palette's and the second pass's cues (voices.ts) alike
+    for (const score of [...REQUESTS.map(scoreFor), ...CUE_REQUESTS.map(cueScore)]) {
+      for (const v of score.voices) {
         if (v.kind !== 'noise') continue
         const q = v.q ?? (v.filter === 'bandpass' ? 1 : 0)
         for (const f of [v.freq, v.freqTo ?? v.freq]) {
@@ -280,8 +287,7 @@ function fakeContext() {
 describe('rendering a score', () => {
   it('starts every source on time, stops it by the end of the score, and never sets a gain above the voice’s peak', () => {
     const bank = { white: {}, pink: {} } as unknown as NoiseBank
-    for (const req of REQUESTS) {
-      const s: Score = scoreFor(req)
+    for (const s of [...REQUESTS.map(scoreFor), ...CUE_REQUESTS.map(cueScore)] as Score[]) {
       const { c, log } = fakeContext()
       const nodes = renderScore(c, {} as AudioNode, 2, s, bank)
       expect(nodes.length).toBe(log.sources)

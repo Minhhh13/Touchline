@@ -14,6 +14,7 @@
     "ios:build": "npm run ios:sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath .cache/ios-build CODE_SIGNING_ALLOWED=NO build",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
+    "test:fast": "vitest run --config vitest.fast.config.ts",
     "test:watch": "vitest",
     "lint": "tsc -b --noEmit",
     "check:dist-keys": "node scripts/online/check-dist-keys.mjs dist",

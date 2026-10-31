@@ -5,7 +5,7 @@ import { Rng } from '@engine/rng'
 import { createGame } from '../logic/setup'
 import { playerLookup } from '../logic/players'
 import { pickGrades, type GradedPick, type PickGrade } from '../logic/pickGrades'
-import { draftGrade, draftGradeLine, draftRecap, recapVerdict } from '../logic/draftRecap'
+import { bestPlayMarks, draftGrade, draftGradeLine, draftRecap, recapVerdict } from '../logic/draftRecap'
 import type { GameSettings } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -103,5 +103,34 @@ describe('the draft recap', () => {
     // An empty draft has nothing graded
     const fresh = createGame(quick('recap-share-empty'))
     expect(draftGradeLine(fresh, u, playerLookup(fresh, u))).toBeNull()
+  })
+})
+
+describe("the Hindsight XI's best-play marks", () => {
+  it('marks the men a missed grade named as the best play on their spin, never your own picks', () => {
+    const h = { xi: [
+      { spin: 0, slotId: 'gk', id: 'a@1@c', name: 'A. Keeper', rating: 80, yours: true },
+      { spin: 1, slotId: 'cb1', id: 'b@1@c', name: 'B. Back', rating: 84, yours: false },
+      { spin: 2, slotId: 'st', id: 'c@1@c', name: 'C. Nine', rating: 86, yours: false },
+    ], rating: 83.3, yours: 81, gap: 2.3, kept: 1 }
+    const g = (spin: number, bestName: string, bestSlotId: string, left: number): GradedPick => ({ spin, pickedId: 'x', slotId: 'cb1', rating: 80, best: 84, bestName, bestSlotId, left, grade: left ? 'C' : 'A' })
+    expect(bestPlayMarks(null, [])).toEqual([])
+    expect(bestPlayMarks(h, [g(1, 'B. Back', 'cb1', 3), g(2, 'C. Nine', 'gk', 2), g(0, 'A. Keeper', 'gk', 1)])).toEqual(['cb1'])
+    // Level with the best play: no mark
+    expect(bestPlayMarks(h, [g(1, 'B. Back', 'cb1', 0)])).toEqual([])
+  })
+
+  it('appear on seeded drafts and point at Hindsight XI men', () => {
+    let marks = 0
+    for (const seed of ['recap-1', 'recap-2', 'recap-3', 'recap-4', 'recap-5', 'recap-6', 'recap-7', 'recap-8']) {
+      const g = createGame(quick(seed))
+      const rng = Rng.fromState(g.rngState)
+      autoDraft(u, g.draft!, rng)
+      const r = draftRecap(u, g.draft!, playerLookup(g, u), true)
+      for (const slot of r.bestPlays) expect(r.hindsight!.xi.some((p) => p.slotId === slot && !p.yours)).toBe(true)
+      marks += r.bestPlays.length
+      expect(draftRecap(u, g.draft!, playerLookup(g, u), false).bestPlays).toEqual([])
+    }
+    expect(marks).toBeGreaterThan(0)
   })
 })

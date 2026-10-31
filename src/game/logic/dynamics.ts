@@ -6,12 +6,13 @@
  * here changes a result yet (effects are Batch 3 of the FM-depth plan).
  */
 import type { Game } from '../types'
-import type { LoadedUniverse } from '@engine/universe'
+import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { STATUS_LABEL, type SquadStatus } from '@engine/status'
 import { squadPlayers } from './players'
 import { teamStrength } from './squad'
 import { statusOf } from './week'
+import { surname } from './slotSheet'
 
 export type HierarchyTier = 'leader' | 'high' | 'influential' | 'other'
 
@@ -100,8 +101,6 @@ const DEMONYM: Record<string, string> = {
   JAM: 'Jamaicans', AUS: 'Australians', CAN: 'Canadians', MLI: 'Malians', EGY: 'Egyptians', UKR: 'Ukrainians', RUS: 'Russians', SVK: 'Slovaks', SVN: 'Slovenes', HUN: 'Hungarians',
 }
 
-const seasonLabel = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, '0')}`
-
 function ageBand(age: number): { id: string; label: string } {
   if (age <= 21) return { id: 'young', label: 'The youngsters' }
   if (age >= 30) return { id: 'old', label: 'The old heads' }
@@ -172,8 +171,8 @@ export function atmosphereOf(game: Game, u: LoadedUniverse): Atmosphere {
   const leaders = leaderRows.length ? Math.round(leaderRows.reduce((a, r) => a + (game.squad[r.id]?.morale ?? 70), 0) / leaderRows.length) : 0
   const lines: string[] = []
   if (leaderRows.length) lines.push(`Leaders' morale ${leaders}`)
-  lines.push(`Chemistry ${chemistry >= 0 ? '+' : ''}${chemistry} in the XI`)
+  lines.push(`Chemistry ${chemistry > 0 ? '+' : chemistry < 0 ? '−' : ''}${Math.abs(chemistry)} in the XI`)
   const unhappy = rows.filter((r) => (game.squad[r.id]?.morale ?? 70) < 40)
-  if (unhappy.length) lines.push(`Unhappy: ${unhappy.slice(0, 3).map((r) => r.name.split(' ').slice(-1)[0]).join(', ')}${unhappy.length > 3 ? ` and ${unhappy.length - 3} more` : ''}`)
+  if (unhappy.length) lines.push(`Unhappy: ${unhappy.slice(0, 3).map((r) => surname(r.name)).join(', ')}${unhappy.length > 3 ? ` and ${unhappy.length - 3} more` : ''}`)
   return { value, label, weightedMorale: Math.round(weightedMorale), chemistry, leaders, lines }
 }

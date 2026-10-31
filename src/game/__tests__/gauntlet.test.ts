@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
 import { advanceArenaMatch, arenaContinueLabel, arenaShareInput, arenaStepInfo, beginArena, changeTheDraw, closeArenaMatch, finalGameSettings, finishArena, gauntletGameSettings, GAUNTLET_SQUAD, nextArenaOpponent, playArenaStep, resolveArenaStep, rungOpponent, simArenaToEnd, stepWon, takePenalties, type ArenaChoices } from '../logic/arena'
@@ -93,6 +93,32 @@ describe('the Gauntlet: the ladder', () => {
       expect(new Set(l.alternates).size).toBe(GAUNTLET_RUNGS)
     }
   }, 30_000)
+
+  it('over 200 seeds in each era: fifteen different clubs, each main from its band or, once the band has no new club, the nearest bands (engine 7)', () => {
+    for (const [from, to] of [
+      [2020, 2026],
+      [2014, 2019],
+      [2008, 2013],
+    ]) {
+      const era = arenaPool(u, { leagues: ['england'], fromSeason: from, toSeason: to })
+      expect(new Set(era.map((cs) => cs.clubId)).size).toBeGreaterThanOrEqual(GAUNTLET_RUNGS)
+      const b = gauntletBands(u, era)
+      const bandOf = new Map(b.bands.flatMap((band, k) => band.map((cs) => [keyOf(cs), k + 1] as const)))
+      let widened = 0
+      for (let i = 0; i < 200; i++) {
+        const l = buildLadder(u, new Rng(`era-ladder-${from}-${i}`), era)
+        expect(new Set(l.mains.map(clubIdOfKey)).size, `${from} ${i}`).toBe(GAUNTLET_RUNGS)
+        for (let r = 1; r <= 10; r++) {
+          const k = bandOf.get(l.mains[r - 1])!
+          if (k !== r) widened++
+          // The nearest band with a new club: never further than it has to be (every ladder, every rung)
+          expect(Math.abs(k - r)).toBeLessThanOrEqual(4)
+        }
+      }
+      // Most rungs still come from their own band
+      expect(widened / (200 * 10)).toBeLessThan(0.25)
+    }
+  }, 120_000)
 
   it('gives two players on one seed the same ladder and the same opponents, whatever they drafted', () => {
     for (let i = 0; i < 6; i++) {
@@ -378,8 +404,12 @@ describe('the Gauntlet: the rules', () => {
 })
 
 describe('the Gauntlet: balance guard (300 assistant runs, England wheel)', () => {
-  it('calibrated: a mean climb between 3.5 and 6.5 rungs, 4% to 25% reaching ten', () => {
-    const rungs = Array.from({ length: 300 }, (_, i) => rungsWon(climbed(`gauntlet-guard-${i}`)))
+  it('calibrated: a mean climb between 3.5 and 6.5 rungs, 4% to 25% reaching ten', async () => {
+    const rungs: number[] = []
+    for (let i = 0; i < 300; i++) {
+      if (i % 25 === 0) await breathe()
+      rungs.push(rungsWon(climbed(`gauntlet-guard-${i}`)))
+    }
     const mean = rungs.reduce((t, x) => t + x, 0) / rungs.length
     const ten = rungs.filter((x) => x >= 10).length / rungs.length
     expect(mean).toBeGreaterThan(3.5)
@@ -388,8 +418,12 @@ describe('the Gauntlet: balance guard (300 assistant runs, England wheel)', () =
     expect(ten).toBeLessThan(0.25)
   }, 120_000)
 
-  it('realistic: a mean climb below 2 rungs', () => {
-    const rungs = Array.from({ length: 300 }, (_, i) => rungsWon(climbed(`gauntlet-guard-${i}`, { difficulty: 'realistic' })))
+  it('realistic: a mean climb below 2 rungs', async () => {
+    const rungs: number[] = []
+    for (let i = 0; i < 300; i++) {
+      if (i % 25 === 0) await breathe()
+      rungs.push(rungsWon(climbed(`gauntlet-guard-${i}`, { difficulty: 'realistic' })))
+    }
     expect(rungs.reduce((t, x) => t + x, 0) / rungs.length).toBeLessThan(2)
   }, 120_000)
 })

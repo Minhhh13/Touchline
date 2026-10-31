@@ -28,18 +28,59 @@ export function ordinal(n: number): string {
   const v = n % 100
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
+/*
+ * The viewer's language for numbers and dates (`src/ui/i18n`). English prints exactly what it always printed
+ * (`toFixed`, no grouping); any other language goes through `Intl` with its own decimal mark.
+ */
+let numberLocale = 'en'
+const numberFormats = new Map<string, Intl.NumberFormat>()
+/** Set by the language setting (`src/ui/i18n/language.ts`); 'en' or the pseudo-locale keep English figures. */
+export function setFormatLocale(locale: string): void {
+  numberLocale = locale === 'en-XA' ? 'en' : locale
+}
+/** The language numbers and dates are written in now. */
+export function formatLocale(): string {
+  return numberLocale
+}
+const isEnglish = () => numberLocale === 'en' || numberLocale.startsWith('en-')
+/** A number with exactly `digits` decimals (as `toFixed`), in the viewer's language. */
+export function fixed(n: number, digits: number): string {
+  if (isEnglish()) return n.toFixed(digits)
+  const key = `${numberLocale}|${digits}`
+  let f = numberFormats.get(key)
+  if (!f) numberFormats.set(key, (f = new Intl.NumberFormat(numberLocale, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false })))
+  return f.format(n)
+}
+/** A plain number in the viewer's language: English as `String(n)` (2024 stays 2024, never 2,024). */
+export function formatNumber(n: number): string {
+  if (isEnglish() || !Number.isFinite(n)) return String(n)
+  const key = `${numberLocale}|plain`
+  let f = numberFormats.get(key)
+  if (!f) numberFormats.set(key, (f = new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 20, useGrouping: false })))
+  return f.format(n)
+}
+/**
+ * A date in the viewer's language: `short` "27 Oct 2026" (the default), `long` "27 October 2026", `day` "27 Oct".
+ * A `YYYY-MM-DD` string is read as that day in UTC, so no time zone moves it.
+ */
+export function formatDate(v: Date | string | number, style: string = 'short'): string {
+  const d = typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : new Date(v)
+  if (Number.isNaN(d.getTime())) return String(v)
+  const opts: Intl.DateTimeFormatOptions = style === 'long' ? { day: 'numeric', month: 'long', year: 'numeric' } : style === 'day' ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' }
+  return new Intl.DateTimeFormat(isEnglish() ? 'en-GB' : numberLocale, { ...opts, timeZone: 'UTC' }).format(d)
+}
 export function money(m: number): string {
   // Nothing at all reads £0, not £0k beside figures in millions
   if (m === 0) return '£0'
-  if (Math.abs(m) >= 1000) return `£${(m / 1000).toFixed(2)}bn`
-  if (Math.abs(m) >= 100) return `£${Math.round(m)}M`
-  if (Math.abs(m) >= 10) return `£${m.toFixed(1)}M`
-  if (Math.abs(m) >= 1) return `£${m.toFixed(1)}M`
-  return `£${Math.round(m * 1000)}k`
+  if (Math.abs(m) >= 1000) return `£${fixed(m / 1000, 2)}bn`
+  if (Math.abs(m) >= 100) return `£${fixed(Math.round(m), 0)}M`
+  if (Math.abs(m) >= 10) return `£${fixed(m, 1)}M`
+  if (Math.abs(m) >= 1) return `£${fixed(m, 1)}M`
+  return `£${fixed(Math.round(m * 1000), 0)}k`
 }
 export function wage(k: number): string {
-  if (k >= 1000) return `£${(k / 1000).toFixed(2)}M/wk`
-  return `£${Math.round(k)}k/wk`
+  if (k >= 1000) return `£${fixed(k / 1000, 2)}M/wk`
+  return `£${fixed(Math.round(k), 0)}k/wk`
 }
 /** @deprecated The data's emoji flag: never render it (Windows draws two letters); use NationFlag in components/Flag.tsx. */
 export function flag(u: LoadedUniverse | null, nation: string): string {
@@ -80,6 +121,15 @@ export function nationName(u: LoadedUniverse | null, nation: string): string {
 }
 export function clubName(u: LoadedUniverse | null, clubId: string): string {
   return u?.clubById[clubId]?.name ?? clubId
+}
+/** A chemistry link line from the engine ("2 links from arsenal@2015") with the club and season in words ("2 links from Arsenal 2015-16"); any other line as it is. */
+export function chemistryLinkLabel(u: LoadedUniverse | null, line: string): string {
+  const m = line.match(/^(.* from )([^@\s]+)@(\d{4})$/)
+  return m ? `${m[1]}${clubName(u, m[2])} ${seasonLabel(Number(m[3]))}` : line
+}
+/** A signed figure with a true minus sign: "+0.4", "−0.31", "0". */
+export function signedValue(v: number): string {
+  return v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '0'
 }
 export function clubShort(u: LoadedUniverse | null, clubId: string): string {
   return u?.clubById[clubId]?.shortName ?? clubId

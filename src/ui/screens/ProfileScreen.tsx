@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
-import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { Award, CalendarDays, ChevronsUp, Crown, Download, Flame, Gem, Lock, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload } from 'lucide-react'
+import { exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { persistLine, usePersistState } from '../persistStorage'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
-import { BadgeCheck, BrickWall, CalendarCheck, CalendarClock, Footprints, Heart, Hourglass, Layers, Link as LinkIcon, Moon, Mountain, PiggyBank, Route, ScrollText, Users, Zap } from 'lucide-react'
+import { TrophyShelf, type ShelfTrophy } from '../components/TrophyShelf'
+import { trophyIcon } from '../trophyIcons'
+import { useTrophyReveal } from '../trophyReveal'
+import { ChaseBlock } from '../components/BadgeUnlocks'
+import { trophyItems } from '@game/logic/trophyChase'
+import { BadgeCheck } from 'lucide-react'
 import { milestonesEarned, milestoneStates } from '@game/logic/milestoneBadges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
-import { MODE_TITLE, arenaFormatLabel, isQuickLike } from '@game/logic/modes'
+import { MODE_TITLE, isQuickLike } from '@game/logic/modes'
 import { arenaClubName, groupRunsByLadder } from '@game/logic/arena'
-import { arenaTierLabel } from '@engine/knockout'
+import { arenaTierText } from '../arenaText'
 import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, honourDetail, honourLabel, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
@@ -19,18 +25,33 @@ import { ClubBadge, Flag, Info, Segmented, Stat, TeamBadge } from '../components
 import { shortNameFor } from '@game/logic/setup'
 import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
-import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
+import { POWER_UPS } from '@engine/powerups'
 import { lockerCount } from '@game/logic/endCase'
 import { AchievementIcon, PowerUpIcon } from '../components/icons'
-import { clubName, ordinal, seasonLabel, tierName } from '../format'
-import { countPhrase } from '../screenText'
+import { clubName, fixed, ordinal, seasonLabel, tierName } from '../format'
+import { achievementText, achievementTitle, badgeCount, badgeTitle, milestoneCount, milestoneTitle, progressText } from '../i18n/trophyText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
+import { errorReportsChanged, onlineAvailable } from '../../online/api'
+import { errorReportsOn, setErrorReportsOn } from '../../online/core/errorPref'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
-import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
+import { nextBadge } from '@game/logic/shareInvite'
+import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
+import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoundOn } from '../sound/prefs'
+import { playSound } from '../sound/synth'
+import { useBadgeSound } from '../sound/useBadgeSound'
 import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
+import { askConfirm } from '../confirm'
+import { translator } from '../i18n'
+import { profile as profileText } from '../i18n/en/profile'
+import { arenaFormatText, modeTitle } from '../i18n/modeText'
+import { languageOptions, LOCALE_NAMES, setLanguage, useLanguage } from '../i18n/language'
+import { powerUpTitle } from '../i18n/engineText'
+import { tierText } from '../i18n/tierText'
+
+const t = translator(profileText)
 import { exportTextFile } from '../exportFile'
 
 const FILTER_KEY = 'touchline-record-filter'
@@ -53,56 +74,27 @@ function readFilter(): BoardFilter {
   }
 }
 
-/** The Trophy Room's badges drawn as Lucide icons (the badge's emoji stays as data, for the manager card). */
-const BADGE_ICON: Record<string, LucideIcon> = {
-  'serial-winner': Trophy,
-  centurion: Target,
-  perfectionist: Gem,
-  'cup-collector': Medal,
-  globetrotter: Compass,
-  international: FlagIcon,
-  'grounds-tour': Landmark,
-  regular: CalendarDays,
-  'sunday-league': CalendarRange,
-  ironman: ChevronsUp,
-  'giant-killer': Axe,
-  'survival-artist': LifeBuoy,
-}
-
-/** The Trophy Room's milestones (`milestoneBadges.ts`), one Lucide icon each. */
-const MILESTONE_ICON: Record<string, LucideIcon> = {
-  invincibles: Shield,
-  'treble-winners': Crown,
-  'double-act': Layers,
-  'continental-kings': Globe,
-  'winning-machine': Zap,
-  decade: Hourglass,
-  'old-school': ScrollText,
-  moneyball: PiggyBank,
-  'perfect-day': CalendarCheck,
-  summit: Mountain,
-  'long-road': Route,
-  'under-the-lights': Moon,
-  'hot-seat': Users,
-  'old-hand': CalendarClock,
-  completist: BadgeCheck,
-  'golden-boot': Footprints,
-  'the-wall': BrickWall,
-  'chain-gang': LinkIcon,
-  loyalty: Heart,
-}
-
 async function exportSave(): Promise<void> {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
   await exportTextFile(exportSaveJson(), `touchline-save-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
 }
 
 export function ProfileScreen() {
-  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
+  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStorePick('profile', 'universe', 'go', 'setManagerName', 'setTheme', 'showToast', 'resetTips')
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
+  const [draftSound, setDraftSound] = useDraftSoundOn()
+  const [uiSound, setUiSound] = useUiSoundOn()
+  const [volume, setVolume] = useSoundVolume()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   const [skipReels, setSkipReels] = usePref(skipReelsPref)
+  const language = useLanguage()
+  const [reportsOn, setReportsOn] = useState(errorReportsOn)
+  const setReports = (on: boolean) => {
+    setErrorReportsOn(on)
+    setReportsOn(on)
+    void errorReportsChanged(on)
+  }
   // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
   const boxes = useBoxes(PROFILE)
   const on = boxes.on
@@ -134,6 +126,25 @@ export function ProfileScreen() {
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
   const milestones = milestoneStates({ cabinet, profile })
+  // The badge nearest its next tier: the Trophy Room points at it, as Home does
+  const chase = nextBadge(badges)
+  // A badge or tier earned since this viewer last looked: the medal's ring, once
+  useBadgeSound([...badges, ...milestones].flatMap((b) => (b.tier ? [`${b.badge.id}:${b.tier}`] : [])))
+  // Unlocks this viewer has not seen: marked New while the page is open, then filed as seen
+  const trophyList = trophyItems(badges, milestones)
+  const reveal = useTrophyReveal(trophyList)
+  const [newIds] = useState(() => new Set(reveal.fresh.map((i) => i.id)))
+  const markTrophiesSeen = reveal.markSeen
+  useEffect(() => {
+    markTrophiesSeen()
+  }, [markTrophiesSeen])
+  const career = careerOverview(profile, cabinet)
+  const [achView, setAchView] = useState<AchievementView>('all')
+  const achievements = orderAchievements(ACHIEVEMENTS, profile.achievements, achView)
+  // The honours board shows the latest few; the rest open on a tap
+  const [allHonours, setAllHonours] = useState(false)
+  const honours = cabinet.honours ?? []
+  const HONOURS_SHOWN = 5
   const [filter, setFilterState] = useState<BoardFilter>(readFilter)
   const setFilter = (f: BoardFilter) => {
     setFilterState(f)
@@ -164,16 +175,16 @@ export function ProfileScreen() {
           <TeamBadge code={shortNameFor(e.teamName)} size={20} /> <b>{e.teamName}</b>
           {e.challenge && (
             <span className={`chip ${e.score > e.challenge.score ? 'good' : e.score < e.challenge.score ? 'bad' : ''}`} data-testid="run-vs">
-              vs {e.challenge.name} {e.challenge.score}
+              {t('vsScore', { name: e.challenge.name, score: e.challenge.score })}
             </span>
           )}
         </span>
         <div className="small muted">
-          {e.last && u ? `${e.fellTo ? 'Lost to' : 'Beat'} ${arenaClubName(u, e.last)}` : e.date} · seed {e.seed}
+          {t('seedLine', { what: e.last && u ? t(e.fellTo ? 'lostTo' : 'beat', { club: arenaClubName(u, e.last) }) : e.date, seed: e.seed })}
         </div>
       </td>
-      <td style={{ whiteSpace: 'normal' }}>{arenaFormatLabel(e)}</td>
-      <td style={{ whiteSpace: 'normal' }}>{arenaTierLabel(e.tier, e.score)}</td>
+      <td style={{ whiteSpace: 'normal' }}>{arenaFormatText(e)}</td>
+      <td style={{ whiteSpace: 'normal' }}>{arenaTierText(e.tier, e.score)}</td>
       <td className="num">
         {e.goalsFor}-{e.goalsAgainst}
       </td>
@@ -188,52 +199,55 @@ export function ProfileScreen() {
       const url = renderManagerCard({ name: profile.managerName.trim() || 'The Gaffer', seasons: profile.seasonsSimulated, cabinet, badges: topBadges(badges), best, dataStamp: u ? `Data ${u.generatedAt}` : 'Trophy Room' })
       await downloadDataUrl(url, 'touchline-manager-card.png')
     } catch {
-      showToast('Could not create or export the manager card.')
+      showToast(t('cardExportFailed'))
     }
   }
   const importSave = async (file: File) => {
     try {
       // Plain JSON from any build, or a compressed save; a file that is neither, or does not fit, leaves this save alone
       const save = readSaveFile(await file.text())
-      if (!confirm('Replace everything in this browser with the imported save? This cannot be undone.')) return
+      if (!(await askConfirm(t('importConfirm'), { ok: t('replaceOk'), danger: true }))) return
       storeImportedSave(save)
       location.reload()
     } catch (e) {
-      showToast(`Could not import: ${e instanceof Error ? e.message : String(e)}`)
+      showToast(t('importFailed', { why: e instanceof Error ? e.message : String(e) }))
     }
   }
-  const wipe = () => {
-    if (!confirm('Delete every saved game, your record and achievements from this browser?')) return
+  const wipe = async () => {
+    if (!(await askConfirm(t('wipeConfirm'), { ok: t('wipeOk'), danger: true }))) return
     wipeSave()
     location.reload()
   }
   // The cabinet's season shelf, then the arena's and the run-in's own (never counted as league titles or cups)
+  // The four big ones stand drawn on the shelf; every other count is a plaque beneath it
+  const shelf: ShelfTrophy[] = [
+    { kind: 'league', label: t('shelfLeague'), n: cabinet.league },
+    { kind: 'cup', label: t('shelfCups'), n: cabinet.cup },
+    { kind: 'continental', label: t('shelfContinental'), n: cabinet.continental },
+    { kind: 'treble', label: t('shelfTrebles'), n: cabinet.trebles },
+  ]
   const trophies: Array<[ReactNode, string, number]> = [
-    [<Trophy size={26} />, 'League titles', cabinet.league],
-    [<Medal size={26} />, 'Cups', cabinet.cup],
-    [<Globe size={26} />, 'Continental Cups', cabinet.continental],
-    [<><Trophy size={22} /><Trophy size={22} /></>, 'Doubles', cabinet.doubles],
-    [<Crown size={26} />, 'Trebles', cabinet.trebles],
-    [<Gem size={26} />, '38-0s', cabinet.perfect],
-    [<Shield size={26} />, 'Invincibles', cabinet.invincible],
-    [<Target size={26} />, 'Centurions', cabinet.centurions],
-    [<Award size={26} />, 'Arena cups', cabinet.cups.won],
-    [<ChevronsUp size={26} />, 'Best Gauntlet', cabinet.gauntlet.best],
-    [<Timer size={26} />, 'Run-in briefs', cabinet.runIns.met],
+    [<><Trophy size={22} /><Trophy size={22} /></>, t('doubles'), cabinet.doubles],
+    [<Gem size={26} />, t('perfect'), cabinet.perfect],
+    [<Shield size={26} />, t('invincibles'), cabinet.invincible],
+    [<Target size={26} />, t('centurions'), cabinet.centurions],
+    [<Award size={26} />, t('arenaCups'), cabinet.cups.won],
+    [<ChevronsUp size={26} />, t('bestGauntlet'), cabinet.gauntlet.best],
+    [<Timer size={26} />, t('runInBriefs'), cabinet.runIns.met],
   ]
   return (
     <div className="page">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>Profile</h1>
+          <h1>{t('title')}</h1>
           <div className="screen-meta">
-            <span>{profile.managerName ? `${profile.managerName}, manager` : 'Your record, trophies and settings'}</span>
+            <span>{profile.managerName ? t('managerOf', { name: profile.managerName }) : t('subtitle')}</span>
           </div>
         </div>
         <div className="head-actions">
           <BoxesMenu groups={[boxes]} />
           <button className="btn ghost" onClick={() => go('home')}>
-            ← Home
+            {t('home')}
           </button>
         </div>
       </div>
@@ -243,49 +257,16 @@ export function ProfileScreen() {
         <div className="col">
           {on('manager') && (
           <div className="panel col">
-            <h3 style={{ margin: 0 }}>Manager</h3>
+            <h3 style={{ margin: 0 }}>{t('manager')}</h3>
             <label className="field">
-              Name
-              <input className="input" value={profile.managerName} onChange={(e) => setManagerName(e.target.value)} placeholder="The Gaffer" />
+              {t('name')}
+              <input className="input" value={profile.managerName} onChange={(e) => setManagerName(e.target.value)} placeholder={t('namePlaceholder')} />
             </label>
-            <div className="field">
-              <span>
-                Theme <Info label="About the theme">Auto follows your device's light or dark setting. The sun and moon in the top bar flips it too.</Info>
-              </span>
-              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto', hint: "Follows your device's light or dark setting" }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
-            </div>
-            <div className="field">
-              <span>
-                Sound <Info label="About the sound">Every sound in the game: the case reel, the draft, the match and the trophies, all made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
-              </span>
-              <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
-            </div>
-            {soundOn && (
-              <div className="field">
-                <span>
-                  Match sounds <Info label="About the match sounds">The referee's whistle, the crowd, the net, cards and substitutions on match day. Off keeps the rest of the sound. Kept on this device only.</Info>
-                </span>
-                <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'match-sound-on' }, { value: 'off', label: 'Off', testId: 'match-sound-off' }]} />
-              </div>
-            )}
-            <div className="field">
-              <span>
-                Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, Quick takes under three seconds, and Skip reels lands cosmetic reels immediately. Re-spins always run quick unless reels are skipped. Kept on this device only.</Info>
-              </span>
-              <Segmented
-                value={skipReels ? 'skip' : quickSpin ? 'quick' : 'full'}
-                onChange={(v) => {
-                  setSkipReels(v === 'skip')
-                  if (v !== 'skip') setQuickSpin(v === 'quick')
-                }}
-                options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }, { value: 'skip', label: 'Skip reels', testId: 'reel-skip-all' }]}
-              />
-            </div>
             <div className="stat-strip profile-stats">
-              <Stat label="Games" value={profile.gamesPlayed} />
-              <Stat label="Seasons" value={profile.seasonsSimulated} />
+              <Stat label={t('games')} value={profile.gamesPlayed} />
+              <Stat label={t('seasons')} value={profile.seasonsSimulated} />
               <Stat
-                label="Daily streak"
+                label={t('dailyStreak')}
                 value={
                   <span className="icon-title">
                     <Flame size={20} className={profile.dailyStreak ? 'streak-on' : ''} aria-hidden="true" />
@@ -293,47 +274,67 @@ export function ProfileScreen() {
                   </span>
                 }
               />
-              <Stat label="Achievements" value={`${unlocked}/${ACHIEVEMENTS.length}`} />
-              <Stat label="Head-to-head" value={cabinet.h2h.played} />
-              {(cabinet.h2hOnline?.played ?? 0) > 0 && <Stat label="Online head-to-head" value={cabinet.h2hOnline?.played ?? 0} sub={`${cabinet.h2hOnline?.won ?? 0} won`} />}
+              <Stat label={t('achievements')} value={t('outOf', { n: unlocked, total: ACHIEVEMENTS.length })} />
+              <Stat label={t('h2h')} value={cabinet.h2h.played} />
+              {(cabinet.h2hOnline?.played ?? 0) > 0 && <Stat label={t('h2hOnline')} value={cabinet.h2hOnline?.played ?? 0} sub={t('won', { n: cabinet.h2hOnline?.won ?? 0 })} />}
+            </div>
+            <div className="career-overview" data-testid="career-overview">
+              <h4 className="career-head">{t('career')}</h4>
+              {career.results === 0 ? (
+                <p className="small muted" style={{ margin: 0 }}>{t('careerEmpty')}</p>
+              ) : (
+                <>
+                  {career.record.games > 0 && (
+                    <div className="stat-strip profile-stats career-stats">
+                      <Stat label={t('winRate')} value={t('percent', { n: career.winRate })} sub={<span className="mono">{career.record.won}-{career.record.drawn}-{career.record.lost}</span>} />
+                      <Stat label={t('pointsAGame')} value={career.pointsPerGame === undefined || career.pointsPerGame === null ? undefined : fixed(career.pointsPerGame, 1)} />
+                      <Stat label={t('titleRate')} value={career.titleRate === null ? '—' : t('percent', { n: career.titleRate })} sub={t('titles', { n: cabinet.league })} />
+                      <Stat label={t('finishedFirst')} value={career.firstPlaces} sub={t('ofKept', { n: career.kept })} />
+                    </div>
+                  )}
+                  {career.record.games > 0 && <p className="small muted" style={{ margin: 0 }}>{t('across', { n: career.kept })}</p>}
+                  <div className="row wrap career-modes" role="list" aria-label={t('byMode')}>
+                    {career.byMode.map((m) => (
+                      <span key={m.mode} className="chip" role="listitem" data-testid="career-mode">
+                        {m.label} <b>{m.count}</b>
+                      </span>
+                    ))}
+                  </div>
+                  {career.regulars.length > 0 && u && (
+                    <div className="career-regulars small" data-testid="career-regulars">
+                      <span className="muted">{t('regulars')}</span>
+                      {career.regulars.map((r) => (
+                        <span key={r.clubId} className="row" style={{ gap: 6 }}>
+                          <ClubBadge clubId={r.clubId} size={18} /> {u.clubById[r.clubId] ? clubName(u, r.clubId) : (clubLeagues?.[r.clubId]?.name ?? r.clubId)} <span className="muted">×{r.seasons}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <div className="field" data-testid="profile-locker">
               <span>
-                Locker <Info label="About the locker">Power-ups from end-of-draft cases. Unpack one in a Quick Draft played without the power-up tray; each works once, as the tray's does.</Info>
+                {t('locker')} <Info label={t('lockerAbout')}>{t('lockerInfo')}</Info>
               </span>
               <span className="small">
                 {POWER_UPS.some((k) => lockerCount(profile, k) > 0)
                   ? POWER_UPS.filter((k) => lockerCount(profile, k) > 0).map((k, i) => (
                       <span key={k} className="case-odds-item">
                         {i > 0 && ' · '}
-                        <PowerUpIcon kind={k} size={13} /> {POWER_UP_INFO[k].title} ×{lockerCount(profile, k)}
+                        <PowerUpIcon kind={k} size={13} /> {powerUpTitle(k)} ×{lockerCount(profile, k)}
                       </span>
                     ))
-                  : 'Empty: open a case at the end of a Quick Draft'}
-              </span>
-            </div>
-            <div className="toolbar">
-              <button
-                className="btn sm"
-                data-testid="reset-tips"
-                disabled={tipsSeen === 0}
-                onClick={() => {
-                  resetTips()
-                  showToast('The coach marks will show again where they first appeared.')
-                }}
-              >
-                Show tips again
-              </button>
-              <span className="small muted">
-                {tipsSeen === 0 ? `All ${TIP_IDS.length} tips are showing` : `${tipsSeen} of ${TIP_IDS.length} tips dismissed`}
+                  : t('lockerEmpty')}
               </span>
             </div>
           </div>
           )}
           {on('cabinet') && (
           <div className="panel" data-testid="trophy-cabinet">
-            <h3>Trophy cabinet</h3>
-            <div className="cabinet">
+            <h3>{t('cabinet')}</h3>
+            <TrophyShelf items={shelf} />
+            <div className="cabinet plaques">
               {trophies.map(([icon, label, n]) => (
                 <div key={label} className={`cabinet-slot ${n ? '' : 'empty'}`}>
                   <span className="cabinet-icon">{icon}</span>
@@ -345,25 +346,30 @@ export function ProfileScreen() {
             {/* The honours board: every Treble and Double season, newest first */}
             <div className="honours" data-testid="honours-board">
               <h4 className="honours-head">
-                <Crown size={16} aria-hidden="true" /> Honours board
+                <Crown size={16} aria-hidden="true" /> {t('honoursBoard')}
               </h4>
-              {(cabinet.honours ?? []).length === 0 ? (
-                <p className="small muted" style={{ margin: 0 }}>Win the league and a cup in the same season for a Double; add the Continental Cup for the Treble.</p>
+              {honours.length === 0 ? (
+                <p className="small muted" style={{ margin: 0 }}>{t('honoursEmpty')}</p>
               ) : (
                 <ol className="honours-list">
-                  {(cabinet.honours ?? []).map((h) => (
+                  {(allHonours ? honours : honours.slice(0, HONOURS_SHOWN)).map((h) => (
                     <li key={h.id} className={`honour-row ${h.kind}`} data-testid="honour-row" data-kind={h.kind}>
                       <span className={`honour-icon ${h.kind}`}>{h.kind === 'treble' ? <Crown size={18} aria-hidden="true" /> : <Trophy size={16} aria-hidden="true" />}</span>
                       <span className="honour-main">
                         <b>{honourLabel(h.kind, h.cups)}</b> <span className="small muted">{honourDetail(h.cups)}</span>
                         <span className="honour-meta small muted">
-                          {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {MODE_TITLE[h.mode] ?? h.mode}
-                          {h.date ? ` · ${h.date}` : ''}
+                          {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {modeTitle(h.mode)}
+                          {h.date && <> · <span className="nowrap">{h.date}</span></>}
                         </span>
                       </span>
                     </li>
                   ))}
                 </ol>
+              )}
+              {honours.length > HONOURS_SHOWN && (
+                <button type="button" className="btn sm ghost" data-testid="honours-more" aria-expanded={allHonours} onClick={() => setAllHonours((v) => !v)}>
+                  {allHonours ? t('latestOnly') : t('showAll', { n: honours.length })}
+                </button>
               )}
             </div>
           </div>
@@ -372,27 +378,34 @@ export function ProfileScreen() {
           <div className="panel col" data-testid="trophy-room">
             <div className="panel-head" style={{ marginBottom: 0 }}>
               <span className="head-title">
-                <h3>Trophy Room</h3>
-                <Info label="About the Trophy Room">Badges count every mode: bronze, silver and gold at their thresholds. {cabinet.rebuilt ? 'Badges beyond the five trophy counts are counted from your 50 best seasons before the Trophy Room.' : ''}</Info>
+                <h3>{t('trophyRoom')}</h3>
+                <Info label={t('roomAbout')}>{t('roomInfo')}{cabinet.rebuilt ? t('roomRebuilt') : ''}</Info>
               </span>
               <button className="btn sm" data-testid="manager-card" onClick={downloadCard}>
-                <Download size={16} aria-hidden="true" /> Manager card
+                <Download size={16} aria-hidden="true" /> {t('managerCard')}
               </button>
             </div>
+            <ChaseBlock items={trophyList} n={3} />
             <div className="badges">
               {badges.map((b) => {
-                const Icon = BADGE_ICON[b.badge.id] ?? Award
+                const Icon = trophyIcon('badge', b.badge.id)
+                const isNew = newIds.has(b.badge.id)
                 return (
-                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${b.badge.title}: ${countPhrase(b.value, b.badge.counts)}`}>
-                    <span className={`badge-ring ${b.tier ?? ''}`}>
+                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}${chase?.state.badge.id === b.badge.id ? ' next' : ''}${isNew ? ' fresh' : ''}`} data-testid="badge" data-tier={b.tier ?? 'none'} data-next={chase?.state.badge.id === b.badge.id ? 'yes' : undefined} title={`${badgeTitle(b.badge)}: ${badgeCount(b.badge, b.value)}`}>
+                    <span className={`badge-ring ${b.tier ?? ''}${isNew ? ' unlock-medal' : ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
                     <span>
-                      <div className="title">{b.badge.title}</div>
+                      <div className="title">{badgeTitle(b.badge)}{isNew && <span className="chip info new-chip">{t('newChip')}</span>}</div>
                       <div className="desc">
-                        {countPhrase(b.value, b.badge.counts)}
+                        {badgeCount(b.badge, b.value)}
                       </div>
-                      <div className="small muted">{b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress}</div>
+                      <div className="small muted">{b.tier ? t('tierProgress', { tier: t(`tier_${b.tier}`), progress: progressText(b.badge.tiers, b.value) }) : progressText(b.badge.tiers, b.value)}</div>
+                      {chase?.state.badge.id === b.badge.id && (
+                        <span className="chip info badge-next" data-testid="badge-next">
+                          {t('nextBadge')}
+                        </span>
+                      )}
                     </span>
                   </div>
                 )
@@ -400,23 +413,25 @@ export function ProfileScreen() {
             </div>
             {/* Milestones: more badges read from the same cabinet and records, with a bar to the next tier */}
             <h4 className="milestones-head" data-testid="milestones-head">
-              <BadgeCheck size={16} aria-hidden="true" /> Milestones <span className="small muted">{milestonesEarned(milestones)} of {milestones.length} earned</span>
+              <BadgeCheck size={16} aria-hidden="true" /> {t('milestones')} <span className="small muted">{t('earnedOf', { n: milestonesEarned(milestones), total: milestones.length })}</span>
             </h4>
             <div className="badges milestones">
               {milestones.map((m) => {
-                const Icon = MILESTONE_ICON[m.badge.id] ?? Award
-                const label = m.stamp ? m.badge.counts : countPhrase(m.value, m.badge.counts)
+                const Icon = trophyIcon('milestone', m.badge.id)
+                const label = milestoneCount(m.badge, m.value)
+                const progress = progressText(m.badge.tiers, m.value, m.stamp)
+                const isNew = newIds.has(m.badge.id)
                 return (
-                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${m.badge.title}: ${label}${m.badge.fromBoard ? ' (from your 50 best seasons)' : ''}`}>
-                    <span className={`badge-ring ${m.tier ?? ''}`}>
+                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}${isNew ? ' fresh' : ''}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${milestoneTitle(m.badge)}: ${label}${m.badge.fromBoard ? t('fromBoard') : ''}`}>
+                    <span className={`badge-ring ${m.tier ?? ''}${isNew ? ' unlock-medal' : ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
                     <span className="milestone-text">
-                      <div className="title">{m.badge.title}</div>
+                      <div className="title">{milestoneTitle(m.badge)}{isNew && <span className="chip info new-chip">{t('newChip')}</span>}</div>
                       <div className="desc">{label}</div>
-                      <div className="small muted">{m.tier && !m.stamp ? `${m.tier[0].toUpperCase()}${m.tier.slice(1)} · ${m.progress}` : m.stamp ? (m.tier ? 'Earned' : m.progress) : m.progress}</div>
+                      <div className="small muted">{m.tier && !m.stamp ? t('tierProgress', { tier: t(`tier_${m.tier}`), progress }) : m.stamp ? (m.tier ? t('earned') : progress) : progress}</div>
                       {!m.stamp && m.tier !== 'gold' && (
-                        <span className="milestone-meter" role="img" aria-label={m.progress}>
+                        <span className="milestone-meter" role="img" aria-label={progress}>
                           <span style={{ width: `${Math.round(m.toward * 100)}%` }} />
                         </span>
                       )}
@@ -425,34 +440,39 @@ export function ProfileScreen() {
                 )
               })}
             </div>
-            {won.leagues.length > 0 && <div className="small muted" data-testid="leagues-won">Leagues won in: {won.leagues.map((id) => u?.available.find((l) => l.id === id)?.name ?? id).join(', ')}</div>}
-            {cabinet.rebuilt && <div className="small muted" data-testid="cabinet-rebuilt">Counted from your 50 best seasons before the Trophy Room.</div>}
+            {won.leagues.length > 0 && <div className="small muted" data-testid="leagues-won">{t('leaguesWon', { leagues: won.leagues.map((id) => u?.available.find((l) => l.id === id)?.name ?? id).join(', ') })}</div>}
+            {cabinet.rebuilt && <div className="small muted" data-testid="cabinet-rebuilt">{t('rebuilt')}</div>}
           </div>
           )}
           {on('chase') && (
           <div className="panel" data-testid="quick-bests">
-            <h3>The 38-0 chase</h3>
+            <h3>{t('chase')}</h3>
             <dl className="kv">
-              <dt>Best record</dt>
-              <dd data-testid="best-record">{bests.bestRecord ? `${recordLabel(bests.bestRecord.won, bests.bestRecord.drawn, bests.bestRecord.lost)} · ${bests.bestRecord.points} pts` : '—'}</dd>
-              <dt>Longest perfect run</dt>
-              <dd data-testid="best-run">{bests.longestPerfectRun ? `${bests.longestPerfectRun}-0` : '—'}</dd>
-              <dt>Perfect seasons</dt>
+              <dt>{t('bestRecord')}</dt>
+              <dd data-testid="best-record">{bests.bestRecord ? t('recordPoints', { record: recordLabel(bests.bestRecord.won, bests.bestRecord.drawn, bests.bestRecord.lost), n: bests.bestRecord.points }) : '—'}</dd>
+              <dt>{t('longestRun')}</dt>
+              <dd data-testid="best-run">{bests.longestPerfectRun ? t('winsRun', { n: bests.longestPerfectRun }) : '—'}</dd>
+              <dt>{t('perfectSeasons')}</dt>
               <dd data-testid="perfect-seasons">{bests.perfectSeasons ?? 0}</dd>
             </dl>
-            <p className="help" style={{ margin: '8px 0 0' }}>Quick Draft and Daily seasons in this browser. The goal: win every game.</p>
+            <p className="help" style={{ margin: '8px 0 0' }}>{t('chaseHelp')}</p>
           </div>
           )}
           {on('achievements') && (
           <div className="panel">
             <div className="panel-head">
-              <h3>Achievements</h3>
+              <h3>{t('achievements')}</h3>
               <span className="small muted">
-                {unlocked}/{ACHIEVEMENTS.length}
+                {t('outOf', { n: unlocked, total: ACHIEVEMENTS.length })}
               </span>
             </div>
+            {unlocked > 0 && unlocked < ACHIEVEMENTS.length && (
+              <div style={{ marginBottom: 'var(--space-3)' }} data-testid="achievement-view">
+                <Segmented label={t('achievements')} value={achView} onChange={setAchView} options={[{ value: 'all', label: t('all') }, { value: 'unlocked', label: t('unlocked', { n: unlocked }) }, { value: 'locked', label: t('locked', { n: ACHIEVEMENTS.length - unlocked }) }]} />
+              </div>
+            )}
             <div className="achievements">
-              {ACHIEVEMENTS.map((a) => {
+              {achievements.map((a) => {
                 const date = profile.achievements[a.id]
                 return (
                   <div key={a.id} className={`ach ${date ? '' : 'locked'}`}>
@@ -465,8 +485,8 @@ export function ProfileScreen() {
                       )}
                     </span>
                     <span>
-                      <div className="title">{a.title}</div>
-                      <div className="desc">{a.description}</div>
+                      <div className="title">{achievementTitle(a)}</div>
+                      <div className="desc">{achievementText(a)}</div>
                       {date && (
                         <div className="ach-date">
                           <CalendarDays size={11} aria-hidden="true" /> {date}
@@ -487,20 +507,20 @@ export function ProfileScreen() {
           <div className="panel col">
             <div className="panel-head" style={{ marginBottom: 0 }}>
               <span className="head-title">
-                <h3>Save data</h3>
-                <Info label="About save data">Everything lives in this browser. Export a file to back it up or move it to another device; import one to restore it.</Info>
+                <h3>{t('saveData')}</h3>
+                <Info label={t('saveAbout')}>{t('saveInfo')}</Info>
               </span>
             </div>
             <div className="toolbar">
-              <button className="btn" onClick={() => void exportSave().catch(() => showToast('Could not export the save file.'))} data-testid="export-save">
-                <Download size={16} aria-hidden="true" /> Export save file
+              <button className="btn" onClick={() => void exportSave().catch(() => showToast(t('exportFailed')))} data-testid="export-save">
+                <Download size={16} aria-hidden="true" /> {t('exportSave')}
               </button>
               <button className="btn" onClick={() => fileRef.current?.click()}>
-                <Upload size={16} aria-hidden="true" /> Import save file
+                <Upload size={16} aria-hidden="true" /> {t('importSave')}
               </button>
               <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importSave(f); e.target.value = '' }} />
               <button className="btn ghost danger" onClick={wipe}>
-                <Trash2 size={16} aria-hidden="true" /> Delete all data
+                <Trash2 size={16} aria-hidden="true" /> {t('deleteAll')}
               </button>
             </div>
             {persist.state && (
@@ -510,41 +530,131 @@ export function ProfileScreen() {
                 </span>
                 {persist.state === 'best-effort' && (
                   <button className="btn sm" onClick={persist.ask} data-testid="persist-ask">
-                    <ShieldCheck size={14} aria-hidden="true" /> Protect my save
+                    <ShieldCheck size={14} aria-hidden="true" /> {t('protect')}
                   </button>
                 )}
               </div>
             )}
           </div>
           )}
+          {on('settings') && (
+          <div className="panel col" data-testid="profile-settings">
+            <h3 style={{ margin: 0 }}>{t('settings')}</h3>
+            <div className="settings-grid">
+            <div className="field">
+              <span>
+                {t('theme')} <Info label={t('themeAbout')}>{t('themeInfo')}</Info>
+              </span>
+              <Segmented label={t('theme')} value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: t('auto'), hint: t('themeHint') }, { value: 'light', label: t('light') }, { value: 'dark', label: t('dark') }]} />
+            </div>
+            <div className="field">
+              <span>
+                <label htmlFor="language-select">{t('language')}</label> <Info label={t('languageAbout')}>{t('languageInfo')}</Info>
+              </span>
+              <select id="language-select" className="input" value={language.pref} onChange={(e) => setLanguage(e.target.value)} data-testid="language-select">
+                <option value="auto">{t('languageAuto', { name: LOCALE_NAMES[language.locale] ?? language.locale })}</option>
+                {languageOptions(language.pref).map((o) => (
+                  <option key={o.id} value={o.id} lang={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <span>
+                {t('sound')} <Info label={t('soundAbout')}>{t('soundInfo')}</Info>
+              </span>
+              <Segmented label={t('sound')} value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'sound-on' }, { value: 'off', label: t('off'), testId: 'sound-off' }]} />
+            </div>
+            {soundOn && (
+              <>
+                <label className="field">
+                  <span>
+                    {t('volume')} <span className="muted small" data-testid="sound-volume-value">{volume}%</span>
+                  </span>
+                  <input type="range" className="volume-range" min={0} max={100} step={5} value={volume} onChange={(e) => setVolume(Number(e.target.value))} onPointerUp={() => playSound({ id: 'volume' })} onKeyUp={() => playSound({ id: 'volume' })} aria-label={t('volume')} aria-valuetext={`${volume}%`} data-testid="sound-volume" />
+                </label>
+                <div className="field">
+                  <span>
+                    {t('matchSounds')} <Info label={t('matchAbout')}>{t('matchInfo')}</Info>
+                  </span>
+                  <Segmented label={t('matchSounds')} value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'match-sound-on' }, { value: 'off', label: t('off'), testId: 'match-sound-off' }]} />
+                </div>
+                <div className="field">
+                  <span>
+                    {t('draftSounds')} <Info label={t('draftAbout')}>{t('draftInfo')}</Info>
+                  </span>
+                  <Segmented label={t('draftSounds')} value={draftSound ? 'on' : 'off'} onChange={(v) => setDraftSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'draft-sound-on' }, { value: 'off', label: t('off'), testId: 'draft-sound-off' }]} />
+                </div>
+                <div className="field">
+                  <span>
+                    {t('uiSounds')} <Info label={t('uiAbout')}>{t('uiInfo')}</Info>
+                  </span>
+                  <Segmented label={t('uiSounds')} value={uiSound ? 'on' : 'off'} onChange={(v) => setUiSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'ui-sound-on' }, { value: 'off', label: t('off'), testId: 'ui-sound-off' }]} />
+                </div>
+              </>
+            )}
+            <div className="field">
+              <span>
+                {t('reelSpeed')} <Info label={t('reelAbout')}>{t('reelInfo')}</Info>
+              </span>
+              <Segmented label={t('reelSpeed')} value={skipReels ? 'skip' : quickSpin ? 'quick' : 'full'} onChange={(v) => { setSkipReels(v === 'skip'); if (v !== 'skip') setQuickSpin(v === 'quick') }} options={[{ value: 'full', label: t('full'), testId: 'reel-full' }, { value: 'quick', label: t('quick'), testId: 'reel-quick' }, { value: 'skip', label: t('skipReels'), testId: 'reel-skip-all' }]} />
+            </div>
+            {onlineAvailable() && (
+              <div className="field">
+                <span>
+                  {t('errorReports')} <Info label={t('errorReportsAbout')}>{t('errorReportsInfo')}</Info>
+                </span>
+                <Segmented label={t('errorReports')} value={reportsOn ? 'on' : 'off'} onChange={(v) => setReports(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'error-reports-on' }, { value: 'off', label: t('off'), testId: 'error-reports-off' }]} />
+              </div>
+            )}
+            </div>
+            <div className="toolbar">
+              <button
+                className="btn sm"
+                data-testid="reset-tips"
+                disabled={tipsSeen === 0}
+                onClick={() => {
+                  resetTips()
+                  showToast(t('tipsToast'))
+                }}
+              >
+                {t('showTips')}
+              </button>
+              <span className="small muted">
+                {tipsSeen === 0 ? t('tipsAll', { n: TIP_IDS.length }) : t('tipsDismissed', { n: tipsSeen, total: TIP_IDS.length })}
+              </span>
+            </div>
+          </div>
+          )}
           {on('seasons') && (
           <div className="panel">
             <div className="panel-head">
-              <h3>Best seasons</h3>
+              <h3>{t('bestSeasons')}</h3>
               {profile.leaderboard.length > 0 && (
                 <span data-testid="board-filter">
-                  <Segmented value={filter} onChange={setFilter} options={[...BOARD_FILTERS]} />
+                  <Segmented label={t('bestSeasons')} value={filter} onChange={setFilter} options={[...BOARD_FILTERS]} />
                 </span>
               )}
             </div>
-            {profile.leaderboard.length > 0 && board.length === 0 && <div className="muted small">{BOARD_FILTERS.find((f) => f.value === filter)?.empty ?? `No ${BOARD_FILTERS.find((f) => f.value === filter)?.label} seasons yet.`}</div>}
+            {profile.leaderboard.length > 0 && board.length === 0 && <div className="muted small">{BOARD_FILTERS.find((f) => f.value === filter)?.empty ?? t('noneOfFilter', { filter: BOARD_FILTERS.find((f) => f.value === filter)?.label })}</div>}
             {profile.leaderboard.length === 0 ? (
               <div className="empty-state">
                 <span className="empty-icon" aria-hidden="true">
                   <Trophy size={26} />
                 </span>
-                <h3>Nothing yet</h3>
-                <p className="muted small">Spin the wheel; your best seasons land here.</p>
+                <h3>{t('nothingYet')}</h3>
+                <p className="muted small">{t('nothingYetLine')}</p>
               </div>
             ) : (
               <div className="tbl-wrap">
                 <table className="tbl best-tbl">
                   <thead>
                     <tr>
-                      <th>Team</th>
-                      <th className="num">Pts</th>
-                      <th className="num">W-D-L</th>
-                      <th>Result</th>
+                      <th>{t('team')}</th>
+                      <th className="num">{t('pts')}</th>
+                      <th className="num">{t('wdl')}</th>
+                      <th>{t('result')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -558,20 +668,20 @@ export function ProfileScreen() {
                               <ClubBadge clubId={e.hostClubId} size={20} /> <b>{e.teamName}</b>
                               {e.nation && <Flag nation={e.nation} />}
                               {e.caseIcon && (
-                                <span className="chip case-icon-chip" data-tier="icons" title="An Icon from the end-of-draft case played: non-standard">
-                                  ★ Case Icon
+                                <span className="chip case-icon-chip" data-tier="icons" title={t('caseIconTip')}>
+                                  {t('caseIcon')}
                                 </span>
                               )}
                             </span>
                             <div className="small muted">
-                              {e.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <>{u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</>} · {MODE_TITLE[e.mode] ?? e.mode}
+                              {e.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <>{u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</>} · {modeTitle(e.mode) ?? e.mode}
                             </div>
                             {e.moment && <div className="small muted" data-testid="entry-moment">{e.moment}</div>}
                             {(runs.length > 1 || e.challenge || e.budget !== undefined) && (
                               <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
-                                {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">Best on this wheel · {runs.length} runs</span> : <span className="chip">{ordinal(rank)} of {runs.length} on this wheel</span>)}
-                                {e.budget !== undefined && <span className="chip" data-testid="entry-cap" title={`Drafted under a ${capTotal(e.budget)} salary cap`}>£ {capTotal(e.spent ?? 0)} of {capTotal(e.budget)}</span>}
-                                {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
+                                {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">{t('bestOnWheel', { n: runs.length })}</span> : <span className="chip">{t('rankOnWheel', { rank, n: runs.length })}</span>)}
+                                {e.budget !== undefined && <span className="chip" data-testid="entry-cap" title={t('capTip', { cap: capTotal(e.budget) })}>{t('capSpent', { spent: capTotal(e.spent ?? 0), cap: capTotal(e.budget) })}</span>}
+                                {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>{t('vsScore', { name: e.challenge.name, score: e.challenge.points })}</span>}
                               </div>
                             )}
                           </td>
@@ -582,7 +692,7 @@ export function ProfileScreen() {
                             {e.won}-{e.drawn}-{e.lost}
                           </td>
                           <td>
-                            {tierName(e.tier, e.position, e.superLeague)}
+                            {tierText(e.tier, e.position, e.superLeague)}
                             <div className="small muted">{ordinal(e.position)}</div>
                           </td>
                         </tr>
@@ -597,14 +707,15 @@ export function ProfileScreen() {
           {on('runs') && (
           <div className="panel" data-testid="best-runs">
             <div className="panel-head">
-              <h3>Best runs</h3>
+              <h3>{t('bestRuns')}</h3>
               {!!profile.arenaRuns?.length && (
                 <Segmented
+                  label={t('bestRuns')}
                   value={runsView}
                   onChange={setRunsView}
                   options={[
-                    { value: 'best', label: 'Best first' },
-                    { value: 'ladder', label: 'Best on this ladder', hint: 'Runs on the same seed, format and field together, best first' },
+                    { value: 'best', label: t('bestFirst') },
+                    { value: 'ladder', label: t('bestOnLadder'), hint: t('ladderHint') },
                   ]}
                 />
               )}
@@ -614,8 +725,8 @@ export function ProfileScreen() {
                 <span className="empty-icon" aria-hidden="true">
                   <Award size={26} />
                 </span>
-                <h3>No runs yet</h3>
-                <p className="muted small">Try the Cup or the Gauntlet from Home.</p>
+                <h3>{t('noRuns')}</h3>
+                <p className="muted small">{t('noRunsLine')}</p>
               </div>
             )}
             {!!profile.arenaRuns?.length && (
@@ -623,10 +734,10 @@ export function ProfileScreen() {
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>Team</th>
-                      <th>Format</th>
-                      <th>Result</th>
-                      <th className="num">GF-GA</th>
+                      <th>{t('team')}</th>
+                      <th>{t('format')}</th>
+                      <th>{t('result')}</th>
+                      <th className="num">{t('gfga')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -635,7 +746,7 @@ export function ProfileScreen() {
                       : ladders.flatMap((g) => [
                           <tr key={`h-${g.key}`} data-testid="ladder-group">
                             <td colSpan={4} className="small muted" style={{ whiteSpace: 'normal' }}>
-                              <b>Seed {g.seed}</b> · {arenaFormatLabel(g)} · {g.runs.length} run{g.runs.length === 1 ? '' : 's'} · best {arenaTierLabel(g.runs[0].tier, g.runs[0].score).toLowerCase()}
+                              <b>{t('ladderSeed', { seed: g.seed })}</b> · {t('ladderLine', { format: arenaFormatText(g), n: g.runs.length, tier: arenaTierText(g.runs[0].tier, g.runs[0].score).toLowerCase() })}
                             </td>
                           </tr>,
                           ...g.runs.map(runRow),

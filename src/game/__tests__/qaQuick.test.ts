@@ -70,7 +70,8 @@ function quickSettings(seed: string, c: QuickCombo, formationId: string): GameSe
 }
 
 function randomCombo(ch: Chooser): QuickCombo {
-  const modes: Array<QuickMode | 'upgrader'> = (['crazy', 'underdog', 'legends', 'speedrun', 'gamble', 'upgrader'] as const).filter(() => ch.chance(0.25))
+  // Setup's cards switch Underdog and Legends off for each other (`toggleModeCard`), so a run never has both
+  const modes: Array<QuickMode | 'upgrader'> = (['crazy', 'underdog', 'legends', 'speedrun', 'gamble', 'upgrader'] as const).filter(() => ch.chance(0.25)).filter((m, _, all) => !(m === 'legends' && all.includes('underdog')))
   return {
     modes,
     difficulty: ch.pick(['easy', 'normal', 'hard'] as const),

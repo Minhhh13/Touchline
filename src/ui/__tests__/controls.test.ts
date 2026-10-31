@@ -15,6 +15,7 @@ import {
   draftChanges,
   emptyDraft,
   highlightedMan,
+  staleFocus,
   instructionDiff,
   landing,
   moraleBand,
@@ -342,6 +343,12 @@ describe('the man picked out on the strip', () => {
     expect(highlightedMan('a', null)).toBe('a')
     expect(highlightedMan('a', 'b')).toBe('b')
     expect(highlightedMan(null, null)).toBeNull()
+  })
+  it('a preview whose man has left the strip is stale (his card went without a blur)', () => {
+    expect(staleFocus(null, ['a', 'b'])).toBe(false)
+    expect(staleFocus('a', ['a', 'b'])).toBe(false)
+    expect(staleFocus('c', ['a', null, undefined])).toBe(true)
+    expect(staleFocus('a', [])).toBe(true)
   })
 })
 

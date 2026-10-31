@@ -9,13 +9,19 @@
  */
 import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_NAMES, type BadgeTier } from '@engine/badges'
+import { cupRoundCount } from '@engine/cup'
+import { GAUNTLET_RUNGS } from '@engine/gauntlet'
+import type { SeasonTier } from '@engine/types'
 import type { Cabinet, LeaderboardEntry, Profile } from '../types'
 import { countsAsLeagueSeason, isTitle } from './cabinet'
+import { FIRST_STANDARD_SEASON, featsOf, runInWeekOf } from './feats'
+
+export { FIRST_STANDARD_SEASON }
 
 /** What a milestone reads: the normalised cabinet and the profile's own records. */
 export interface MilestoneInput {
   cabinet: Cabinet
-  profile: Pick<Profile, 'achievements' | 'leaderboard' | 'quickBests' | 'seasonsSimulated' | 'dailyResults'>
+  profile: Pick<Profile, 'achievements' | 'leaderboard' | 'quickBests' | 'seasonsSimulated' | 'dailyResults'> & Partial<Pick<Profile, 'weekly' | 'arenaDaily' | 'runIns'>>
 }
 
 export interface MilestoneBadge {
@@ -30,11 +36,31 @@ export interface MilestoneBadge {
   value: (i: MilestoneInput) => number
 }
 
-/** The first season start year of the standard (EA-rated) packs: anything earlier is a classic season. */
-export const FIRST_STANDARD_SEASON = 2008
-
 const titles = (board: LeaderboardEntry[], also: (e: LeaderboardEntry) => boolean) => board.filter((e) => countsAsLeagueSeason(e.mode) && isTitle(e.position, e.tier) && also(e)).length
 const has = (i: MilestoneInput, id: string) => (i.profile.achievements?.[id] ? 1 : 0)
+const TITLE_TIERS: readonly SeasonTier[] = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS']
+/** The Daily Arena's Cup is 16 clubs (`dailyArenaSettings`): four ties to lift it. */
+const DAILY_CUP_ROUNDS = cupRoundCount(16)
+
+/** Daily Arena days won outright: the day's Cup lifted or its Gauntlet climbed to the top (local results only). */
+export function arenaDaysWon(i: MilestoneInput): number {
+  return Object.values(i.profile.arenaDaily?.results ?? {}).filter((r) => (r.format === 'cup' ? r.score >= DAILY_CUP_ROUNDS : r.score >= GAUNTLET_RUNGS)).length
+}
+
+/** Weekly Challenge weeks that ended in a title, one per week (the first result filed for it). */
+export function weeklyTitles(i: MilestoneInput): number {
+  return Object.values(i.profile.weekly?.results ?? {}).filter((r) => TITLE_TIERS.includes(r.tier)).length
+}
+
+/** Run-in of the week briefs met, one per week: the cabinet's weeks with the log's (50 newest) for a profile before them. */
+export function runInWeeksMet(i: MilestoneInput): number {
+  const weeks = new Set(featsOf(i.cabinet).runInWeeks)
+  for (const r of i.profile.runIns ?? []) {
+    const week = r.met ? runInWeekOf(r.seed) : null
+    if (week) weeks.add(week)
+  }
+  return weeks.size
+}
 
 export const MILESTONE_BADGES: readonly MilestoneBadge[] = [
   { id: 'invincibles', title: 'Invincibles', counts: 'unbeaten title seasons', tiers: [1, 3, 10], value: (i) => i.cabinet.invincible },
@@ -43,27 +69,42 @@ export const MILESTONE_BADGES: readonly MilestoneBadge[] = [
   { id: 'continental-kings', title: 'Continental Kings', counts: 'Continental Cups', tiers: [1, 5, 15], value: (i) => i.cabinet.continental },
   { id: 'winning-machine', title: 'Winning Machine', counts: 'straight wins from the first game, best run', tiers: [10, 20, 38], value: (i) => i.profile.quickBests?.longestPerfectRun ?? 0 },
   { id: 'decade', title: 'A Decade in the Dugout', counts: 'Dynasty seasons', tiers: [3, 6, 10], value: (i) => i.cabinet.byMode.dynasty ?? 0 },
-  { id: 'old-school', title: 'Old School', counts: 'classic-season titles', tiers: [1, 5, 15], fromBoard: true, value: (i) => titles(i.profile.leaderboard ?? [], (e) => !e.superLeague && e.leagueSeason < FIRST_STANDARD_SEASON) },
-  { id: 'moneyball', title: 'Moneyball', counts: 'titles under a salary cap', tiers: [1, 3, 10], fromBoard: true, value: (i) => titles(i.profile.leaderboard ?? [], (e) => e.budget !== undefined) },
+  // Counted by the cabinet since r8 (backfilled from the leaderboard once), the board's count a floor for a cabinet before it
+  { id: 'old-school', title: 'Old School', counts: 'classic-season titles', tiers: [1, 5, 15], value: (i) => Math.max(featsOf(i.cabinet).classicTitles, titles(i.profile.leaderboard ?? [], (e) => !e.superLeague && e.leagueSeason < FIRST_STANDARD_SEASON)) },
+  { id: 'moneyball', title: 'Moneyball', counts: 'titles under a salary cap', tiers: [1, 3, 10], value: (i) => Math.max(featsOf(i.cabinet).cappedTitles, titles(i.profile.leaderboard ?? [], (e) => e.budget !== undefined)) },
   { id: 'perfect-day', title: 'Perfect Day', counts: 'perfect Daily seasons', tiers: [1, 3, 10], value: (i) => Object.values(i.profile.dailyResults ?? {}).filter((r) => r.tier === 'PERFECT').length },
   { id: 'summit', title: 'Summit', counts: 'Gauntlets completed', tiers: [1, 3, 10], value: (i) => i.cabinet.gauntlet.complete },
   { id: 'long-road', title: 'The Long Road', counts: '32-club Cups won', tiers: [1, 3, 10], value: (i) => i.cabinet.cups.bySize['32'] ?? 0 },
   { id: 'under-the-lights', title: 'Under the Lights', counts: 'Daily Arena days', tiers: [7, 30, 100], value: (i) => i.cabinet.arenaDailies },
   { id: 'hot-seat', title: 'Hot Seat', counts: 'head-to-head seasons', tiers: [1, 10, 30], value: (i) => i.cabinet.h2h.played + (i.cabinet.h2hOnline?.played ?? 0) },
   { id: 'old-hand', title: 'Old Hand', counts: 'seasons played', tiers: [10, 50, 200], value: (i) => i.profile.seasonsSimulated ?? 0 },
+  // r8: engine 7's Continental Cup, the Dynasty, titles across the years, the draft, the online rooms and the weekly puzzles
+  { id: 'group-winners', title: 'Group Winners', counts: 'Continental Cup groups topped', tiers: [1, 5, 15], value: (i) => featsOf(i.cabinet).groupsWon },
+  { id: 'comeback-kings', title: 'Comeback Kings', counts: 'two-legged ties won after losing the first leg', tiers: [1, 3, 10], value: (i) => featsOf(i.cabinet).comebacks },
+  { id: 'dynasty-builder', title: 'Dynasty Builder', counts: 'seasons in one Dynasty, your longest', tiers: [5, 10, 20], value: (i) => featsOf(i.cabinet).dynastyBest },
+  { id: 'academy', title: 'Academy Graduates', counts: 'academy prospects through a first season with you', tiers: [1, 5, 15], value: (i) => featsOf(i.cabinet).graduates },
+  { id: 'through-the-ages', title: 'Through the Ages', counts: 'different real seasons won in', tiers: [3, 10, 25], value: (i) => featsOf(i.cabinet).seasonsTitled.length },
+  { id: 'bargain-hunter', title: 'Bargain Hunter', counts: 'titles with a quarter of the cap unspent', tiers: [1, 3, 10], value: (i) => featsOf(i.cabinet).thriftyTitles },
+  { id: 'perfect-draft', title: 'Perfect Draft', counts: 'drafts with an A on every pick, each wheel once', tiers: [1, 5, 15], value: (i) => featsOf(i.cabinet).perfectDrafts.length },
+  { id: 'online-victor', title: 'Online Victor', counts: 'online head-to-head rooms won', tiers: [1, 10, 30], value: (i) => i.cabinet.h2hOnline?.won ?? 0 },
+  { id: 'arena-champion', title: 'Arena Champion', counts: 'Daily Arena days won outright', tiers: [1, 5, 20], value: arenaDaysWon },
+  { id: 'weekly-winner', title: 'Weekly Winner', counts: 'Weekly Challenge titles', tiers: [1, 4, 12], value: weeklyTitles },
+  { id: 'firefighter', title: 'Firefighter', counts: 'Run-in of the week briefs met', tiers: [1, 4, 12], value: runInWeeksMet },
   { id: 'completist', title: 'Completist', counts: 'achievements unlocked', tiers: [10, 20, ACHIEVEMENTS.length], value: (i) => ACHIEVEMENTS.filter((a) => i.profile.achievements?.[a.id]).length },
   // Stamps: earned once, from the achievement that marks them
   { id: 'golden-boot', title: 'Golden Boot', counts: 'a 30-goal top scorer in your squad', tiers: [1], value: (i) => has(i, 'boot30') },
   { id: 'the-wall', title: 'The Wall', counts: '20 clean sheets for one of your keepers', tiers: [1], value: (i) => has(i, 'glove20') },
   { id: 'chain-gang', title: 'Chain Gang', counts: 'a title with an unbroken teammate chain', tiers: [1], value: (i) => has(i, 'chain-champions') },
   { id: 'loyalty', title: 'One-Club Wonder', counts: 'a title from a one-club draft', tiers: [1], value: (i) => has(i, 'one-club-champions') },
+  { id: 'six-from-six', title: 'Six from Six', counts: 'a Continental Cup group stage with every match won', tiers: [1], value: (i) => featsOf(i.cabinet).groupsPerfect },
+  { id: 'class-of-92', title: "Class of '92", counts: 'a title in the 1992-93 season', tiers: [1], value: (i) => (featsOf(i.cabinet).seasonsTitled.includes(1992) || titles(i.profile.leaderboard ?? [], (e) => !e.superLeague && e.leagueSeason === 1992) > 0 ? 1 : 0) },
 ]
 
 export interface MilestoneState {
   badge: MilestoneBadge
   value: number
   tier: BadgeTier | null
-  /** "3 of 5 for silver", "0 of 1", or "Gold". */
+  /** "3 of 5 for silver", "Not yet" (a stamp not earned), or "Gold". */
   progress: string
   /** Share of the way to the next threshold, 0..1 (1 at gold). */
   toward: number

@@ -1,40 +1,58 @@
 /**
- * Under 1200 px. Phones keep the score and controls above three views:
- * Pitch, Stats and Squad. Tablets retain the stacked dashboard with two panels
- * side by side. Decisions and drawers stay outside the selected phone view.
+ * The dashboard under 1200 px. A phone (720 px and narrower): the live pitch
+ * standing up first, the stop panel under it, the commentary banner, an
+ * always-on pulse row (the momentum strip and the xG graph story), the tab
+ * strip with every panel, and our XI as a sideways scroller. A tablet (721 to
+ * 1199 px) has the same structure with the pitch lying down, capped at 860 px,
+ * and two panels side by side.
  */
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useMediaQuery } from '../components/LivePitch'
+import { runAfterPaint } from '../afterPaint'
 import { phoneTabs } from './controls'
 import { XgStory } from './panels/XgStory'
 import { PhoneTabs } from './PhoneTabs'
 import type { MatchdayData } from './types'
-import { FormationPanel } from './panels/FormationPanel'
-import './mobileMatch.css'
-
-const PHONE_VIEWS = ['pitch', 'stats', 'squad'] as const
-const VIEW_LABEL = { pitch: 'Pitch', stats: 'Stats', squad: 'Squad' }
 
 /** `pulse` and `panels` are the Boxes control's choices (both on by default); a hidden banner comes in as null. */
 export function CompactLayout({ d, crumb, top, pitch, stop, banner, momentum, strip, drawer, friendly, pulse = true, panels = true }: { d: MatchdayData; crumb: ReactNode; top: ReactNode; pitch: ReactNode; stop: ReactNode; banner: ReactNode; momentum: ReactNode; strip: ReactNode; drawer: ReactNode; friendly: boolean; pulse?: boolean; panels?: boolean }) {
-  const tablet = useMediaQuery('(min-width: 721px) and (min-height: 500px), (min-width: 721px) and (pointer: fine)')
+  const tablet = useMediaQuery('(min-width: 721px)')
   const root = useRef<HTMLDivElement>(null)
-  const id = useId()
-  const [selectedView, setView] = useState<(typeof PHONE_VIEWS)[number]>('pitch')
-  const views = PHONE_VIEWS.filter((view) => view !== 'stats' || pulse || panels)
-  const view = selectedView === 'stats' && !pulse && !panels ? 'pitch' : selectedView
-  const choose = (next: (typeof PHONE_VIEWS)[number], focus = false) => {
-    setView(next)
-    if (focus) root.current?.querySelector<HTMLButtonElement>(`[data-view-tab="${next}"]`)?.focus()
-  }
-  // A tablet sizes its lying pitch by the room below the chrome. The phone uses a flex viewport instead.
+  // The board's first render draws the top bar, the pitch, the stop and the banner; the boxes under them (the pulse
+  // row, the tabs and the strip, below the fold on a phone) follow once that has painted, so the tap that opens the
+  // match day is not one long task (presentation only: the same boxes a frame later)
+  const [below, setBelow] = useState(false)
+  useEffect(() => {
+    let live = true
+    runAfterPaint(() => live && setBelow(true))
+    return () => {
+      live = false
+    }
+  }, [])
+  // A phone keeps the scoreboard in view while the page scrolls to the commentary, the tabs and the strip: the top bar
+  // sticks with only its last row (the scoreboard) showing. A tablet sizes the lying pitch by the window's height under
+  // what stands above it, so the commentary line under the pitch is in view too. Presentation only
   useLayoutEffect(() => {
     const el = root.current
     const bar = el?.querySelector<HTMLElement>('.md-topbar')
+    const board = bar?.querySelector<HTMLElement>('.scoreboard')
     const pitch = el?.querySelector<HTMLElement>('.md-pitch')
-    if (!tablet || !el || !bar || !pitch) return
-    const measure = () => el.style.setProperty('--md-above', `${Math.ceil(pitch.getBoundingClientRect().top + window.scrollY)}px`)
-    measure()
+    if (!el || !bar || !board || !pitch) return
+    // The phone's offset goes on the bar itself (only its `top` reads it), so a new value restyles the bar alone
+    let stick = ''
+    const measure = () => {
+      if (tablet) el.style.setProperty('--md-above', `${Math.ceil(pitch.getBoundingClientRect().top + window.scrollY)}px`)
+      else {
+        const next = `${-Math.max(0, board.offsetTop - 4)}px`
+        if (next !== stick) bar.style.setProperty('--md-stick', (stick = next))
+      }
+    }
+    // A tablet sizes its pitch by it before the first paint. A phone's sticky offset matters only once the page has
+    // scrolled, so it is read after the first paint, when the layout is already done, instead of forcing the whole
+    // board's first layout inside the mount (about 100 ms on a 4x-throttled phone)
+    let live = true
+    if (tablet) measure()
+    else runAfterPaint(() => live && measure())
     const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     watch?.observe(bar)
     window.addEventListener('resize', measure)
@@ -43,46 +61,14 @@ export function CompactLayout({ d, crumb, top, pitch, stop, banner, momentum, st
     const folds = app ? new MutationObserver(() => requestAnimationFrame(measure)) : null
     if (app && folds) folds.observe(app, { attributes: true, attributeFilter: ['class'] })
     return () => {
+      live = false
       watch?.disconnect()
       folds?.disconnect()
       window.removeEventListener('resize', measure)
+      bar.style.removeProperty('--md-stick')
       el.style.removeProperty('--md-above')
     }
   }, [tablet])
-  if (!tablet) return (
-    <div ref={root} className="matchday compact phone" data-view={view} data-testid="match-mobile">
-      {crumb}
-      {top}
-      {banner && <div className="md-phone-commentary">{banner}</div>}
-      <div className="md-mobile-tabs" role="tablist" aria-label="Match view">
-        {views.map((tab) => (
-          <button key={tab} type="button" role="tab" id={`${id}-tab-${tab}`} data-view-tab={tab} data-testid={`match-view-${tab}`} aria-selected={view === tab} aria-controls={`${id}-panel-${tab}`} tabIndex={view === tab ? 0 : -1} onClick={() => choose(tab)} onKeyDown={(e) => {
-            const i = views.indexOf(view)
-            const next = e.key === 'ArrowRight' ? views[(i + 1) % views.length] : e.key === 'ArrowLeft' ? views[(i - 1 + views.length) % views.length] : e.key === 'Home' ? views[0] : e.key === 'End' ? views[views.length - 1] : null
-            if (next) { e.preventDefault(); choose(next, true) }
-          }}>{VIEW_LABEL[tab]}</button>
-        ))}
-      </div>
-      {stop}
-      <div className="md-mobile-body">
-        {/* Keep the live pitch mounted while another view is open, so changing tabs never restarts its clock. */}
-        <section className="md-mobile-view md-mobile-pitch" role="tabpanel" id={`${id}-panel-pitch`} aria-labelledby={`${id}-tab-pitch`} hidden={view !== 'pitch'}>
-          <div className="md-pitch">{pitch}</div>
-        </section>
-        {(pulse || panels) && (
-          <section className="md-mobile-view md-mobile-stats" role="tabpanel" id={`${id}-panel-stats`} aria-labelledby={`${id}-tab-stats`} hidden={view !== 'stats'}>
-            {pulse && <div className="md-pulse">{momentum}<XgStory story={d.story} events={d.feed.events} minute={d.minute} span={Math.max(95, d.feed.lastMinute)} home={d.home} away={d.away} dense /></div>}
-            {panels && <PhoneTabs d={d} tabs={phoneTabs(friendly)} twoUp={false} />}
-          </section>
-        )}
-        <section className="md-mobile-view md-mobile-squad" role="tabpanel" id={`${id}-panel-squad`} aria-labelledby={`${id}-tab-squad`} hidden={view !== 'squad'}>
-          <div className="md-strip-scroll">{strip}</div>
-          <div className="md-two"><FormationPanel d={d} side="home" /><FormationPanel d={d} side="away" /></div>
-        </section>
-      </div>
-      {drawer}
-    </div>
-  )
   return (
     <div ref={root} className={`matchday compact ${tablet ? 'tablet' : 'phone'}`}>
       {crumb}
@@ -90,14 +76,14 @@ export function CompactLayout({ d, crumb, top, pitch, stop, banner, momentum, st
       <div className="md-pitch">{pitch}</div>
       {stop}
       {banner}
-      {pulse && (
+      {below && pulse && (
         <div className="md-pulse">
           {momentum}
           <XgStory story={d.story} events={d.feed.events} minute={d.minute} span={Math.max(95, d.feed.lastMinute)} home={d.home} away={d.away} dense />
         </div>
       )}
-      {panels && <PhoneTabs d={d} tabs={phoneTabs(friendly)} twoUp={tablet} />}
-      <div className="md-strip-scroll">{strip}</div>
+      {below && panels && <PhoneTabs d={d} tabs={phoneTabs(friendly)} twoUp={tablet} />}
+      <div className="md-strip-scroll">{below && strip}</div>
       {drawer}
     </div>
   )

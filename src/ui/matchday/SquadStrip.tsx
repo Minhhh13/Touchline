@@ -6,18 +6,24 @@
  * with the minute. Tap a card to pick the man out on the live pitch and the formation panels (a ring, his name) and
  * to follow him in the heat map; tap it again to let him go. Keyboard focus previews him the same way.
  */
+import { useEffect, useRef } from 'react'
 import { getFormation } from '@engine/formations'
 import { MAX_SUBS, MAX_WINDOWS } from '@engine/match'
 import { tacticsAt } from '@engine/matchFeed'
 import { minuteLabel } from '../format'
 import { ConditionIcon } from './ConditionIcon'
-import { stripCards } from './controls'
+import { staleFocus, stripCards } from './controls'
 import { CardIcon, OnArrow, SubIcon } from './icons'
 import { MoraleFace } from './MoraleFace'
 import { RatingPill } from './panels/bits'
 import { Shirt } from './Shirt'
 import type { SquadStripProps } from './types'
 import type { ManagerHand } from './useManagerHand'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+import { B, rich } from '../i18n/rich'
+
+const tx = translator(match)
 
 export function SquadStrip({ feed, minute, side, view, ratings, squad, selected, onSelect, onFocusMan, hand, name, condition }: SquadStripProps & { hand: ManagerHand; name: (id: string) => string | undefined; condition: (psId: string) => number | null }) {
   const at = Math.max(0, minute)
@@ -29,19 +35,38 @@ export function SquadStrip({ feed, minute, side, view, ratings, squad, selected,
   // What the strip shows moves with the clock: changes decided ahead appear at their minute
   const made = fs.subs.filter((s) => s.minute <= at).length
   const subsLeft = MAX_SUBS - made
+  // The keyboard's preview is cleared when its card goes without a blur: the man left the strip, or the strip itself
+  // unmounted (the board switching layout at 1200 px under the focus)
+  const focusedRef = useRef<string | null>(null)
+  const onCards = cards.map((c) => c.psId)
+  useEffect(() => {
+    if (!staleFocus(focusedRef.current, onCards)) return
+    focusedRef.current = null
+    onFocusMan?.(null)
+  })
+  useEffect(
+    () => () => {
+      if (focusedRef.current) onFocusMan?.(null)
+    },
+    [onFocusMan],
+  )
+  const focusMan = (psId: string | null) => {
+    focusedRef.current = psId
+    onFocusMan?.(psId)
+  }
   return (
-    <div className="md-strip" role="group" aria-label={`${view.name} on the pitch`}>
-      <button type="button" className="md-strip-squad" onClick={() => hand.open('subs')} disabled={!hand.editable} aria-haspopup="dialog" title={hand.editable ? 'Make a substitution' : hand.landing.text}>
+    <div className="md-strip" role="group" aria-label={tx('onThePitch', { name: view.name })}>
+      <button type="button" className="md-strip-squad" onClick={() => hand.open('subs')} disabled={!hand.editable} aria-haspopup="dialog" title={hand.editable ? tx('makeSub') : hand.landing.text}>
         <span className="md-strip-title">
           <SubIcon />
-          <b>Squad</b>
+          <b>{tx('squad')}</b>
         </span>
         <span className="mono">
-          <b>{subsLeft}</b>/{MAX_SUBS} subs left
+          {rich(tx('subsLeft', { n: subsLeft, max: MAX_SUBS }), B)}
         </span>
         {live && (
           <span className="mono">
-            <b>{hand.windowsLeft}</b>/{MAX_WINDOWS} stoppages left
+            {rich(tx('stoppagesLeft', { n: hand.windowsLeft, max: MAX_WINDOWS }), B)}
           </span>
         )}
       </button>
@@ -55,10 +80,10 @@ export function SquadStrip({ feed, minute, side, view, ratings, squad, selected,
             className={`md-card ${c.out ? 'out' : ''} ${selected === psId ? 'selected' : ''}`}
             onClick={() => onSelect(psId)}
             // Keyboard focus previews him on the pitch; a click's focus does not (the click selects him instead)
-            onFocus={(e) => e.currentTarget.matches(':focus-visible') && onFocusMan?.(psId)}
-            onBlur={() => onFocusMan?.(null)}
+            onFocus={(e) => e.currentTarget.matches(':focus-visible') && focusMan(psId)}
+            onBlur={() => focusMan(null)}
             data-testid="md-card"
-            aria-pressed={selected === psId} aria-label={`${c.pos} ${name(psId) ?? c.name}${c.rating !== undefined ? `, rating ${c.rating.toFixed(1)}` : ''}${c.subMinute !== null ? `, on ${c.subMinute}'` : ''}`}>
+            aria-pressed={selected === psId} aria-label={`${tx('stripCard', { pos: c.pos, name: name(psId) ?? c.name })}${c.rating !== undefined ? tx('cardRating', { r: c.rating.toFixed(1) }) : ''}${c.subMinute !== null ? tx('cardOn', { m: c.subMinute }) : ''}`}>
             <span className="md-card-top">
               <span className="md-pos">{c.pos}</span>
               {(c.yellow || c.red) && <CardIcon red={c.red} />}

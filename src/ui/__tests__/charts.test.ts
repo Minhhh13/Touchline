@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
 import type { Appearance } from '@engine/match'
-import { momentumScale, territory, xgSeries } from '../match/charts'
+import { lineTone, momentumScale, territory, xgSeries } from '../match/charts'
 import { metres, placeSide, separateSides } from '../match/pitchGeometry'
 import { buildBallPath, MAX_HOP } from '../match/possession'
 
@@ -73,5 +73,40 @@ describe('momentum scale', () => {
     expect(momentumScale(momentum, 0)).toBeCloseTo(0.1, 10)
     expect(momentumScale(Array(18).fill(0.5), 95)).toBeCloseTo(0.1, 10)
     expect(momentumScale(Array(18).fill(1), 95)).toBeCloseTo(0.5, 10)
+  })
+})
+
+describe('a chart line on its panel (lineTone)', () => {
+  it('cases a white or yellow kit in Daylight and a navy or black one in Floodlit, and nothing that reads in both', () => {
+    expect(lineTone('#ffffff')).toBe('pale')
+    expect(lineTone('#fff')).toBe('pale')
+    expect(lineTone('#f5f5dc')).toBe('pale')
+    expect(lineTone('#fde047')).toBe('pale')
+    expect(lineTone('#000000')).toBe('deep')
+    expect(lineTone('#0b1f4d')).toBe('deep')
+    expect(lineTone('#7a263a')).toBe('deep')
+    // A bright red and a mid green read on both panels at 3:1 (WCAG 1.4.11)
+    expect(lineTone('#ef0107')).toBeNull()
+    expect(lineTone('#da291c')).toBeNull()
+    expect(lineTone('#22c55e')).toBe('pale')
+    // Under 3:1: sky blue in Daylight (2.3:1), a deep red in Floodlit (2.6:1)
+    expect(lineTone('#6cabdd')).toBe('pale')
+    expect(lineTone('#c8102e')).toBe('deep')
+    expect(lineTone('var(--primary)')).toBeNull()
+  })
+
+  it('draws the casing under the line, with the same points, only for a kit that needs it', async () => {
+    const { renderToString } = await import('react-dom/server')
+    const { createElement } = await import('react')
+    const { XgStory } = await import('../matchday/panels/XgStory')
+    const story = { home: [{ minute: 10, xg: 0.3, cumulative: 0.3, goal: false }, { minute: 50, xg: 0.5, cumulative: 0.8, goal: true }], away: [{ minute: 30, xg: 0.2, cumulative: 0.2, goal: false }] }
+    const html = (home: string, away: string) => renderToString(createElement(XgStory, { story: story as never, events: [], minute: 90, span: 95, home: { code: 'HOM', colour: home }, away: { code: 'AWA', colour: away } }))
+    const white = html('#ffffff', '#ef0107')
+    expect(white.match(/class="line-casing"/g)?.length).toBe(1)
+    expect(white).toContain('data-tone="pale"')
+    // The casing comes first and draws the home line's own points
+    const lines = [...white.matchAll(/<polyline[^>]*points="([^"]*)"/g)].map((m) => m[1])
+    expect(lines[0]).toBe(lines[1])
+    expect(html('#ef0107', '#da291c')).not.toContain('line-casing')
   })
 })

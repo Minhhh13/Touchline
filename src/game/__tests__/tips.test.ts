@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { TIP_IDS, tipSeen, tipsSeenCount, withTipSeen } from '../logic/tips'
+import { TIP_AFTER, TIP_IDS, tipDue, tipInTurn, tipSeen, tipsSeenCount, withAllTipsSeen, withTipSeen } from '../logic/tips'
 import type { Profile } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
 const mem = vi.hoisted(() => {
@@ -26,10 +26,34 @@ const oldProfile: Profile = {
 }
 
 describe('coach marks', () => {
-  it('has eight distinct tips, the ceiling the design sets, the recap\'s after the bench\'s', () => {
-    expect(TIP_IDS).toHaveLength(8)
-    expect(new Set(TIP_IDS).size).toBe(8)
+  it('has fourteen distinct tips: the eight core ones first, the recap\'s after the bench\'s, then the feature tips', () => {
+    expect(TIP_IDS).toHaveLength(14)
+    expect(new Set(TIP_IDS).size).toBe(14)
     expect(TIP_IDS.indexOf('draft-recap')).toBe(TIP_IDS.indexOf('draft-bench') + 1)
+    expect(TIP_IDS.slice(0, 8)).toEqual(['draft-first-reveal', 'draft-bench', 'draft-recap', 'dugout-first', 'tactics-first', 'halftime-first', 'report-first', 'market-first'])
+    // Every gate names a tip that exists
+    for (const id of Object.keys(TIP_AFTER)) expect(TIP_IDS).toContain(id)
+  })
+
+  it('a feature tip waits for its moment: the core tips from the start, share and feats from the second result', () => {
+    for (const id of TIP_IDS.slice(0, 8)) expect(tipDue(id, 0)).toBe(true)
+    expect(tipDue('daily-rotation', 0)).toBe(true)
+    expect(tipDue('office-first', 0)).toBe(true)
+    expect(tipDue('explore-first', 0)).toBe(false)
+    expect(tipDue('explore-first', 1)).toBe(true)
+    expect(tipDue('dock-first', 1)).toBe(true)
+    expect(tipDue('share-first', 1)).toBe(false)
+    expect(tipDue('feats-first', 1)).toBe(false)
+    expect(tipDue('share-first', 2)).toBe(true)
+    expect(tipDue('feats-first', 2)).toBe(true)
+    // Not yet due: it neither shows nor holds back the next one on screen
+    expect(tipInTurn(oldProfile, ['share-first', 'feats-first'], 1)).toBeNull()
+    expect(tipInTurn(oldProfile, ['share-first', 'explore-first'], 1)).toBe('explore-first')
+    expect(tipInTurn(oldProfile, ['share-first', 'explore-first'], 2)).toBe('share-first')
+    // A core tip on screen goes first whatever the count
+    expect(tipInTurn(oldProfile, ['dock-first', 'draft-recap'], 3)).toBe('draft-recap')
+    // Called without a count (an older caller), every tip is due
+    expect(tipInTurn(oldProfile, ['share-first'])).toBe('share-first')
   })
 
   it('an older profile without seenTips has every tip unseen', () => {
@@ -87,5 +111,29 @@ describe('coach marks', () => {
     expect(tipsSeenCount(p)).toBe(0)
     useStore.getState().dismissTip('tactics-first')
     expect(tipSeen(useStore.getState().profile, 'tactics-first')).toBe(true)
+  })
+
+  it('shows one tip at a time: the first on screen in TIP_IDS order that is not dismissed', () => {
+    expect(tipInTurn(oldProfile, [])).toBeNull()
+    expect(tipInTurn(oldProfile, ['draft-recap', 'draft-bench'])).toBe('draft-bench')
+    const benchSeen = withTipSeen(oldProfile, 'draft-bench', '2026-10-28')
+    expect(tipInTurn(benchSeen, ['draft-recap', 'draft-bench'])).toBe('draft-recap')
+    expect(tipInTurn(withTipSeen(benchSeen, 'draft-recap', '2026-10-28'), ['draft-recap', 'draft-bench'])).toBeNull()
+  })
+
+  it("'No more tips' dismisses every tip, keeps a first date, and the store's reset brings them back", () => {
+    const one = withTipSeen(oldProfile, 'dugout-first', '2026-10-01')
+    const all = withAllTipsSeen(one, '2026-10-28')
+    expect(tipsSeenCount(all)).toBe(TIP_IDS.length)
+    expect(all.seenTips?.['dugout-first']).toBe('2026-10-01')
+    expect(tipInTurn(all, [...TIP_IDS])).toBeNull()
+    useStore.setState({ profile: { ...oldProfile } })
+    useStore.getState().dismissAllTips()
+    expect(tipsSeenCount(useStore.getState().profile)).toBe(TIP_IDS.length)
+    const before = useStore.getState().profile
+    useStore.getState().dismissAllTips()
+    expect(useStore.getState().profile).toBe(before)
+    useStore.getState().resetTips()
+    expect(tipsSeenCount(useStore.getState().profile)).toBe(0)
   })
 })

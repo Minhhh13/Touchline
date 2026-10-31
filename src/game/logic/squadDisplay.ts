@@ -3,7 +3,7 @@
  * and sparkline, the squad list's views, role fit and options, the XI's familiarity, the inbox filters, the window
  * countdown and the league position by matchweek. Pure: nothing here draws a number or changes the game.
  */
-import { aiTeamInput, computeTable, positionOf, USER_TEAM, type CarryRow, type CupTie, type NewsItem } from '@engine/season'
+import { aiTeamInput, computeTable, humansOf, positionOf, USER_TEAM, type AiClub, type CarryRow, type CupTie, type NewsItem } from '@engine/season'
 import { computeTeamStrength, roleRating } from '@engine/ratings'
 import type { LoadedUniverse } from '@engine/universe'
 import { teamStrength } from './squad'
@@ -11,6 +11,9 @@ import { rolesFor } from '@engine/roles'
 import type { Attributes, Fixture, PlayerSeason, Position, SquadPlayer, TableRow } from '@engine/types'
 import type { Window } from '@engine/market'
 import type { Game } from '../types'
+import type { MatchTeamInput } from '@engine/match'
+import { playerLookup } from './players'
+import { cupMatchScore, userCupMatches } from './cupMatches'
 
 // ---------------------------------------------------------------- form
 
@@ -137,17 +140,18 @@ export function teamFamiliarity(game: Pick<Game, 'lineup' | 'squad'>): number | 
 
 // ---------------------------------------------------------------- inbox
 
-export type InboxFilter = 'all' | 'matches' | 'squad' | 'market' | 'board'
+export type InboxFilter = 'all' | 'matches' | 'squad' | 'market' | 'board' | 'office'
 export const INBOX_FILTERS: Array<{ id: InboxFilter; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'matches', label: 'Matches' },
   { id: 'squad', label: 'Squad' },
   { id: 'market', label: 'Market' },
   { id: 'board', label: 'Board' },
+  { id: 'office', label: 'Office' },
 ]
 
-/** Which filter an item belongs to, by its kind. */
-export function inboxGroup(kind: NewsItem['kind']): Exclude<InboxFilter, 'all'> {
+/** Which filter an item belongs to, by its kind (the Office filter reads the office's own mark instead, `filterNews`). */
+export function inboxGroup(kind: NewsItem['kind']): Exclude<InboxFilter, 'all' | 'office'> {
   switch (kind) {
     case 'result':
     case 'cup':
@@ -164,7 +168,7 @@ export function inboxGroup(kind: NewsItem['kind']): Exclude<InboxFilter, 'all'> 
 
 /** The feed narrowed to one filter, each item with its index in the full feed (the unread divider counts from the top of it). */
 export function filterNews(news: NewsItem[], f: InboxFilter): Array<{ n: NewsItem; i: number }> {
-  return news.map((n, i) => ({ n, i })).filter(({ n }) => f === 'all' || inboxGroup(n.kind) === f)
+  return news.map((n, i) => ({ n, i })).filter(({ n }) => f === 'all' || (f === 'office' ? n.office === true : inboxGroup(n.kind) === f))
 }
 
 // ---------------------------------------------------------------- the transfer window
@@ -239,11 +243,16 @@ export interface MatchUpRow {
   edge: Edge
 }
 
+/** An opponent's side as the match will field it: without any of the user's men (E6-2), so a preview shows the XI the match plays. Pure. */
+export function opponentInput(game: Game, u: LoadedUniverse, club: AiClub, offset: number): MatchTeamInput {
+  return aiTeamInput(u, club, offset, humansOf(Object.keys(game.squad), playerLookup(game, u)))
+}
+
 /** Our XI against the next opponent's, unit against unit: our attack on their defence, midfield on midfield, our defence on their attack, and the two sides overall. Null when the club is not in this season. */
 export function matchUp(game: Game, u: LoadedUniverse, clubId: string): MatchUpRow[] | null {
   const club = game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]
   if (!club) return null
-  const input = aiTeamInput(u, club, game.season?.aiOffset ?? 0)
+  const input = opponentInput(game, u, club, game.season?.aiOffset ?? 0)
   const them = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
   const us = teamStrength(game, u)
   const row = (label: string, ours: number, theirs: number): MatchUpRow => ({ label, ours: Math.round(ours * 10) / 10, theirs: Math.round(theirs * 10) / 10, edge: ours - theirs > EVEN_BAND ? 'ahead' : theirs - ours > EVEN_BAND ? 'behind' : 'even' })
@@ -257,12 +266,15 @@ export type TableBand = 'top' | 'mid' | 'bottom'
 
 export interface StripTie {
   comp: 'cup' | 'continental'
-  round: CupTie['round']
+  /** The knockout round, `G` for an engine 7 Continental Cup group match. */
+  round: CupTie['round'] | 'G'
   opp: string
   home: boolean
-  /** Won or lost (penalties decide a draw); absent before it is played. */
-  outcome?: 'W' | 'L'
+  /** A tie's deciding match: through (W) or out (L), penalties deciding a draw; a group match or a first leg: its result. Absent before it is played. */
+  outcome?: Outcome
   score?: string
+  /** "Fourth round", "Continental Cup, Group B", "Continental quarter-final, first leg". */
+  label?: string
 }
 
 export interface StripCell {
@@ -272,6 +284,8 @@ export interface StripCell {
   home: boolean
   outcome?: Outcome
   score?: string
+  /** The same result with our goals first ("2-1" a win, "1-2" a loss), for the calendar cell. */
+  ours?: string
   /** The opponent's band in the table today: top four, bottom four or between (upcoming cells are tinted by it). */
   band: TableBand | null
   /** The user's cup or Continental Cup tie played after this matchweek. */
@@ -293,7 +307,7 @@ export function seasonStrip(game: Pick<Game, 'season'>, table: TableRow[]): Stri
   if (!s) return []
   const teams = table.length
   const cells: StripCell[] = []
-  const ties = [...s.cup.map((t) => ({ t, comp: 'cup' as const })), ...(s.continental?.ties ?? []).map((t) => ({ t, comp: 'continental' as const }))].filter(({ t }) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)
+  const ties = userCupMatches(s)
   for (let mw = (s.takeoverAt ?? 0) + 1; mw <= s.matchweeks; mw++) {
     const f = s.fixtures.find((x) => x.matchweek === mw && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
     const home = !!f && f.homeTeamId === USER_TEAM
@@ -309,13 +323,9 @@ export function seasonStrip(game: Pick<Game, 'season'>, table: TableRow[]): Stri
       home,
       outcome,
       score: r ? `${r.homeGoals}-${r.awayGoals}` : undefined,
+      ours: r ? `${gf}-${ga}` : undefined,
       band: opp && pos > 0 ? tableBand(pos, teams) : null,
-      ties: ties
-        .filter(({ t }) => t.afterMatchweek === mw)
-        .map(({ t, comp }) => {
-          const th = t.homeTeamId === USER_TEAM
-          return { comp, round: t.round, opp: th ? t.awayTeamId : t.homeTeamId, home: th, outcome: t.winnerId ? (t.winnerId === USER_TEAM ? 'W' : 'L') : undefined, score: t.result ? `${t.result.homeGoals}-${t.result.awayGoals}${t.result.penalties ? ` (${t.result.penalties.home}-${t.result.penalties.away}p)` : ''}` : undefined }
-        }),
+      ties: ties.filter((m) => m.matchweek === mw).map((m) => ({ comp: m.comp, round: m.round, opp: m.opponentId, home: m.home, outcome: m.outcome, score: cupMatchScore(m), label: m.label })),
     })
   }
   return cells

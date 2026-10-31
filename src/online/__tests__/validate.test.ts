@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DELETE_CONFIRMATION, MAX_BODY_BYTES, OPS, isIsoDate, logId, parseBuildInfo, parseLeaguesIndex, parseRequest } from '../server/validate'
+import { DELETE_CONFIRMATION, GUEST_OPS, MAX_BODY_BYTES, OPS, ROOM_OPS, isIsoDate, logId, parseBuildInfo, parseLeaguesIndex, parseRequest } from '../server/validate'
 
 const reason = (text: string) => {
   const r = parseRequest(text)
@@ -18,7 +18,13 @@ describe('parseRequest', () => {
     }
     expect(parseRequest(JSON.stringify({ op: 'account.delete', confirm: DELETE_CONFIRMATION }))).toEqual({ ok: true, value: { op: 'account.delete', confirm: DELETE_CONFIRMATION } })
     // The 38-0 chase's two ops (docs/ONLINE.md section 5d); chase.start is checked in chase.test.ts
-    expect(OPS).toEqual(['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume'])
+    // The casual boards' one op (docs/ONLINE.md section 5g)
+    for (const board of ['arena', 'themed', 'runin']) {
+      expect(parseRequest(JSON.stringify({ op: 'casual.submit', board, encoded: 'abc', teamName: 'Verified FC', shortName: 'VFC' }))).toEqual({ ok: true, value: { op: 'casual.submit', board, encoded: 'abc', teamName: 'Verified FC', shortName: 'VFC' } })
+    }
+    expect(OPS).toEqual(['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'casual.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume', 'errors.report'])
+    // The error reports (docs/ONLINE.md section 5f), checked field by field in errorReport.test.ts and service.test.ts
+    expect(GUEST_OPS).toEqual([...ROOM_OPS, 'errors.report'])
     expect(parseRequest(JSON.stringify({ op: 'room.leave', code: 'K7Q2MX9A', token: 'x'.repeat(43) }))).toEqual({ ok: true, value: { op: 'room.leave', code: 'K7Q2MX9A', token: 'x'.repeat(43) } })
     expect(parseRequest(JSON.stringify({ op: 'room.resume', code: 'k7q2 mx9a' }))).toEqual({ ok: true, value: { op: 'room.resume', code: 'K7Q2MX9A' } })
   })
@@ -44,6 +50,9 @@ describe('parseRequest', () => {
     expect(reason('{"op":"daily.submit","encoded":"a","teamName":5,"shortName":"AB"}')).toMatch(/teamName/)
     expect(reason(JSON.stringify({ op: 'daily.submit', encoded: 'a', teamName: 'x'.repeat(65), shortName: 'AB' }))).toMatch(/teamName/)
     expect(reason('{"op":"daily.submit","encoded":"a","teamName":"A","shortName":null}')).toMatch(/shortName/)
+    expect(reason('{"op":"casual.submit","board":"cup","encoded":"a","teamName":"A","shortName":"AB"}')).toMatch(/board/)
+    expect(reason('{"op":"casual.submit","encoded":"a","teamName":"A","shortName":"AB"}')).toMatch(/board/)
+    expect(reason('{"op":"casual.submit","board":"arena","encoded":"","teamName":"A","shortName":"AB"}')).toMatch(/encoded/)
     expect(reason('{"op":"account.delete"}')).toMatch(/confirm/)
     expect(reason('{"op":"account.delete","confirm":true}')).toMatch(/confirm/)
   })

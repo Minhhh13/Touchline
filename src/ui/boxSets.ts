@@ -17,16 +17,17 @@ export const DUGOUT_HEAD = set('dugout', 'Dugout', [['club-header', 'Club header
  */
 export const DUGOUT_TABS: Record<string, BoxSet> = {
   squad: set('dugout-squad', 'Squad tab', [['squad-list', 'Squad list'], ['pitch', 'Pitch'], ['depth', 'Depth chart']]),
-  next: set('dugout-next', 'Next match tab', [['opposition', 'Opposition report'], ['match-up', 'Unit against unit'], ['team-talk', 'Team talk']]),
+  next: set('dugout-next', 'Next match tab', [['preview', 'Match preview'], ['opposition', 'Opposition report'], ['match-up', 'Unit against unit'], ['team-talk', 'Team talk']]),
   tactics: set('dugout-tactics', 'Tactics tab', [['formation', 'Formation'], ['instructions', 'Team instructions'], ['training', 'Training'], ['set-pieces', 'Set pieces'], ['roles', 'Roles']]),
   dressing: set('dugout-dressing', 'Dressing room tab', [['hierarchy', 'Hierarchy'], ['groups', 'Groups and atmosphere'], ['happiness', 'Happiness']]),
+  office: set('dugout-office', 'Office tab', [['requests', 'Player requests'], ['promises', 'Promises'], ['talks', 'Conversations'], ['press', 'Press conference'], ['transfers', 'Transfer talks'], ['status', 'Squad status']]),
   planner: set('dugout-planner', 'Planner tab', [['squad-planner', 'Depth and needs'], ['contracts', 'Contracts'], ['medical', 'Medical']]),
   fixtures: set('dugout-fixtures', 'Fixtures tab', [['calendar', 'Season calendar'], ['fixture-list', 'Fixtures and results']]),
   table: set('dugout-table', 'Table tab', [['league-table', 'League table'], ['season-so-far', 'Season so far']]),
   stats: set('dugout-stats', 'Stats tab', [['records', 'Season records'], ['league-stats', 'League statistics'], ['data-hub', 'Data hub']]),
   market: set('dugout-market', 'Market tab', [['recruitment', 'Recruitment'], ['scout-reports', 'Scout reports'], ['shortlist', 'Shortlist'], ['values', 'Squad values']], 0),
   window: set('dugout-window', 'Market tab (window open)', [['recruitment', 'Recruitment'], ['scout-reports', 'Scout reports'], ['approach', 'Approach any player'], ['shortlist', 'Shortlist'], ['done-deals', 'Done deals'], ['log', 'Market log']], 0),
-  club: set('dugout-club', 'Club tab', [['board', 'Board'], ['requests', 'Board requests'], ['finances', 'Finances'], ['staff', 'Backroom staff'], ['contracts', 'Contracts'], ['legends', 'Club legends'], ['achievements', 'Achievements']]),
+  club: set('dugout-club', 'Club tab', [['board', 'Board'], ['requests', 'Board requests'], ['finances', 'Finances'], ['staff', 'Backroom staff'], ['contracts', 'Contracts'], ['legends', 'Club legends'], ['history', 'Club history'], ['achievements', 'Achievements']]),
 }
 
 /** Every Dugout set, for Reset. */
@@ -63,12 +64,13 @@ export const EXPLORE = set('explore', 'Seasons', [['table', 'League table'], ['s
 
 /** The Profile page. */
 export const PROFILE = set('profile', 'Profile', [
-  ['manager', 'Manager and settings'],
+  ['manager', 'Manager and career'],
   ['cabinet', 'Trophy cabinet'],
   ['room', 'Trophy Room'],
   ['chase', 'The 38-0 chase'],
   ['achievements', 'Achievements'],
   ['save', 'Save data'],
+  ['settings', 'Settings'],
   ['seasons', 'Best seasons'],
   ['runs', 'Best runs'],
   ['runins', 'Run-ins'],

@@ -11,6 +11,10 @@ import { LatestScores, LiveTable, MatchdayInfo } from './panels/roundPanels'
 import { XgStory } from './panels/XgStory'
 import type { PanelProps } from './types'
 import { SLOT_WIDGETS, WIDGET_LABEL, type SlotId, type WidgetId } from './widgetIds'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 export { MATCHDAY_COMPACT, SLOT_IDS, WIDGETS, defaultSlots, matchdayBoxes, readChoices, resolveSlots, writeChoice } from './widgetIds'
 export type { SlotChoices, SlotId, WidgetId } from './widgetIds'
@@ -53,7 +57,7 @@ export function Slot({ slot, id, onChange, d, compact }: PanelProps & { slot: Sl
     <section className={`md-panel md-slot slot-${slot}`} data-widget={id} aria-label={WIDGET_LABEL[id]}>
       <header className="md-panel-head">
         <label className="md-slot-pick">
-          <span className="sr-only">Panel {slot}</span>
+          <span className="sr-only">{tx('panelSlot', { slot })}</span>
           <select className="md-select" value={id} onChange={(e) => onChange(e.target.value as WidgetId)}>
             {SLOT_WIDGETS.map((w) => (
               <option key={w.id} value={w.id}>

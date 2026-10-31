@@ -1,12 +1,18 @@
 import type { ReactNode } from 'react'
-import { Activity, ArrowLeftRight, Armchair, Banknote, BookOpen, CalendarDays, ChartColumn, ChevronDown, Crown, Dices, Dumbbell, Gauge, Globe, GraduationCap, Landmark, Lock, MessageSquare, RectangleVertical, Repeat, Shuffle, Sprout, Target, TrendingUp, Users, type LucideIcon } from 'lucide-react'
-import { useStore } from '@game/store'
+import { Activity, ArrowLeftRight, Armchair, Award, Banknote, Briefcase, Cloud, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Handshake, Landmark, Layers, Lock, MessageSquare, Mountain, Package, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, Zap, type LucideIcon } from 'lucide-react'
+import { useStorePick } from '../useStorePick'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
 import { EstimatedChip, Rating } from '../components/bits'
 import { seasonLabel } from '../format'
 import { classicFromIndex } from '@game/logic/era'
 import type { Twist } from '@engine/draft'
+import { translator } from '../i18n'
+import { howto } from '../i18n/en/howto'
+import { B, rich } from '../i18n/rich'
+
+const t = translator(howto)
+const KBD = { kbd: (c: ReactNode) => <kbd>{c}</kbd> }
 
 /** One section of How it works: a picture, a title, a line or two, then what illustrates it. */
 function Section({ Icon, title, lead, children, wide }: { Icon: LucideIcon; title: string; lead: ReactNode; children?: ReactNode; wide?: boolean }) {
@@ -45,31 +51,49 @@ function Facts({ items, tiles }: { items: Array<[LucideIcon, string, string]>; t
 
 const TWISTS: Twist[] = ['golden', 'basement', 'blind', 'decade']
 
-const SEASON_FACTS: Array<[LucideIcon, string, string]> = [
-  [CalendarDays, 'The calendar', 'Three friendlies, then 38 matchweeks (34 with 18 clubs) and a 16-team cup in midweek.'],
-  [Globe, 'Continental Cup', 'Optional: a knockout against the 15 strongest clubs from the other leagues.'],
-  [Gauge, 'Condition', 'Minutes tire players; tired players play worse and get hurt. Rotate.'],
-  [RectangleVertical, 'Cards and injuries', 'Five yellows is a one-match ban, a red a longer one; injuries last a week to a season.'],
-  [MessageSquare, 'Morale', 'Results, playing time, talks and dressing-room events move it.'],
-  [Dumbbell, 'Training', 'A weekly focus and a pre-match team talk, each a small, clear effect.'],
-  [Banknote, 'January window', 'Bids, loans and part-exchange; prices rise under competition and fall on deadline day.'],
-  [ArrowLeftRight, 'Live changes', 'Instructions, takers and subs at any minute from the top bar or the squad strip: five changes in three stoppages, half time free; a shout from the 70th.'],
-  [Users, 'Captain and set pieces', 'A strong leader lifts the side; a good taker adds chances.'],
-  [Armchair, 'Backroom staff', 'Assistant, coach, physio and scout, two tiers each, paid from the wage cap.'],
-  [Target, 'Man-marking', 'Mark their danger man from the opposition report.'],
-  [TrendingUp, 'Development', 'Every five matchweeks the young who play grow and veterans fade.'],
-  [Landmark, 'The board', 'A target from your squad’s strength; with job security on, it can sack you.'],
+const seasonFacts = (): Array<[LucideIcon, string, string]> => [
+  [CalendarDays, t('fCalendarTitle'), t('fCalendar')],
+  [Globe, t('fContinentalTitle'), t('fContinental')],
+  [Gauge, t('fConditionTitle'), t('fCondition')],
+  [RectangleVertical, t('fCardsTitle'), t('fCards')],
+  [MessageSquare, t('fMoraleTitle'), t('fMorale')],
+  [Dumbbell, t('fTrainingTitle'), t('fTraining')],
+  [Banknote, t('fJanuaryTitle'), t('fJanuary')],
+  [ArrowLeftRight, t('fLiveTitle'), t('fLive')],
+  [Users, t('fCaptainTitle'), t('fCaptain')],
+  [Armchair, t('fStaffTitle'), t('fStaff')],
+  [Target, t('fMarkingTitle'), t('fMarking')],
+  [TrendingUp, t('fDevelopmentTitle'), t('fDevelopment')],
+  [Briefcase, t('fOfficeTitle'), t('fOffice')],
+  [Landmark, t('fBoardTitle'), t('fBoard')],
 ]
 
-const DYNASTY_FACTS: Array<[LucideIcon, string, string]> = [
-  [Sprout, 'Ageing', 'The young grow, the old decline, some retire and contracts run out.'],
-  [Dices, 'Summer draft', 'Bonus spins and a summer window as the league moves to the next real season.'],
-  [GraduationCap, 'Academy', 'Three real prospects every summer.'],
-  [Crown, 'Job offers and legends', 'Bigger clubs may call; the Club tab keeps your all-time legends.'],
+const modeFacts = (): Array<[LucideIcon, string, string]> => [
+  [Zap, t('mQuickDraftTitle'), t('mQuickDraft')],
+  [Banknote, t('mQuickJanuaryTitle'), t('mQuickJanuary')],
+  [Package, t('mEndCaseTitle'), t('mEndCase')],
+  [CalendarCheck, t('mDailyTitle'), t('mDaily')],
+  [CalendarDays, t('mWeeklyTitle'), t('mWeekly')],
+  [Layers, t('mSuperTitle'), t('mSuper')],
+  [Trophy, t('mCupTitle'), t('mCup')],
+  [Mountain, t('mGauntletTitle'), t('mGauntlet')],
+  [CalendarCheck, t('mDailyArenaTitle'), t('mDailyArena')],
+  [Flag, t('mRunInTitle'), t('mRunIn')],
+  [Swords, t('mH2HTitle'), t('mH2H')],
+  [Award, t('mTrophyRoomTitle'), t('mTrophyRoom')],
+  [Cloud, t('mOnlineTitle'), t('mOnline')],
+]
+
+const dynastyFacts = (): Array<[LucideIcon, string, string]> => [
+  [Sprout, t('dAgeingTitle'), t('dAgeing')],
+  [Handshake, t('dRenewalsTitle'), t('dRenewals')],
+  [Dices, t('dSummerTitle'), t('dSummer')],
+  [GraduationCap, t('dAcademyTitle'), t('dAcademy')],
+  [Crown, t('dJobsTitle'), t('dJobs')],
 ]
 
 export function HowTo() {
-  const { go, universe: u } = useStore()
+  const { go, universe: u } = useStorePick('go', 'universe')
   // From the data index: the classic pack itself loads only when a game asks for it
   const classicFrom = u ? classicFromIndex(u.available, u.available.map((l) => l.id)) : undefined
   const leagues = u?.available.length ?? 7
@@ -77,50 +101,44 @@ export function HowTo() {
     <div className="page howto">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>How it works</h1>
+          <h1>{t('title')}</h1>
           <div className="screen-meta">
-            <span>The game on one page</span>
+            <span>{t('meta')}</span>
           </div>
         </div>
         <button className="btn ghost" onClick={() => go('home')}>
-          ← Home
+          {t('home')}
         </button>
       </div>
       <div className="screen-body scroll-whole fill">
       <div className="howto-grid">
-        <Section Icon={Dices} title="The wheel and the draft" lead={<>Each spin lands on a real club in a real season, across {leagues} leagues. Draft one player from that squad into an open slot, then spin again.</>}>
+        <Section Icon={Dices} title={t('wheelTitle')} lead={t('wheelLead', { leagues })}>
           <ol className="howto-steps">
-            <li>
-              <b>1</b> Spin
-            </li>
-            <li>
-              <b>2</b> Pick one player
-            </li>
-            <li>
-              <b>3</b> Fill your shape
-            </li>
+            <li>{rich(t('step1'), B)}</li>
+            <li>{rich(t('step2'), B)}</li>
+            <li>{rich(t('step3'), B)}</li>
           </ol>
           <Facts
             items={[
-              [Repeat, 'No dead spins', 'The wheel only stops on squads with someone for a slot you still need.'],
-              [Lock, 'Once each', 'A player can be drafted once, whichever season you catch him in.'],
-              [Users, 'Squad size', 'Quick drafts build an XI; seasons build 16 to 22.'],
+              [Repeat, t('noDeadTitle'), t('noDead')],
+              [Lock, t('onceTitle'), t('once')],
+              [Users, t('squadTitle'), t('squad')],
             ]}
           />
         </Section>
 
-        <Section Icon={Shuffle} title="Wheel twists" lead="With twists on, every third spin changes the rules for one pick.">
+        <Section Icon={Shuffle} title={t('twistsTitle')} lead={t('twistsLead')}>
           <ul className="howto-twists">
-            {TWISTS.map((t) => {
-              const Icon = TWIST_ICON[t]
+            {TWISTS.map((tw) => {
+              const Icon = TWIST_ICON[tw]
               return (
-                <li key={t}>
+                <li key={tw}>
                   <span className="twist-icon" aria-hidden="true">
                     <Icon size={18} />
                   </span>
                   <span>
-                    <b>{TWIST_INFO[t].title}</b>
-                    <span>{TWIST_INFO[t].rule}</span>
+                    <b>{TWIST_INFO[tw].title}</b>
+                    <span>{TWIST_INFO[tw].rule}</span>
                   </span>
                 </li>
               )
@@ -128,73 +146,73 @@ export function HowTo() {
           </ul>
         </Section>
 
-        <Section Icon={ChartColumn} title="Ratings" lead="Thirteen attributes per player-season, taken from the ratings edition published after it. The top of the scale is stretched: 90 against 87 is a bigger gap than 72 against 69.">
-          <div className="howto-scale" role="group" aria-label="The rating scale">
+        <Section Icon={ChartColumn} title={t('ratingsTitle')} lead={t('ratingsLead')}>
+          <div className="howto-scale" role="group" aria-label={t('ratingScale')}>
             {[92, 87, 82, 77, 72, 66].map((v) => (
               <Rating key={v} value={v} />
             ))}
           </div>
-          <p className="help">Out of position costs rating: a little for a related role, a lot for a stretch. Values and wages are our own estimates.</p>
+          <p className="help">{t('ratingsHelp')}</p>
           {classicFrom !== undefined && u && (
             <p className="help" data-testid="howto-estimated">
-              <EstimatedChip compact /> Classic seasons ({seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)}) have no official ratings: TouchLine estimates them from real starts, goals, age, caps and club results. Squads and tables are real. Opt-in in Setup, never in the Daily.
+              <EstimatedChip compact />{t('classic', { from: seasonLabel(classicFrom), to: seasonLabel(u.firstSeason - 1) })}
             </p>
           )}
         </Section>
 
-        <Section Icon={Activity} title="The match engine" lead="Each XI is scored by unit, shaped by roles, fit and live state. Your instructions meet theirs, expected goals follow, and goals are drawn from them minute by minute.">
-          <div className="howto-timeline" role="group" aria-label="A match in three parts">
+        <Section Icon={Activity} title={t('engineTitle')} lead={t('engineLead')}>
+          <div className="howto-timeline" role="group" aria-label={t('matchParts')}>
             <span style={{ flex: 45 }}>
-              1–45<small>Half-time talk</small>
+              1–45<small>{t('firstHalf')}</small>
             </span>
             <span style={{ flex: 25 }}>
-              46–70<small>Changes any minute</small>
+              46–70<small>{t('secondHalf')}</small>
             </span>
             <span style={{ flex: 20 }}>
-              71–90<small>Shouts from 70′</small>
+              71–90<small>{t('lateGame')}</small>
             </span>
           </div>
-          <p className="help">A perfect 38-0 is possible with an elite, balanced side and good management. It is meant to be rare.</p>
+          <p className="help">{t('perfect')}</p>
           <p className="help" data-testid="howto-keys">
-            Keys: <kbd>Space</kbd> plays the matchweek and <kbd>1</kbd> to <kbd>0</kbd> open the Dugout's tabs; <kbd>P</kbd> pauses a match; <kbd>Esc</kbd> closes a window. Highlights on the match's top bar run the quiet minutes fast.
+            {rich(t('keys'), KBD)}
           </p>
         </Section>
 
-        <Section wide Icon={CalendarDays} title="Season mode" lead="Your squad takes one real club’s place in a real league season; the others field their real squads of that year.">
-          <Facts tiles items={SEASON_FACTS} />
+        <Section wide Icon={CalendarDays} title={t('seasonTitle')} lead={t('seasonLead')}>
+          <Facts tiles items={seasonFacts()} />
         </Section>
 
-        <Section wide Icon={Crown} title="Dynasty" lead="Season mode that never ends. A top-four finish earns a Continental Cup place.">
-          <Facts tiles items={DYNASTY_FACTS} />
+        <Section wide Icon={Dices} title={t('modesTitle')} lead={t('modesLead')}>
+          <Facts tiles items={modeFacts()} />
+        </Section>
+
+        <Section wide Icon={Crown} title={t('dynastyTitle')} lead={t('dynastyLead')}>
+          <Facts tiles items={dynastyFacts()} />
         </Section>
       </div>
 
-      <details className="panel howto-credits" data-testid="credits">
-        <summary className="howto-head">
+      <section className="panel howto-credits" data-testid="credits">
+        <div className="howto-head">
           <span className="howto-icon" aria-hidden="true">
             <BookOpen size={22} />
           </span>
           <div>
-            <h3>Data and credits</h3>
-            <p className="small muted">Licences, sources and the independent fan-project notice.</p>
+            <h3>{t('creditsTitle')}</h3>
+            <p className="small muted">{t('disclaimer')}</p>
           </div>
-          <ChevronDown className="fold-chevron" size={18} aria-hidden="true" />
-        </summary>
-        <div className="howto-credit-body">
-          <p className="small muted">TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club names and player names are used descriptively. No official crests, logos or likenesses are used. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
-          <ul className="small muted howto-sources">
-            {u?.sources.map((s, i) => (
-              <li key={i}>
-                {s.credit} · {s.licence}
-              </li>
-            ))}
-            <li>Flag icons: flag-icons 7.6.0 by Panayiotis Lipiridis (github.com/lipis/flag-icons) · MIT</li>
-          </ul>
-          <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="howto-privacy">
-            Privacy and fair play
-          </button>
         </div>
-      </details>
+        <ul className="small muted howto-sources">
+          {u?.sources.map((s, i) => (
+            <li key={i}>
+              {s.credit} · {s.licence}
+            </li>
+          ))}
+          <li>{t('flagCredit')}</li>
+        </ul>
+        <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="howto-privacy">
+          {t('privacy')}
+        </button>
+      </section>
       </div>
     </div>
   )

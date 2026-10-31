@@ -192,7 +192,7 @@ export function openingOffer(game: Game, u: LoadedUniverse, id: string): Contrac
  * signing fee comes out of the budget. Refused: he is annoyed, and the third
  * refusal closes talks for four matchweeks.
  */
-export function proposeContract(game: Game, u: LoadedUniverse, id: string, offer: ContractOffer): { accepted: boolean; message: string } {
+export function proposeContract(game: Game, u: LoadedUniverse, id: string, offer: ContractOffer, opts: { quiet?: boolean } = {}): { accepted: boolean; message: string } {
   const p = playerLookup(game, u)(id)
   const s = game.squad[id]
   const c = game.contracts[id]
@@ -224,8 +224,11 @@ export function proposeContract(game: Game, u: LoadedUniverse, id: string, offer
   delete book[p.playerId]
   c.years = Math.max(1, Math.round(offer.years))
   c.status = offer.status
+  // The agreed wage is for this status: the Club tab's earlier raises no longer stand above it
+  delete c.paidStatus
   delete c.renewed
   delete c.declined
+  delete c.expired
   const clauses: ContractClauses = {}
   if (offer.release !== undefined && offer.release > 0) clauses.release = Math.round(offer.release * 10) / 10
   if (offer.appearance > 0) clauses.appearance = Math.round(offer.appearance)
@@ -241,7 +244,8 @@ export function proposeContract(game: Game, u: LoadedUniverse, id: string, offer
   s.morale = Math.max(10, Math.min(100, s.morale + AGREED_MORALE))
   logMorale(s, mw, before, 'talk', 'contract-yes')
   const terms = [`£${wage}k a week`, `${c.years} season${c.years === 1 ? '' : 's'}`, STATUS_LABEL[offer.status].toLowerCase(), fee ? `£${fee}M to sign` : '', clauses.release ? `£${clauses.release}M release clause` : '', clauses.appearance ? `£${clauses.appearance}k an appearance` : '', clauses.goal ? `£${clauses.goal}k a goal` : ''].filter(Boolean).join(', ')
-  if (game.season) postNews(game, { matchweek: mw, kind: 'transfer', title: `${p.name} signs a new contract`, body: `${terms}.`, playerId: id })
+  // `quiet`: the summer opener's renewals, which one "Contracts settled" item lists (r8: ten items at once were spam)
+  if (game.season && !opts.quiet) postNews(game, { matchweek: mw, kind: 'transfer', title: `${p.name} signs a new contract`, body: `${terms}.`, playerId: id })
   return { accepted: true, message: `${p.name} signs: ${terms}.` }
 }
 

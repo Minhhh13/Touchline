@@ -2,7 +2,11 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { Position } from '@engine/types'
 import { POSITION_LABEL } from '@engine/positions'
 import { formBand, seasonScale, type FormPoint, type MapSpot, type SeasonPoint } from '@game/logic/playerCard'
-import { clubName } from '../format'
+import { clubName, fixed } from '../format'
+import { translator } from '../i18n'
+import { explore } from '../i18n/en/explore'
+
+const t = translator(explore)
 
 /**
  * The player card's small charts, drawn in SVG on the design tokens: the rating by season (a line
@@ -14,7 +18,7 @@ const SH = 122
 
 /** Rating by season: one colour, direct labels, the peak in `--meter-mid`, estimated seasons dashed with hollow dots, a faint tick at each club change. */
 export function SeasonChart({ points, u }: { points: SeasonPoint[]; u: LoadedUniverse }) {
-  if (!points.length) return <p className="small muted pc-empty">No database seasons.</p>
+  if (!points.length) return <p className="small muted pc-empty">{t('noSeasons')}</p>
   const { min, max } = seasonScale(points)
   const L = 22
   const R = 12
@@ -29,7 +33,7 @@ export function SeasonChart({ points, u }: { points: SeasonPoint[]; u: LoadedUni
   const dense = n > 12
   const step = Math.ceil(n / 6)
   return (
-    <svg className="pc-chart" viewBox={`0 0 ${SW} ${SH}`} role="img" aria-label={`Rating by season: ${points.map((p) => `${p.label} ${p.overall}`).join(', ')}`} data-testid="season-chart" data-points={n}>
+    <svg className="pc-chart" viewBox={`0 0 ${SW} ${SH}`} role="img" aria-label={t('chartLabel', { list: points.map((p) => `${p.label} ${p.overall}`).join(', ') })} data-testid="season-chart" data-points={n}>
       {grid.map((g) => (
         <g key={g}>
           <line x1={L} x2={SW - R} y1={y(g)} y2={y(g)} className="pc-grid" />
@@ -41,7 +45,7 @@ export function SeasonChart({ points, u }: { points: SeasonPoint[]; u: LoadedUni
       {points.map((p, i) =>
         p.clubChange ? (
           <line key={`c${p.season}`} x1={(x(i - 1) + x(i)) / 2} x2={(x(i - 1) + x(i)) / 2} y1={T - 6} y2={SH - B} className="pc-club-tick">
-            <title>Moved to {clubName(u, p.clubId)}</title>
+            <title>{t('movedTo', { club: clubName(u, p.clubId) })}</title>
           </line>
         ) : null,
       )}
@@ -53,9 +57,10 @@ export function SeasonChart({ points, u }: { points: SeasonPoint[]; u: LoadedUni
         return (
           <g key={p.season}>
             <circle cx={x(i)} cy={y(p.overall)} r={p.peak ? 3.6 : 2.6} className={`pc-dot ${p.peak ? 'peak' : ''} ${p.estimated ? 'est' : ''}`}>
-              <title>{`${p.label} · ${clubName(u, p.clubId)} · ${p.overall}${p.estimated ? ' · estimated' : ''}${p.peak ? ' · peak' : ''}`}</title>
+              <title>{`${p.label} · ${clubName(u, p.clubId)} · ${p.overall}${p.estimated ? t('estimatedPoint') : ''}${p.peak ? t('peakPoint') : ''}`}</title>
             </circle>
-            <text x={x(i)} y={below ? y(p.overall) + 12 : y(p.overall) - 6} className={`pc-chart-val ${p.peak ? 'peak' : ''}`} textAnchor="middle">
+            {/* The end values lean inwards, so the first never sits on the axis's own numbers */}
+            <text x={n > 1 && i === 0 ? x(i) - 3 : n > 1 && i === n - 1 ? x(i) + 3 : x(i)} y={below ? y(p.overall) + 12 : y(p.overall) - 6} className={`pc-chart-val ${p.peak ? 'peak' : ''}`} textAnchor={n > 1 && i === 0 ? 'start' : n > 1 && i === n - 1 ? 'end' : 'middle'}>
               {p.overall}
             </text>
             {(i === n - 1 || (i % step === 0 && n - 1 - i >= step)) && (
@@ -84,12 +89,12 @@ const SPOT: Record<Position, [number, number]> = {
   ST: [88, 32],
 }
 
-const FIT_WORD: Record<MapSpot['fit'], string> = { natural: 'natural', cover: 'can cover', awkward: 'awkward', unsuited: 'unsuited' }
+const fitWord = (fit: MapSpot['fit']) => t(`fit_${fit}`)
 
 /** FM's position map: natural positions bright, cover dim, the rest faint, each with his rating there. */
 export function PositionMap({ spots }: { spots: MapSpot[] }) {
   return (
-    <svg className="pc-map" viewBox="0 0 100 64" role="img" aria-label={`Positions: ${spots.filter((s) => s.fit === 'natural' || s.fit === 'cover').map((s) => `${s.pos} ${s.rating} ${FIT_WORD[s.fit]}`).join(', ')}`} data-testid="position-map">
+    <svg className="pc-map" viewBox="0 0 100 64" role="img" aria-label={t('positionsLabel', { list: spots.filter((s) => s.fit === 'natural' || s.fit === 'cover').map((s) => `${s.pos} ${s.rating} ${fitWord(s.fit)}`).join(', ') })} data-testid="position-map">
       <rect x="0.5" y="0.5" width="99" height="63" rx="2" className="pc-pitch" />
       <line x1="50" y1="0.5" x2="50" y2="63.5" className="pc-pitch-line" />
       <circle cx="50" cy="32" r="8" className="pc-pitch-line" />
@@ -100,7 +105,7 @@ export function PositionMap({ spots }: { spots: MapSpot[] }) {
         const strong = s.fit === 'natural' || s.fit === 'cover'
         return (
           <g key={s.pos} className={`pc-spot ${s.fit}`} data-fit={s.fit} data-pos={s.pos}>
-            <title>{`${POSITION_LABEL[s.pos]}: ${FIT_WORD[s.fit]}, ${s.rating}`}</title>
+            <title>{`${POSITION_LABEL[s.pos]}: ${fitWord(s.fit)}, ${s.rating}`}</title>
             <circle cx={cx} cy={cy} r={strong ? 5 : 3.4} />
             <text x={cx} y={cy + 1.5} textAnchor="middle" className="pc-spot-val">
               {s.rating}
@@ -120,7 +125,7 @@ const FH = 66
 
 /** The last match ratings (the save keeps six) on a fixed 4 to 10 scale, dots by band, the season average dashed, the last one printed. */
 export function FormGraph({ points, avg }: { points: FormPoint[]; avg: number | null }) {
-  if (!points.length) return <p className="small muted pc-empty">No games yet.</p>
+  if (!points.length) return <p className="small muted pc-empty">{t('noGames')}</p>
   const L = 16
   const R = 30
   const T = 8
@@ -132,7 +137,7 @@ export function FormGraph({ points, avg }: { points: FormPoint[]; avg: number | 
   const y = (v: number) => T + ((hi - Math.max(lo, Math.min(hi, v))) / (hi - lo)) * (FH - T - B)
   const last = points[n - 1]
   return (
-    <svg className="pc-form" viewBox={`0 0 ${FW} ${FH}`} role="img" aria-label={`Last ${n} ratings: ${points.map((p) => p.rating.toFixed(1)).join(', ')}`} data-testid="form-graph">
+    <svg className="pc-form" viewBox={`0 0 ${FW} ${FH}`} role="img" aria-label={t('formLabel', { n, list: points.map((p) => fixed(p.rating, 1)).join(', ') })} data-testid="form-graph">
       {[6, 8].map((g) => (
         <g key={g}>
           <line x1={L} x2={FW - R} y1={y(g)} y2={y(g)} className="pc-grid" />
@@ -141,7 +146,7 @@ export function FormGraph({ points, avg }: { points: FormPoint[]; avg: number | 
           </text>
         </g>
       ))}
-      {avg !== null && <line x1={L} x2={FW - R} y1={y(avg)} y2={y(avg)} className="pc-avg"><title>Season average {avg.toFixed(2)}</title></line>}
+      {avg !== null && <line x1={L} x2={FW - R} y1={y(avg)} y2={y(avg)} className="pc-avg"><title>{t('seasonAverage', { avg: fixed(avg, 2) })}</title></line>}
       {points.slice(1).map((p, i) => (
         <line key={i} x1={x(i)} y1={y(points[i].rating)} x2={x(i + 1)} y2={y(p.rating)} className="pc-line" />
       ))}

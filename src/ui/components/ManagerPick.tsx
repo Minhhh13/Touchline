@@ -1,13 +1,18 @@
 import { UserRound } from 'lucide-react'
 import type { Manager } from '@engine/managers'
-import { MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL } from '@engine/managers'
 import { ClubBadge } from './bits'
 import { clubName, seasonLabel } from '../format'
 import { useStore } from '@game/store'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+import { styleHelp, styleLabel } from '../i18n/engineText'
+import { onRadioGroupKey, radioTabIndex } from '../a11y'
+
+const t = translator(season)
 
 /** Where a manager comes from: the club-season he ran that the draft landed on, or an invented archetype. */
 function origin(m: Manager, name: (id: string) => string): string {
-  return m.archetype || !m.clubId || m.season === undefined ? 'Invented: no record for your clubs' : `${name(m.clubId)} · ${seasonLabel(m.season)}`
+  return m.archetype || !m.clubId || m.season === undefined ? t('invented') : t('managerOrigin', { club: name(m.clubId), season: seasonLabel(m.season) })
 }
 
 /**
@@ -21,19 +26,19 @@ export function ManagerPick({ options, picked, onPick }: { options: Manager[]; p
   return (
     <div className="col manager-pick" data-testid="manager-pick" style={{ gap: 8 }}>
       <div className="panel-head">
-        <h3>Pick your manager</h3>
-        <span className="small muted">{picked ? 'Picked' : 'Default: the first'}</span>
+        <h3>{t('pickManager')}</h3>
+        <span className="small muted">{t(picked ? 'picked' : 'defaultFirst')}</span>
       </div>
-      <div className="manager-cards" role="radiogroup" aria-label="Manager">
-        {options.map((m) => (
-          <button key={m.id} type="button" role="radio" aria-checked={m.id === current} className={`choice-card manager-card ${m.id === current ? 'active' : ''}`} onClick={() => onPick(m.id)} data-testid={`manager-${m.id}`}>
+      <div className="manager-cards" role="radiogroup" aria-label={t('manager')} onKeyDown={onRadioGroupKey}>
+        {options.map((m, i) => (
+          <button key={m.id} type="button" role="radio" aria-checked={m.id === current} tabIndex={radioTabIndex(i, options.findIndex((o) => o.id === current))} className={`choice-card manager-card ${m.id === current ? 'active' : ''}`} onClick={() => onPick(m.id)} data-testid={`manager-${m.id}`}>
             <span className="row" style={{ gap: 8 }}>
               {m.clubId && !m.archetype ? <ClubBadge clubId={m.clubId} size={24} /> : <span className="manager-mono" aria-hidden="true">?</span>}
               <span className="ctitle manager-name">{m.name}</span>
             </span>
             <span className="cline">{origin(m, (id) => clubName(u, id))}</span>
-            <span className="chip manager-style">{MANAGER_STYLE_LABEL[m.style]}</span>
-            <span className="cline manager-help">{MANAGER_STYLE_HELP[m.style]}</span>
+            <span className="chip manager-style">{styleLabel(m.style)}</span>
+            <span className="cline manager-help">{styleHelp(m.style)}</span>
           </button>
         ))}
       </div>
@@ -45,8 +50,8 @@ export function ManagerPick({ options, picked, onPick }: { options: Manager[]; p
 export function ManagerChip({ manager }: { manager: Manager | undefined }) {
   if (!manager) return null
   return (
-    <span className="chip manager-chip" data-testid="manager-chip" title={MANAGER_STYLE_HELP[manager.style]}>
-      <UserRound size={12} aria-hidden="true" /> {manager.name} · {MANAGER_STYLE_LABEL[manager.style]}
+    <span className="chip manager-chip" data-testid="manager-chip" title={styleHelp(manager.style)}>
+      <UserRound size={12} aria-hidden="true" /> {manager.name} · {styleLabel(manager.style)}
     </span>
   )
 }

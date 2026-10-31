@@ -3,7 +3,7 @@ import { Volume2, VolumeX } from 'lucide-react'
 import type { ClubSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DRUM_LAND, dealReel, idleCards, type ReelCard, type ReelDeal } from '@game/logic/reel'
-import { DISPLAY_TIER_INFO, tierName, type DisplayTier } from '@game/logic/rarity'
+import type { DisplayTier } from '@game/logic/rarity'
 import { ICONS_SEASON } from '@engine/icons'
 import { clubName, seasonLabel, textColourFor } from '../format'
 import { NeonFlow } from './Art'
@@ -13,6 +13,12 @@ import { armAudio, unlockAudio } from '../sound/synth'
 import { useSoundOn } from '../sound/prefs'
 import { FULL_TIMING, OVERSHOOT, QUICK_TIMING, reelKeyframes, reelPosition, type ReelTiming } from '../reelCurve'
 import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
+import { landedBefore, readLandedReel, reelMark, rememberLandedReel } from '../reelLanded'
+import { translator } from '../i18n'
+import { draft } from '../i18n/en/draft'
+import { reelTierName, tierColour, tierWord } from '../i18n/engineText'
+
+const t = translator(draft)
 
 /**
  * The timing lives in src/ui/reelCurve.ts: the season drum (DRUM_MS), the strip's start (SEASON_MS), its
@@ -43,6 +49,11 @@ export interface CaseReelProps {
   onSettled?: (spinKey: number) => void
   /** The drawn club-season is a classic one: its ratings are TouchLine's estimate. */
   estimated?: boolean
+  /**
+   * The draft this reel belongs to (a game's id, the hot-seat's seed): a run that already landed for it on this device
+   * shows landed at once after a reload, with no sound (`reelLanded.ts`). Without it every mount runs the reel.
+   */
+  scope?: string
 }
 
 function prefersReducedMotion(): boolean {
@@ -57,7 +68,7 @@ function prefersReducedMotion(): boolean {
 export function SoundToggle() {
   const [on, setOn] = useSoundOn()
   return (
-    <button type="button" className="reel-sound" data-testid="sound-toggle" aria-pressed={on} aria-label={on ? 'Sound on: mute the reel' : 'Sound off: turn the reel sound on'} title={on ? 'Mute' : 'Sound on'} onClick={(e) => { e.stopPropagation(); setOn(!on); if (!on) unlockAudio() }}>
+    <button type="button" className="reel-sound" data-testid="sound-toggle" aria-pressed={on} aria-label={t(on ? 'soundOnLabel' : 'soundOffLabel')} title={t(on ? 'mute' : 'soundOn')} onClick={(e) => { e.stopPropagation(); setOn(!on); if (!on) unlockAudio() }}>
       {on ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
     </button>
   )
@@ -67,19 +78,19 @@ export function SoundToggle() {
 export function TierChip({ tier }: { tier: DisplayTier }) {
   return (
     <span className="tier-chip" data-tier={tier} data-testid="tier-chip">
-      {tierName(tier)}
+      {reelTierName(tier)}
     </span>
   )
 }
 
 /** A dot in the tier colour, for the draft log. */
 export function TierDot({ tier }: { tier: DisplayTier }) {
-  return <span className="tier-dot" data-tier={tier} role="img" aria-label={tierName(tier)} title={tierName(tier)} />
+  return <span className="tier-dot" data-tier={tier} role="img" aria-label={reelTierName(tier)} title={reelTierName(tier)} />
 }
 
 /** A season on the drum: "2017-18", or "Icons" for Gamble mode's Icons spin. */
 function drumLabel(season: number): string {
-  return season === ICONS_SEASON ? 'Icons' : seasonLabel(season)
+  return season === ICONS_SEASON ? t('icons') : seasonLabel(season)
 }
 
 function Card({ c, landed }: { c: ReelCard; landed?: boolean }) {
@@ -138,10 +149,10 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   return (
     <div className="reel-run idle" data-stage="idle">
       <div className="reel-season out">
-        <span className="lbl">Ready</span>
+        <span className="lbl">{t('ready')}</span>
         <div className="reel-drum-window">
           <div className="reel-drum">
-            <div className="reel-drum-label">Spin</div>
+            <div className="reel-drum-label">{t('spin')}</div>
           </div>
         </div>
       </div>
@@ -159,13 +170,16 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   )
 }
 
-function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, timing: runTiming, autoSkip }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming; autoSkip: boolean }) {
+function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, scope, timing: runTiming, autoSkip }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming; autoSkip: boolean }) {
   // Dealt once per run; Math.random only shuffles cosmetic filler cards and the stop jitter, never the game
   const [deal] = useState<ReelDeal>(() => dealReel(u, { leagues, pool, target }, Math.random))
   const [reduced] = useState(prefersReducedMotion)
   // Fixed for the run: turning Quick spin on mid-run changes the next one
   const [timing] = useState(runTiming)
-  const [stage, setStage] = useState<Stage>('season')
+  // This run landed on this device before a reload: it mounts landed, with no slide and no sound
+  const mark = scope ? reelMark(scope, spinKey, target) : ''
+  const [already] = useState(() => landedBefore(mark, readLandedReel()))
+  const [stage, setStage] = useState<Stage>(already ? 'landed' : 'season')
   const rootRef = useRef<HTMLDivElement>(null)
   const windowRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
@@ -233,9 +247,19 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
       strip.style.transform = stripTo
       sound?.land(deal.target.tier)
       setStage('landed')
+      if (mark) rememberLandedReel(mark)
       if (!settled.current) {
         settled.current = true
         settledCb.current?.(spinKey)
+      }
+    }
+    // Landed before a reload: straight to the stop, before the first paint
+    if (already) {
+      land()
+      skipRef.current = () => undefined
+      return () => {
+        alive = false
+        observer?.disconnect()
       }
     }
     if (reduced || typeof strip.animate !== 'function') {
@@ -292,9 +316,9 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
   const seasonOut = reduced || stage !== 'season'
   const tier = deal.target.tier
   const iconsSpin = tier === 'icons'
-  const club = iconsSpin ? 'Icons collection' : clubName(u, deal.target.clubId)
-  const seasonText = iconsSpin ? 'Icons spin' : `Season ${seasonLabel(deal.season)}${twist ? `, ${twist}` : ''}`
-  const landedText = iconsSpin ? 'Icons collection: the rarest spin, an all-time great' : `${club} ${seasonLabel(deal.season)}: ${DISPLAY_TIER_INFO[tier].colour}, ${DISPLAY_TIER_INFO[tier].label}`
+  const club = iconsSpin ? t('iconsCollection') : clubName(u, deal.target.clubId)
+  const seasonText = iconsSpin ? t('iconsSpin') : t('seasonAnnounce', { season: seasonLabel(deal.season), twist: twist ? `, ${twist}` : '' })
+  const landedText = iconsSpin ? t('iconsLanded') : `${club} ${seasonLabel(deal.season)}: ${tierColour(tier)}, ${tierWord(tier)}`
   useLayoutEffect(() => {
     announce(stage === 'landed' ? landedText : seasonOut ? seasonText : '')
   }, [announce, stage, seasonOut, seasonText, landedText])
@@ -317,7 +341,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
   return (
     <div ref={rootRef} className={`reel-run stage-${stage}${reduced ? ' reduced' : ''}`} data-stage={stage} data-tier={stage === 'landed' ? tier : undefined} onClick={() => running && skipRef.current()}>
       <div className={`reel-season${seasonOut ? ' out' : ''}`}>
-        <span className={`lbl${twist ? ' twist' : ''}`}>{iconsSpin ? 'Rare spin' : twist ?? 'Season'}</span>
+        <span className={`lbl${twist ? ' twist' : ''}`}>{iconsSpin ? t('rareSpin') : twist ?? t('season')}</span>
         <div className="reel-drum-window" aria-hidden="true">
           <div className="reel-drum" ref={drumRef}>
             {deal.drum.map((s, i) => (
@@ -355,7 +379,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
           </>
         ) : (
           <button type="button" className="reel-skip" data-testid="reel-skip" onClick={(e) => { e.stopPropagation(); skipRef.current() }}>
-            Skip animation
+            {t('tapToSkip')}
           </button>
         )}
       </div>

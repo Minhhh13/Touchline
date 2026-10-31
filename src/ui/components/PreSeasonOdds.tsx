@@ -2,9 +2,18 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { Rng } from '@engine/rng'
-import { barFill, chanceLabel, emptyTally, ODDS_SEASONS, ODDS_STEP, oddsFrom, oddsKey, oddsLeague, oddsRng, sampleSeasons, squadBreakdown, type OddsLeague, type OddsTally, type PreSeasonOdds } from '@game/logic/odds'
-import { ordinal, seasonLabel } from '../format'
+import { barFill, chanceLabel, emptyTally, ODDS_SEASONS, ODDS_STEP, oddsFrom, oddsKey, oddsLeagueSteps, oddsRng, sampleSeasons, squadBreakdown, type OddsLeague, type OddsTally, type PreSeasonOdds } from '@game/logic/odds'
+import { formatLocale, seasonLabel } from '../format'
 import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
+import { playSound } from '../sound/synth'
+import { prefersReducedMotion } from '../motion'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+import { logicLine } from '../i18n/logicText'
+
+const t = translator(season)
+/** The trial seasons as a grouped number in the viewer's language ("2,000"). */
+const trialSeasons = () => ODDS_SEASONS.toLocaleString(formatLocale() === 'en' ? 'en-GB' : formatLocale())
 
 /** Odds already worked out this visit, by what they depend on: going back to a squad shows its odds at once. */
 const cache = new Map<string, PreSeasonOdds>()
@@ -23,8 +32,8 @@ const SLICE_MS = 20
 
 /** Run `fn` after `delay` ms, or on the next turn, with the time it may take, so sampling never blocks a frame for long. */
 function nextSlice(fn: (budgetMs: number) => void, delay = 0): Cancel {
-  const t = window.setTimeout(() => fn(SLICE_MS), delay)
-  return () => window.clearTimeout(t)
+  const timer = window.setTimeout(() => fn(SLICE_MS), delay)
+  return () => window.clearTimeout(timer)
 }
 
 /**
@@ -46,13 +55,27 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
     let league: OddsLeague | null = null
     let rng: Rng | null = null
     let tally: OddsTally | null = null
+    let building: Generator<void, OddsLeague, void> | null = null
     let cancel: Cancel = () => {}
     let shown = 0
     const step = (budgetMs: number) => {
       if (!league || !rng || !tally) {
-        league = oddsLeague(game, u)
-        rng = oddsRng(game)
-        tally = emptyTally(league.ids.length)
+        // The league's pairings a few at a time too (one 340 ms task at 4x when built whole, r13)
+        building ??= oddsLeagueSteps(game, u)
+        const until = performance.now() + budgetMs
+        for (;;) {
+          const r = building.next()
+          if (r.done) {
+            league = r.value
+            rng = oddsRng(game)
+            tally = emptyTally(league.ids.length)
+            break
+          }
+          if (performance.now() >= until) break
+        }
+        // Not built yet, or built with this slice spent: the seasons start on the next turn
+        cancel = nextSlice(step)
+        return
       } else {
         const until = performance.now() + budgetMs
         while (tally.seasons < ODDS_SEASONS && performance.now() < until) sampleSeasons(league, rng, Math.min(ODDS_BATCH, ODDS_SEASONS - tally.seasons), tally)
@@ -79,6 +102,9 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
   return state.key === key ? { odds: state.odds, progress: state.progress } : { odds: cache.get(key) ?? null, progress: cache.has(key) ? 1 : 0 }
 }
 
+/** The games whose Squad complete has sounded in this visit. */
+const squadHeard = new Set<string>()
+
 /**
  * The "Squad complete" panel before a quick season: the pre-season odds (projected finish, expected points, the chance
  * of the title, a top-four, top-six and top-ten finish, and of going down) and the XI's unit ratings as bars. With the
@@ -86,42 +112,48 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
  */
 export function SquadComplete({ game, u, hideRatings, children }: { game: Game; u: LoadedUniverse; hideRatings: boolean; children?: ReactNode }) {
   const { odds, progress } = usePreSeasonOdds(game, u)
+  // The sheet signed: its drum and chord once per game in this visit, as the box first shows
+  useEffect(() => {
+    if (squadHeard.has(game.id)) return
+    squadHeard.add(game.id)
+    playSound({ id: 'squad-complete', reduced: prefersReducedMotion() })
+  }, [game.id])
   const b = squadBreakdown(game, u)
   const superLeague = isSuperLeague(game.settings)
   const units: Array<{ key: string; label: string; value: number }> = [
-    { key: 'overall', label: 'Overall', value: b.overall },
-    { key: 'attack', label: 'Attack', value: b.attack },
-    { key: 'midfield', label: 'Midfield', value: b.midfield },
-    { key: 'defence', label: 'Defence', value: b.defence },
-    { key: 'gk', label: 'Goalkeeper', value: b.goalkeeping },
+    { key: 'overall', label: t('unitOverall'), value: b.overall },
+    { key: 'attack', label: t('unitAttack'), value: b.attack },
+    { key: 'midfield', label: t('unitMidfield'), value: b.midfield },
+    { key: 'defence', label: t('unitDefence'), value: b.defence },
+    { key: 'gk', label: t('unitGk'), value: b.goalkeeping },
   ]
   const chances: Array<{ key: string; label: string; value: number; bad?: boolean }> = odds
     ? [
-        { key: 'perfect', label: 'Win every game', value: odds.perfect },
-        { key: 'unbeaten', label: 'Go unbeaten', value: odds.unbeaten },
-        { key: 'title', label: superLeague ? 'Win the Super League' : 'Win the league', value: odds.title },
-        { key: 'top4', label: 'Finish top 4', value: odds.top4 },
-        { key: 'top6', label: 'Finish top 6', value: odds.top6 },
-        { key: 'top10', label: 'Finish top 10', value: odds.top10 },
-        { key: 'releg', label: superLeague ? 'Finish bottom three' : 'Go down', value: odds.relegation, bad: true },
+        { key: 'perfect', label: t('winEvery'), value: odds.perfect },
+        { key: 'unbeaten', label: t('goUnbeaten'), value: odds.unbeaten },
+        { key: 'title', label: t(superLeague ? 'winSuper' : 'winLeague'), value: odds.title },
+        { key: 'top4', label: t('top4'), value: odds.top4 },
+        { key: 'top6', label: t('top6'), value: odds.top6 },
+        { key: 'top10', label: t('top10'), value: odds.top10 },
+        { key: 'releg', label: t(superLeague ? 'bottomThree' : 'goDown'), value: odds.relegation, bad: true },
       ]
     : []
   return (
     <div className="panel col squad-complete" data-testid="squad-complete">
       <div className="sc-head">
-        <span className="sc-kicker">Before a ball is kicked</span>
-        <h2>Pundits' prediction</h2>
+        <span className="sc-kicker">{t('beforeBall')}</span>
+        <h2>{t('punditsPrediction')}</h2>
       </div>
       <div className="sc-grid">
         <div className="col" style={{ gap: 10 }}>
           <div className="sc-big">
             <div className="sc-big-box" data-testid="odds-finish">
-              <span className="sc-big-num">{odds ? ordinal(odds.projectedFinish) : '…'}</span>
-              <span className="tally-label">Projected finish</span>
+              <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? t('ordinal', { n: odds.projectedFinish }) : '…'}</span>
+              <span className="tally-label">{t('projectedFinish')}</span>
             </div>
             <div className="sc-big-box" data-testid="odds-points">
-              <span className="sc-big-num">{odds ? odds.expectedPoints : '…'}</span>
-              <span className="tally-label">Expected points</span>
+              <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? odds.expectedPoints : '…'}</span>
+              <span className="tally-label">{t('expectedPoints')}</span>
             </div>
           </div>
           {odds ? (
@@ -138,7 +170,7 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
             </div>
           ) : (
             <div className="sc-working small muted" data-testid="odds-working" aria-live="polite">
-              Playing out {ODDS_SEASONS.toLocaleString('en-GB')} seasons… {Math.round(progress * 100)}%
+              {t('playingOut', { n: trialSeasons(), pct: Math.round(progress * 100) })}
             </div>
           )}
         </div>
@@ -155,7 +187,7 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
         </div>
       </div>
       <p className="help" style={{ margin: 0 }}>
-        The pundits' call, from {ODDS_SEASONS.toLocaleString('en-GB')} trial runs of this XI against {superLeague ? `the Super League: ${SUPER_LEAGUE_LINE.toLowerCase()}` : game.settings.mode === 'quick' ? 'this league' : `the ${seasonLabel(game.settings.leagueSeason)} league`}. The real season is played once.
+        {t('punditsCall', { n: trialSeasons(), against: superLeague ? t('againstSuper', { line: logicLine(SUPER_LEAGUE_LINE).toLowerCase() }) : game.settings.mode === 'quick' ? t('againstThis') : t('againstSeason', { season: seasonLabel(game.settings.leagueSeason) }) })}
       </p>
       {children}
     </div>

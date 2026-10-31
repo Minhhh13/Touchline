@@ -309,3 +309,111 @@ export async function fetchChaseSummary(t: OnlineTransport, scope: ChaseScope, w
 export async function fetchChaseStatus(t: OnlineTransport): Promise<ChaseStatus | null> {
   return chaseStatusFrom(await t.rpc('chase_my_status', {}))
 }
+
+// ------------------------------------------------------------------ the casual boards
+
+/** Which casual board: the Daily Arena, the Weekly Challenge (mode weekly), the Run-in of the week. */
+export type CasualKind = 'arena' | 'themed' | 'runin'
+
+export interface CasualRow {
+  position: number
+  name: string
+  country: string | null
+  team: string
+  /** Arena steps won, or league points. */
+  score: number
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
+  goalDiff: number
+  /** The final league place (the Weekly Challenge, the run-in); null for an arena run. */
+  leaguePosition: number | null
+  trophy: boolean
+  /** The result in a few words: `9 rungs`, `Cup winners`, `CHAMPIONS`, `SURVIVED`. */
+  detail: string
+  createdAt: string
+  isMe: boolean
+  revealed: boolean
+  /** The run's payload once posting has closed (an arena or quick link to race; a run-in's own payload). */
+  payload: string | null
+}
+
+export interface CasualSummary {
+  played: number
+  top: number | null
+  trophies: number
+  myPosition: number | null
+  myScore: number | null
+  open: boolean
+  revealed: boolean
+}
+
+export interface CasualMine {
+  board: CasualKind
+  key: string
+  position: number
+  total: number
+  score: number
+  detail: string
+  team: string
+  claimMatched: boolean
+}
+
+export function casualRowFrom(r: Row): CasualRow {
+  return {
+    position: n(r.board_position),
+    name: s(r.display_name),
+    country: normaliseCountry(s(r.country)),
+    team: s(r.team_name),
+    score: n(r.score),
+    won: n(r.won),
+    drawn: n(r.drawn),
+    lost: n(r.lost),
+    goalsFor: n(r.goals_for),
+    goalsAgainst: n(r.goals_against),
+    goalDiff: n(r.goal_diff),
+    leaguePosition: r.league_position == null ? null : n(r.league_position),
+    trophy: r.trophy === true,
+    detail: s(r.detail),
+    createdAt: s(r.created_at),
+    isMe: r.is_me === true,
+    revealed: r.revealed === true,
+    payload: typeof r.payload === 'string' && r.payload ? r.payload : null,
+  }
+}
+
+export function casualSummaryFrom(v: unknown): CasualSummary {
+  const r = rows(v)[0] ?? {}
+  return { played: n(r.played), top: r.top_score == null ? null : n(r.top_score), trophies: n(r.trophies), myPosition: r.my_position == null ? null : n(r.my_position), myScore: r.my_score == null ? null : n(r.my_score), open: r.posts_open === true, revealed: r.revealed === true }
+}
+
+/** A casual board key as its reader takes it: a `YYYY-MM-DD` day for the Daily Arena, a `YYYY-Www` week otherwise. */
+export function casualKeyOk(board: CasualKind, key: string): boolean {
+  return board === 'arena' ? /^\d{4}-\d{2}-\d{2}$/.test(key) : weekStartOf(key) !== null
+}
+
+export async function fetchCasualBoard(t: OnlineTransport, board: CasualKind, key: string, country: string | null, offset = 0): Promise<CasualRow[]> {
+  if (!casualKeyOk(board, key)) return []
+  return rows(await t.rpc('casual_board', { p_board: board, p_key: key, p_limit: PAGE, p_offset: offset, p_country: normaliseCountry(country) })).map(casualRowFrom)
+}
+
+export async function fetchCasualSummary(t: OnlineTransport, board: CasualKind, key: string, country: string | null): Promise<CasualSummary> {
+  if (!casualKeyOk(board, key)) return casualSummaryFrom(null)
+  return casualSummaryFrom(await t.rpc('casual_summary', { p_board: board, p_key: key, p_country: normaliseCountry(country) }))
+}
+
+/** The caller's own casual entries, newest first (one board, or all three). */
+export async function myCasualEntries(t: OnlineTransport, board: CasualKind | null = null): Promise<CasualMine[]> {
+  return rows(await t.rpc('casual_my_entries', { p_board: board, p_limit: 30 })).map((r) => ({
+    board: (r.board === 'arena' || r.board === 'runin' ? r.board : 'themed') as CasualKind,
+    key: s(r.period_key),
+    position: n(r.board_position),
+    total: n(r.total),
+    score: n(r.score),
+    detail: s(r.detail),
+    team: s(r.team_name),
+    claimMatched: r.claim_matched !== false,
+  }))
+}

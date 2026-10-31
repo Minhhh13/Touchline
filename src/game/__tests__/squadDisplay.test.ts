@@ -246,7 +246,11 @@ describe('the season calendar strip', () => {
           const gf = c.home ? r.homeGoals : r.awayGoals
           const ga = c.home ? r.awayGoals : r.homeGoals
           expect(c.outcome).toBe(gf > ga ? 'W' : gf < ga ? 'L' : 'D')
-        } else expect(c.outcome).toBeUndefined()
+          expect(c.ours).toBe(`${gf}-${ga}`)
+        } else {
+          expect(c.outcome).toBeUndefined()
+          expect(c.ours).toBeUndefined()
+        }
         expect(c.band).toBe(tableBand(positionOf(table, c.opp!), ids.length))
         ties += c.ties.length
         for (const t of c.ties) if (t.outcome) expect(['W', 'L']).toContain(t.outcome)

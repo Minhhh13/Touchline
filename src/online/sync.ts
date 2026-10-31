@@ -1,13 +1,16 @@
 /**
  * The cloud sync engine: pull the account's rows, run the decision table (`planSlot`) per slot, carry the plan out
  * (upload, download, delete, or ask the player), then merge the profile document. Every game mode syncs: the Quick
- * slot (Quick Drafts and Dailies), Season, Dynasty and the hot-seat head-to-head, plus the profile and shortlist.
+ * slot (Quick Drafts, Dailies and Weeklies), Season, Dynasty, the hot-seat head-to-head, the arena and the Run-in,
+ * plus the profile and shortlist.
  *
  * Rules it keeps:
  *  - absence is never a deletion: a tombstone is recorded only for a transition this session saw (`observe`);
  *  - nothing is downloaded over the game on screen without the player's "Load it", and nothing moves either way
  *    while a live match is paused at a stop;
- *  - season and dynasty slots upload at most once every two minutes, unless forced (the page is being hidden);
+ *  - season, dynasty and run-in slots upload at most once every two minutes, unless forced (the page is being hidden);
+ *  - a server that refuses the arena or run-in slot (its migration not applied yet) sets that slot aside for the
+ *    session; the other slots and the profile sync as before;
  *  - data arrives in the game only through the store's `importCloudGame`, `importCloudH2H` and `applyCloudProfile`,
  *    so it goes through `normaliseGame` like any save.
  * The engine is driven by the runtime (timers, events, the lock); the tests drive it with `FakeTransport`.
@@ -18,11 +21,11 @@ import { compactGame } from '@game/logic/compact'
 import { canonicalJson } from './core/canonical'
 import { gunzipText, gzipText, sha256Hex } from './core/bytes'
 import { mergeProfileDoc, type ProfileDoc } from './core/merge'
-import { progressKey, saveMeta, slotContents, slotIdentity, SLOT_IDS, type MetaContext, type SaveMeta, type SlotId, type SlotValue, type SyncSource } from './core/slots'
+import { LATER_SLOTS, progressKey, saveMeta, slotContents, slotIdentity, SLOT_IDS, throttledSlot, type GameSlotId, type MetaContext, type SaveMeta, type SlotId, type SlotValue, type SyncSource } from './core/slots'
 import { planSlot, type LocalSlot, type RemoteSlot, type SlotPlan } from './core/syncPlan'
 import type { OnlineRecord } from './localState'
 import type { CloudRow, OnlineTransport } from './transport'
-import { OnlineError } from './transport'
+import { isTransient, OnlineError } from './transport'
 import type { OnlineState, SyncConflict } from './state'
 
 export interface SyncView extends SyncSource {
@@ -34,7 +37,7 @@ export interface SyncView extends SyncSource {
 /** The game store as the engine sees it. */
 export interface SyncStoreLike {
   getState(): SyncView
-  importCloudGame(slot: 'quick' | 'season' | 'dynasty', game: Game, mode: 'park' | 'replace'): Promise<boolean>
+  importCloudGame(slot: GameSlotId, game: Game, mode: 'park' | 'replace'): Promise<boolean>
   importCloudH2H(h2h: H2HGame, mode: 'park' | 'replace'): void
   applyCloudProfile(profile: Profile, shortlist: string[]): void
   /** "Remove it here": the slot's game leaves this device (abandon, discard or end the head-to-head). */
@@ -75,7 +78,7 @@ export interface SyncOptions {
 }
 
 export const PAUSED_MESSAGE = 'Cloud sync is off since you deleted your cloud data. Press Sync now to upload the games on this device again.'
-const SLOT_NAME: Record<SlotId, string> = { quick: 'Quick Draft', season: 'Season', dynasty: 'Dynasty', h2h: 'head-to-head' }
+const SLOT_NAME: Record<SlotId, string> = { quick: 'Quick Draft', season: 'Season', dynasty: 'Dynasty', h2h: 'head-to-head', arena: 'arena run', runin: 'Run-in' }
 
 /** What a slot uploads: the compacted game (what a local save keeps), or the hot-seat game as it is. */
 export function slotPayload(v: SlotValue): unknown {
@@ -119,6 +122,8 @@ export class SyncEngine {
   private changedAt: Partial<Record<SlotId, number>> = {}
   /** The last pass failed for want of a connection. */
   private offline = false
+  /** Later slots the server refused this session (its migration is not applied yet): left alone until a reload. */
+  private refused = new Set<SlotId>()
 
   constructor(private readonly d: SyncDeps) {}
 
@@ -222,8 +227,14 @@ export class SyncEngine {
       const rows = await this.d.transport.listSaves()
       const conflicts: SyncConflict[] = []
       for (const slot of SLOT_IDS) {
-        const c = await this.syncSlot(slot, rows.find((x) => x.slot === slot) ?? null, opts)
-        if (c) conflicts.push(c)
+        if (this.refused.has(slot)) continue
+        try {
+          const c = await this.syncSlot(slot, rows.find((x) => x.slot === slot) ?? null, opts)
+          if (c) conflicts.push(c)
+        } catch (e) {
+          if (!(LATER_SLOTS.includes(slot) && e instanceof OnlineError && e.kind === 'bad')) throw e
+          this.refused.add(slot)
+        }
       }
       await this.syncProfile(opts.replaceAll === true)
       const r = this.d.load()
@@ -304,7 +315,7 @@ export class SyncEngine {
         return null
       case 'upload': {
         if (!v) return null
-        if (!opts.force && (slot === 'season' || slot === 'dynasty') && plan.row !== 6) {
+        if (!opts.force && throttledSlot(slot) && plan.row !== 6) {
           const last = rec.lastUploadAt[slot] ?? 0
           if (this.d.now() - last < SEASON_UPLOAD_GAP_MS) return null
         }
@@ -412,7 +423,17 @@ export class SyncEngine {
     const now = this.d.now()
     const path = `${this.d.userId}/${slot}/${now}-${enc.hash.slice(0, 16)}.json.gz`
     await this.d.transport.upload(path, gz)
-    const res = await this.d.transport.claim({ slot, baseRevision, gameId: slotIdentity(v), contentHash: enc.hash, objectPath: path, bytes: gz.length, rawBytes: enc.text.length, meta: saveMeta(v, this.d.meta), deviceId: rec.deviceId, clientSavedAt: new Date(this.changedAt[slot] ?? now).toISOString(), asPrevious })
+    let res: Awaited<ReturnType<OnlineTransport['claim']>>
+    try {
+      res = await this.d.transport.claim({ slot, baseRevision, gameId: slotIdentity(v), contentHash: enc.hash, objectPath: path, bytes: gz.length, rawBytes: enc.text.length, meta: saveMeta(v, this.d.meta), deviceId: rec.deviceId, clientSavedAt: new Date(this.changedAt[slot] ?? now).toISOString(), asPrevious })
+    } catch (e) {
+      // A claim the database refused (the hourly limits, a bad slot, a signed-out session) rolled back, so no row
+      // points at the object: it goes now, or each retry would leave another until the folder's 16-object cap refused
+      // every upload (the sweep runs only every tenth claim, which a refused claim never counts). A claim with no
+      // answer (network, 5xx) may have landed, so its object is left for the sweep, which skips anything a row names.
+      if (e instanceof OnlineError && (e.kind === 'rate' || !isTransient(e))) await this.removeQuietly([path])
+      throw e
+    }
     this.bumpClaims()
     if (res.status === 'conflict') {
       // Never retried blindly: the uploaded object goes, and the next pass pulls and plans again

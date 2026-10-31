@@ -1,0 +1,238 @@
+/*
+ * The trophy moments (r7 visuals): the Trophy cabinet's drawn shelf, the light behind a title, the arena's trophy.
+ * Loaded with the lazy screens that use it (TrophyShelf, Celebrate, ArenaSummary), never in the first download.
+ * Tokens only; every animation moves transform or opacity and is switched off in the reduced-motion block at the end
+ * of this file and in styles.css's (docs/DESIGN_SYSTEM.md sections 7 and 12).
+ */
+
+/* ------------------------------------------------------------ the shelf */
+.trophy-shelf {
+  position: relative;
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3) var(--space-2) 0;
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 70%), linear-gradient(180deg, var(--panel-2), var(--bg-3));
+  overflow: hidden;
+}
+.shelf-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  align-items: end;
+}
+.shelf-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding-bottom: var(--space-2);
+  text-align: center;
+  animation: shelf-in var(--dur-4) var(--ease-out) backwards;
+}
+.shelf-item:nth-child(2) {
+  animation-delay: var(--stagger);
+}
+.shelf-item:nth-child(3) {
+  animation-delay: calc(var(--stagger) * 2);
+}
+.shelf-item:nth-child(4) {
+  animation-delay: calc(var(--stagger) * 3);
+}
+.shelf-art {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  height: 78px;
+}
+.shelf-art > svg {
+  position: relative;
+}
+/* A trophy won stands in a gold pool of light */
+.shelf-item.won .shelf-art::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 110px;
+  height: 92px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--gold) 34%, transparent), transparent);
+}
+.shelf-n {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h3);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-text);
+}
+.shelf-item.empty .shelf-n {
+  color: var(--text-3);
+}
+.shelf-label {
+  max-width: 100%;
+  line-height: 1.2;
+  color: var(--text-2);
+}
+/* The plank: a lit edge in the brand's neon, a soft shadow under it */
+.shelf-plank {
+  display: block;
+  position: relative;
+  height: 12px;
+  margin: 0 calc(var(--space-2) * -1);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--text) 10%, var(--panel)), var(--bg-3));
+  box-shadow: 0 -10px 24px -14px color-mix(in srgb, var(--cyan) 70%, transparent);
+}
+.shelf-plank::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan) 18%, var(--magenta) 82%, transparent);
+  opacity: 0.85;
+}
+/* The Treble drawn faint while there is none, like a cup still to be won */
+.treble-art.muted {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+/* Under the shelf the other counts stay as plaques: one row of seven on a desktop, smaller than the drawn four */
+.cabinet.plaques {
+  /* 76 px at the default size; in rem so at 200 % text a plaque widens rather than run past a phone (round 4) */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.75rem), 1fr));
+  margin-bottom: var(--space-1);
+}
+.cabinet.plaques .cabinet-slot {
+  padding: var(--space-2) 2px;
+}
+.cabinet.plaques .cabinet-icon {
+  height: 24px;
+}
+.cabinet.plaques .cabinet-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.cabinet.plaques .cabinet-n {
+  font-size: var(--fs-h3);
+}
+.cabinet.plaques .cabinet-slot > .small {
+  font-size: var(--fs-xs);
+}
+@keyframes shelf-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (max-width: 560px) {
+  .shelf-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: var(--space-3);
+  }
+}
+
+/* ---------------------------------------------- the light behind a title */
+.celebrate .cel-rays {
+  position: absolute;
+  left: -260px;
+  top: -260px;
+  width: 520px;
+  height: 520px;
+  opacity: 0;
+  animation: cel-rays 1800ms var(--ease-out) 80ms;
+}
+@keyframes cel-rays {
+  from {
+    opacity: 0;
+    transform: rotate(-12deg) scale(0.4);
+  }
+  25% {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+    transform: rotate(24deg) scale(1.1);
+  }
+}
+/* The perfect season: two neon rings open out from the tier, cyan then magenta */
+.celebrate .cel-ring {
+  position: absolute;
+  left: -120px;
+  top: -120px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  border: 3px solid var(--cyan);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cyan) 60%, transparent);
+  opacity: 0;
+  animation: cel-ring 1100ms var(--ease-out) 160ms;
+}
+.celebrate .cel-ring.magenta {
+  border-color: var(--magenta);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--magenta) 60%, transparent);
+  animation-delay: 420ms;
+}
+@keyframes cel-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+/* Daylight: the beams in the darker gold, so they read on a pale banner */
+:root[data-theme='light'] .celebrate .cel-rays {
+  --gold: var(--gold-text);
+}
+
+/* --------------------------------------------- the arena's trophy moment */
+.arena-trophy {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 0 auto calc(var(--space-2) * -1);
+}
+.arena-trophy::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160px;
+  height: 140px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--gold) 30%, transparent), transparent);
+}
+.arena-trophy > svg {
+  position: relative;
+  animation: arena-lift var(--dur-4) var(--ease-spring) 200ms backwards;
+}
+@keyframes arena-lift {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.85);
+  }
+}
+@media (max-height: 760px) and (min-width: 1100px) {
+  .arena-trophy > svg {
+    width: 54px;
+    height: 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-item,
+  .arena-trophy > svg,
+  .celebrate .cel-rays,
+  .celebrate .cel-ring {
+    animation: none;
+  }
+}

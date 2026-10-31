@@ -119,7 +119,7 @@ function Scene({ prefix, viewBox, align, className, blur, wobble, children, flow
 const halo = (id: Defs, which: 'c' | 'm') => `url(#${id.neon}-h${which})`
 const beam = (id: Defs) => `url(#${id.neon}-beam)`
 
-/** A football: white with navy panels, drawn round a centre; `r` is its radius. */
+/** A football: white with navy panels, drawn round a centre; `r` is its radius. No glint stroke: it crossed the top-left panel and read as a line through the ball. */
 function Ball({ cx, cy, r, sw }: { cx: number; cy: number; r: number; sw: number }) {
   const p = (k: number, rr: number) => {
     const pts = Array.from({ length: 5 }, (_, i) => {
@@ -140,7 +140,6 @@ function Ball({ cx, cy, r, sw }: { cx: number; cy: number; r: number; sw: number
         <circle key={i} cx={c.x} cy={c.y} r={r * 0.16} className="a-ink" />
       ))}
       <circle cx={cx} cy={cy} r={r} fill="none" className="a-line" strokeWidth={sw} />
-      <path d={`M ${cx - r * 0.55} ${cy - r * 0.5} q ${r * 0.2} ${-r * 0.25} ${r * 0.5} ${-r * 0.3}`} fill="none" stroke="var(--art-light)" strokeWidth={sw * 0.7} strokeLinecap="round" opacity="0.9" />
     </g>
   )
 }

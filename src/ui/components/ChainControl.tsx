@@ -3,6 +3,11 @@ import { sharedClubSeasons } from '@engine/teammates'
 import type { PlayerSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { clubName, seasonLabel } from '../format'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+
+const t = translator(setup)
+import { B, rich } from '../i18n/rich'
 
 /** `Real Madrid 2017-18` from a club-season key. */
 function clubSeasonName(u: LoadedUniverse, key: string): string {
@@ -12,15 +17,15 @@ function clubSeasonName(u: LoadedUniverse, key: string): string {
 
 /** The name of the pick the chain follows from. */
 function anchorName(u: LoadedUniverse, d: DraftState): string {
-  return (d.chainFrom && u.index[d.chainFrom]?.name) || 'your last pick'
+  return (d.chainFrom && u.index[d.chainFrom]?.name) || t('yourLastPick')
 }
 
 /** The Teammate Chain setting (Setup, under Wheel rules). */
 export function ChainToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="toggle" title="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When no club-season has one left, the next spin is free and the chain starts again." data-testid="chain-toggle">
+    <label className="toggle" title={t('chainTip')} data-testid="chain-toggle">
       <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
-      Teammate chain: every pick played beside the one before
+      {t('chainToggle')}
     </label>
   )
 }
@@ -32,12 +37,12 @@ export function ChainStatus({ u, d, due }: { u: LoadedUniverse; d: DraftState; d
   if (d.current ? chainBroken(d) : due)
     return (
       <div className="notice warn" data-testid="chain-broken">
-        🔗 Chain broken: no teammate of {name} left on the wheel. {d.current ? 'This spin is free' : 'The next spin is free'}, and the chain starts again from that pick.
+        {t('chainBroken', { name, now: d.current ? 'yes' : 'no' })}
       </div>
     )
   return (
     <div className="notice" data-testid="chain-status">
-      🔗 Teammate chain: {d.current ? 'draft' : 'the wheel lands on a squad holding'} a former teammate of <b>{name}</b>.
+      {rich(t('chainStatus', { name, now: d.current ? 'yes' : 'no' }), B)}
     </div>
   )
 }
@@ -47,15 +52,15 @@ export function ChainChip({ u, d, p, show }: { u: LoadedUniverse; d: DraftState;
   if (!d.rules.chain || !d.chainMates || !d.chainFrom || !show) return null
   if (!chainAllows(d, p))
     return (
-      <span className="chip" data-testid="chain-stranger" title={`${p.name} never shared a dressing room with ${anchorName(u, d)} on this wheel`}>
-        not a teammate
+      <span className="chip" data-testid="chain-stranger" title={t('chainStrangerTip', { player: p.name, anchor: anchorName(u, d) })}>
+        {t('notTeammate')}
       </span>
     )
   const from = u.index[d.chainFrom]
   const link = from && sharedClubSeasons(u, d.rules.leagues, from.playerId, p.playerId)[0]
   if (!from || !link) return null
   return (
-    <span className="chip" data-testid="chain-link" title={`With ${from.name} at ${clubSeasonName(u, link)}`}>
+    <span className="chip" data-testid="chain-link" title={t('chainWith', { name: from.name, club: clubSeasonName(u, link) })}>
       🔗 {clubSeasonName(u, link)}
     </span>
   )
@@ -66,7 +71,7 @@ export function ChainLogNote({ u, h, prevName, name }: { u: LoadedUniverse; h: D
   if (h.chainBroken)
     return (
       <span className="muted log-chain" data-testid="chain-log-broken">
-        🔗 chain broken{prevName ? `: no teammate of ${prevName} left` : ''}
+        {prevName ? t('chainLogBrokenOf', { name: prevName }) : t('chainLogBroken')}
       </span>
     )
   if (!h.chainLink || !prevName) return null

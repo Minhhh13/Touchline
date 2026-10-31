@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gauntletBandText, knockoutOutcome, splitSeason } from '../arenaText'
+import { gauntletBandText, knockoutOutcome, longWord, personalBest, splitSeason, kickLine, takerMoved } from '../arenaText'
 import { GAUNTLET_RUNGS, rungBandLabel } from '@engine/gauntlet'
 
 describe('arena display text', () => {
@@ -31,5 +31,47 @@ describe('arena display text', () => {
     for (let rung = 11; rung <= GAUNTLET_RUNGS; rung++) expect(gauntletBandText(rung)).toBe(rungBandLabel(rung))
     // The engine's words are untouched (the verifier bundles gauntlet.ts)
     expect(rungBandLabel(2)).toBe('top 90% of the wheel')
+  })
+})
+
+describe('the shoot-out in words (accessibility round 3)', () => {
+  it('says each kick with the score, and the verdict on the last', () => {
+    expect(kickLine({ us: true, scored: true }, 1, 'H. Kane', 1, 0, null)).toBe('Kick 1, ours: H. Kane scores. 1-0.')
+    expect(kickLine({ us: false, scored: false }, 2, 'Salah', 1, 0, null)).toBe('Kick 2, theirs: Salah misses. 1-0.')
+    expect(kickLine({ us: false, scored: true }, 10, 'Salah', 4, 5, 'Lost 4-5 on penalties')).toBe('Kick 10, theirs: Salah scores. 4-5. Lost 4-5 on penalties.')
+  })
+  it('says where a moved taker now kicks', () => {
+    expect(takerMoved('H. Kane', 0)).toBe('H. Kane takes kick 1.')
+  })
+
+  it('marks a run that beats or ties the best of its own kind, never the first run or a scoreless one', () => {
+    const runs = [
+      { id: 'a', format: 'gauntlet' as const, score: 5 },
+      { id: 'b', format: 'gauntlet' as const, score: 3 },
+      { id: 'c', format: 'cup' as const, size: 8, score: 3 },
+      { id: 'd', format: 'cup' as const, size: 16, score: 1 },
+      { id: 'e', format: 'cup' as const, score: 1 },
+    ]
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 7 })).toEqual({ kind: 'best', was: 5 })
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 5 })).toEqual({ kind: 'equal', was: 5 })
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 4 })).toBeNull()
+    // A Cup is measured against Cups of its own size; a final (no size) against finals
+    expect(personalBest(runs, { id: 'x', format: 'cup', size: 16, score: 2 })).toEqual({ kind: 'best', was: 1 })
+    expect(personalBest(runs, { id: 'x', format: 'cup', size: 32, score: 2 })).toBeNull()
+    expect(personalBest(runs, { id: 'x', format: 'cup', score: 1 })).toEqual({ kind: 'equal', was: 1 })
+    // The run itself is not one of the earlier runs; nothing to beat, or nothing won, is no mark
+    expect(personalBest([{ id: 'x', format: 'gauntlet', score: 9 }], { id: 'x', format: 'gauntlet', score: 9 })).toBeNull()
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 0 })).toBeNull()
+  })
+})
+
+describe('longWord: a summary banner a size down on a phone (r9)', () => {
+  it('marks the knockout words that broke at their hyphen, never a short banner', () => {
+    expect(longWord('Semi-finalists')).toBe(true)
+    expect(longWord('Quarter-finalists')).toBe(true)
+    expect(longWord('Out in the round of 16')).toBe(false)
+    expect(longWord('8 rungs')).toBe(false)
+    expect(longWord('Cup winners')).toBe(false)
+    expect(longWord('Runners-up')).toBe(false)
   })
 })

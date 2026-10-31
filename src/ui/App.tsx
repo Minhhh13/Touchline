@@ -1,56 +1,85 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { useStore } from '@game/store'
+import { loadRules, rules } from '@game/rulesHook'
+import { useStorePick } from './useStorePick'
 import { Home } from './screens/Home'
-import { isArenaPayload } from '@engine/challenge'
-import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
+import { chunkReturnOf, lazyScreen, prefetchScreens, ScreenBoundary, takeChunkReturn } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { SaveBanner } from './components/SaveBanner'
+import { SaveIssue } from './components/SaveIssue'
+import { ConfirmHost } from './components/ConfirmDialog'
 import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
+import { AHEAD_CAP, digestAhead } from '@game/logic/digestAhead'
 import type { NewsItem } from '@engine/season'
-import { clubName, ordinal, outcomeClass, seasonLabel } from './format'
+import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
+import { DIGEST_MOOD_WORDINGS, digestMood, digestWinRun, digestWording } from './seasonDrama'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
 import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
+import { watchFocusRescue } from './focusRescue'
+import { watchTypingHold } from './typingHold'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, CalendarClock, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
-import { DAMAGED_LINK_TOAST, readGameHash } from './gameHash'
+import { readGameHash } from './gameHash'
 import { onlineAvailable, openRoom, resolveShort } from '../online/api'
 import { newsBody } from '@game/logic/newsFlavour'
+import { translator } from './i18n'
+import { app } from './i18n/en/app'
+import { shell } from './i18n/en/shell'
+import { useLanguage } from './i18n/language'
+import { B, rich } from './i18n/rich'
+import { shellLogicLine } from './i18n/logicLine'
+import { playbackUnfinished } from './playbackResume'
+// The summer's player stories ride in their own chunk, with the history catalogue (the first download stays as it was)
+const SummerStories = lazy(() => import('./components/SummerStories').then((m) => ({ default: m.SummerStories })))
+
+const t = translator(app)
+const tShell = translator(shell)
+
+/**
+ * A screen that plays a game loads the rules chunk (`src/game/rulesHook.ts`) and the game screens' styles
+ * (`gameScreens.css`) with its own: the store's actions it calls find the rules in place and its boxes their styles,
+ * and Home's first download leaves both out.
+ */
+const withRules =
+  <T,>(load: () => Promise<T>) =>
+  (): Promise<T> =>
+    Promise.all([load(), loadRules(), import('./gameStyles')]).then(([m]) => m)
 
 // Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
 // after Home fetches them in this order, the Quick Draft path first
 const SCREENS = {
-  setup: lazyScreen(() => import('./screens/Setup'), 'Setup'),
-  draft: lazyScreen(() => import('./screens/Draft'), 'Draft'),
-  kickOff: lazyScreen(() => import('./screens/KickOff'), 'KickOff'),
-  playback: lazyScreen(() => import('./screens/SeasonPlayback'), 'SeasonPlayback'),
-  summary: lazyScreen(() => import('./screens/Summary'), 'Summary'),
-  dugout: lazyScreen(() => import('./screens/Dugout'), 'Dugout'),
-  match: lazyScreen(() => import('./screens/MatchScreen'), 'MatchScreen'),
-  explore: lazyScreen(() => import('./screens/Explore'), 'Explore'),
-  profile: lazyScreen(() => import('./screens/ProfileScreen'), 'ProfileScreen'),
-  h2h: lazyScreen(() => import('./screens/H2H'), 'H2HScreen'),
+  setup: lazyScreen(withRules(() => import('./screens/Setup')), 'Setup'),
+  draft: lazyScreen(withRules(() => import('./screens/Draft')), 'Draft'),
+  kickOff: lazyScreen(withRules(() => import('./screens/KickOff')), 'KickOff'),
+  playback: lazyScreen(withRules(() => import('./screens/SeasonPlayback')), 'SeasonPlayback'),
+  summary: lazyScreen(withRules(() => import('./screens/Summary')), 'Summary'),
+  dugout: lazyScreen(withRules(() => import('./screens/Dugout')), 'Dugout'),
+  match: lazyScreen(withRules(() => import('./screens/MatchScreen')), 'MatchScreen'),
+  explore: lazyScreen(withRules(() => import('./screens/Explore')), 'Explore'),
+  profile: lazyScreen(withRules(() => import('./screens/ProfileScreen')), 'ProfileScreen'),
+  h2h: lazyScreen(withRules(() => import('./screens/H2H')), 'H2HScreen'),
   howTo: lazyScreen(() => import('./screens/HowTo'), 'HowTo'),
-  arenaSetup: lazyScreen(() => import('./screens/ArenaSetup'), 'ArenaSetup'),
-  arena: lazyScreen(() => import('./screens/Arena'), 'Arena'),
-  arenaSummary: lazyScreen(() => import('./screens/ArenaSummary'), 'ArenaSummary'),
-  arenaChallengeSetup: lazyScreen(() => import('./screens/ArenaChallengeSetup'), 'ArenaChallengeSetup'),
-  runInSetup: lazyScreen(() => import('./screens/RunInSetup'), 'RunInSetup'),
-  runInSummary: lazyScreen(() => import('./screens/RunInSummary'), 'RunInSummary'),
+  arenaSetup: lazyScreen(withRules(() => import('./screens/ArenaSetup')), 'ArenaSetup'),
+  arena: lazyScreen(withRules(() => import('./screens/Arena')), 'Arena'),
+  arenaSummary: lazyScreen(withRules(() => import('./screens/ArenaSummary')), 'ArenaSummary'),
+  arenaChallengeSetup: lazyScreen(withRules(() => import('./screens/ArenaChallengeSetup')), 'ArenaChallengeSetup'),
+  runInSetup: lazyScreen(withRules(() => import('./screens/RunInSetup')), 'RunInSetup'),
+  runInSummary: lazyScreen(withRules(() => import('./screens/RunInSummary')), 'RunInSummary'),
   privacy: lazyScreen(() => import('./screens/Privacy'), 'Privacy'),
-  world: lazyScreen(() => import('./online/WorldBoard'), 'WorldBoard'),
-  account: lazyScreen(() => import('./online/AccountPanel'), 'AccountScreen'),
-  room: lazyScreen(() => import('./online/Rooms'), 'RoomScreen'),
+  world: lazyScreen(withRules(() => import('./online/WorldBoard')), 'WorldBoard'),
+  account: lazyScreen(withRules(() => import('./online/AccountPanel')), 'AccountScreen'),
+  room: lazyScreen(withRules(() => import('./online/Rooms')), 'RoomScreen'),
 }
 const { setup: { Screen: Setup }, draft: { Screen: Draft }, kickOff: { Screen: KickOff }, playback: { Screen: SeasonPlayback }, summary: { Screen: Summary }, dugout: { Screen: Dugout }, match: { Screen: MatchScreen }, explore: { Screen: Explore }, profile: { Screen: ProfileScreen }, h2h: { Screen: H2HScreen }, howTo: { Screen: HowTo }, arenaSetup: { Screen: ArenaSetup }, arena: { Screen: Arena }, arenaSummary: { Screen: ArenaSummary }, arenaChallengeSetup: { Screen: ArenaChallengeSetup }, runInSetup: { Screen: RunInSetup }, runInSummary: { Screen: RunInSummary }, privacy: { Screen: Privacy }, world: { Screen: WorldBoard }, account: { Screen: AccountScreen }, room: { Screen: RoomScreen } } = SCREENS
 
@@ -58,16 +87,24 @@ const { setup: { Screen: Setup }, draft: { Screen: Draft }, kickOff: { Screen: K
 const AccountChip = lazy(() => import('./online/AccountChip').then((m) => ({ default: m.AccountChip })))
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStorePick('universe', 'loading', 'loadError', 'loadData', 'screen', 'go', 'game', 'h2h', 'profile', 'setTheme', 'offseason', 'dismissOffseason', 'digest', 'dismissDigest', 'abandonGame', 'openChallenge', 'playback', 'setupMode', 'pendingChallenge')
   // An arena run's field strengths, worked out in idle moments while it drafts
   useArenaWarmup()
   // After the first finished game, ask the browser to keep the save through storage pressure (persistStorage.ts)
   usePersistAfterFirstResult(profile)
   const hashHandled = useRef(false)
+  // A language change remounts the screen below (its key), so every string on it is read again
+  const { locale } = useLanguage()
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
   const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
   // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back
+  // A reload over a screen's chunk that did not load (lazyScreens.tsx, R14-O1) comes back to that screen, not Home
+  useEffect(() => {
+    const back = chunkReturnOf(takeChunkReturn(), useStore.getState().screen)
+    if (back) go(back.screen, back.mode)
+    // Once, on the page's first mount
+  }, [])
   const flipTheme = () => withViewTransition(() => setTheme(toggledTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')))
   const [barHidden, toggleBar] = useViewerFlag(TOPBAR_HIDDEN_KEY)
   // Focus follows the control that replaces the one just pressed (the toggle and the restore pill sit in the same spot)
@@ -83,8 +120,9 @@ export function App() {
       return
     }
     const set = () => root.style.setProperty('--topbar-h', `${Math.ceil(topbar.getBoundingClientRect().height)}px`)
-    set()
-    if (typeof ResizeObserver === 'undefined') return
+    // Measured by the observer's first report, after the frame's own layout: read here, it forced the whole first screen's
+    // style and layout inside the commit (about 100 ms at 4x on Home's first render). Only the scroll padding reads it.
+    if (typeof ResizeObserver === 'undefined') return set()
     const ro = new ResizeObserver(set)
     ro.observe(topbar)
     return () => ro.disconnect()
@@ -124,6 +162,10 @@ export function App() {
   }, [dataReady])
   // A box that scrolls with nothing focusable inside joins the Tab order while it scrolls (keyboard and Safari reach)
   useEffect(() => watchScrollFocus(), [])
+  // A focus whose control leaves the page goes back to the nearest box, or to the new screen's page
+  useEffect(() => watchFocusRescue(), [])
+  // A tap that ends typing on a phone keeps the bar it lands on still until its click (the dock waits for it)
+  useEffect(() => watchTypingHold(), [])
 
   // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
   // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
@@ -133,7 +175,7 @@ export function App() {
       const { link: h, damaged } = readGameHash(location.hash)
       if (damaged) {
         history.replaceState(null, '', location.pathname + location.search)
-        useStore.getState().showToast(DAMAGED_LINK_TOAST)
+        useStore.getState().showToast(tShell('damagedLink'))
         return
       }
       if (!h) return
@@ -144,7 +186,7 @@ export function App() {
           void openRoom(h.code)
         } else {
           history.replaceState(null, '', location.pathname + location.search)
-          useStore.getState().showToast('Online rooms need the online version of TouchLine.')
+          useStore.getState().showToast(t('roomsOffline'))
         }
         return
       }
@@ -192,15 +234,15 @@ export function App() {
     return (
       <div className="page">
         <div className="panel">
-          <h2>Could not load the player database</h2>
+          <h2>{t('loadFailed')}</h2>
           <p className="muted">{loadError}</p>
           <div className="row wrap">
             <button className="btn primary" onClick={() => loadData()}>
-              Retry
+              {t('retry')}
             </button>
             {game && (
               <button className="btn" onClick={() => { abandonGame(); void loadData() }}>
-                Discard the saved game and retry
+                {t('discardAndRetry')}
               </button>
             )}
           </div>
@@ -215,7 +257,7 @@ export function App() {
           <div className="skeleton loading-hero">
             <Logo size="lg" />
             <div className="muted small" role="status">
-              Loading the player database…
+              {t('loading')}
             </div>
           </div>
           <div className="loading-cards" aria-hidden="true">
@@ -231,7 +273,11 @@ export function App() {
 
   let body: React.ReactNode
   // The quick season's playback after kick-off runs in the summary phase: the nav still calls it the season until it closes
-  const seasonPlaying = !!game && game.phase === 'summary' && !!(playback || game.quickOpen) && !!game.quickResult?.results?.length
+  // (a reload too: a playback this device left part way comes back to its place, R16-2)
+  const seasonGames = game?.phase === 'summary' ? game.quickResult?.results?.length ?? 0 : 0
+  const seasonPlaying = !!game && seasonGames > 0 && !!(playback || game.quickOpen || playbackUnfinished(game.id, seasonGames))
+  // The game's own nav entry, named for where the game is
+  const gameNav = !game ? '' : t(game.phase === 'draft' ? 'navDraft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'navSeason' : game.phase === 'summary' ? 'navSummary' : game.arena ? 'navArena' : 'navDugout')
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
   // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
   // Setup and the match day keep their own layouts
@@ -247,7 +293,7 @@ export function App() {
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
     else body = game.arena ? <Arena /> : <Dugout />
-  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
+  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && rules().isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'room') body = <RoomScreen />
   else if (screen === 'explore') body = <Explore />
@@ -259,9 +305,9 @@ export function App() {
   else body = <Home />
 
   return (
-    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`} ref={watchMainLandmark}>
+    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''} ${Capacitor.isNativePlatform() || (screen === 'game' && game?.phase === 'match' && !shell) ? 'dock-off' : ''}`} data-native={Capacitor.isNativePlatform() || undefined} ref={watchMainLandmark}>
       <a className="skip-link" href="#main" onClick={skipToMain} data-testid="skip-link">
-        Skip to content
+        {t('skipToContent')}
       </a>
       <header className="topbar" ref={setTopbar} inert={barHidden} aria-hidden={barHidden || undefined}>
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
@@ -269,37 +315,44 @@ export function App() {
         </div>
         <SaveBanner />
         <nav>
-          <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
+          <button className={screen === 'home' ? 'active' : ''} aria-current={screen === 'home' ? 'page' : undefined} onClick={() => nav('home')}>
             <House size={16} />
-            <span className="nav-label">Home</span>
+            <span className="nav-label">{t('navHome')}</span>
+            <span className="nav-tiny" aria-hidden="true">{t('navHome')}</span>
           </button>
           {game && (
-            <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
+            <button className={screen === 'game' ? 'active' : ''} aria-current={screen === 'game' ? 'page' : undefined} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <ClipboardCheck size={16} /> : <ClipboardList size={16} />}
-              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
+              <span className="nav-label">{gameNav}</span>
+              <span className="nav-tiny" aria-hidden="true">{gameNav}</span>
             </button>
           )}
-          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
+          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')} data-testid="nav-h2h">
             <Swords size={16} />
-            <span className="nav-label"><span className="nav-long">Head-to-head</span><span className="nav-short">H2H</span></span>
+            <span className="nav-tiny">{t('navTinyH2H')}</span>
+            <span className="nav-label">{t('navH2H')}</span>
           </button>
-          <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
+          <button className={screen === 'explore' ? 'active' : ''} aria-current={screen === 'explore' ? 'page' : undefined} onClick={() => nav('explore')}>
             <Search size={16} />
-            <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
+            <span className="nav-tiny">{t('navTinyExplore')}</span>
+            <span className="nav-label"><span className="nav-long">{t('navExplore')}</span><span className="nav-short">{t('navExploreShort')}</span></span>
           </button>
           {onlineAvailable() && (
-            <button className={screen === 'world' ? 'active' : ''} onClick={() => nav('world')} data-testid="nav-world">
+            <button className={screen === 'world' ? 'active' : ''} aria-current={screen === 'world' ? 'page' : undefined} onClick={() => nav('world')} data-testid="nav-world">
               <Globe size={16} />
-              <span className="nav-label">World</span>
+              <span className="nav-label">{t('navWorld')}</span>
+              <span className="nav-tiny" aria-hidden="true">{t('navWorld')}</span>
             </button>
           )}
-          <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
+          <button className={screen === 'profile' ? 'active' : ''} aria-current={screen === 'profile' ? 'page' : undefined} onClick={() => nav('profile')}>
             <Trophy size={16} />
-            <span className="nav-label">Profile</span>
+            <span className="nav-label">{t('navProfile')}</span>
+            <span className="nav-tiny" aria-hidden="true">{t('navProfile')}</span>
           </button>
-          <button className={`nav-guide${screen === 'howto' ? ' active' : ''}`} onClick={() => nav('howto')}>
+          <button className={screen === 'howto' ? 'active' : ''} aria-current={screen === 'howto' ? 'page' : undefined} onClick={() => nav('howto')}>
             <BookOpen size={16} />
-            <span className="nav-label"><span className="nav-long">How it works</span><span className="nav-short">Guide</span></span>
+            <span className="nav-tiny">{t('navTinyGuide')}</span>
+            <span className="nav-label">{t('navHowTo')}</span>
           </button>
         </nav>
         {onlineAvailable() && (
@@ -311,63 +364,77 @@ export function App() {
           type="button"
           className="theme-switch"
           onClick={flipTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          aria-label={t(theme === 'dark' ? 'toLight' : 'toDark')}
+          title={t(theme === 'dark' ? 'lightMode' : 'darkMode')}
           data-testid="theme-switch"
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <button type="button" className="theme-switch topbar-toggle" onClick={flipBar} aria-label="Hide top bar" aria-keyshortcuts={'\\'} title={'Hide top bar (\\)'} data-testid="topbar-toggle" ref={toggleRef}>
+        <button type="button" className="theme-switch topbar-toggle" onClick={flipBar} aria-label={t('hideBar')} aria-keyshortcuts={'\\'} title={t('hideBarKey')} data-testid="topbar-toggle" ref={toggleRef}>
           <ChevronUp size={18} />
         </button>
       </header>
       {barHidden && (
-        <button type="button" className="topbar-restore" onClick={flipBar} aria-label="Show top bar" aria-keyshortcuts={'\\'} title={'Show top bar (\\)'} data-testid="topbar-restore" ref={restoreRef}>
+        <button type="button" className="topbar-restore" onClick={flipBar} aria-label={t('showBar')} aria-keyshortcuts={'\\'} title={t('showBarKey')} data-testid="topbar-restore" ref={restoreRef}>
           <ChevronDown size={16} aria-hidden="true" />
-          <span>Show top bar</span>
+          <span>{t('showBar')}</span>
         </button>
       )}
-      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')}>
+      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} key={locale} onHome={() => go('home')} atHome={screen === 'home'} returnTo={screen === 'setup' ? `setup:${setupMode}` : screen}>
         {body}
       </ScreenBoundary>
       <Toast />
       {barHidden && <SaveBanner floating />}
-      <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
+      <SaveIssue />
+      <ConfirmHost />
+      <Modal open={!!offseason} onClose={dismissOffseason} title={t('summerTitle')}>
         {offseason && (
-          <div className="col">
+          <div className="col summer-review">
             {offseason.retired.length > 0 && (
-              <p>
-                <b>Retired:</b> {offseason.retired.join(', ')}
-              </p>
+              <p>{rich(t('summerRetired', { names: offseason.retired.join(', ') }), B)}</p>
             )}
             {offseason.expired.length > 0 && (
-              <p>
-                <b>Left on expired contracts:</b> {offseason.expired.join(', ')}
-              </p>
+              <p>{rich(t('summerExpired', { names: offseason.expired.join(', ') }), B)}</p>
+            )}
+            {(offseason.renewals ?? []).length > 0 && (
+              <p data-testid="offseason-renewals">{rich(t('summerRenewals', { names: (offseason.renewals ?? []).join(', ') }), B)}</p>
             )}
             {offseason.returned.length > 0 && (
-              <p>
-                <b>Back to their clubs after loans:</b> {offseason.returned.join(', ')}
-              </p>
+              <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
+            )}
+            {offseason.stories && (
+              <Suspense fallback={null}>
+                <SummerStories stories={offseason.stories} />
+              </Suspense>
             )}
             {offseason.improved.length > 0 && (
-              <p>
-                <b>Improved:</b> {offseason.improved.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}
-              </p>
+              <div className="summer-moves" data-testid="summer-improved">
+                <b>{t('summerImproved')}</b>
+                {offseason.improved.map((x) => (
+                  <span key={x.name} className="chip good">
+                    {t('summerMove', { name: x.name, from: x.from, to: x.to })}
+                  </span>
+                ))}
+              </div>
             )}
             {offseason.declined.length > 0 && (
-              <p>
-                <b>Declined:</b> {offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}
-              </p>
+              <div className="summer-moves" data-testid="summer-declined">
+                <b>{t('summerDeclined')}</b>
+                {offseason.declined.map((x) => (
+                  <span key={x.name} className="chip bad">
+                    {t('summerMove', { name: x.name, from: x.from, to: x.to })}
+                  </span>
+                ))}
+              </div>
             )}
             {game && (game.history.at(-1)?.leagueSeason ?? 0) > game.settings.leagueSeason && (
               <p className="small" data-testid="season-wrap">
-                <b>Back to the start:</b> after the last season on the wheel the league turns over to {seasonLabel(game.settings.leagueSeason)}, with that season's clubs.
+                {rich(t('summerWrap', { season: seasonLabel(game.settings.leagueSeason) }), B)}
               </p>
             )}
-            <p className="muted small">{game && game.bonusSpins > 0 ? `You have ${game.bonusSpins} bonus spin${game.bonusSpins === 1 ? '' : 's'} to rebuild` : 'Your squad is full, so there are no summer spins'}, and the summer market opens in the Dugout after the draft, before the first match. Finish the draft to carry on.</p>
+            <p className="muted small">{t('summerSpins', { n: game ? game.bonusSpins : 0 })}</p>
             <button className="btn primary" onClick={dismissOffseason}>
-              To the draft
+              {t('toTheDraft')}
             </button>
           </div>
         )}
@@ -386,120 +453,160 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   const u = useStore((s) => s.universe)
   // Read live, as the Inbox tab's badge is: a run simulated with the Inbox open has already been marked read
   const unread = useStore((s) => (s.game ? unseenNews(s.game) : 0))
+  const game = useStore((s) => s.game)
+  const ahead = game && u ? digestAhead(game, u) : null
   const league = d.results.filter((r) => r.comp === 'league')
   const tally = { W: 0, D: 0, L: 0 }
   for (const r of league) tally[r.outcome]++
   // From pre-season nobody has played, so the table's order before the run means nothing: only where you stand now
   const move = d.positionTo < d.positionFrom ? 'up' : d.positionTo > d.positionFrom ? 'down' : 'level'
-  const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length
+  const office = d.office ?? []
+  // A run of three wins or more in the stretch flares beside the table line (seasonDrama.ts)
+  const winRun = digestWinRun(league.map((r) => r.outcome))
+  const quiet = !d.decisions.length && !d.injuries.length && !d.suspensions.length && !d.transfers.length && !d.development.length && !office.length
+  // A line on the stretch as a whole and the quiet line, each worded by a hash of the game and its weeks (display only)
+  const mood = digestMood(league.map((r) => r.outcome), { from: d.positionFrom, to: d.positionTo, fromPreseason: d.fromMatchweek === 0 })
+  const said = (line: string, count = DIGEST_MOOD_WORDINGS) => digestWording(game?.id ?? '', d.fromMatchweek, d.toMatchweek, line, count)
+  const moodKey = mood ? (`digestMood_${mood}_${said('mood')}` as keyof typeof app.messages) : null
+  const quietKey = (`digestQuiet_${said('quiet')}` as keyof typeof app.messages)
   return (
     <div className="col digest" data-testid="digest">
+      {moodKey && <p className="digest-mood" data-testid="digest-mood">{t(moodKey, { n: Math.abs(d.positionTo - d.positionFrom) })}</p>}
       <div className="digest-results" data-testid="digest-results">
         {d.results.map((r, i) => (
           <span
             key={i}
             className={`chip ${outcomeClass(r.outcome)} ${r.comp !== 'league' ? 'cup' : ''}`}
-            title={`${r.comp === 'league' ? `Matchweek ${r.matchweek}` : `${r.roundLabel ?? 'Cup tie'} after matchweek ${r.matchweek}`}: ${r.home ? 'v' : 'at'} ${clubName(u, r.opponentId)} ${r.gf}-${r.ga}${r.penalties ? ` (${r.penalties.gf}-${r.penalties.ga} on penalties)` : ''}`}
+            style={{ ['--i' as string]: String(Math.min(i, 12)) }}
+            title={t(r.comp === 'league' ? 'digestLeagueTip' : 'digestCupTip', { week: r.matchweek, round: r.roundLabel ? shellLogicLine(r.roundLabel) : t('digestCupTie'), venue: r.home ? 'home' : 'away', club: clubName(u, r.opponentId), score: `${r.gf}-${r.ga}`, agg: r.aggregate ? t('digestAggTip', { score: `${r.aggregate.gf}-${r.aggregate.ga}` }) : '', pens: r.penalties ? t('digestPensTip', { score: `${r.penalties.gf}-${r.penalties.ga}` }) : '' })}
           >
             <ClubBadge clubId={r.opponentId} size={18} />
             <b>
               {r.gf}-{r.ga}
             </b>
-            {r.penalties && <span className="small muted">{r.penalties.gf}-{r.penalties.ga} pens</span>}
+            {r.penalties && <span className="small muted">{t('digestPens', { score: `${r.penalties.gf}-${r.penalties.ga}` })}</span>}
             <span className="res-letter">{r.outcome}</span>
-            <span className="small muted">{r.home ? 'H' : 'A'}</span>
-            {r.comp !== 'league' && <span className="small muted">{r.comp === 'cup' ? 'Cup' : 'Eur'}</span>}
+            <span className="small muted">{t(r.home ? 'digestHome' : 'digestAway')}</span>
+            {r.comp !== 'league' && <span className="small muted">{t(r.comp === 'cup' ? 'digestCup' : 'digestEurope')}</span>}
           </span>
         ))}
       </div>
       <div data-testid="digest-table">
         <b>
-          {league.length ? <><span className="res-w">{tally.W}W</span> <span className="res-d">{tally.D}D</span> <span className="res-l">{tally.L}L</span> · </> : ''}
-          {d.fromMatchweek === 0 ? `${ordinal(d.positionTo)} in the table` : move === 'level' ? `Still ${ordinal(d.positionTo)}` : `${ordinal(d.positionFrom)} to ${ordinal(d.positionTo)}`}, {d.points} point{d.points === 1 ? '' : 's'}
+          {league.length ? <><span className="res-w">{t('tallyW', { n: tally.W })}</span> <span className="res-d">{t('tallyD', { n: tally.D })}</span> <span className="res-l">{t('tallyL', { n: tally.L })}</span> · </> : ''}
+          {t('digestPoints', { n: d.points, place: d.fromMatchweek === 0 ? t('digestPlaced', { pos: d.positionTo }) : move === 'level' ? t('digestStill', { pos: d.positionTo }) : t('digestMoved', { from: d.positionFrom, to: d.positionTo }) })}
+          {d.fromMatchweek !== 0 && move !== 'level' && (
+            <span className={`digest-move ${move}`} aria-hidden="true" data-testid="digest-move">
+              {move === 'up' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+            </span>
+          )}
         </b>
-        <span className="muted"> from {league.length} league match{league.length === 1 ? '' : 'es'}</span>
+        {winRun > 0 && (
+          <span className="chip digest-flare" data-testid="digest-flare">
+            <Flame size={14} aria-hidden="true" /> {t('digestWinRun', { n: winRun })}
+          </span>
+        )}
+        <span className="muted">{t('digestFrom', { n: league.length })}</span>
       </div>
       <div className="digest-conf" data-testid="digest-confidence">
-        <span className="small muted">Board confidence</span>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="small" style={{ minWidth: 22, textAlign: 'right' }}>
-            {Math.round(d.confidenceFrom)}
+        <div className="row between">
+          <span className="small muted">{t('boardConfidence')}</span>
+          <span className="small digest-conf-move">
+            {t('confidenceMove', { from: Math.round(d.confidenceFrom), to: Math.round(d.confidenceTo) })}
+            {Math.round(d.confidenceTo) !== Math.round(d.confidenceFrom) && (
+              <b className={d.confidenceTo > d.confidenceFrom ? 'res-w' : 'res-l'}> {t('confidenceDelta', { n: signedValue(Math.round(d.confidenceTo) - Math.round(d.confidenceFrom)) })}</b>
+            )}
           </span>
-          <Bar value={d.confidenceFrom} colour={CONFIDENCE_COLOUR(d.confidenceFrom)} />
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="small" style={{ minWidth: 22, textAlign: 'right' }}>
-            {Math.round(d.confidenceTo)}
-          </span>
-          <Bar value={d.confidenceTo} colour={CONFIDENCE_COLOUR(d.confidenceTo)} thick />
-        </div>
+        <Bar value={d.confidenceTo} colour={CONFIDENCE_COLOUR(d.confidenceTo)} thick />
       </div>
       {d.decisions.length > 0 && (
-        <DigestGroup title="Decided for you" icon={<MessageSquare size={14} />} count={d.decisions.length}>
+        <DigestGroup title={t('decidedForYou')} icon={<MessageSquare size={14} />} count={d.decisions.length}>
           {d.decisions.slice(0, DIGEST_GROUP_CAP).map((x, i) => (
             <li key={i}>
-              <b>{x.title}</b>{x.count ? ` (${x.count} times)` : ''}: {x.choice}
-              {x.outcome && <span className="muted"> · {x.outcome}</span>}
+              <b>{shellLogicLine(x.title)}</b>{x.count ? t('decidedTimes', { n: x.count }) : ''}: {shellLogicLine(x.choice)}
+              {x.outcome && <span className="muted"> · {shellLogicLine(x.outcome)}</span>}
             </li>
           ))}
         </DigestGroup>
       )}
-      <NewsGroup title="Injuries" icon={<Bandage size={14} />} items={d.injuries} />
-      <NewsGroup title="Suspensions" icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
-      <NewsGroup title="Transfers" icon={<Banknote size={14} />} items={d.transfers} />
-      <NewsGroup title="Development" icon={<TrendingUp size={14} />} items={d.development} />
-      {quiet && <p className="muted small">Nothing else to report: no injuries, bans, transfers or decisions taken in your name.</p>}
-      {d.truncated && <p className="muted small">The inbox keeps the latest 120 items, so the earliest of these weeks have already dropped off it.</p>}
+      <NewsGroup title={t('digestOffice')} icon={<Briefcase size={14} />} items={office} testId="digest-office" />
+      <NewsGroup title={t('injuries')} icon={<Bandage size={14} />} items={d.injuries} />
+      <NewsGroup title={t('suspensions')} icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
+      <NewsGroup title={t('transfers')} icon={<Banknote size={14} />} items={d.transfers} />
+      <NewsGroup title={t('development')} icon={<TrendingUp size={14} />} items={d.development} />
+      {quiet && <p className="muted small">{t(quietKey)}</p>}
+      {d.truncated && <p className="muted small">{t('digestTruncated')}</p>}
+      {/* Where the run leaves you: the next match and who misses it (r10) */}
+      {ahead && (
+        <div className="digest-group digest-ahead" data-testid="digest-ahead">
+          <div className="small muted digest-group-title">
+            <CalendarClock size={14} aria-hidden="true" /> {ahead.opponentId ? t('aheadNext', { week: ahead.matchweek, venue: ahead.home ? 'home' : 'away', club: clubName(u, ahead.opponentId) }) : t('aheadFree', { week: ahead.matchweek })}
+          </div>
+          {ahead.out.length > 0 ? (
+            <ul>
+              {ahead.out.slice(0, AHEAD_CAP).map((m) => (
+                <li key={m.id}>
+                  <b>{m.name}</b> {t(m.why === 'injury' ? 'aheadInjured' : 'aheadBanned', { n: m.weeks })}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="small">{t('aheadAllFit')}</p>
+          )}
+          {ahead.out.length > AHEAD_CAP && <div className="small muted">{t('andMore', { n: ahead.out.length - AHEAD_CAP })}</div>}
+        </div>
+      )}
       <div className="row between wrap">
         <span className="small muted" data-testid="digest-unread">
-          {unread ? `${unread} unread in the Inbox` : 'Nothing unread in the Inbox'}
+          {t('unread', { n: unread })}
         </span>
         <button className="btn primary" onClick={onClose} data-testid="digest-close">
-          To the dugout
+          {t('toTheDugout')}
         </button>
       </div>
     </div>
   )
 }
 
-function DigestGroup({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
+function DigestGroup({ title, icon, count, children, testId }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode; testId?: string }) {
   return (
-    <div className="digest-group">
+    <div className="digest-group" data-testid={testId}>
       <div className="small muted digest-group-title">
         {icon} {title}
       </div>
       <ul>{children}</ul>
-      {count > DIGEST_GROUP_CAP && <div className="small muted">and {count - DIGEST_GROUP_CAP} more in the Inbox</div>}
+      {count > DIGEST_GROUP_CAP && <div className="small muted">{t('andMore', { n: count - DIGEST_GROUP_CAP })}</div>}
     </div>
   )
 }
 
-function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNode; items: NewsItem[] }) {
+function NewsGroup({ title, icon, items, testId }: { title: string; icon: React.ReactNode; items: NewsItem[]; testId?: string }) {
   if (!items.length) return null
   return (
-    <DigestGroup title={title} icon={icon} count={items.length}>
+    <DigestGroup title={title} icon={icon} count={items.length} testId={testId}>
       {items.slice(0, DIGEST_GROUP_CAP).map((n, i) => {
         // A development report lists a dozen players: up and down as two short lists, five names each
         const dev = n.kind === 'training' ? developmentLists(n.body) : null
         if (!dev) {
           return (
             <li key={i}>
-              <b>{n.title}</b> <span className="muted">{newsBody(n)}</span>
+              <b>{shellLogicLine(n.title)}</b> <span className="muted">{shellLogicLine(newsBody(n))}</span>
             </li>
           )
         }
         return (
           <li key={i} className="dev-report">
-            <b>{n.title}</b>
+            <b>{shellLogicLine(n.title)}</b>
             {(
               [
-                ['Improving', dev.improving, 'res-w'],
-                ['Fading', dev.fading, 'res-l'],
+                [t('improving'), dev.improving, 'res-w'],
+                [t('fading'), dev.fading, 'res-l'],
               ] as const
             ).map(([label, list, cls]) =>
               list.length ? (
                 <div key={label} className="dev-line small">
-                  <span className={cls}>{label}</span> <span className="muted">{list.slice(0, 5).join(' · ')}{list.length > 5 ? ` · +${list.length - 5} more` : ''}</span>
+                  <span className={cls}>{label}</span> <span className="muted">{list.slice(0, 5).join(' · ')}{list.length > 5 ? t('plusMore', { n: list.length - 5 }) : ''}</span>
                 </div>
               ) : null,
             )}

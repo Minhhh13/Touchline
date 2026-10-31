@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Gift } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { CASE_ITEMS, CASE_RARITIES, caseRarityOdds } from '@engine/endCase'
-import { POWER_UP_INFO } from '@engine/powerups'
 import { ratingHidden } from '@game/logic/ratingVisibility'
-import { CASE_RARITY_LABEL, CASE_TIER, caseIconChoices, lockerCount } from '@game/logic/endCase'
+import { CASE_TIER, caseIconChoices, lockerCount } from '@game/logic/endCase'
 import { caseGuide } from '@game/logic/caseGuide'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
-import { slotRating, slotRatingLine } from '@game/logic/slotRating'
-import { armAudio, unlockAudio } from '../sound/synth'
+import { slotRating } from '@game/logic/slotRating'
+import { fitText, slotRatingText } from '../slotRatingText'
+import { armAudio, playSound, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { clubName, seasonLabel } from '../format'
@@ -20,6 +20,14 @@ import { SoundToggle, TierChip } from './CaseReel'
 import { Pos, Rating } from './bits'
 import { useFocusOnLanding } from '../a11y'
 import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
+import { surname } from '@game/logic/slotSheet'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+import { reelSkipKey } from '../reelKeys'
+import { itemReelMark, landedSeen } from '../reelLanded'
+import { caseRowLine, caseRowTitle, powerUpLine, powerUpTitle, rarityText } from '../i18n/engineText'
+
+const t = translator(season)
 
 /**
  * The end-of-draft case (`DraftRules.endCase`): the odds of each rarity first, then one case reel landing on what the
@@ -29,13 +37,16 @@ import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
  * odds, what each item does (`caseGuide`).
  */
 export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
-  const { openCase, subCaseIcon, finishCase, profile } = useStore()
+  const { openCase, subCaseIcon, finishCase, profile } = useStorePick('openCase', 'subCaseIcon', 'finishCase', 'profile')
   const c = game.endCase!
   const [quick] = usePref(quickSpinPref)
   const [skipReels] = usePref(skipReelsPref)
+  // The case's reel, kept per device once it lands: a reload after the landing shows the reel landed (`reelLanded.ts`)
+  const mark = itemReelMark(game.id, 'end-case', c.drop.kind === 'icon' ? c.drop.id : c.drop.powerUp)
+  const [seen] = useState(() => !!c.opened && landedSeen(mark))
   // 0: not opened in this view; 1: the reel is running or has landed
-  const [run, setRun] = useState(0)
-  const [landed, setLanded] = useState(false)
+  const [run, setRun] = useState(seen ? 1 : 0)
+  const [landed, setLanded] = useState(seen)
   const [skip, setSkip] = useState(0)
   useEffect(armAudio, [])
   const deal = useMemo<ItemDeal | null>(() => (run ? dealItems(caseDropCard(c.drop), caseFillers(), Math.random) : null), [run, c.drop])
@@ -64,7 +75,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key !== ' ' && e.key !== 'Enter') || e.repeat) return
+      if (!reelSkipKey(e)) return
       e.preventDefault()
       setSkip((n) => n + 1)
     }
@@ -76,8 +87,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
     <div className="page fit" data-testid="end-case">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
-          <h1>Your end-of-draft case</h1>
-          <span className="small muted">One case per casual draft: a power-up for your locker, or with luck an Icon for this XI.</span>
+          <h1>{t('yourCase')}</h1>
+          <span className="small muted">{t('caseHelp')}</span>
         </div>
         <span className="mspin-sound">
           <SoundToggle />
@@ -87,7 +98,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
         <div className="col case-left">
         <div className="panel col case-main" onClick={() => spinning && setSkip((n) => n + 1)}>
           {run > 0 && deal ? (
-            <ItemReel deal={deal} timing={quick ? QUICK_TIMING : FULL_TIMING} skip={skip} onSettled={() => setLanded(true)} testId="case-reel" />
+            <ItemReel deal={deal} scope={mark} timing={quick ? QUICK_TIMING : FULL_TIMING} skip={skip} onSettled={() => setLanded(true)} testId="case-reel" />
           ) : (
             <div className="reel-run item-reel idle" data-testid="case-idle">
               <div className="reel-window" aria-hidden="true">
@@ -97,17 +108,17 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
             </div>
           )}
           {!c.opened && (
-            <button type="button" className="btn primary big display" onClick={() => { unlockAudio(); openCase(); setRun(1) }} data-testid="case-open">
-              Open the case
+            <button type="button" className="btn primary big display" onClick={() => { unlockAudio(); playSound({ id: 'case-open' }); openCase(); setRun(1) }} data-sound="off" data-testid="case-open">
+              {t('openCase')}
             </button>
           )}
           {/* The reel is hidden from screen readers: the landing is said once, here */}
           <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="case-live">
-            {landed ? (c.drop.kind === 'powerup' ? `${POWER_UP_INFO[c.drop.powerUp].title}, ${CASE_RARITY_LABEL[c.drop.rarity]}: into your locker` : icon ? `An Icon: ${icon.name}. Choose the slot he takes` : '') : ''}
+            {landed ? (c.drop.kind === 'powerup' ? t('caseLivePowerUp', { title: powerUpTitle(c.drop.powerUp), rarity: rarityText(c.drop.rarity) }) : icon ? t('caseLiveIcon', { name: icon.name }) : '') : ''}
           </span>
           {spinning && (
             <button type="button" className="reel-skip" onClick={(e) => { e.stopPropagation(); setSkip((n) => n + 1) }} data-testid="case-skip">
-              Skip animation
+              {t('tapToSkip')}
             </button>
           )}
           {revealed && c.drop.kind === 'powerup' && (
@@ -116,16 +127,16 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                 <span className="case-face" aria-hidden="true">
                   <PowerUpIcon kind={c.drop.powerUp} size="1em" />
                 </span>
-                <b className="case-name">{POWER_UP_INFO[c.drop.powerUp].title}</b>
-                <TierChip tier={card.tier} />
-                <span className="chip">{CASE_RARITY_LABEL[c.drop.rarity]}</span>
+                <b className="case-name">{powerUpTitle(c.drop.powerUp)}</b>
+                {/* The case's own rarity only: the wheel's colour tier beside it ("Purple · Decent" on a Rare) read as a second scale */}
+                <span className="chip case-rarity" data-tier={card.tier}>{rarityText(c.drop.rarity)}</span>
               </div>
-              <span className="help">{POWER_UP_INFO[c.drop.powerUp].line}</span>
+              <span className="help">{powerUpLine(c.drop.powerUp)}</span>
               <span className="small" data-testid="case-locker">
-                Into your locker: you hold {lockerCount(profile, c.drop.powerUp)}. Unpack it in a later Quick Draft played without the power-up tray.
+                {t('intoLocker', { n: lockerCount(profile, c.drop.powerUp) })}
               </span>
               <button ref={action} type="button" className="btn primary" onClick={() => finishCase()} data-testid="case-done">
-                On to kick-off
+                {t('onToKickOff')}
               </button>
             </div>
           )}
@@ -143,41 +154,41 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                 <TierChip tier="icons" />
               </div>
               <span className="help">
-                {clubName(u, icon.clubId)} {seasonLabel(icon.season)}, at his peak. Bring him in for one of your drafted starters in a slot he can cover: the man making way sits this season out, and the season counts as non-standard.
+                {t('iconHelp', { club: clubName(u, icon.clubId), season: seasonLabel(icon.season) })}
               </span>
               <div className="case-slots row wrap" style={{ gap: 6 }}>
                 {choices.map((x, i) => (
-                  <button ref={i === 0 ? action : undefined} key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingLine(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingLine(x.outSlot, x.label)}` : ''}`}>
-                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
+                  <button ref={i === 0 ? action : undefined} key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingText(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingText(x.outSlot, x.label)}` : ''}`}>
+                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {fitText(x.fit)} · {t('forName', { name: surname(x.outName) })}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
                   </button>
                 ))}
               </div>
               <button type="button" className="btn ghost" onClick={() => subCaseIcon(null)} data-testid="case-keep">
-                Keep my XI
+                {t('keepXi')}
               </button>
             </div>
           )}
         </div>
         <div className="panel col case-locker" data-testid="case-locker-panel">
           <h3 className="icon-title">
-            <LOCKER_ICON size={18} aria-hidden="true" /> Your locker
+            <LOCKER_ICON size={18} aria-hidden="true" /> {t('yourLocker')}
           </h3>
           <div className="case-locker-grid">
             {guide
               .filter((r) => r.held !== null)
               .map((r) => (
-                <span key={r.item} className={`case-locker-item${r.held ? '' : ' empty'}`} data-tier={CASE_TIER[r.rarity]} title={r.line} data-testid={`case-held-${r.item}`}>
+                <span key={r.item} className={`case-locker-item${r.held ? '' : ' empty'}`} data-tier={CASE_TIER[r.rarity]} title={caseRowLine(r)} data-testid={`case-held-${r.item}`}>
                   <CaseItemIcon item={r.item} size={16} />
-                  <span className="name">{r.title}</span>
+                  <span className="name">{caseRowTitle(r)}</span>
                   <b className="n">×{r.held}</b>
                 </span>
               ))}
           </div>
-          <span className="help">Power-ups wait here between drafts: unpack one in a later Quick Draft played without the power-up tray, and it is gone once used. An Icon never goes in the locker: he plays this season or not at all.</span>
+          <span className="help">{t('lockerHelp')}</span>
         </div>
         </div>
         <div className="panel col case-odds" data-testid="case-odds">
-          <h3>What's inside</h3>
+          <h3>{t('whatsInside')}</h3>
           <div className="case-odds-bar" aria-hidden="true">
             {CASE_RARITIES.map((r) => (
               <span key={r} data-tier={CASE_TIER[r]} style={{ flexGrow: odds[r] }} />
@@ -191,14 +202,14 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                     <i className="tier-dot" data-tier={CASE_TIER[r]} />
                   </td>
                   <td>
-                    <b>{CASE_RARITY_LABEL[r]}</b>
+                    <b>{rarityText(r)}</b>
                   </td>
                   <td className="mono">{odds[r]}%</td>
                   <td className="small">
                     {CASE_ITEMS.filter((x) => x.rarity === r).map((x, i) => (
                       <span key={x.item} className="case-odds-item">
                         {i > 0 && ' · '}
-                        <CaseItemIcon item={x.item} size={13} /> {caseItemCard(x.item).label} {x.weight}%
+                        <CaseItemIcon item={x.item} size={13} /> {caseRowTitle({ item: x.item, title: caseItemCard(x.item).label })} {x.weight}%
                       </span>
                     ))}
                   </td>
@@ -206,8 +217,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               ))}
             </tbody>
           </table>
-          <span className="help">Exact odds: one roll of 100.</span>
-          <h3>What each one does</h3>
+          <span className="help">{t('exactOdds')}</span>
+          <h3>{t('whatEachDoes')}</h3>
           <ul className="case-guide" data-testid="case-guide">
             {guide.map((r) => (
               <li key={r.item} data-tier={CASE_TIER[r.rarity]}>
@@ -215,8 +226,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                   <CaseItemIcon item={r.item} size={16} />
                 </span>
                 <span className="col" style={{ gap: 1, minWidth: 0 }}>
-                  <b>{r.title}</b>
-                  <span className="small muted">{r.line}</span>
+                  <b>{caseRowTitle(r)}</b>
+                  <span className="small muted">{caseRowLine(r)}</span>
                 </span>
               </li>
             ))}

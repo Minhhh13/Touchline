@@ -9,9 +9,19 @@ import { picksMade } from '@engine/draft'
 import { isQuickLike } from '@game/logic/modes'
 import { fingerprint } from './canonical'
 
-export type GameSlotId = 'quick' | 'season' | 'dynasty'
+export type GameSlotId = 'quick' | 'season' | 'dynasty' | 'arena' | 'runin'
 export type SlotId = GameSlotId | 'h2h'
-export const SLOT_IDS: readonly SlotId[] = ['quick', 'season', 'dynasty', 'h2h']
+export const SLOT_IDS: readonly SlotId[] = ['quick', 'season', 'dynasty', 'h2h', 'arena', 'runin']
+/**
+ * The slots the migration `cloud_slots_arena_runin` added. A server without it refuses them (the claim's slot check,
+ * the bucket's path policy), so the sync engine sets such a slot aside for the session instead of failing the pass.
+ */
+export const LATER_SLOTS: readonly SlotId[] = ['arena', 'runin']
+
+/** Slots that hold a managed season: uploaded at most once every two minutes unless forced. */
+export function throttledSlot(slot: SlotId): boolean {
+  return slot === 'season' || slot === 'dynasty' || slot === 'runin'
+}
 
 export interface SyncSource {
   game: Game | null
@@ -23,13 +33,13 @@ export type SlotValue = { slot: GameSlotId; kind: 'game'; game: Game; active: bo
 
 /**
  * The cloud slot a game lives in: Quick Drafts, Dailies and Weeklies share one (the same rule as `slotOf` in
- * `store.ts`, `isQuickLike`). Null for a game whose store slot has no cloud slot (an arena run, a Run-in): the
- * database takes only `quick`, `season`, `dynasty` and `h2h`, so those stay on the device until a migration adds them.
+ * `store.ts`, `isQuickLike`); Season, Dynasty, the arena (every format, the Daily Arena too) and the Run-in have
+ * their own. Null only for a game whose mode this build does not know (a newer save read by an older build).
  */
 export function gameSlot(game: Game): GameSlotId | null {
   const mode = game.settings.mode
   if (isQuickLike(mode)) return 'quick'
-  return mode === 'season' || mode === 'dynasty' ? mode : null
+  return mode === 'season' || mode === 'dynasty' || mode === 'arena' || mode === 'runin' ? mode : null
 }
 
 /** Every slot that holds something: the active game in its slot, parked games in theirs, the hot-seat game. */
@@ -56,12 +66,21 @@ export function slotIdentity(v: SlotValue): string {
   return `h2h-${fingerprint({ seed: v.h2h.seed, hosts: [m[0].hostClubId, m[1].hostClubId], formations: [m[0].formationId, m[1].formationId] })}`
 }
 
-// One scale for both flows: a quick game goes draft, kickoff, january, summary; a managed one draft, preseason, week, match, summary
-const PHASE_RANK: Record<Phase, number> = { draft: 0, kickoff: 1, preseason: 1, january: 2, week: 2, match: 3, summary: 4 }
+// One scale for both flows: a quick game goes draft, kickoff, january, summary; a managed one draft, preseason, then
+// week and match by turns, summary. Inside a season the matchweek orders it, never the screen: the match report
+// (`match`, the whistle gone) sits between two hubs (`week`) of the same matchweek, and a preseason friendly's report
+// between two pre-seasons, so they rank alike (QA round 3, R8-1: a report ranked above the hub, so a Season uploaded
+// on its report and played on read as "an older save loaded" and the report was restored over the newer game)
+const PHASE_RANK: Record<Phase, number> = { draft: 0, kickoff: 1, preseason: 2, january: 2, week: 2, match: 2, summary: 4 }
+
+/** An arena run at one step: the report of the tie just settled (the step has moved on), a bonus spin, then the hub. */
+const ARENA_RANK: Record<Phase, number> = { draft: 2, kickoff: 0, preseason: 0, january: 0, week: 3, match: 1, summary: 4 }
 
 /**
  * How far along a slot's game is, compared element by element: `[year, phase, matchweek, draft spins, seasons in
- * the history]` for a game, `[spins, picks made, finished]` for the hot-seat game.
+ * the history, friendlies played]` for a game; `[year, step, penalties waiting, phase, draft spins, over]` for an
+ * arena run (its step moves from tie to tie, and a shoot-out waits at the step of the tie it settles); and `[spins,
+ * picks made, finished]` for the hot-seat game.
  */
 export function progressKey(v: SlotValue): number[] {
   if (v.kind === 'h2h') {
@@ -69,7 +88,9 @@ export function progressKey(v: SlotValue): number[] {
     return [d.spins, picksMade(d.drafts[0]) + picksMade(d.drafts[1]), v.h2h.result ? 1 : 0]
   }
   const g = v.game
-  return [g.year, PHASE_RANK[g.phase] ?? 0, g.season?.matchweek ?? 0, g.draft?.spins ?? 0, g.history.length]
+  const a = g.arena
+  if (a) return [g.year, a.step, a.pending ? 1 : 0, ARENA_RANK[g.phase] ?? 0, g.draft?.spins ?? 0, a.over ? 1 : 0]
+  return [g.year, PHASE_RANK[g.phase] ?? 0, g.season?.matchweek ?? 0, g.draft?.spins ?? 0, g.history.length, g.friendliesPlayed ?? 0]
 }
 
 /** Negative when `a` is behind `b`, positive when ahead, 0 when level (a shorter key is padded with zeros). */
@@ -92,6 +113,8 @@ export interface SaveMeta {
   matchweek: number
   points: number | null
   spins: number
+  /** An arena run: its format and the matches played (absent for every other game, and in rows older clients wrote). */
+  arena?: { format: 'cup' | 'gauntlet'; step: number; over: boolean }
   progress: number[]
   dataVersion: string
   engineVersion: string
@@ -117,7 +140,7 @@ export function saveMeta(v: SlotValue, ctx: MetaContext): SaveMeta {
   }
   const g = v.game
   const s = g.settings
-  return { mode: s.mode, teamName: clip(s.teamName, 28), hostClubId: clip(s.hostClubId, 64), leagueId: clip(s.leagueId, 32), leagueSeason: s.leagueSeason, phase: g.phase, year: g.year, matchweek: g.season?.matchweek ?? 0, points: g.quickResult?.points ?? g.history.at(-1)?.points ?? null, spins: g.draft?.spins ?? 0, ...base }
+  return { mode: s.mode, teamName: clip(s.teamName, 28), hostClubId: clip(s.hostClubId, 64), leagueId: clip(s.leagueId, 32), leagueSeason: s.leagueSeason, phase: g.phase, year: g.year, matchweek: g.season?.matchweek ?? 0, points: g.quickResult?.points ?? g.history.at(-1)?.points ?? null, spins: g.draft?.spins ?? 0, ...(g.arena ? { arena: { format: g.arena.format, step: g.arena.step, over: g.arena.over } } : {}), ...base }
 }
 
 /** A coarse browser and system name for a user agent ("Safari · iPhone"), never an identifier. */
@@ -149,4 +172,24 @@ export function deviceLabel(ua: string): string {
                 ? 'Linux'
                 : 'device'
   return `${browser} · ${system}`
+}
+
+/** Every slot's name at the start of a line (the Account screen's save status and Cloud history). */
+export const SLOT_LABEL: Record<SlotId, string> = { quick: 'Quick Draft / Daily', season: 'Season', dynasty: 'Dynasty', h2h: 'Head-to-head', arena: 'Arena run', runin: 'Run-in' }
+
+/** Where a slot's game stands, from its row's summary: "drafting", "matchweek 12", "2 matches played", "run over". */
+export function whereLabel(m: Pick<SaveMeta, 'phase' | 'matchweek'> & Partial<Pick<SaveMeta, 'mode' | 'arena'>>): string {
+  if (m.phase === 'draft') return 'drafting'
+  if (m.arena) return m.arena.over || m.phase === 'summary' ? 'run over' : `${m.arena.step} match${m.arena.step === 1 ? '' : 'es'} played`
+  if (m.phase === 'summary') return m.mode === 'runin' ? 'run-in complete' : 'season complete'
+  return m.matchweek ? `matchweek ${m.matchweek}` : m.phase
+}
+
+/** The Account screen's "Your games" line: which slots hold a game on this device, in slot order. */
+export function deviceSlotsLine(s: SyncSource): string {
+  const contents = slotContents(s)
+  const held = SLOT_IDS.filter((id) => contents[id]).map((id) => SLOT_LABEL[id])
+  if (!held.length) return 'none on this device yet'
+  const list = held.length === 1 ? held[0] : `${held.slice(0, -1).join(', ')} and ${held.at(-1)}`
+  return `${list} on this device`
 }

@@ -10,6 +10,11 @@ import type { MatchEvent } from '@engine/types'
 import { minuteLabel } from '../../format'
 import { xgStepPoints } from '../model'
 import { Swatch } from './bits'
+import { lineTone } from '../../match/charts'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 export interface XgStoryProps {
   story: { home: XgStep[]; away: XgStep[] }
@@ -60,6 +65,8 @@ export function XgStory({ story, events, minute, span, home, away, dense = false
   const pts = (p: Array<[number, number]>) => p.map(([m, v]) => `${X(m).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')
   const goals = [...story.home, ...story.away].filter((s) => s.goal && s.minute <= upto)
   const score = scoreAt(events, upto)
+  const homeTone = lineTone(home.colour)
+  const awayTone = lineTone(away.colour)
   return (
     <div className={`mchart md-xg ${dense ? 'dense' : ''}`} data-testid="xg-race">
       <div className="row between small">
@@ -67,13 +74,13 @@ export function XgStory({ story, events, minute, span, home, away, dense = false
           <Swatch colour={home.colour} />
           {home.code} <b className="mono">{hNow.toFixed(2)}</b>
         </span>
-        {!bare && <span className="muted">xG graph story</span>}
+        {!bare && <span className="muted">{tx('xgGraph')}</span>}
         <span className="row" style={{ gap: 6 }}>
           <b className="mono">{aNow.toFixed(2)}</b> {away.code}
           <Swatch colour={away.colour} />
         </span>
       </div>
-      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Expected goals: ${home.code} ${hNow.toFixed(2)}, ${away.code} ${aNow.toFixed(2)}`}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tx('xgLabel', { home: home.code, hx: hNow.toFixed(2), away: away.code, ax: aNow.toFixed(2) })}>
         {[0, yMax / 2, yMax].map((t) => (
           <g key={t}>
             <line x1={px} y1={Y(t)} x2={px + pw} y2={Y(t)} stroke="var(--line)" strokeWidth="1" />
@@ -85,10 +92,12 @@ export function XgStory({ story, events, minute, span, home, away, dense = false
         <line x1={X(45)} y1={py} x2={X(45)} y2={py + ph} stroke="var(--line-2)" strokeDasharray="2 2" />
         {[0, 45, 90].map((m) => (
           <text key={m} x={X(m)} y={H - 4} fontSize="9" textAnchor={m === 0 ? 'start' : 'middle'} fill="var(--text-3)">
-            {m === 0 ? "0'" : m === 45 ? 'HT' : 'FT'}
+            {m === 0 ? "0'" : m === 45 ? tx('ht') : tx('ft')}
           </text>
         ))}
-        {/* The home line first: its points are the ones the smokes count */}
+        {/* The home line first: its points are the ones the smokes count. A kit too close to the panel's colour gets a casing under its line, in the theme that needs it (lineTone) */}
+        {homeTone && <polyline className="line-casing" data-tone={homeTone} data-testid="xg-casing" points={pts(hp)} fill="none" strokeWidth="4.2" strokeLinejoin="round" />}
+        {awayTone && <polyline className="line-casing" data-tone={awayTone} data-testid="xg-casing" points={pts(ap)} fill="none" strokeWidth="4.2" strokeLinejoin="round" />}
         <polyline points={pts(hp)} fill="none" stroke={home.colour} strokeWidth="2.2" strokeLinejoin="round" />
         <polyline points={pts(ap)} fill="none" stroke={away.colour} strokeWidth="2.2" strokeLinejoin="round" />
         <polyline points={pts(hp)} fill="none" stroke="var(--text)" strokeWidth="0.6" strokeLinejoin="round" opacity="0.35" />
@@ -96,13 +105,13 @@ export function XgStory({ story, events, minute, span, home, away, dense = false
         {goals.map((g, i) => (
           <g key={i}>
             <circle cx={X(g.minute)} cy={Y(g.cumulative)} r="3.6" fill={g.side === 'home' ? home.colour : away.colour} stroke="var(--panel)" strokeWidth="1.5" />
-            <title>{`${minuteLabel(g.minute)} ${g.playerName ?? 'Goal'} (${g.xg.toFixed(2)} xG)`}</title>
+            <title>{`${minuteLabel(g.minute)} ${g.playerName ?? tx('goal')} (${g.xg.toFixed(2)} xG)`}</title>
           </g>
         ))}
       </svg>
       {!dense && (
         <div className="small muted md-xg-foot">
-          Goals {score.home}-{score.away} · xG {hNow.toFixed(2)}-{aNow.toFixed(2)}
+          {tx('xgFoot', { score: `${score.home}-${score.away}`, xg: `${hNow.toFixed(2)}-${aNow.toFixed(2)}` })}
         </div>
       )}
     </div>

@@ -140,7 +140,8 @@ describe('the assistant at the live stops', () => {
 
   it('at 70 makes only what is left of the five after the changes at the break, however many fresh men sit on the bench', { timeout: 120_000 }, () => {
     let bound = 0
-    for (let s = 0; s < 12 && bound < 3; s++) {
+    // Engine 6's squads carry two or three keepers, so fewer benches hold more fit outfielders than changes left: search further
+    for (let s = 0; s < 40 && bound < 3; s++) {
       const g = started(`late-cap-${s}`)
       playMatchweek(g, u, false)
       // Everyone out on his feet: three changes at the break, and at 70 he wants more than are left
@@ -221,14 +222,17 @@ describe('the three ways to play a match', () => {
   // (classic-seasons f7fb8e3, packs rebuilt with faba5a6) change who the all-time wheel drafts and how he plays; seeds 0, 2 and 3 moved, 1, 4 and 5
   // did not, and this code on the previous packs still gives the old pins.
   // Re-pinned for ENGINE_VERSION '5' (the playtest fixes: new fixtures, the assistant's draft placement, keeper subs and
-  // development all reach these eight matchweeks).
+  // development all reach these eight matchweeks), and for '6' (the calibration, cards and the user's men out of their
+  // real clubs move every match). Seed 3 re-pinned inside engine 6 for round 6 item 6 (`assistantLineup`): its opening XI
+  // plays L. Cattermole (DM/CM) at DM and K. De Bruyne in central midfield where the greedy had De Bruyne at DM and
+  // M. Ødegaard (AM/CM) in the second CM slot, so its matches from the third on play differently; the other five hold.
   const NO_CHANGES: Record<string, string> = {
-    'nochange-0': '1-1:17 0-1:16 2-0:28 1-4:19 1-1:19 3-2:21 2-0:18 1-3:29 | {"a":-1450752293,"b":-1801085270,"c":-1821370735,"d":-597389236}',
-    'nochange-1': '1-1:17 2-1:22 0-2:20 1-2:23 4-0:30 1-1:21 3-7:29 4-0:31 | {"a":1266726725,"b":-416436187,"c":2145605874,"d":908824481}',
-    'nochange-2': '2-1:24 1-2:23 2-1:21 2-0:16 0-2:22 7-1:31 1-1:16 1-3:20 | {"a":-92604709,"b":-1296590336,"c":963759060,"d":62056000}',
-    'nochange-3': '1-2:21 2-0:21 1-2:16 5-1:22 0-4:23 2-0:19 1-4:27 3-0:22 | {"a":-820290609,"b":422087737,"c":-1702565597,"d":-9025018}',
-    'nochange-4': '2-0:21 1-3:26 3-0:26 2-0:21 3-2:25 5-1:31 1-3:32 4-1:32 | {"a":697821334,"b":594068322,"c":719270843,"d":-1606536034}',
-    'nochange-5': '1-2:19 2-1:26 0-4:19 0-1:22 3-1:28 0-3:23 3-1:22 4-1:21 | {"a":-408234965,"b":-199358511,"c":717096139,"d":-2032402610}',
+    'nochange-0': '2-1:18 1-0:23 1-2:17 6-2:22 1-0:21 2-2:22 3-1:23 1-2:21 | {"a":1362070130,"b":-1576045394,"c":-968363829,"d":1139297449}',
+    'nochange-1': '2-0:16 0-4:28 2-0:22 1-3:22 6-2:27 1-0:21 2-2:23 8-0:24 | {"a":-389107817,"b":-1618643938,"c":-1402842227,"d":-263829867}',
+    'nochange-2': '1-1:15 1-3:33 3-2:25 0-1:24 1-2:29 5-2:27 3-1:29 2-1:21 | {"a":-56275523,"b":1002495087,"c":69327956,"d":708468319}',
+    'nochange-3': '2-2:28 1-0:16 1-2:31 6-1:35 0-1:27 1-0:17 2-3:23 1-0:18 | {"a":2083309972,"b":-1540408604,"c":415754315,"d":60811828}',
+    'nochange-4': '2-1:21 1-0:24 0-0:12 1-1:18 1-0:20 5-0:32 0-2:18 6-1:31 | {"a":1944521039,"b":-256271788,"c":530217311,"d":-1856343183}',
+    'nochange-5': '0-3:16 2-0:21 0-1:19 0-4:27 5-0:31 1-4:25 2-1:31 2-1:20 | {"a":1426492122,"b":1296199272,"c":1076701292,"d":665410296}',
   }
 
   it('Watch with "No changes" at both stops plays exactly as it did before', { timeout: 120_000 }, () => {

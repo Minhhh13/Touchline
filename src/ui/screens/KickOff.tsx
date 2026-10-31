@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Crown, Hourglass, Link2, Shuffle, TrendingDown } from 'lucide-react'
 import { QUICK_CONTINENTAL_PLACES } from '@game/logic/quickCups'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { playerLookup } from '@game/logic/players'
 import { getFormation } from '@engine/formations'
 import { ratingHidden } from '@game/logic/ratingVisibility'
@@ -16,15 +16,19 @@ import { perfectTarget } from '@game/logic/perfect'
 import { quickSeasonGames } from '@game/logic/quick'
 import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { quickManagerOptions } from '@game/logic/managers'
-import { edgeHint, edgeLine, managerEdge } from '@game/logic/managerEdge'
+import { managerEdge } from '@game/logic/managerEdge'
 import { squadReport, VETERAN_AGE, type ReportMan } from '@game/logic/squadReport'
-import { countPhrase } from '../screenText'
 import { ManagerChip, ManagerPick } from '../components/ManagerPick'
-import { MANAGER_STYLE_HELP } from '@engine/managers'
 import { caseIconIn, kickoffStep } from '@game/logic/endCase'
 import { ManagerSpin } from '../components/ManagerSpin'
 import { EndCase } from '../components/EndCase'
-import { WorkspaceTabs } from '../components/WorkspaceTabs'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+import { B, rich } from '../i18n/rich'
+import { edgeHintText, edgeText, styleHelp } from '../i18n/engineText'
+import { logicLine } from '../i18n/logicText'
+
+const t = translator(season)
 
 /**
  * The step between a quick draft (or the Daily) and its season, the way 38-0 shows a finished squad: the goal (win
@@ -33,10 +37,9 @@ import { WorkspaceTabs } from '../components/WorkspaceTabs'
  * defaults" plays it with the default tactics instead.
  */
 export function KickOff() {
-  const { universe: u, game, setTactics, setCaptain, kickOffSoon, kickingOff: kicking, warmKickOff, pickManager } = useStore()
+  const { universe: u, game, setTactics, setCaptain, kickOffSoon, kickingOff: kicking, warmKickOff, pickManager } = useStorePick('universe', 'game', 'setTactics', 'setCaptain', 'kickOffSoon', 'kickingOff', 'warmKickOff', 'pickManager')
   const [showTactics, setShowTactics] = useState(false)
   const [showManagers, setShowManagers] = useState(false)
-  const [phoneTab, setPhoneTab] = useState<'overview' | 'xi' | 'tactics'>('overview')
   // The season plays in a worker (the store's kickOffSoon), "Simulating" on the button meanwhile; its packs load now,
   // and the worker goes with the screen
   useEffect(() => warmKickOff(), [warmKickOff])
@@ -51,101 +54,99 @@ export function KickOff() {
     .map((id) => get(id))
     .filter((p): p is PlayerSeason => !!p)
   const hide = ratingHidden(game.settings.rules, 'squad')
-  const t = game.tactics
+  const tac = game.tactics
   const s = game.settings
   const report = squadReport(formation, game.lineup, get, hide)
   const edge = game.manager ? managerEdge(game, game.manager.style, get) : null
-  const hint = game.manager && edge ? edgeHint(game.manager.style, edge) : null
+  const hint = game.manager && edge ? edgeHintText(game.manager.style, edge) : null
   return (
-    <div className="page fit kickoff-page" data-testid="kickoff" data-phone-tab={phoneTab}>
+    <div className="page fit kickoff" data-testid="kickoff">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
-          <h1>Squad complete</h1>
+          <h1>{t('squadComplete')}</h1>
           <QuickTeamLine game={game} u={u}>
             <span className="small muted">{formation.name}</span>
             {caseIconIn(game) && (
-              <span className="chip case-icon-chip" data-tier="icons" data-testid="kickoff-case-icon" title="An Icon from the end-of-draft case is in the XI: a non-standard season">
-                ★ Case Icon
+              <span className="chip case-icon-chip" data-tier="icons" data-testid="kickoff-case-icon" title={t('caseIconTip')}>
+                {t('caseIcon')}
               </span>
             )}
           </QuickTeamLine>
         </div>
         <div className="chase perfect goal" data-testid="kickoff-goal">
-          <b>Win every game</b>
-          <span className="small">The goal: {perfectTarget(quickSeasonGames(u, s))}, the perfect season</span>
+          <b>{t('winEvery')}</b>
+          <span className="small">{t('theGoal', { target: perfectTarget(quickSeasonGames(u, s)) })}</span>
         </div>
       </div>
-      <WorkspaceTabs id="kickoff-phone" label="Pre-season workspace" tabs={[{ id: 'overview', label: 'Overview' }, { id: 'xi', label: 'Your XI' }, { id: 'tactics', label: 'Tactics' }]} value={phoneTab} onChange={(tab) => { setPhoneTab(tab); if (tab === 'tactics') setShowTactics(true) }} />
       <div className="fit-grid c3">
-        <div className="fit-cell" data-phone-panel="overview" id="kickoff-phone-panel-overview" role="tabpanel" aria-labelledby="kickoff-phone-overview">
+        <div className="fit-cell">
           <SquadComplete game={game} u={u} hideRatings={hide}>
             <div className="col sc-foot" style={{ gap: 8 }}>
               <button className="btn primary big sc-go" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go">
-                {kicking ? 'Simulating…' : 'Simulate season'}
+                {t(kicking ? 'simulating' : 'simulateSeason')}
               </button>
               <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
-                {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
-                {isSuperLeague(s) ? ` ${SUPER_LEAGUE_LINE}. A top-${QUICK_CONTINENTAL_PLACES} finish earns the Continental Cup against the next best.` : s.mode === 'quick' ? ` After the league you can play the Cup, and the Continental Cup with a top-${QUICK_CONTINENTAL_PLACES} finish.` : ''}
+                {t(s.january ? 'pausesJanuary' : 'noJanuary')}
+                {isSuperLeague(s) ? t('superCups', { line: logicLine(SUPER_LEAGUE_LINE), n: QUICK_CONTINENTAL_PLACES }) : s.mode === 'quick' ? t('afterLeagueCups', { n: QUICK_CONTINENTAL_PLACES }) : ''}
               </p>
             </div>
           </SquadComplete>
         </div>
-        <div className="panel col fit-cell" data-phone-panel="xi" id="kickoff-phone-panel-xi" role="tabpanel" aria-labelledby="kickoff-phone-xi">
-          <h3>Your XI · {formation.name}</h3>
-          <span className="phone-scroll-cue small">Scroll to see the goalkeeper{quickBenchRule(game) && game.bench.length > 0 ? ' and bench' : ''} ↓</span>
+        <div className="panel col fit-cell">
+          <h3>{t('yourXi', { formation: formation.name })}</h3>
           <div inert className="pitch-fit" data-testid="kickoff-pitch">
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={hide} />
           </div>
           {quickBenchRule(game) && game.bench.length > 0 && (
             <div className="col" style={{ gap: 4 }} data-testid="kickoff-bench">
-              <b className="small">Bench · {QUICK_CHANGES} changes this season</b>
+              <b className="small">{t('benchChanges', { n: QUICK_CHANGES })}</b>
               <div className="plist">
                 {game.bench.map((id) => {
                   const p = get(id)
                   return p ? <PlayerRow key={id} p={p} hideRatings={hide} showClub /> : null
                 })}
               </div>
-              <span className="help">Bring one on between games as the season plays; an injured starter is covered from the bench without using a change.</span>
+              <span className="help">{t('benchHelp')}</span>
             </div>
           )}
         </div>
-        <div className="panel col fit-cell" data-phone-panel="tactics" id="kickoff-phone-panel-tactics" role="tabpanel" aria-labelledby="kickoff-phone-tactics">
+        <div className="panel col fit-cell">
           {game.manager && (
             <div className="col" data-testid="kickoff-manager" style={{ gap: 8 }}>
               <div className="row between wrap" style={{ gap: 8 }}>
                 <div className="col" style={{ gap: 4 }}>
-                  <span className="sc-kicker">In the dugout</span>
+                  <span className="sc-kicker">{t('inTheDugout')}</span>
                   <ManagerChip manager={game.manager} />
-                  <span className="help">{MANAGER_STYLE_HELP[game.manager.style]}</span>
+                  <span className="help">{styleHelp(game.manager.style)}</span>
                   {edge && (
                     <span className="small" data-testid="kickoff-manager-edge">
-                      On your XI: <b>{edgeLine(edge)}</b>
+                      {rich(t('onYourXi', { edge: edgeText(edge) }), B)}
                       {hint ? ` · ${hint}` : ''}
                     </span>
                   )}
                 </div>
                 <button type="button" className="btn sm ghost" onClick={() => setShowManagers(!showManagers)} aria-expanded={showManagers} data-testid="kickoff-manager-change">
-                  {showManagers ? 'Done' : 'Change manager'}
+                  {t(showManagers ? 'done' : 'changeManager')}
                 </button>
               </div>
               {showManagers && <ManagerPick options={quickManagerOptions(game)} picked={game.manager.id} onPick={pickManager} />}
             </div>
           )}
           <button type="button" className="fold-head" onClick={() => setShowTactics(!showTactics)} aria-expanded={showTactics} data-testid="kickoff-tactics-toggle">
-            <b>Tactics, captain and penalties</b>
-            <span className="small muted">{showTactics ? 'Hide ▴' : 'Set them first ▾'}</span>
+            <b>{t('tacticsFold')}</b>
+            <span className="small muted">{t(showTactics ? 'hideFold' : 'setFirst')}</span>
           </button>
           {showTactics && (
             <div className="col" data-testid="kickoff-tactics">
-              <CaptainAndPenalties xi={xi} captainId={game.captainId} penalties={t.setPieces?.penalties} onCaptain={(id) => setCaptain(id ?? '')} onPenalties={(id) => setTactics({ setPieces: { ...t.setPieces, penalties: id } })} hideRatings={hide} />
-              <h3>Team instructions</h3>
-              <TeamInstructions t={t} onChange={setTactics} />
+              <CaptainAndPenalties xi={xi} captainId={game.captainId} penalties={tac.setPieces?.penalties} onCaptain={(id) => setCaptain(id ?? '')} onPenalties={(id) => setTactics({ setPieces: { ...tac.setPieces, penalties: id } })} hideRatings={hide} />
+              <h3>{t('teamInstructions')}</h3>
+              <TeamInstructions t={tac} onChange={setTactics} />
               <div className="row wrap" style={{ gap: 10 }}>
-                <button className="btn primary" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-tactics">
-                  {kicking ? 'Simulating…' : 'Simulate season'}
+                <button className="btn primary wraps" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-tactics">
+                  {t(kicking ? 'simulating' : 'simulateTactics')}
                 </button>
-                <button className="btn ghost" onClick={() => void kickOffSoon(true)} disabled={kicking} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
-                  Simulate with the default tactics
+                <button className="btn ghost wraps" onClick={() => void kickOffSoon(true)} disabled={kicking} data-testid="kickoff-skip" title={t('defaultsTip')}>
+                  {t('simulateDefaults')}
                 </button>
               </div>
             </div>
@@ -153,20 +154,15 @@ export function KickOff() {
           {report && <ScoutingReport r={report} />}
         </div>
       </div>
-      <div className="kickoff-phone-start">
-        <button className="btn primary block" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-phone">
-          {kicking ? 'Simulating…' : 'Simulate season'}
-        </button>
-      </div>
     </div>
   )
 }
 
-const FIT_WORD = { natural: 'natural', accomplished: 'accomplished', awkward: 'awkward', unsuited: 'out of his depth' } as const
+const fitWord = (f: ReportMan['fit']) => t(`fit_${f}`)
 
 /** A man and his number in his slot: "K. De Bruyne, 91 at CM". */
 function manLine(m: ReportMan): string {
-  return `${m.name}, ${m.rating === null ? '' : `${m.rating} `}at ${m.position}`
+  return m.rating === null ? t('manAt', { name: m.name, position: m.position }) : t('manRatedAt', { name: m.name, rating: m.rating, position: m.position })
 }
 
 /** The third box's scouting report on the XI (`squadReport`): key man, weak link, out of position, age, links. Display only. */
@@ -174,13 +170,13 @@ function ScoutingReport({ r }: { r: NonNullable<ReturnType<typeof squadReport>> 
   const odd = r.outOfPosition
   return (
     <div className="col sc-report" data-testid="kickoff-report">
-      <span className="sc-kicker">Scouting report</span>
+      <span className="sc-kicker">{t('scoutingReport')}</span>
       <ul className="sc-report-list">
         {r.key && (
           <li data-testid="report-key">
             <Crown size={16} aria-hidden="true" className="good" />
             <span>
-              <b>Key man</b> {manLine(r.key)}
+              <b>{t('keyMan')}</b> {manLine(r.key)}
             </span>
           </li>
         )}
@@ -188,33 +184,33 @@ function ScoutingReport({ r }: { r: NonNullable<ReturnType<typeof squadReport>> 
           <li data-testid="report-weak">
             <TrendingDown size={16} aria-hidden="true" className="warn" />
             <span>
-              <b>Weak link</b> {manLine(r.weak)}
-              {r.weak.fit !== 'natural' ? `, ${FIT_WORD[r.weak.fit]} there` : ''}
+              <b>{t('weakLink')}</b> {manLine(r.weak)}
+              {r.weak.fit !== 'natural' ? t('fitThere', { fit: fitWord(r.weak.fit) }) : ''}
             </span>
           </li>
         )}
         <li data-testid="report-position">
           <Shuffle size={16} aria-hidden="true" className={odd.length ? 'warn' : 'good'} />
           <span>
-            <b>Out of position</b>{' '}
+            <b>{t('outOfPosition')}</b>{' '}
             {odd.length
               ? `${odd
                   .slice(0, 3)
-                  .map((m) => `${m.name} (${m.position}, ${FIT_WORD[m.fit]})`)
-                  .join(', ')}${odd.length > 3 ? ` and ${odd.length - 3} more` : ''}`
-              : 'nobody: every man in a position he plays'}
+                  .map((m) => t('oddMan', { name: m.name, position: m.position, fit: fitWord(m.fit) }))
+                  .join(', ')}${odd.length > 3 ? t('andMore', { n: odd.length - 3 }) : ''}`
+              : t('nobodyOut')}
           </span>
         </li>
         <li data-testid="report-age">
           <Hourglass size={16} aria-hidden="true" />
           <span>
-            <b>Age</b> {r.meanAge.toFixed(1)} on average · {r.young ? countPhrase(r.young, 'starters') : 'nobody'} 23 or under · {r.veterans || 'nobody'} {VETERAN_AGE} or over
+            <b>{t('age')}</b> {t('ageLine', { mean: r.meanAge.toFixed(1), young: r.young, veterans: r.veterans, vet: VETERAN_AGE })}
           </span>
         </li>
         <li data-testid="report-links">
           <Link2 size={16} aria-hidden="true" />
           <span>
-            <b>Know each other</b> {r.links ? countPhrase(r.links, 'pairs from the same club-season') : 'no two from the same club-season'} · {countPhrase(r.clubs, 'clubs')}, {countPhrase(r.nations, 'nations')}
+            <b>{t('knowEachOther')}</b> {t('linksLine', { links: r.links, clubs: r.clubs, nations: r.nations })}
           </span>
         </li>
       </ul>

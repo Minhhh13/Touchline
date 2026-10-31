@@ -9,16 +9,20 @@ import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE } from '@engine/roles'
 import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
-import { staffWages, STAFF, STAFF_ROLES, staffTier } from '@engine/staff'
+import { STAFF, STAFF_ROLES, staffTier } from '@engine/staff'
 import { TRAINING_LABEL } from '@engine/training'
 import type { Objective } from '@engine/objectives'
 import type { TeamTalk } from '@engine/match'
 import { playerLookup, squadPlayers } from './players'
-import { lineupProblems } from './squad'
+import { lineupProblems, squadWages } from './squad'
 import { nextOpponent, upcomingCupTie } from './week'
 import { riskiestStarter } from './medical'
+import { officeItems } from './office'
+import { requestDeadline } from './officeView'
+import { openRequests } from './transferRequests'
+import { boardLine, boardStakes, contractsEnding, europeLine, europeStake, promiseSlot, restPlan, tiredStarters } from './seasonPlay'
 
-export type DugoutTab = 'squad' | 'next' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club' | 'dressing' | 'planner'
+export type DugoutTab = 'squad' | 'next' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club' | 'dressing' | 'planner' | 'office'
 
 export type BriefingLevel = 'block' | 'warn' | 'info' | 'ok'
 
@@ -26,8 +30,11 @@ export interface BriefingAction {
   label: string
   /** Dugout tab to open. */
   tab?: DugoutTab
-  /** Something to do on the way: repair the lineup, open a player, scroll to the pending decision, play a friendly. */
-  op?: 'autoPick' | 'player' | 'event' | 'friendly'
+  /**
+   * Something to do on the way: repair the lineup, open a player, scroll to the pending decision, play a friendly,
+   * rest the tired starters (`playerId` for one, none for all the plan finds) or start the man promised a start.
+   */
+  op?: 'autoPick' | 'player' | 'event' | 'friendly' | 'rest' | 'startPromised'
   playerId?: string
 }
 
@@ -69,6 +76,20 @@ function list(names: string[]): string {
  * `PACE_FROM_MATCHWEEK`.
  */
 export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): string | null {
+  return objectiveState(o, game, u)?.text ?? null
+}
+
+/** Whether an objective has already failed for good (a cup exit, a lost derby, too many home defeats). */
+export function objectiveGone(o: Objective, game: Game, u: LoadedUniverse): boolean {
+  return objectiveState(o, game, u)?.gone ?? false
+}
+
+function objectiveState(o: Objective, game: Game, u: LoadedUniverse): { text: string; gone: boolean } | null {
+  const text = objectiveText(o, game, u)
+  return text === null ? null : { text, gone: text.endsWith('is gone') }
+}
+
+function objectiveText(o: Objective, game: Game, u: LoadedUniverse): string | null {
   const season = game.season
   if (!season || o.met !== undefined) return null
   const mine = season.fixtures.filter((f) => f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM))
@@ -82,7 +103,7 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
       return null
     }
     case 'continental-qf': {
-      if (season.continental?.eliminated && !reached(season.continental.ties, 'QF')) return 'Out of Europe in the round of 16: the quarter-final objective is gone'
+      if (season.continental?.eliminated && !reached(season.continental.ties, 'QF')) return `Out of Europe in the ${season.continental.groups ? 'group stage' : 'round of 16'}: the quarter-final objective is gone`
       return null
     }
     case 'home-form': {
@@ -144,7 +165,6 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
   const items: BriefingItem[] = []
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
-  const squad = squadPlayers(game, u)
   const check = (id: string, done: boolean, text: string, hint: string, action?: BriefingAction) => items.push({ id, level: done ? 'ok' : 'info', text, hint, done, action })
 
   const played = Math.min(FRIENDLIES, game.friendliesPlayed)
@@ -158,13 +178,17 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
   check('roles', rolesTouched, 'Roles', 'Each player has a rating in his role, and the team rating follows.', rolesTouched ? undefined : { label: 'Tactics', tab: 'tactics' })
 
   const hired = STAFF_ROLES.some((r) => staffTier(game.staff, r) > 0)
-  const room = game.finances.wageCap - squad.reduce((s, x) => s + x.p.wage, 0) - staffWages(game.staff)
+  const room = game.finances.wageCap - squadWages(game, u)
   const cheapest = Math.min(...STAFF_ROLES.map((r) => STAFF[r].tiers[1].wage))
   check('staff', hired, `Staff ${STAFF_ROLES.filter((r) => staffTier(game.staff, r) > 0).length}/${STAFF_ROLES.length}`, hired ? 'Backroom staff are paid from the wage cap.' : room >= cheapest ? `£${Math.round(room)}k a week of wage room; a senior physio costs £${cheapest}k.` : `No wage room for staff (£${Math.round(room)}k a week); they are paid from the cap.`, hired ? undefined : { label: 'Club', tab: 'club' })
 
   const sp = game.tactics.setPieces
   const takers = !!(sp?.penalties || sp?.freeKicks || sp?.corners)
   check('set-pieces', takers, 'Set pieces', 'Penalties, free kicks and corners go to the men you choose.', takers ? undefined : { label: 'Tactics', tab: 'tactics' })
+
+  // Dynasty: the contracts that ran out this summer (`settleRenewals` decides what is left at the opener)
+  const out = Object.keys(game.squad).filter((id) => game.contracts[id]?.expired)
+  if (out.length) check('renewals', false, `Contracts: ${out.length} out`, 'Offer terms or let them go. At the opener the assistant keeps the willing ones worth keeping; the rest leave on a free.', { label: 'Contracts', tab: 'planner' })
 
   if (game.youthIntake) {
     const decided = game.youthIntake.chosen !== undefined
@@ -181,18 +205,36 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
 
   if (game.pendingEvent) items.push({ id: 'event', level: 'block', text: `Decision needed: ${game.pendingEvent.title}`, action: { label: 'Decide', op: 'event' } })
 
+  // The board's stakes, before anything else can be done about them: a sack is the one event a manager must not miss
+  const board = boardStakes(game)
+  const boardText = boardLine(board)
+  if (board && boardText) items.push({ id: 'board', level: board.level === 'danger' ? 'warn' : 'info', text: boardText, action: { label: 'Club', tab: 'club' } })
+
+  const office = officeLine(game, u)
+  if (office) items.push(office)
+
   const problems = lineupProblems(game, u)
   if (problems.length > 2) items.push({ id: 'lineup', level: 'warn', text: `${problems.length} lineup issues: ${list(problems)}`, action: { label: 'Auto-pick', op: 'autoPick' } })
   else for (const [i, p] of problems.entries()) items.push({ id: `lineup-${i}`, level: 'warn', text: p, action: { label: 'Auto-pick', op: 'autoPick' } })
 
-  // Starters who will play tired or rusty, excluding anyone the lineup check already named
+  // Starters who will play tired or rusty, excluding anyone the lineup check already named. Two or more tired men are
+  // one line; the action rests them when a fresher man would do better in the slot (`restPlan`), else opens him
   const starters = formation.slots.map((sl) => game.lineup[sl.id]).filter((id): id is string => !!id)
+  const tired = tiredStarters(game, u)
+  const rest = restPlan(game, u)
+  if (tired.length >= 2) {
+    const names = tired.map((id) => `${get(id)!.name} (${Math.round(game.squad[id].condition)})`)
+    items.push({ id: 'tired', level: 'warn', text: `${tired.length} starters are tired: ${list(names)}`, action: rest.length ? { label: rest.length === 1 ? 'Rest one' : `Rest ${rest.length}`, op: 'rest' } : { label: 'Squad', tab: 'squad' } })
+  }
   for (const id of starters) {
     const p = get(id)
     const s = game.squad[id]
     if (!p || !s || s.injury || s.suspension > 0) continue
-    if (s.condition < BRIEFING_CONDITION) items.push({ id: `tired-${id}`, level: 'warn', text: `${p.name} is tired (condition ${Math.round(s.condition)})`, action: { label: 'View', op: 'player', playerId: id } })
-    else if (s.sharpness < BRIEFING_SHARPNESS) items.push({ id: `rusty-${id}`, level: 'warn', text: `${p.name} is short of sharpness (${Math.round(s.sharpness)})`, action: { label: 'View', op: 'player', playerId: id } })
+    if (s.condition < BRIEFING_CONDITION) {
+      if (tired.length >= 2) continue
+      const swap = rest.find((r) => r.outId === id)
+      items.push({ id: `tired-${id}`, level: 'warn', text: `${p.name} is tired (condition ${Math.round(s.condition)})${swap ? `: rest him for ${get(swap.inId)?.name ?? 'a fresher man'}` : ''}`, action: swap ? { label: 'Rest', op: 'rest', playerId: id } : { label: 'View', op: 'player', playerId: id } })
+    } else if (s.sharpness < BRIEFING_SHARPNESS) items.push({ id: `rusty-${id}`, level: 'warn', text: `${p.name} is short of sharpness (${Math.round(s.sharpness)})`, action: { label: 'View', op: 'player', playerId: id } })
   }
   for (const id of starters) {
     const p = get(id)
@@ -201,10 +243,10 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
   }
   // The starter the medical view rates at high risk, when tired legs are part of it (proneness alone is no news)
   const risk = riskiestStarter(game, u)
-  if (risk && (game.squad[risk.id]?.condition ?? 100) < 80 && !items.some((i) => i.id === `tired-${risk.id}`)) items.push({ id: `risk-${risk.id}`, level: 'warn', text: `${risk.name} is at high injury risk (${risk.matchPct}% a match)`, action: { label: 'Medical', tab: 'planner' } })
+  if (risk && (game.squad[risk.id]?.condition ?? 100) < 80 && !tired.includes(risk.id)) items.push({ id: `risk-${risk.id}`, level: 'warn', text: `${risk.name} is at high injury risk (${risk.matchPct}% a match)`, action: { label: 'Medical', tab: 'planner' } })
   if (game.promisedStart && !starters.includes(game.promisedStart)) {
     const p = get(game.promisedStart)
-    if (p && game.squad[game.promisedStart]) items.push({ id: 'promise', level: 'warn', text: `You promised ${p.name} a start and he is not in the XI`, action: { label: 'View', op: 'player', playerId: game.promisedStart } })
+    if (p && game.squad[game.promisedStart]) items.push({ id: 'promise', level: 'warn', text: `You promised ${p.name} a start and he is not in the XI`, action: promiseSlot(game, u, game.promisedStart) ? { label: 'Start him', op: 'startPromised', playerId: game.promisedStart } : { label: 'View', op: 'player', playerId: game.promisedStart } })
   }
 
   const w = game.window
@@ -218,14 +260,24 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
 
   const tie = upcomingCupTie(game)
   if (tie) {
-    const opp = tie.tie.homeTeamId === USER_TEAM ? tie.tie.awayTeamId : tie.tie.homeTeamId
+    const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
     const club = u.clubById[opp]
-    items.push({ id: 'cup', level: 'info', text: `${tie.label} ${tie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${club?.shortName ?? opp} midweek. Rotate, you play again Thursday`, action: { label: tie.comp === 'cup' ? 'Cup' : 'Europe', tab: tie.comp === 'cup' ? 'cup' : 'europe' } })
+    const stake = europeStake(game)
+    items.push({ id: 'cup', level: 'info', text: `${tie.label} ${tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${club?.shortName ?? opp} midweek. ${stake ? europeLine(stake) : 'Rotate, you play again Thursday'}`, action: { label: tie.comp === 'cup' ? 'Cup' : 'Europe', tab: tie.comp === 'cup' ? 'cup' : 'europe' } })
   }
 
+  // An objective already gone is on the Club tab and in the Inbox; the briefing keeps only the ones still to play for
   for (const o of season.objectives ?? []) {
+    if (objectiveGone(o, game, u)) continue
     const risk = objectiveRisk(o, game, u)
     if (risk) items.push({ id: `objective-${o.id}`, level: 'info', text: `${o.label}: ${risk}`, action: { label: 'Club', tab: 'club' } })
+  }
+
+  // Dynasty: the contracts that run out this summer, in the last weeks of the season while talks can still settle them
+  const ending = contractsEnding(game, u)
+  if (ending.length) {
+    const names = ending.slice(0, 3).map((id) => get(id)!.name)
+    items.push({ id: 'contracts', level: 'info', text: `${ending.length} contract${ending.length === 1 ? ' ends' : 's end'} this summer: ${list(ending.length > 3 ? [...names, `${ending.length - 3} more`] : names)}`, action: { label: 'Contracts', tab: 'planner' } })
   }
 
   const next = nextOpponent(game)
@@ -233,6 +285,38 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
   const where = next ? ` for ${u.clubById[next.clubId]?.shortName ?? next.clubId} (${positionOf(table, next.clubId)}${ordinalSuffix(positionOf(table, next.clubId))})` : ''
   items.push({ id: 'knobs', level: 'ok', text: `Training ${TRAINING_LABEL[game.training]}, team talk ${TALK_LABEL[game.teamTalk]}${where}`, action: { label: 'Tactics', tab: 'tactics' } })
   return items
+}
+
+/** A request to leave or a promise this close (in matchweeks) makes the Office's line a warning. */
+export const OFFICE_URGENT_WEEKS = 1
+
+/**
+ * What waits on the manager in the Office (r10): a request to leave, personal terms after an agreed fee, a promise
+ * falling due, as the Office tab's badge counts them (`officeItems`). One line, named when it is one thing; a warning
+ * when a request or a promise has a matchweek or less left. Nothing for a game with no office state.
+ */
+function officeLine(game: Game, u: LoadedUniverse): BriefingItem | null {
+  const waiting = officeItems(game, u)
+  if (!waiting.length) return null
+  const requests = openRequests(game)
+  const weeksOf = (it: (typeof waiting)[number]): number => {
+    if (it.kind === 'promise') return it.weeks ?? 0
+    const req = it.kind === 'request' ? requests.find((r) => r.name === it.name) : undefined
+    return req ? requestDeadline(req).weeksLeft : Infinity
+  }
+  const urgent = waiting.some((it) => weeksOf(it) <= OFFICE_URGENT_WEEKS)
+  const action: BriefingAction = { label: 'Office', tab: 'office' }
+  const level: BriefingLevel = urgent ? 'warn' : 'info'
+  if (waiting.length > 1) {
+    const names = [...new Set(waiting.map((it) => it.name ?? 'a player'))]
+    return { id: 'office', level, text: `${waiting.length} things wait in the Office: ${list(names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names)}`, action }
+  }
+  const it = waiting[0]
+  const name = it.name ?? 'a player'
+  const weeks = weeksOf(it)
+  const left = weeks <= 0 ? 'this matchweek' : `${weeks} matchweek${weeks === 1 ? '' : 's'} left`
+  const text = it.kind === 'request' ? `${name} has asked to leave: answer him in the Office (${left})` : it.kind === 'terms' ? `Fee agreed for ${name}: his personal terms wait in the Office` : `Your promise to ${name} falls due: ${left}`
+  return { id: 'office', level, text, action }
 }
 
 function ordinalSuffix(n: number): string {

@@ -50,8 +50,14 @@ function gameWindows(): string {
 
 const ENGINE_BASELINE = '738c872e6bcc42f88fd9024547dcd47d0d4a3f8427b1c57b2b032e4841f26750'
 // Re-baselined on ENGINE_VERSION '5': the 19 matchweeks before the window moved (fixtures, development, keeper subs), so its
-// clubs' squads and the stream differ; the 200 engine windows above, the market itself, did not move
-const GAME_BASELINE = '3c312603659929b28077447f9dfc71bec940dcc8ffcfc7e4ff29e23579d8a030'
+// clubs' squads and the stream differ; the 200 engine windows above, the market itself, did not move. Re-baselined on
+// '6' for the same reason: the 19 matchweeks play differently (the calibration, cards, the user's men out of their clubs);
+// the 200 engine windows still hold, unchanged. Re-baselined again inside engine 6 (round 6 item 6, `assistantLineup`):
+// market-pin-game-1's assistant opens with N. Shorey at left-back and G. Johnson at right-back instead of Johnson at
+// left-back and V. Kompany (CB) at right-back, so its 19 matchweeks play differently; the engine windows hold.
+// Re-baselined on '7': a cup tie in the 19 matchweeks now settles on its own week's stream (the nested RNG in
+// `afterLeagueMatch`), so the stream before the window differs; the 200 engine windows, the market itself, still hold
+const GAME_BASELINE = 'a164677020c578be099c27c6c391e619641f06817eb7739a780b3d517994670e'
 
 describe('a market with no recruitment focus is unchanged', () => {
   it('opens and ticks 200 seeded windows exactly as before', () => {

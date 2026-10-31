@@ -4,12 +4,13 @@
  * copy of the RNG state the league season ended on, so the league result, the RNG state and the other cup are the
  * same whether a cup is played, skipped, or played first or second.
  */
-import type { Cabinet, Game, QuickBracketTie, QuickCupReach, QuickCupRound, QuickCupRun, QuickCupTie, QuickResult } from '../types'
+import type { Cabinet, Game, QuickBracketTie, QuickCupReach, QuickCupRound, QuickCupRun, QuickCupTie, QuickGroup, QuickResult, QuickScorer } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
-import { aiRatingOffset, aiTeamInput, buildAiClubs, buildContinentalClubs, cupRounds, continentalRounds, drawFirstRound, drawNextRound, extraTime, shootout, USER_TEAM, type AiClub, type CupRoundInfo, type CupTie } from '@engine/season'
+import { aiFixtureInputs, aiRatingOffset, aiTeamInput, buildAiClubs, buildContinentalClubs, cupRounds, continentalRounds, drawFirstRound, drawNextRound, extraTime, humansOf, shootout, USER_TEAM, type AiClub, type CupRoundInfo, type CupTie } from '@engine/season'
 import { getFormation } from '@engine/formations'
+import { drawContinentalRound, drawGroups, extraTimeGoals, groupTable, POST_SEASON_PLAN, potOrder, quarterFinals, settleTie, throughGroups } from '@engine/continental'
 import type { Lineup, Position } from '@engine/types'
 import { playerLookup } from './players'
 import { seasonEndLookup } from './januaryGamble'
@@ -77,10 +78,15 @@ export function quickCupStatus(game: Game, u: LoadedUniverse, comp: QuickCupComp
   return problem ? { state: 'none', reason: problem } : { state: 'open' }
 }
 
-/** Every round of a cup with its name: "Fourth round" to "Final", or "Continental round of 16" to "Continental final". */
+/** Every round of a cup with its name: "Fourth round" to "Final", or "Continental round of 16" to "Continental final" (an engine 6 run's rounds, which name every round a run can hold). */
 export function quickCupRounds(comp: QuickCupComp): CupRoundInfo[] {
   // The rounds' matchweeks only matter inside a league season; the post-season uses their order and names
   return comp === 'cup' ? cupRounds(38) : continentalRounds(38)
+}
+
+/** The knockout rounds a run was played over: from engine 7 the Continental Cup's start at the quarter-finals, after its groups. */
+export function quickRunRounds(comp: QuickCupComp, run: Pick<QuickCupRun, 'groups'> | null): CupRoundInfo[] {
+  return comp === 'continental' && run?.groups ? POST_SEASON_PLAN.rounds : quickCupRounds(comp)
 }
 
 const SCORER_WEIGHT: Record<Position, number> = { GK: 0, CB: 1, LB: 1, RB: 1, DM: 1.5, CM: 2, AM: 4, LW: 4, RW: 4, ST: 6 }
@@ -151,13 +157,26 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   const nameOf = (id: string) => get(id)?.name
   const rng = Rng.fromState(game.rngState).fork(comp === 'cup' ? 'quick-cup' : 'quick-continental')
   const field = quickCupField(game, u, comp)
-  // The AI sides carry the league's handicap: none in the Super League, whose rivals play at full strength
+  // The AI sides carry the league's handicap: in the Super League only its eased point (`superEase`), no calibration
   const offset = comp === 'cup' ? aiRatingOffset(u, field, s.difficulty ?? 'calibrated') : quickLeague(u, s).offset
   const benchOn = quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0
   const formation = getFormation(game.tactics.formationId)
   const xi = quickCupXI(game, u)
   const user = quickUserInput(game, xi, benchOn ? [] : game.bench, game.tactics, game.captainId, get)
+  const taken = humansOf([...Object.values(xi), ...game.bench, ...Object.values(game.draft?.lineup ?? {}), ...(game.draft?.bench ?? [])], get)
   const userSlots = formation.slots.filter((sl) => xi[sl.id]).map((sl) => ({ id: xi[sl.id], w: SCORER_WEIGHT[sl.position] }))
+  const inputs = (h: string, a: string): { home: MatchTeamInput; away: MatchTeamInput } => {
+    // No human on both sides (E6-2): the user's men never play for the field, and two AI sides never share one
+    const both = h === USER_TEAM || a === USER_TEAM ? null : aiFixtureInputs(u, field[h], field[a], offset, taken)
+    return { home: h === USER_TEAM ? user : both?.home ?? aiTeamInput(u, field[h], offset, taken), away: a === USER_TEAM ? user : both?.away ?? aiTeamInput(u, field[a], offset, taken) }
+  }
+  if (comp === 'continental') {
+    // Engine 7: groups of four, two-legged quarter- and semi-finals, a one-off final
+    const run = playQuickContinental(rng, Object.keys(field), inputs, userSlots, nameOf)
+    q.continentalCup = run
+    for (const id of cupUnlocks(q)) if (!game.unlocked.includes(id)) game.unlocked.push(id)
+    return
+  }
   const rounds = quickCupRounds(comp)
   const ties = drawFirstRound([USER_TEAM, ...Object.keys(field)], rng, rounds)
   const mine: QuickCupTie[] = []
@@ -166,8 +185,7 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
     const round = rounds[r].round
     const kept: QuickBracketTie[] = []
     for (const tie of ties.filter((t) => t.round === round)) {
-      const home = tie.homeTeamId === USER_TEAM ? user : aiTeamInput(u, field[tie.homeTeamId], offset)
-      const away = tie.awayTeamId === USER_TEAM ? user : aiTeamInput(u, field[tie.awayTeamId], offset)
+      const { home, away } = inputs(tie.homeTeamId, tie.awayTeamId)
       const played = playTie(rng, tie, home, away, round === 'F', userSlots, nameOf)
       if (played.user) mine.push(played.user)
       kept.push(played.tie)
@@ -183,6 +201,89 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   if (comp === 'cup') q.cup = run
   else q.continentalCup = run
   for (const id of cupUnlocks(q)) if (!game.unlocked.includes(id)) game.unlocked.push(id)
+}
+
+/**
+ * The post-season Continental Cup from engine 7 (`src/engine/continental.ts`): the sixteen drawn into four groups
+ * (the user heading the second pot), every group match played matchday by matchday, the quarter-finals fixed by the
+ * groups, each two-legged tie's legs then its settling (extra time and penalties after the second leg), the semi-finals
+ * drawn, a one-off final at a neutral ground. The field plays on to the final whether the user is in it or not. The
+ * user's goalscorers are kept for the knockout ties (both legs, and extra time's from the XI as the Cup credits them).
+ */
+function playQuickContinental(rng: Rng, fieldIds: string[], inputs: (h: string, a: string) => { home: MatchTeamInput; away: MatchTeamInput }, userSlots: Array<{ id: string; w: number }>, nameOf: (id: string) => string | undefined): QuickCupRun {
+  const plan = POST_SEASON_PLAN
+  const groups = drawGroups(potOrder(fieldIds, USER_TEAM), rng, plan)
+  const play = (h: string, a: string, neutral: boolean) => simulateMatch({ rng, ...inputs(h, a), neutral, detail: 'summary' })
+  for (let day = 1; day <= plan.groupWeeks.length; day++) for (const g of groups) for (const m of g.matches.filter((x) => x.matchday === day)) m.result = play(m.homeTeamId, m.awayTeamId, false)
+  const ties = quarterFinals(groups, plan)
+  const mine: QuickCupTie[] = []
+  const bracket: QuickBracketTie[][] = []
+  for (let r = 0; r < plan.rounds.length; r++) {
+    const round = plan.rounds[r].round
+    const kept: QuickBracketTie[] = []
+    for (const tie of ties.filter((t) => t.round === round)) {
+      const scorers: QuickScorer[] = []
+      const userHome = tie.homeTeamId === USER_TEAM
+      const userIn = userHome || tie.awayTeamId === USER_TEAM
+      if (tie.firstLeg) {
+        const l1 = play(tie.homeTeamId, tie.awayTeamId, false)
+        tie.firstLeg.result = l1
+        if (userIn) scorers.push(...sideScorers(l1.events, userHome ? 'home' : 'away', nameOf))
+      }
+      const deciding = tie.firstLeg ? play(tie.awayTeamId, tie.homeTeamId, false) : play(tie.homeTeamId, tie.awayTeamId, true)
+      tie.result = deciding
+      // The deciding match's own sides: the second leg is at the tie's away side's ground
+      const userDecidingHome = tie.firstLeg ? !userHome : userHome
+      if (userIn) scorers.push(...sideScorers(deciding.events, userDecidingHome ? 'home' : 'away', nameOf))
+      settleTie(tie, rng, { home: deciding.homeReport.strength.overall, away: deciding.awayReport.strength.overall })
+      const et = extraTimeGoals(tie)
+      const ours = et && userIn ? (userDecidingHome ? et.home : et.away) : 0
+      for (let i = 0; i < ours; i++) {
+        const minute = rng.int(91, 120)
+        const pick = rng.pickWeighted(userSlots, (sl) => sl.w)
+        scorers.push({ name: nameOf(pick.id) ?? 'Unknown', minute, playerSeasonId: pick.id })
+      }
+      const agg = tie.agg!
+      const legs = tie.firstLeg ? [{ hg: tie.firstLeg.result!.homeGoals, ag: tie.firstLeg.result!.awayGoals }, { hg: deciding.awayGoals, ag: deciding.homeGoals }] : undefined
+      kept.push({ home: tie.homeTeamId, away: tie.awayTeamId, hg: agg.home, ag: agg.away, ...(agg.et ? { et: true as const } : {}), ...(agg.pens ? { pens: { home: agg.pens.home, away: agg.pens.away } } : {}), winner: tie.winnerId!, ...(legs ? { legs } : {}) })
+      if (!userIn) continue
+      const f = (h: number, a: number) => (userHome ? { for: h, against: a } : { for: a, against: h })
+      mine.push({
+        round: tie.round,
+        opponentId: userHome ? tie.awayTeamId : tie.homeTeamId,
+        home: userHome,
+        ...(tie.firstLeg ? {} : { neutral: true }),
+        gf: userHome ? agg.home : agg.away,
+        ga: userHome ? agg.away : agg.home,
+        ...(et ? { et: f(tie.firstLeg ? et.away : et.home, tie.firstLeg ? et.home : et.away) } : {}),
+        ...(agg.pens ? { pens: f(agg.pens.home, agg.pens.away) } : {}),
+        scorers,
+        won: tie.winnerId === USER_TEAM,
+        ...(legs ? { legs: legs.map((l, i) => ({ home: i === 0 ? userHome : !userHome, gf: userHome ? l.hg : l.ag, ga: userHome ? l.ag : l.hg })) } : {}),
+      })
+    }
+    bracket.push(kept)
+    if (r < plan.rounds.length - 1) ties.push(...drawContinentalRound(ties, round, rng, plan))
+  }
+  const quickGroups: QuickGroup[] = groups.map((g) => ({ name: g.name, teams: g.teams, matches: g.matches.map((m) => [m.matchday, m.homeTeamId, m.awayTeamId, m.result!.homeGoals, m.result!.awayGoals]) }))
+  const last = mine.at(-1)
+  const reached: QuickCupReach = !throughGroups(groups, USER_TEAM) || !last ? 'G' : last.round === 'F' && last.won ? 'W' : last.round
+  return { ties: mine, reached, bracket, groups: quickGroups }
+}
+
+/** A post-season group's table from its stored matches (`QuickGroup`), ordered as the engine orders it. */
+export function quickGroupTable(g: QuickGroup) {
+  return groupTable({ teams: g.teams, matches: g.matches.map(([matchday, home, away, hg, ag]) => ({ matchday, matchweek: matchday, homeTeamId: home, awayTeamId: away, result: { homeTeamId: home, awayTeamId: away, homeGoals: hg, awayGoals: ag, events: [], homeStats: [], awayStats: [], xg: { home: 0, away: 0 } } })) })
+}
+
+/** The user's group as a line: "Group B: 2nd on 10 points (3-1-2), through". Null for a run without groups. */
+export function quickGroupLine(run: Pick<QuickCupRun, 'groups'>): string | null {
+  const g = run.groups?.find((x) => x.teams.includes(USER_TEAM))
+  if (!g) return null
+  const table = quickGroupTable(g)
+  const i = table.findIndex((r) => r.teamId === USER_TEAM)
+  const r = table[i]
+  return `Group ${g.name}: ${['1st', '2nd', '3rd', '4th'][i]} on ${r.points} point${r.points === 1 ? '' : 's'} (${r.won}-${r.drawn}-${r.lost}), ${i < 2 ? 'through' : 'out'}`
 }
 
 /**
@@ -255,7 +356,7 @@ export function creditCupRun(cabinet: Cabinet, before: QuickResult, game: Game, 
   return honour ? fileHonour(c, honour) : c
 }
 
-const ROUND_NAME: Record<QuickCupReach, string> = { R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }
+const ROUND_NAME: Record<QuickCupReach, string> = { G: 'group stage', R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }
 
 /**
  * "round of 16" to "final", or "winners". The Cup's first round is the fourth round, as its tie heading says

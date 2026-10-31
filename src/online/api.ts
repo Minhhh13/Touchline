@@ -3,9 +3,8 @@
  * Supabase code): each call starts the runtime with a dynamic `import()` when the build is configured, and does
  * nothing (or falls back to the offline behaviour) when it is not, so an offline build never loads supabase-js.
  */
-import { cleanName, type ChallengePayload } from '@engine/challenge'
+import type { ChallengePayload } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
-import { challengeLink } from '@game/logic/challenge'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { onlineConfig } from './config'
@@ -15,16 +14,22 @@ import type { Runtime } from './runtime'
 import type { Resolution } from './sync'
 import type { CloudRow, ChallengeRow } from './transport'
 import { OnlineError } from './transport'
-import { checkDisplayName, nameVerdictFrom, sendEmailCode, signInWithGoogle, verifyEmailCode, type AuthResult, type NameVerdict } from './auth'
+import type { AuthResult, NameVerdict } from './auth'
 import { normaliseCountry } from './core/country'
 import { googleEnabledIn, googleForced } from './core/providers'
-import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchChaseBoard, fetchChaseStatus, fetchChaseSummary, fetchSummary, myEntries, rankOf, type AlltimeOrder, type ChaseScope, type RankedKind } from './boards'
-import { chaseGameSettings, chaseLeagues, chaseUnrankedReason, type ChaseOptions } from './chase'
+import type { AlltimeOrder, CasualKind, ChaseScope, RankedKind } from './boards'
+/** The board readers load with the World screen and the summaries' rank lines, never in the first download (every reader here is async already). */
+const boards = () => import('./boards')
+import type { ChaseOptions } from './chase'
 import { updateRecord } from './localState'
-import { captureChaseEntry, enqueue } from './outbox'
-import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
-import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
 import { shareLocation } from '../platform'
+import type { Resolved, ShareLink } from './challengeLinks'
+
+// The account checks and the challenge links load with their first use: they bring the challenge codec (and through
+// it the engine's replay) that Home's first download leaves out (docs/PERFORMANCE.md, round 9)
+const auth = () => import('./auth')
+const links = () => import('./challengeLinks')
+import type { RoomManagerInput, RoomSettings, RoomView } from '@game/logic/h2hRoom'
 
 /** Whether this build carries the online layer at all. */
 export const onlineAvailable = (): boolean => onlineConfig() !== null
@@ -49,6 +54,18 @@ async function rt(): Promise<Runtime | null> {
 let startFailed = false
 
 const unreachable: AuthResult = { ok: false, message: 'Could not reach the online service: check your connection, then try again.' }
+
+/** The Profile's Error reports setting changed: off empties the queue of reports still waiting on this device (the
+ * reporter also checks the setting itself before every capture and post). */
+export async function errorReportsChanged(on: boolean): Promise<void> {
+  if (on || !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY || !onlineConfig()) return
+  try {
+    const m = await import('./errors')
+    m.clearErrorReports()
+  } catch {
+    // the reporter's chunk did not load: it clears the queue itself on its next capture or post
+  }
+}
 
 /** Start the layer (an online surface opened). */
 export async function startOnline(): Promise<boolean> {
@@ -80,17 +97,17 @@ export function googleSignInAvailable(): Promise<boolean> {
 
 export async function emailCode(email: string): Promise<AuthResult> {
   const r = await rt()
-  return r ? sendEmailCode(r.auth, email) : notAvailable()
+  return r ? (await auth()).sendEmailCode(r.auth, email) : notAvailable()
 }
 
 export async function emailVerify(email: string, code: string): Promise<AuthResult> {
   const r = await rt()
-  return r ? verifyEmailCode(r.auth, email, code) : notAvailable()
+  return r ? (await auth()).verifyEmailCode(r.auth, email, code) : notAvailable()
 }
 
 export async function googleSignIn(): Promise<AuthResult> {
   const r = await rt()
-  return r ? signInWithGoogle(r.auth) : notAvailable()
+  return r ? (await auth()).signInWithGoogle(r.auth) : notAvailable()
 }
 
 export async function signOutOnline(): Promise<void> {
@@ -99,6 +116,7 @@ export async function signOutOnline(): Promise<void> {
 
 /** The live name check of the profile setup step: local rules first, then `display_name_check` when signed in. */
 export async function checkName(name: string): Promise<NameVerdict> {
+  const { nameVerdictFrom } = await auth()
   const local = nameVerdictFrom(name, null)
   if (local.state === 'invalid') return local
   const r = await rt()
@@ -125,7 +143,7 @@ export async function saveAccount(name: string, country: string | null): Promise
   if (!r) return notAvailable()
   const uid = r.userId
   if (!uid) return { ok: false, message: 'Sign in first.' }
-  const check = checkDisplayName(name)
+  const check = (await auth()).checkDisplayName(name)
   if (!check.ok) return { ok: false, message: check.message }
   const account: AccountProfile = { displayName: check.name, country: normaliseCountry(country) }
   try {
@@ -191,32 +209,32 @@ export async function refreshPins(): Promise<void> {
 
 export async function board(kind: RankedKind, key: string, country: string | null, offset = 0) {
   const r = await rt()
-  return r ? fetchBoard(r.transport, kind, key, country, offset) : []
+  return r ? (await boards()).fetchBoard(r.transport, kind, key, country, offset) : []
 }
 
 export async function boardSummary(kind: RankedKind, key: string, country: string | null) {
   const r = await rt()
-  return r ? fetchSummary(r.transport, kind, key, country) : null
+  return r ? (await boards()).fetchSummary(r.transport, kind, key, country) : null
 }
 
 export async function boardRank(kind: RankedKind, key: string, result: { points: number; lost: number; goalDiff: number; goalsFor: number }, country: string | null) {
   const r = await rt()
-  return r ? rankOf(r.transport, kind, key, result, country) : null
+  return r ? (await boards()).rankOf(r.transport, kind, key, result, country) : null
 }
 
 export async function alltime(order: AlltimeOrder, country: string | null, offset = 0) {
   const r = await rt()
-  return r ? fetchAlltime(r.transport, order, country, offset) : []
+  return r ? (await boards()).fetchAlltime(r.transport, order, country, offset) : []
 }
 
 export async function alltimeMine(order: AlltimeOrder, country: string | null) {
   const r = await rt()
-  return r && r.signedIn ? fetchAlltimeMine(r.transport, order, country) : null
+  return r && r.signedIn ? (await boards()).fetchAlltimeMine(r.transport, order, country) : null
 }
 
 export async function mine(kind: RankedKind) {
   const r = await rt()
-  return r && r.signedIn ? myEntries(r.transport, kind) : []
+  return r && r.signedIn ? (await boards()).myEntries(r.transport, kind) : []
 }
 
 // ------------------------------------------------------------------ challenge links
@@ -225,15 +243,15 @@ export async function shareLink(payload: ChallengePayload): Promise<ShareLink> {
   const r = await rt()
   const { origin, pathname } = shareLocation()
   if (!r) {
-    const longUrl = challengeLink(payload, origin, pathname)
+    const longUrl = (await import('@game/logic/challenge')).challengeLink(payload, origin, pathname)
     return { url: longUrl, code: null, fallback: 'not_configured', longUrl }
   }
-  return createShortLink(r.transport, r.signedIn, payload, origin, pathname, navigator.onLine !== false)
+  return (await links()).createShortLink(r.transport, r.signedIn, payload, origin, pathname, navigator.onLine !== false)
 }
 
 export async function resolveShort(code: string): Promise<Resolved> {
   const r = await rt()
-  return resolveShortCode(r ? r.transport : null, code)
+  return (await links()).resolveShortCode(r ? r.transport : null, code)
 }
 
 export async function myChallenges(): Promise<ChallengeRow[]> {
@@ -269,6 +287,12 @@ export async function createRoom(settings: RoomSettings, manager: RoomManagerInp
   return r ? r.rooms.create(settings, manager, engine, data) : { ok: false, message: noRooms }
 }
 
+/** A rematch of the room on screen from this seat (the same settings and manager); a second press opens the one already made. */
+export async function rematchRoom(view: RoomView, seat: 0 | 1, engine: string, data: string): Promise<{ ok: true; code: string; reused: boolean } | { ok: false; message: string }> {
+  const r = await rt()
+  return r ? r.rooms.rematch(view, seat, engine, data) : { ok: false, message: noRooms }
+}
+
 export async function joinRoom(manager: RoomManagerInput, engine: string, data: string): Promise<boolean> {
   return (await (await rt())?.rooms.join(manager, engine, data)) ?? false
 }
@@ -299,12 +323,12 @@ export async function roomSeats(): Promise<string[]> {
 
 export async function chaseBoard(scope: ChaseScope, week: string | null, country: string | null, offset = 0) {
   const r = await rt()
-  return r ? fetchChaseBoard(r.transport, scope, week, country, offset) : []
+  return r ? (await boards()).fetchChaseBoard(r.transport, scope, week, country, offset) : []
 }
 
 export async function chaseSummary(scope: ChaseScope, week: string | null, country: string | null) {
   const r = await rt()
-  return r ? fetchChaseSummary(r.transport, scope, week, country) : null
+  return r ? (await boards()).fetchChaseSummary(r.transport, scope, week, country) : null
 }
 
 /** Today's attempts and the caller's best run; null signed out. */
@@ -312,7 +336,7 @@ export async function chaseStatus() {
   const r = await rt()
   if (!r) return null
   await r.ready
-  return r.signedIn ? fetchChaseStatus(r.transport) : null
+  return r.signedIn ? (await boards()).fetchChaseStatus(r.transport) : null
 }
 
 export type ChaseStart = { ok: true; left: number } | { ok: false; message: string; signIn?: boolean }
@@ -329,6 +353,8 @@ export async function startChaseRun(leagueId: string, formationId: string, optio
   await r.ready
   if (!r.signedIn) return { ok: false, message: 'Sign in to play the 38-0 chase.', signIn: true }
   if (!(await useStore.getState().ensureLeagues([leagueId]))) return { ok: false, message: 'Could not load that league: check the connection and try again.' }
+  // The chase's mapping loads with its first use, out of the first download
+  const { chaseGameSettings, chaseLeagues } = await import('./chase')
   const u = useStore.getState().universe
   if (!u || !chaseLeagues(u).includes(leagueId)) return { ok: false, message: 'That league has no complete season to play.' }
   let reply: { status: number; body: Record<string, unknown> }
@@ -352,7 +378,9 @@ export async function submitChase(game: Game): Promise<{ ok: boolean; message?: 
   const st = useStore.getState()
   const u = st.universe
   if (!u) return { ok: false, message: 'The game data is still loading.' }
+  const { cleanName } = await import('@engine/challenge')
   const name = cleanName(st.profile.managerName) || cleanName(game.settings.teamName) || 'A friend'
+  const [{ chaseUnrankedReason }, { captureChaseEntry, enqueue }] = await Promise.all([import('./chase'), import('./outbox')])
   const entry = captureChaseEntry(game, u, name, new Date(), onlineStore.getState().session?.userId ?? null)
   if (!entry) return { ok: false, message: chaseUnrankedReason(game, u) ?? 'This run cannot go to the 38-0 chase.' }
   const next = updateRecord((rec) => enqueue(rec, entry))
@@ -363,4 +391,24 @@ export async function submitChase(game: Game): Promise<{ ok: boolean; message?: 
     await r.flushOutbox()
   }
   return { ok: true }
+}
+
+// ------------------------------------------------------------------ the casual boards
+
+export async function casualBoard(board: CasualKind, key: string, country: string | null, offset = 0) {
+  const r = await rt()
+  return r ? (await boards()).fetchCasualBoard(r.transport, board, key, country, offset) : []
+}
+
+export async function casualSummary(board: CasualKind, key: string, country: string | null) {
+  const r = await rt()
+  return r ? (await boards()).fetchCasualSummary(r.transport, board, key, country) : null
+}
+
+/** The caller's own posts on the casual boards (one board, or all three); empty signed out. */
+export async function casualMine(board: CasualKind | null = null) {
+  const r = await rt()
+  if (!r) return []
+  await r.ready
+  return r.signedIn ? (await boards()).myCasualEntries(r.transport, board) : []
 }

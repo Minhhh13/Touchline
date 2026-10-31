@@ -89,6 +89,17 @@ function useTouchScreen(): boolean {
 export const TOUCH_WAVE_LOOPS = 3
 
 /**
+ * On a touch screen the flutter is counted once per page load, not per lockup: the top bar's lockup mounts again with
+ * every screen that brings the bar back (the match day among them), and each mount used to flutter again for its three
+ * loops, repainting the whole page every frame for the first 7.8 s of the screen. `from` is when the first lockup on
+ * this page started; a lockup mounted after its loops are over rests.
+ */
+export function touchWaveOn(now: number, from: number | null): boolean {
+  return from === null || now - from < Math.round(TOUCH_WAVE_LOOPS * LOCKUP.wave.dur * 1000)
+}
+let touchWaveFrom: number | null = null
+
+/**
  * The open lockup: the mark's drawing without the tile (the corner flag
  * standing on a short touchline, the ball resting on it), then "TouchLine"
  * standing on the same ground; no line under the name. `height` is in px (a
@@ -107,8 +118,17 @@ export function Lockup({ height = 64, animate = 'none', className }: { height?: 
     if (play) loadPlayed = true
   }, [play])
   const tier = (height * 2 * LOCKUP.ball.r) / LOCKUP.grid >= LOCKUP.fullBallFrom ? 'full' : 'mid'
-  const wave = !useReducedMotion()
-  const loops = useTouchScreen() ? TOUCH_WAVE_LOOPS : undefined
+  const touch = useTouchScreen()
+  // Decided once per mount: a lockup that rests stays at rest until it remounts
+  const [touchWave] = useState(() => {
+    if (!touch) return true
+    const now = typeof performance !== 'undefined' ? performance.now() : 0
+    const on = touchWaveOn(now, touchWaveFrom)
+    if (touchWaveFrom === null) touchWaveFrom = now
+    return on
+  })
+  const wave = !useReducedMotion() && (!touch || touchWave)
+  const loops = touch ? TOUCH_WAVE_LOOPS : undefined
   const flag = useMemo(() => lockupFlagSvg(id, wave, loops), [id, wave, loops])
   const ball = useMemo(() => lockupBallSvg(id, tier), [id, tier])
   const d = 2 * LOCKUP.ball.r

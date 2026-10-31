@@ -32,9 +32,9 @@ import { POWER_UPS, rerollSeason, swapSlots, unpackPowerUp, usePeek, type PowerU
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
 
-/** How far a post-season cup run went: the round it ended in, W for winners. */
-export type CupReach = 'R16' | 'QF' | 'SF' | 'F' | 'W'
-export const CUP_REACHES: readonly CupReach[] = ['R16', 'QF', 'SF', 'F', 'W']
+/** How far a post-season cup run went: the round it ended in, G for out in the Continental Cup's groups (engine 7), W for winners. */
+export type CupReach = 'G' | 'R16' | 'QF' | 'SF' | 'F' | 'W'
+export const CUP_REACHES: readonly CupReach[] = ['G', 'R16', 'QF', 'SF', 'F', 'W']
 
 export interface ChallengeClaim {
   pts: number
@@ -271,7 +271,10 @@ export function cleanName(name: string): string {
     .join('')
     .replace(/\s+/g, ' ')
     .trim()
-  return cleaned.slice(0, CHALLENGE_NAME_MAX).trim()
+  // Cut on a whole character: a cut through an emoji would leave half of it (a lone surrogate) at the end
+  const cut = cleaned.slice(0, CHALLENGE_NAME_MAX)
+  const last = cut.charCodeAt(cut.length - 1)
+  return (last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut).trim()
 }
 
 /** Base-36 hash of the club-seasons a draft's wheel landed on, in order. */
@@ -376,6 +379,8 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   endCase: isBool,
   classic: isBool,
   superLeague: isBool,
+  // A v2 rule: the eased Super League; a link carrying it travels as version 2, so an older build reads it as newer
+  superEase: isBool,
   // A v2 rule: a capped link travels as version 2 (`payloadVersionFor`), so a v1 build reads it as newer
   budget: (v) => isNumber(v) && v >= CHALLENGE_BUDGET_RANGE[0] && v <= CHALLENGE_BUDGET_RANGE[1],
   // A v2 rule too: a teammate chain link travels as version 2

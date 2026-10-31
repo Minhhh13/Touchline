@@ -8,6 +8,10 @@
  */
 import { useEffect, useState } from 'react'
 import type { Profile } from '@game/types'
+import { translator } from './i18n'
+import { shell } from './i18n/en/shell'
+
+const t = translator(shell)
 
 /** The per-viewer key: set once the automatic ask has run on this device. */
 export const PERSIST_ASKED_KEY = 'touchline-persist-asked'
@@ -61,9 +65,7 @@ export async function askPersist(sm: StorageManagerLike | undefined = manager())
 
 /** The Save data box's line for each answer. */
 export function persistLine(state: PersistState): string {
-  if (state === 'persisted') return 'Protected: this browser keeps your save until you clear it.'
-  if (state === 'best-effort') return 'Not protected: this browser may clear your save when the device runs low on space. Protect it, and export a copy now and then.'
-  return 'This browser cannot protect your save from clearing: export a copy now and then.'
+  return t(state === 'persisted' ? 'persisted' : state === 'best-effort' ? 'bestEffort' : 'unprotected')
 }
 
 function readAsked(): boolean {

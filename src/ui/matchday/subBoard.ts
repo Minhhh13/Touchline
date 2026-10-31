@@ -14,6 +14,10 @@ import { computeTeamStrength, roleRating, type PlayerLookup, type StateLookup } 
 import { DEFAULT_ROLE, getRole, type Role } from '@engine/roles'
 import type { FormationSlot, Lineup, PlayerSeason, Position, Tactics } from '@engine/types'
 import type { LandingKind, Sub } from './controls'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 // ------------------------------------------------------------------ fit
 
@@ -26,7 +30,17 @@ export function fitGlow(p: Pick<PlayerSeason, 'positions'>, position: Position):
   return canCover(p, position, 'accomplished') ? 'cover' : 'out'
 }
 
-export const FIT_WORDS: Record<FitGlow, string> = { natural: 'natural position', cover: 'can cover', out: 'out of position' }
+export const FIT_WORDS: Record<FitGlow, string> = {
+  get natural() {
+    return t('fit_natural')
+  },
+  get cover() {
+    return t('fit_cover')
+  },
+  get out() {
+    return t('fit_out')
+  },
+}
 
 /** The role a slot plays in these tactics (the slot's own pick, else the position's default). */
 export function slotRole(tactics: Pick<Tactics, 'roles'>, slot: Pick<FormationSlot, 'id' | 'position'>): Role {
@@ -135,4 +149,12 @@ export function moveOnBoard(points: BoardPoint[], current: string | null, key: s
     if (!best || score < best.score) best = { id: p.id, score }
   }
   return best ? best.id : from.id
+}
+
+/** How far above a finger the dragged man rides (px): the ghost's centre, and the point a touch drag drops on. */
+export const TOUCH_LIFT = 48
+
+/** Where a drag aims: the pointer itself for a mouse or a pen, the lifted man for a finger, so a slot is hit where it is seen. */
+export function aimPoint(x: number, y: number, pointerType: string): { x: number; y: number } {
+  return pointerType === 'touch' ? { x, y: y - TOUCH_LIFT } : { x, y }
 }

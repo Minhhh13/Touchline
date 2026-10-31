@@ -3,7 +3,41 @@
  * `src/ui/__tests__/arenaText.test.ts`. Presentation only: nothing here decides a result.
  */
 import { GAUNTLET_BANDS, rungBandLabel } from '@engine/gauntlet'
+import { clubIdOfKey, type ArenaTier } from '@engine/knockout'
+import type { LoadedUniverse } from '@engine/universe'
 import type { Outcome } from './format'
+import { translator } from './i18n'
+import { arena } from './i18n/en/arena'
+
+const t = translator(arena)
+
+/** An arena run as the personal-best check reads it: `profile.arenaRuns`' entries carry these. */
+export interface RunMark {
+  id: string
+  format: 'cup' | 'gauntlet'
+  size?: number
+  score: number
+}
+
+/**
+ * How a finished run stands against the manager's own earlier runs of the same kind (the Gauntlet, or a Cup of the
+ * same size): `best` when it beats every one of them, `equal` when it ties the best, null when it falls short, when
+ * there is no earlier run to beat, or when it scored nothing. The run itself (`id`) is left out of the earlier runs.
+ */
+export function personalBest(runs: readonly RunMark[], run: RunMark): { kind: 'best' | 'equal'; was: number } | null {
+  const same = runs.filter((r) => r.id !== run.id && r.format === run.format && (run.format === 'gauntlet' || (r.size ?? 2) === (run.size ?? 2)))
+  if (same.length === 0 || run.score === 0) return null
+  const was = Math.max(...same.map((r) => r.score))
+  return run.score > was ? { kind: 'best', was } : run.score === was ? { kind: 'equal', was } : null
+}
+
+/**
+ * True when a summary banner holds a word too long for a phone's line at the banner's size ("Semi-finalists",
+ * "Quarter-finalists"): the banner steps down a size there (`.tier.long-word`) rather than break at the hyphen.
+ */
+export function longWord(banner: string): boolean {
+  return banner.split(/\s+/).some((w) => w.length > 11)
+}
 
 /**
  * A knockout match's word on the report's scoreboard and its W/D/L colour: a tie settled on penalties reads "Won on
@@ -11,8 +45,8 @@ import type { Outcome } from './format'
  * penalties it is the plain Win, Draw or Defeat.
  */
 export function knockoutOutcome(gf: number, ga: number, pens?: { us: number; them: number } | null): { word: string; outcome: Outcome } {
-  if (gf === ga && pens && pens.us !== pens.them) return pens.us > pens.them ? { word: 'Won on pens', outcome: 'W' } : { word: 'Lost on pens', outcome: 'L' }
-  return gf > ga ? { word: 'Win', outcome: 'W' } : gf < ga ? { word: 'Defeat', outcome: 'L' } : { word: 'Draw', outcome: 'D' }
+  if (gf === ga && pens && pens.us !== pens.them) return pens.us > pens.them ? { word: t('wonOnPens'), outcome: 'W' } : { word: t('lostOnPens'), outcome: 'L' }
+  return gf > ga ? { word: t('win'), outcome: 'W' } : gf < ga ? { word: t('defeat'), outcome: 'L' } : { word: t('draw'), outcome: 'D' }
 }
 
 /**
@@ -34,5 +68,47 @@ export function splitSeason(name: string): { club: string; season: string | null
 export function gauntletBandText(rung: number): string {
   const label = rungBandLabel(rung)
   const top = /^top (\d+)% of the wheel$/.exec(label)
-  return top && rung >= 2 && rung <= GAUNTLET_BANDS ? `stronger than ${100 - Number(top[1])}% of the wheel` : label
+  if (top && rung >= 2 && rung <= GAUNTLET_BANDS) return t('strongerThan', { n: 100 - Number(top[1]) })
+  // The ends of the ladder in the viewer's language too (QA r11); anything else as the engine says it
+  return rung === 1 ? t('weakestBand') : rung > GAUNTLET_BANDS ? t('strongestBand') : label
+}
+
+const TIER_KEY = {
+  WINNERS: 'winners',
+  'RUNNERS-UP': 'runnersUp',
+  'GAUNTLET COMPLETE': 'gauntletComplete',
+  'CUP WINNERS': 'cupWinners',
+  FINALISTS: 'finalists',
+  'SEMI-FINALISTS': 'semiFinalists',
+  'QUARTER-FINALISTS': 'quarterFinalists',
+  'OUT IN THE ROUND OF 16': 'outRound16',
+  'OUT IN THE FIRST ROUND': 'outFirstRound',
+} as const satisfies Record<Exclude<ArenaTier, 'RUNGS'>, string>
+
+/**
+ * An arena run's banner on screen (`WINNERS`, `7 RUNGS`, `OUT IN THE ROUND OF 16`) in the viewer's language; the
+ * engine's `arenaTierLabel` keeps the English the share text and card use, held equal in English by a test (QA r11).
+ */
+export function arenaTierText(tier: ArenaTier, score: number): string {
+  return t(`arenaTier_${tier === 'RUNGS' ? 'rungs' : TIER_KEY[tier]}`, { n: score })
+}
+
+/**
+ * The shoot-out's line for a screen reader as each kick shows (`ShootoutPanel`'s live region): whose kick, who took
+ * it, scored or missed, and the score so far; the verdict once the last kick is in. The chips beside it are a picture
+ * (ticks, crosses and a colour), so the words carry it.
+ */
+export function kickLine(k: { us: boolean; scored: boolean }, n: number, taker: string, us: number, them: number, verdict: string | null): string {
+  return t('kickLine', { n, side: k.us ? 'us' : 'them', taker, scored: k.scored ? 'yes' : 'no', us, them, end: verdict ? 'yes' : 'no', verdict: verdict ?? '' })
+}
+
+/** A taker's place after a move in the penalty order, for the live region: "Kane takes kick 2". */
+export function takerMoved(name: string, at: number): string {
+  return t('takerMoved', { name, n: at + 1 })
+}
+
+/** A club-season's code on the shoot-out's board (`chelsea@2012` reads `CHE`): the club's own code, else the first three letters of its id. */
+export function clubCode(u: Pick<LoadedUniverse, 'clubById'>, key: string): string {
+  const id = clubIdOfKey(key)
+  return u.clubById[id]?.code ?? id.slice(0, 3).toUpperCase()
 }

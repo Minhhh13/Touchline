@@ -9,19 +9,25 @@
  * assistant takes the stops still to come) and Sim result (straight to the
  * report while a stop is still ahead).
  */
-import { useEffect, useRef, useState } from 'react'
-import { ChevronUp, Clapperboard, SlidersHorizontal } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { Clapperboard } from 'lucide-react'
 import type { Mentality } from '@engine/types'
 import { scoreAt } from '@engine/matchFeed'
-import { MENTALITY_HELP } from '@engine/tactics'
 import { textColourFor } from '../format'
 import { fractionalClock, useLiveClock } from '../match/clockStore'
-import { barClock, SHOUTS_CLOSED, type DrawerId } from './controls'
+import { barClock, shoutsClosed, type DrawerId } from './controls'
+import { mentalityHelp } from './tacticText'
 import { HIGHLIGHT_LEVELS, type HighlightLevel } from '../match/highlights'
 import { clockText, skipLabel } from './model'
 import type { TopBarProps } from './types'
 import type { ManagerHand } from './useManagerHand'
 import { SPEEDS } from './useMatchClock'
+import { useMediaQuery } from '../components/LivePitch'
+import { useSayOnce } from '../liveOnce'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 const GOALS = new Set(['goal', 'penalty', 'own_goal'])
 
@@ -59,24 +65,24 @@ function ClockFace({ minute, state }: { minute: number; state: { atStop: boolean
   return <span ref={ref} className="clock mono" />
 }
 
-const TOOLS: Array<{ id: DrawerId; label: string }> = [
-  { id: 'tactics', label: 'Tactics' },
-  { id: 'instructions', label: 'Instructions' },
+const TOOLS: Array<{ id: DrawerId; label: () => string }> = [
+  { id: 'tactics', label: () => tx('tactics') },
+  { id: 'instructions', label: () => tx('instructions') },
 ]
-const TOOLS_AFTER: Array<{ id: DrawerId; label: string }> = [
-  { id: 'shouts', label: 'Shouts' },
-  { id: 'tweaks', label: 'Tweaks' },
+const TOOLS_AFTER: Array<{ id: DrawerId; label: () => string }> = [
+  { id: 'shouts', label: () => tx('shouts') },
+  { id: 'tweaks', label: () => tx('tweaks') },
 ]
 
 function Tools({ hand }: { hand: ManagerHand }) {
   const can = hand.editable
-  const tool = (t: { id: DrawerId; label: string }) => {
+  const tool = (t: { id: DrawerId; label: () => string }) => {
     // Tactics is read-only and opens on a replay too; the rest need a match to change
     const disabled = t.id !== 'tactics' && !can
-    const title = t.id === 'shouts' && !hand.shoutsOpen ? SHOUTS_CLOSED : undefined
+    const title = t.id === 'shouts' && !hand.shoutsOpen ? shoutsClosed() : undefined
     return (
       <button key={t.id} type="button" className={`md-tool ${hand.drawer === t.id ? 'active' : ''}`} onClick={() => hand.open(t.id)} disabled={disabled} aria-haspopup="dialog" aria-expanded={hand.drawer === t.id} title={title}>
-        {t.label}
+        {t.label()}
       </button>
     )
   }
@@ -87,12 +93,12 @@ function Tools({ hand }: { hand: ManagerHand }) {
     <div className="md-tools">
       <div className="md-tool-row">
         {TOOLS.map(tool)}
-        <label className="md-ment" title={MENTALITY_HELP[hand.tactics.mentality]}>
-          <span className="sr-only">Mentality</span>
+        <label className="md-ment" title={mentalityHelp(hand.tactics.mentality)}>
+          <span className="sr-only">{tx('mentality')}</span>
           <select className="md-select" value={hand.tactics.mentality} onChange={(e) => setMentality(e.target.value as Mentality)} disabled={!can}>
-            <option value="defensive">Defensive</option>
-            <option value="balanced">Balanced</option>
-            <option value="attacking">Attacking</option>
+            <option value="defensive">{tx('defensive')}</option>
+            <option value="balanced">{tx('balanced')}</option>
+            <option value="attacking">{tx('attacking')}</option>
           </select>
         </label>
         {TOOLS_AFTER.map(tool)}
@@ -125,115 +131,100 @@ export interface HighlightsControl {
   setKeyMoments?(on: boolean): void
 }
 
-export function TopBar({ feed, clock, minute, home, away, label, hand, playback, highlights, collapsible = false }: TopBarProps & { hand: ManagerHand; minute?: number; playback?: LivePlayback; highlights?: HighlightsControl; collapsible?: boolean }) {
+export function TopBar({ feed, clock, minute, home, away, label, hand, playback, highlights }: TopBarProps & { hand: ManagerHand; minute?: number; playback?: LivePlayback; highlights?: HighlightsControl }) {
   // The minute the panels show: a goal counts once the ball is over the line
   const t = minute ?? clock.clock
   const score = scoreAt(feed.events, t)
+  const scoreSaid = useSayOnce(score.home + score.away > 0 ? `${score.home}-${score.away}` : null, `${home.name} ${score.home}, ${away.name} ${score.away}`)
   const celebrating = useLiveClock((s) => s.celebrating >= 0)
   // The board lights up for the minute after a goal, and while one is celebrated
   const flash = celebrating || feed.events.some((e) => GOALS.has(e.type) && e.minute <= t && e.minute >= t - 1)
   const state = { atStop: clock.atStop, stopAt: clock.stopAt, finished: clock.finished, final: clock.final, addedTime: feed.addedTime }
-  const [controlsOpen, setControlsOpen] = useState(false)
-  const board = (
+  // On a phone the playback row scrolls sideways: Skip and Sim result come straight after Pause so they start in view
+  const phone = useMediaQuery('(max-width: 720px)')
+  const skip = !clock.finished && (
+    <button className="btn sm" onClick={clock.skip} data-testid="skip-replay">
+      {skipLabel(clock.stopAt)}
+    </button>
+  )
+  const sim = playback?.simResult && (
+    <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title={tx('simResultTip')}>
+      {tx('simResult')}
+    </button>
+  )
+  return (
+    <div className="md-topbar" role="group" aria-label={label}>
+      <Tools hand={hand} />
       <div className={`scoreboard ${flash ? 'flash' : ''}`} role="group" aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
         <span className="md-sb-code" style={{ background: home.colour, color: textColourFor(home.colour) }} title={home.name}>
           {home.code}
         </span>
         <span className="score mono">
-          {score.home} - {score.away}
+          <span key={`h${score.home}`} className="sb-num">
+            {score.home}
+          </span>{' '}
+          -{' '}
+          <span key={`a${score.away}`} className="sb-num">
+            {score.away}
+          </span>
         </span>
         <span className="md-sb-code" style={{ background: away.colour, color: textColourFor(away.colour) }} title={away.name}>
           {away.code}
         </span>
         <ClockFace minute={clock.clock} state={state} />
-        {/* Said once each time the score changes (the GOAL! banner mounts with its text, which a screen reader may miss) */}
+        {/* Said once each time the score changes (the GOAL! banner mounts with its text, which a screen reader may miss);
+            the board mounts afresh after each stop, and the score it mounts with is not news (round 7) */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="score-live">
-          {score.home + score.away > 0 ? `${home.name} ${score.home}, ${away.name} ${score.away}` : ''}
+          {scoreSaid}
         </span>
       </div>
-  )
-  const playbackBar = (
       <div className="md-playback">
-        <div className="md-playback-speed">
-          {!clock.finished && (
-            <button className="btn sm" onClick={clock.toggle} title="P pauses and resumes">
-              {clock.running ? 'Pause' : 'Resume'}
+        {!clock.finished && (
+          <button className="btn sm" onClick={clock.toggle} title={tx('pauseTip')}>
+            {tx(clock.running ? 'pause' : 'resume')}
+          </button>
+        )}
+        {phone && skip}
+        {phone && sim}
+        <div className="segmented" role="group" aria-label={tx('speed')}>
+          {SPEEDS.map((s) => (
+            <button key={s} className={clock.speed === s ? 'active' : ''} onClick={() => clock.setSpeed(s)} aria-pressed={clock.speed === s} data-testid={`speed-${s}`}>
+              {tx('speedX', { s })}
             </button>
-          )}
-          <div className="segmented" role="group" aria-label="Speed">
-            {SPEEDS.map((s) => (
-              <button key={s} className={clock.speed === s ? 'active' : ''} onClick={() => clock.setSpeed(s)} aria-pressed={clock.speed === s} data-testid={`speed-${s}`}>
-                {s}x
-              </button>
+          ))}
+        </div>
+        {highlights && (
+          <select className="input sm md-highlights" value={highlights.level} onChange={(e) => highlights.setLevel(e.target.value as HighlightLevel)} aria-label={tx('highlights')} title={HIGHLIGHT_LEVELS.find((l) => l.id === highlights.level)?.hint} data-testid="highlights">
+            {HIGHLIGHT_LEVELS.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
             ))}
-          </div>
-        </div>
-        <div className="md-playback-actions">
-          {highlights && (
-            <select className="input sm md-highlights" value={highlights.level} onChange={(e) => highlights.setLevel(e.target.value as HighlightLevel)} aria-label="Highlights" title={HIGHLIGHT_LEVELS.find((l) => l.id === highlights.level)?.hint} data-testid="highlights">
-              {HIGHLIGHT_LEVELS.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {highlights?.setKeyMoments && (
-            <button type="button" className={`btn sm md-moments ${highlights.keyMoments ? 'on' : ''}`} onClick={() => highlights.setKeyMoments?.(!highlights.keyMoments)} aria-pressed={!!highlights.keyMoments} aria-label="Key moments: the camera on big chances and goal replays" title={highlights.keyMoments ? 'Key moments on: the camera leans in on big chances and goals are replayed' : 'Key moments off: no camera moves or goal replays'} data-testid="key-moments">
-              <Clapperboard size={15} aria-hidden="true" />
-            </button>
-          )}
-          {highlights?.fast && !clock.finished && (
-            <span className="chip info md-fast" data-testid="highlights-fast" title="A quiet spell: the clock runs fast to the next moment">
-              ⏩
-            </span>
-          )}
-          {highlights?.wound && (
-            <span className="chip" data-testid="highlights-wound" title="Extended highlights wind down to Key while a side is three goals clear">
-              Highlights wound down: {highlights.wound}
-            </span>
-          )}
-          {!clock.finished && (
-            <button className="btn sm" onClick={clock.skip} data-testid="skip-replay">
-              {skipLabel(clock.stopAt)}
-            </button>
-          )}
-          {playback && (
-            <label className={`chip-toggle ${playback.auto ? 'on' : ''}`} title="The assistant makes the calls at the stops still to come">
-              <input type="checkbox" checked={playback.auto} onChange={(e) => playback.setAuto(e.target.checked)} data-testid="auto-toggle" /> Auto from here
-            </label>
-          )}
-          {playback?.simResult && (
-            <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title="The assistant makes any remaining calls and the match goes straight to the whistle and the report">
-              Sim result
-            </button>
-          )}
-        </div>
+          </select>
+        )}
+        {highlights?.setKeyMoments && (
+          <button type="button" className={`btn sm md-moments ${highlights.keyMoments ? 'on' : ''}`} onClick={() => highlights.setKeyMoments?.(!highlights.keyMoments)} aria-pressed={!!highlights.keyMoments} aria-label={tx('keyMoments')} title={tx(highlights.keyMoments ? 'keyMomentsOn' : 'keyMomentsOff')} data-testid="key-moments">
+            <Clapperboard size={15} aria-hidden="true" />
+          </button>
+        )}
+        {highlights?.fast && !clock.finished && (
+          <span className="chip info md-fast" data-testid="highlights-fast" title={tx('fastTip')}>
+            ⏩
+          </span>
+        )}
+        {highlights?.wound && (
+          <span className="chip" data-testid="highlights-wound" title={tx('woundTip')}>
+            {tx('wound', { score: highlights.wound })}
+          </span>
+        )}
+        {!phone && skip}
+        {playback && (
+          <label className={`chip-toggle ${playback.auto ? 'on' : ''}`} title={tx('autoTip')}>
+            <input type="checkbox" checked={playback.auto} onChange={(e) => playback.setAuto(e.target.checked)} data-testid="auto-toggle" /> {tx('autoFromHere')}
+          </label>
+        )}
+        {!phone && sim}
       </div>
-  )
-  if (collapsible) {
-    return (
-      <div className={`md-topbar md-phone-topbar ${controlsOpen ? 'controls-open' : ''}`} role="group" aria-label={label}>
-        {board}
-        <button type="button" className="btn md-controls-toggle" aria-expanded={controlsOpen} aria-controls="match-controls-drawer" onClick={() => setControlsOpen((open) => !open)} data-testid="match-controls-toggle">
-          <SlidersHorizontal size={17} aria-hidden="true" /> Match controls <ChevronUp size={16} className={controlsOpen ? 'flip' : ''} aria-hidden="true" />
-        </button>
-        <div className="md-control-drawer" id="match-controls-drawer" hidden={!controlsOpen}>
-          <div className="row between md-control-drawer-head">
-            <b>Match controls</b>
-            <button type="button" className="btn ghost sm" onClick={() => setControlsOpen(false)}>Close</button>
-          </div>
-          <Tools hand={hand} />
-          {playbackBar}
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div className="md-topbar" role="group" aria-label={label}>
-      <Tools hand={hand} />
-      {board}
-      {playbackBar}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { autoPick, squadWages } from './squad'
 import { naturalStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { postNews } from './news'
 import { focusFilter } from './scouting'
+import { ageFloors, recordDeparture } from './departures'
 
 export const SQUAD_CAP = 23
 
@@ -16,15 +17,22 @@ function log(game: Game, text: string): void {
   if (game.window) logLine(game.window, text)
 }
 
-/** Humans we hold: the squad, plus anyone picked in a draft still in progress (the summer wheel runs alongside the summer window). */
+/** Humans we hold: the squad, plus anyone picked in a draft still in progress (the summer wheel runs alongside the summer window), and the men who retired from it. */
 export function ownedHumans(game: Game, u: LoadedUniverse): Set<string> {
   const owned = new Set(squadPlayers(game, u).map((x) => x.p.playerId))
   for (const id of game.draft?.takenPlayers ?? []) owned.add(id)
+  for (const id of game.retiredPlayers ?? []) owned.add(id)
   return owned
 }
 
 function marketContext(game: Game, u: LoadedUniverse, rng: Rng, priceLevel: number): MarketContext {
-  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }
+  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game), ...withFloors(game) }
+}
+
+/** The market's `ageFloor` for a Dynasty with departures; nothing otherwise, so every other window is unchanged. */
+export function withFloors(game: Game): { ageFloor?: Record<string, number> } {
+  const floor = ageFloors(game)
+  return floor ? { ageFloor: floor } : {}
 }
 
 /** Sell-on shares a bid can offer the selling club. */
@@ -45,6 +53,8 @@ export interface BidOptions {
   status?: SquadStatus
   /** A sell-on share offered to the selling club (0.1 or 0.2): worth `sellOnValue` to them now, paid out of his next sale. */
   sellOn?: number
+  /** A weekly wage agreed in personal terms (GBP thousands): the market's wage-cap check reads it, not his wage at the status. */
+  wage?: number
 }
 
 /**
@@ -78,7 +88,7 @@ export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount:
   const status = opts.status ?? (target ? naturalStatus(target, overalls) : 'rotation')
   const pct = opts.sellOn && opts.sellOn > 0 && target ? Math.min(0.2, opts.sellOn) : 0
   const sweetener = pct && target ? { value: sellOnValue(target, pct), label: `a ${Math.round(pct * 100)}% sell-on` } : undefined
-  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls }, sweetener)
+  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls, ...(opts.wage !== undefined ? { wage: opts.wage } : {}) }, sweetener)
   if (out.accepted) {
     if (exchange) {
       releasePlayer(game, u, exchange.p.id)
@@ -184,6 +194,9 @@ export function rejectOffer(game: Game, index: number): void {
 
 /** Release a player (free transfer) and remove from lineup/bench. */
 export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: string): void {
+  // A Dynasty remembers the age he left at: he never comes back younger
+  const gone = playerLookup(game, u)(playerSeasonId)
+  if (gone && game.squad[playerSeasonId]) recordDeparture(game, gone)
   delete game.squad[playerSeasonId]
   delete game.contracts[playerSeasonId]
   delete game.consecutiveMissed[playerSeasonId]
@@ -203,7 +216,7 @@ export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: str
 }
 
 /** The human leaves every AI squad (league and Continental Cup) holding any of his player-seasons, except `keep`. */
-function leaveAiSquads(game: Game, u: LoadedUniverse, playerId: string, keep?: AiClub): void {
+export function leaveAiSquads(game: Game, u: LoadedUniverse, playerId: string, keep?: AiClub): void {
   const season = game.season
   if (!season) return
   for (const other of [...Object.values(season.ai), ...Object.values(season.continental?.clubs ?? {})]) {

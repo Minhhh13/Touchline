@@ -73,19 +73,36 @@ The owner's other two answers stood as they were: Home's waiting games stay mode
 | 8 | A run-in's Draft pitch shows the XI the job will start with, signings included | Clarity | Low | S | Low |
 | 9 | The live table's P counts finished games only (P 1 for the whole round at 1') | Polish | Low | S | Low |
 
+## Round 6 UI (2026-10-27): done on `r6-ui`
+
+| # | Item | Kind | Impact | Effort | Risk |
+| --- | --- | --- | --- | --- | --- |
+| 2 | Kick off and Play matchweek build the match day's ball path and samples in tasks of their own before the match screen renders (`src/ui/match/prepare.ts`): the longest task 406 to 520 ms (median 476) to 306 to 425 ms (median 319) at a 4x CPU slowdown; the week's own task (220 to 330 ms) stays | Perf | Medium | M | Low |
+| 3 | The stylesheets were already on the tokens (`polish-visual`); the two inline 16 px score chips moved, pixel-identical at 1280x720, and a guard on inline `fontSize` literals | Polish | Low | S | Low |
+| 4 | A pick's best play on a phone (the grade is a button with its note on a tap) and a "best play" crosshair on the Hindsight XI | Clarity | Low | S | Low |
+| 8 | 1100x700 pre-season with the coach mark and the intake: the squad grid from its 120 px floor (off the screen) to 174 px, 184 to 233 at 1280x720 | Polish | Low | S | Low (done on `r6-ui`, above) |
+| 9 | The playback's names whole (short names in a narrow list, 0 of 38 cut) and a clear "Into the top four" chip; U19 closed | Polish | Low | S | Low |
+| - | The phone market: the first eight listings and Show all (19,300 px to 5,900 px in January) | Polish | Medium | S | Low |
+| - | The arena's giants pass off the click: warmed on the setup, a cold remainder in 12 ms slices behind a busy button (2.0 to 2.3 s task to 220 to 300 ms at 4x) | Perf | Medium | S | Low |
+| - | The heat map's own tokens (`--heat-warm`, `--heat-hot`), and a casing under an xG line whose kit vanishes on the chart panel (`--line-casing`, `lineTone`) | Polish | Low | S | Low |
+| - | U20: dimmed player rows keep their text at AA (no opacity); B4 and U18 found fixed | Polish | Low | S | Low |
+
 ## Next (ranked for round 6)
 
 | # | Item | Kind | Impact | Effort | Risk | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Fix the ",NN" names at the source (strip the ESD suffix in `build.mjs` and `enrich-nations.mjs`, rerun the enrichment, rebuild, drop `tidyUniverseNames`) | Data | Medium | S | Medium | The data owner's call: a new stamp, `packHashes.json`, pins re-baselined, deploy after 00:00 UTC |
-| 2 | The week after Kick off is still one long task (about 700 ms at 4x, then a save write of about 300 ms): split the match day's first build (`matchPath`, the ball path) from the mutation, and the save's compression into idle time | Perf | Medium | M | Low | `perf-pass`'s area (`afterPaint.ts`, `saveStorage.ts`); measure on a phone |
-| 3 | Large screens: about 320 literal px font sizes do not follow the type tokens, so chips and small labels stay small at 1440p | Polish | Medium | M | Medium | Move the commonest literal sizes to `--fs-*` in small blocks; the accessibility agent's CSS area |
-| 4 | Grades: show the best play on the pick's tooltip on a phone too (the log's `title` is hover only), and a "best play" mark on the Hindsight XI | Clarity | Low | S | Low | `Draft.tsx` (TL-02's modals are near), `DraftRecap.tsx` |
+| 2 | The week after Kick off is still one long task (about 700 ms at 4x, then a save write of about 300 ms): split the match day's first build (`matchPath`, the ball path) from the mutation, and the save's compression into idle time | Perf | Medium | M | Low | `perf-pass`'s area (`afterPaint.ts`, `saveStorage.ts`); measure on a phone (done on `r6-ui`, above) |
+| 3 | Large screens: about 320 literal px font sizes do not follow the type tokens, so chips and small labels stay small at 1440p | Polish | Medium | M | Medium | Move the commonest literal sizes to `--fs-*` in small blocks; the accessibility agent's CSS area (done on `r6-ui`, above) |
+| 4 | Grades: show the best play on the pick's tooltip on a phone too (the log's `title` is hover only), and a "best play" mark on the Hindsight XI | Clarity | Low | S | Low | `Draft.tsx` (TL-02's modals are near), `DraftRecap.tsx` (done on `r6-ui`, above) |
 | 5 | The Weekly's record could show the week's world board rank once signed in | Feel | Low | S | Low | `src/online/api.ts` boards, offline fallback |
-| 6 | Squad complete and the hubs: the assistant plays a CB-capable midfielder at CB (D. Rice −12) | Bug | Medium | S | Low | Engine 5's TL-04 (PR #65) |
+| 6 | Squad complete and the hubs: the assistant plays a CB-capable midfielder at CB (D. Rice −12) | Bug | Medium | S | Low | Engine 5's TL-04 (PR #65) (done on `r6-engine`: `assistantLineup` in `src/engine/ratings.ts`) |
 | 7 | A reload resumes per tab only: another tab or the app after a cold start replays the segment | Feel | Low | S | Low | `resume.ts`; a save field would be a save-shape change |
 | 8 | 1100x700 pre-season with the coach mark and the intake still leaves the grid its 120 px floor | Polish | Low | S | Low | Short-window CSS |
-| 9 | Old Dynasty saves keep ",NN" in their aged copies; the playback's faint "Into the top four" chip and truncated club names (U19) | Polish | Low | S | Low | As in round 4's list |
+| 9 | Old Dynasty saves keep ",NN" in their aged copies (the playback's chip and names were done on `r6-ui`) | Polish | Low | S | Low | As in round 4's list |
+| 10 | The week's own task after Kick off (220 to 330 ms at 4x: `produce` over `playMatchweekAs`); playing the AI fixtures a task each needs `week.ts`'s matchweek in steps, with a seeded test that the game equals `playWeek`'s | Perf | Low | M | Medium | Found on `r6-ui`; `week.ts` is not in the verifier bundle |
+| 11 | The match screen's mount (about 300 ms at 4x: React's render of the dashboard and its first layout, the phone's `CompactLayout` measure forcing it): mount the panels a frame later | Perf | Low | M | Low | PERFORMANCE.md "Next" #2 |
+| 12 | The arena hub's two inline px headings (`Arena.tsx`) onto the tokens | Polish | Low | S | Low | Done: none left; `cssGuards.test.ts` exempts no file since r10 |
 
 ## Owned by other agents (do not take)
 

@@ -5,6 +5,7 @@ import { ratingsModeOf } from '@engine/draft'
 import { primeLookup } from '@engine/prime'
 import { boostedPlayer } from '@engine/upgrader'
 import { draftBoost } from '@engine/powerups'
+import { reserveKeeperById } from '@engine/reserve'
 
 /**
  * Player lookup that sees game-created players (dynasty progression, free agents) first. Under the
@@ -27,9 +28,10 @@ export function playerLookup(game: Game, u: LoadedUniverse): (id: string) => Pla
 function basicLookup(game: Game, u: LoadedUniverse): (id: string) => PlayerSeason | undefined {
   if (ratingsModeOf(game.settings.rules) === 'prime') {
     const { leagues, classic } = game.settings.rules
-    return (id: string) => game.customPlayers[id] ?? primeLookup(u, id, leagues, classic)
+    return (id: string) => game.customPlayers[id] ?? primeLookup(u, id, leagues, classic) ?? reserveKeeperById(u, id)
   }
-  return (id: string) => game.customPlayers[id] ?? u.index[id]
+  // An AI side's reserve keeper (E6-5) is never in the index: screens that name a match's men still find him
+  return (id: string) => game.customPlayers[id] ?? u.index[id] ?? reserveKeeperById(u, id)
 }
 
 export function squadPlayers(game: Game, u: LoadedUniverse): Array<{ p: PlayerSeason; s: SquadPlayer }> {

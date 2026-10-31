@@ -11,36 +11,21 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { LiveChanges, LivePlayer, Shout, TeamTalk } from '@engine/match'
-import { currentScore } from '@engine/match'
+import { currentScore, MAX_SUBS } from '@engine/match'
 import { staminaCostFactor } from '@engine/depth'
 import type { Position } from '@engine/types'
 import { isAvailable, playerLookup } from './players'
-import { advanceLiveMatch, closeLiveMatch, playMatchweek } from './week'
+import { advanceLiveMatch, closeLiveMatch, playMatchweek, playMatchweekSteps, runSteps } from './week'
 import { advanceArenaMatch } from './arena'
+import type { MatchPlayMode } from './matchPlay'
+export { assistantTakesStops, matchPlayOf, type MatchPlayMode } from './matchPlay'
 
-/** How the main play button plays the next match. */
-export type MatchPlayMode = 'watch' | 'auto' | 'sim'
-
+/** The three ways to play the next match, as the Dugout's chips show them. */
 export const MATCH_PLAY_MODES: Array<{ id: MatchPlayMode; label: string; hint: string }> = [
   { id: 'watch', label: 'Watch', hint: 'Stops at half time and the 70th minute for your calls' },
   { id: 'auto', label: 'Auto-play', hint: 'Watch it all; the assistant makes the calls at the stops' },
   { id: 'sim', label: 'Sim result', hint: 'Straight to the result and the report' },
 ]
-
-/** The saved preference: Season and Dynasty only, Watch when unset (every save written before the setting existed). */
-export function matchPlayOf(game: Game): MatchPlayMode {
-  if (game.settings.mode !== 'season' && game.settings.mode !== 'dynasty') return 'watch'
-  return game.settings.matchPlay ?? 'watch'
-}
-
-/**
- * Whether the assistant takes the stops of the live match now on the screen when it opens fresh:
- * after a reload, or as the cup tie that follows a league match. Only the saved preference counts
- * ("Finish the match" and "Auto from here" were for the match they were asked in).
- */
-export function assistantTakesStops(game: Game | null | undefined): boolean {
-  return !!game?.live && matchPlayOf(game) === 'auto'
-}
 
 /** Below this estimated condition at the 70th minute a man is taken off; at half time only below the lower one. */
 export const TIRED_AT_70 = 65
@@ -72,7 +57,7 @@ export function estimatedCondition(game: Game, u: LoadedUniverse, p: LivePlayer,
  *   lead, all-out attack when behind, keep shape when level or well clear) and
  *   changes for the injured and the tired (condition below `TIRED_AT_70`), the
  *   most tired first, each replaced by the best available natural fit for his slot.
- * Never more changes than are left (three at the break, five in all), never a
+ * Never more changes than are left (three at the break, `MAX_SUBS` in all), never a
  * man who is injured, suspended or has already played, never the same man twice.
  * Instructions are left alone: a change there would be written into the saved tactics.
  */
@@ -89,7 +74,7 @@ export function assistantCall(game: Game, u: LoadedUniverse): LiveChanges {
   const diff = live.userIsHome ? score.home - score.away : score.away - score.home
   const onPitch = appeared.filter((p) => p.offAt >= 90 && !p.red)
 
-  const cap = Math.max(0, atBreak ? Math.min(3, 5 - made) : 5 - made)
+  const cap = Math.max(0, atBreak ? Math.min(3, MAX_SUBS - made) : MAX_SUBS - made)
   const limit = atBreak ? TIRED_AT_45 : TIRED_AT_70
   const tempoFast = side.tactics.tempo === 'fast'
   const fatigue = side.modifiers?.fatigue ?? 0
@@ -181,8 +166,25 @@ export function simLiveMatches(game: Game, u: LoadedUniverse): void {
  * the week to the whistle here, so the report is ready.
  */
 export function playMatchweekAs(game: Game, u: LoadedUniverse, mode: MatchPlayMode): void {
-  playMatchweek(game, u, false)
-  if (mode === 'sim') simLiveMatches(game, u)
+  runSteps(playMatchweekAsSteps(game, u, mode))
+}
+
+/**
+ * `playMatchweekAs` in steps (`playMatchweekSteps`, then every stop the assistant answers in a Sim result): the same
+ * calls in the same order as `playMatchweek` then `simLiveMatches`, with a pause between them for the caller.
+ */
+export function* playMatchweekAsSteps(game: Game, u: LoadedUniverse, mode: MatchPlayMode): Generator<void, void, undefined> {
+  yield* playMatchweekSteps(game, u, false)
+  if (mode !== 'sim') return
+  // simLiveMatches, with finishWithAssistant unrolled so each stop is a step
+  for (let i = 0; i < 4 && game.live; i++) {
+    const key = liveKey(game)
+    if (!key) break
+    for (let j = 0; j < 3 && game.live && liveKey(game) === key; j++) {
+      yield
+      advanceWithAssistant(game, u)
+    }
+  }
 }
 
 /** A whole matchweek with no stops, as Auto-play plays it on screen: kick-off, the assistant at both stops of every live match, then off the match screen. */

@@ -3,13 +3,13 @@
  * commentary, match stats, the momentum chart, the dugout, and the
  * commentary banner across the dashboard.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { benchAt, managerWindowsUsed, MAX_SUBS, MAX_WINDOWS, subsMade } from '@engine/match'
 import { MOMENTUM_BINS } from '@engine/matchDetail'
 import { statsAt } from '@engine/matchStats'
 import { isAvailable } from '@game/logic/players'
 import { minuteLabel } from '../../format'
-import { changeText, latestLine, type CommentaryLine } from '../../match/commentary'
+import { latestLine, type CommentaryLine } from '../../match/commentary'
 import { momentumScale } from '../../match/charts'
 import { surname } from '../../match/shirts'
 import { assistantCheckpoint, assistantLine } from '../../match/assistant'
@@ -17,12 +17,21 @@ import { ChangeIcon, EventIcon, SubIcon } from '../icons'
 import { keyItems, momentumSpells, statRows } from '../model'
 import type { PanelProps } from '../types'
 import { Empty, Swatch, TeamCode } from './bits'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+import { rich } from '../../i18n/rich'
+import { changeLineText, commentaryLineText, commentaryPiece, eventLine } from '../../i18n/commentaryText'
+import { useSayOnce } from '../../liveOnce'
+
+const tx = translator(match)
+
+const MONO = { b: (c: ReactNode) => <b className="mono">{c}</b> }
 
 /** Key events to the clock, home on the left and away on the right, newest at the bottom. */
 export function MatchEvents({ d }: PanelProps) {
   const items = useMemo(() => keyItems(d.feed, d.minute), [d.feed, d.minute])
   const ref = useAutoScroll(items.length)
-  if (!items.length) return <Empty>Kick-off. Goals, cards, changes and substitutions appear here.</Empty>
+  if (!items.length) return <Empty>{tx('eventsEmpty')}</Empty>
   return (
     <ol className="md-events" ref={ref}>
       {items.map((it, i) => {
@@ -32,19 +41,19 @@ export function MatchEvents({ d }: PanelProps) {
             <li key={`c${i}`} className={`md-ev change ${it.entry.side}`}>
               <span className="min mono">{minuteLabel(it.minute)}</span>
               <ChangeIcon />
-              <span className="txt">{changeText(it.entry, team) ?? `${team} make a change.`}</span>
+              <span className="txt">{changeLineText(it.entry, team) ?? tx('teamChange', { team })}</span>
             </li>
           )
         }
         const e = it.event
         const whistle = e.type === 'half_time' || e.type === 'full_time'
         const sub = e.type === 'substitution'
-        const who = sub ? `${surname(e.secondaryName ?? (e.secondaryId ? d.getName(e.secondaryId) : undefined))} for ${surname(e.playerName)}` : e.playerName ? `${e.playerName}${e.type === 'penalty' ? ' (pen)' : e.type === 'own_goal' ? ' (og)' : ''}${e.type === 'goal' && e.secondaryName ? ` (${e.secondaryName})` : ''}` : e.text
+        const who = sub ? tx('subFor', { on: surname(e.secondaryName ?? (e.secondaryId ? d.getName(e.secondaryId) : undefined)), off: surname(e.playerName) }) : e.playerName ? `${e.playerName}${e.type === 'penalty' ? tx('penMark') : e.type === 'own_goal' ? tx('ogMark') : ''}${e.type === 'goal' && e.secondaryName ? ` (${e.secondaryName})` : ''}` : eventLine(e.text)
         return (
           <li key={`e${i}`} className={`md-ev ${whistle ? 'whistle' : e.side} ${e.type}`}>
             <span className="min mono">{whistle ? '' : minuteLabel(e.minute)}</span>
             <EventIcon type={e.type} />
-            <span className="txt">{whistle ? e.text : who}</span>
+            <span className="txt">{whistle ? eventLine(e.text) : who}</span>
           </li>
         )
       })}
@@ -61,7 +70,7 @@ export function CommentaryList({ d }: PanelProps) {
       {lines.map((l, i) => (
         <li key={i} className={`md-line ${l.kind} ${l.side ?? ''}`}>
           <span className="min mono">{l.minute > 0 ? minuteLabel(l.minute) : ''}</span>
-          <span className="txt">{l.text}</span>
+          <span className="txt">{commentaryLineText(l)}</span>
         </li>
       ))}
     </ol>
@@ -85,7 +94,7 @@ export function MatchStats({ d }: PanelProps) {
     <div className="md-stats-table">
       <div className="md-stats-head">
         <TeamCode view={d.home} />
-        <span className="muted small">at {d.minute <= 0 ? 'kick-off' : minuteLabel(d.minute)}</span>
+        <span className="muted small">{tx('statsAt', { at: d.minute <= 0 ? tx('kickOff') : minuteLabel(d.minute) })}</span>
         <TeamCode view={d.away} />
       </div>
       {statRows(at.home, at.away).map((r) => (
@@ -121,7 +130,7 @@ export function MomentumWidget({ d }: PanelProps) {
   const top = Math.round((0.5 + scale) * 100)
   return (
     <div className="md-momentum" data-testid="momentum-widget">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Match momentum by five-minute spell">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tx('momentumLabel')}>
         <line x1={x0} y1={mid - amp} x2={W - 4} y2={mid - amp} stroke="var(--line)" strokeDasharray="1 3" />
         <line x1={x0} y1={mid + amp} x2={W - 4} y2={mid + amp} stroke="var(--line)" strokeDasharray="1 3" />
         <line x1={x0} y1={mid} x2={W - 4} y2={mid} stroke="var(--line-2)" />
@@ -147,15 +156,15 @@ export function MomentumWidget({ d }: PanelProps) {
         })}
         {[0, 45, 90].map((x) => (
           <text key={x} x={x0 + (x / 5) * step} y={H - 3} fontSize="8" fill="var(--text-3)" textAnchor={x === 0 ? 'start' : x === 90 ? 'end' : 'middle'}>
-            {x === 0 ? "0'" : x === 45 ? 'HT' : "90'"}
+            {x === 0 ? "0'" : x === 45 ? tx('ht') : "90'"}
           </text>
         ))}
       </svg>
       <ul className="md-spells small">
-        {spells.length === 0 && <li className="muted">No spell of dominance yet.</li>}
+        {spells.length === 0 && <li className="muted">{tx('noSpell')}</li>}
         {spells.map((s, i) => (
           <li key={i}>
-            <Swatch colour={s.side === 'home' ? d.home.colour : d.away.colour} /> {s.side === 'home' ? d.home.code : d.away.code} on top {s.from}-{s.to}' <span className="muted">({Math.round(s.strength * 100)}%)</span>
+            <Swatch colour={s.side === 'home' ? d.home.colour : d.away.colour} /> {tx('onTop', { code: s.side === 'home' ? d.home.code : d.away.code, from: s.from, to: s.to })} <span className="muted">({Math.round(s.strength * 100)}%)</span>
           </li>
         ))}
       </ul>
@@ -179,39 +188,39 @@ export function Dugout({ d }: PanelProps) {
     <div className="md-dugout small">
       <div className="md-counters">
         <span>
-          <b className="mono">{MAX_SUBS - made}</b>/{MAX_SUBS} subs
+          {rich(tx('dugoutSubs', { n: MAX_SUBS - made, max: MAX_SUBS }), MONO)}
         </span>
         {mp && (
           <span>
-            <b className="mono">{MAX_WINDOWS - windows}</b>/{MAX_WINDOWS} stoppages
+            {rich(tx('dugoutStoppages', { n: MAX_WINDOWS - windows, max: MAX_WINDOWS }), MONO)}
           </span>
         )}
         {mp && d.hand?.editable && (
           <button type="button" className="btn sm md-dugout-btn" onClick={() => d.hand?.open('subs')} aria-haspopup="dialog">
-            Make a change
+            {tx('makeChange')}
           </button>
         )}
       </div>
       {fs.bench.length > 0 ? (
         <div className="md-bench">
-          <div className="lbl">Bench</div>
+          <div className="lbl">{tx('bench')}</div>
           {fs.bench.map((id) => (
             <div key={id} className={`md-bench-row ${appeared.has(id) ? 'used' : unavailable.includes(id) ? 'unavailable' : ''}`}>
               <span>{name(id)}</span>
-              <span className="muted">{appeared.has(id) ? 'on' : unavailable.includes(id) ? 'unavailable' : available.includes(id) ? 'ready' : ''}</span>
+              <span className="muted">{appeared.has(id) ? tx('benchOn') : unavailable.includes(id) ? tx('benchUnavailable') : available.includes(id) ? tx('benchReady') : ''}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div className="muted">The bench is not kept for a finished match.</div>
+        <div className="muted">{tx('benchNotKept')}</div>
       )}
       {subs.length > 0 && (
         <div className="md-bench">
-          <div className="lbl">Changes</div>
+          <div className="lbl">{tx('changes')}</div>
           {subs.map((s, i) => (
             <div key={i} className="md-bench-row">
               <span>
-                <SubIcon /> {surname(name(s.on))} for {surname(name(s.off))}
+                <SubIcon /> {tx('subFor', { on: surname(name(s.on)), off: surname(name(s.off)) })}
               </span>
               <span className="muted mono">
                 {minuteLabel(s.minute)} {s.reason}
@@ -246,16 +255,24 @@ export function CommentaryBanner({ d }: PanelProps) {
   const cp = assistantCheckpoint(d.minute)
   const side = d.userSide
   const assist = useMemo(() => (cp !== null && side ? assistantLine(d.feed, d.series, side, cp, d.getName) : null), [cp, side, d.feed, d.series, d.getName])
-  if (assist && (!line || line.kind === 'play' || line.minute < assist.minute)) {
+  const showAssist = !!assist && (!line || line.kind === 'play' || line.minute < assist.minute)
+  // One region for both, mounted throughout, each moment said once: two regions swapped in place re-read the booking
+  // before the assistant's word once his word went (a11y round 7)
+  const keyAt = key ? lines.lastIndexOf(key) : -1
+  const said = useSayOnce(showAssist && assist ? `a${assist.minute}` : key ? `k${keyAt}` : null, showAssist && assist ? `${minuteLabel(assist.minute)} ${tx('assistantSays', { text: commentaryPiece(assist.text) })}` : key ? `${minuteLabel(key.minute)} ${commentaryLineText(key)}` : '')
+  const region = (
+    <span className="sr-only" aria-live="polite" data-testid="banner-live">
+      {said}
+    </span>
+  )
+  if (showAssist && assist) {
     return (
       <div className="md-banner assistant key" data-testid="assistant-line">
         <span className="min mono">{minuteLabel(assist.minute)}</span>
         <span className="txt" key={`a${assist.minute}`}>
-          <b className="md-assistant-tag">Assistant</b> {assist.text}
+          <b className="md-assistant-tag">{tx('assistant')}</b> {commentaryPiece(assist.text)}
         </span>
-        <span className="sr-only" aria-live="polite">
-          {`Assistant: ${assist.text}`}
-        </span>
+        {region}
       </div>
     )
   }
@@ -265,11 +282,9 @@ export function CommentaryBanner({ d }: PanelProps) {
     <div className={`md-banner ${tone} ${moment ? 'key' : ''}`}>
       <span className="min mono">{line && line.minute > 0 ? minuteLabel(line.minute) : "0'"}</span>
       <span className="txt" key={`${line?.minute}-${line?.text}`}>
-        {line?.text ?? 'The teams are out.'}
+        {line ? commentaryLineText(line) : tx('teamsOut')}
       </span>
-      <span className="sr-only" aria-live="polite">
-        {key ? `${minuteLabel(key.minute)} ${key.text}` : ''}
-      </span>
+      {region}
     </div>
   )
 }

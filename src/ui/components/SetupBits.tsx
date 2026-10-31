@@ -1,9 +1,14 @@
-import { useRef, type ReactNode } from 'react'
-import { Dice5, X, type LucideIcon } from 'lucide-react'
+import { useRef, useState, type ReactNode } from 'react'
+import { Shuffle, X, type LucideIcon } from 'lucide-react'
 import { seasonStop } from '@engine/era'
-import { randomTeamName } from '@game/logic/teamNames'
+import { generateTeamName } from '@game/logic/teamNames'
 import { seasonLabel } from '../format'
 import { InfoTip } from './PowerUpButton'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+import { onRadioGroupKey, radioTabIndex } from '../a11y'
+
+const t = translator(setup)
 
 export interface ChoiceOption<T extends string> {
   value: T
@@ -17,9 +22,9 @@ export interface ChoiceOption<T extends string> {
 /** A row of option cards, one of them chosen: the setup screen's Difficulty, Show ratings, Draft mode and Player ratings. */
 export function ChoiceCards<T extends string>({ label, options, value, onChange, disabled, testId }: { label: string; options: Array<ChoiceOption<T>>; value: T; onChange: (v: T) => void; disabled?: boolean; testId?: string }) {
   return (
-    <div className={`choice-cards n${options.length}`} role="radiogroup" aria-label={label} data-testid={testId}>
-      {options.map((o) => (
-        <button key={o.value} type="button" role="radio" aria-checked={o.value === value} className={`choice-card ${o.value === value ? 'active' : ''}`} disabled={disabled} onClick={() => onChange(o.value)} data-value={o.value} title={o.line}>
+    <div className={`choice-cards n${options.length}`} role="radiogroup" aria-label={label} data-testid={testId} onKeyDown={onRadioGroupKey}>
+      {options.map((o, i) => (
+        <button key={o.value} type="button" role="radio" aria-checked={o.value === value} tabIndex={radioTabIndex(i, options.findIndex((x) => x.value === value))} className={`choice-card ${o.value === value ? 'active' : ''}`} disabled={disabled} onClick={() => onChange(o.value)} data-value={o.value} title={o.line}>
           {o.icon && (
             <span className="cicon" aria-hidden="true">
               <o.icon size="1em" />
@@ -45,12 +50,14 @@ export function SectionHead({ title, info, right, testId }: { title: string; inf
 }
 
 /**
- * A team name field with Clear (empties it and puts the cursor in it) and Randomise (an invented name from our own list).
- * The dice is UI randomness only: a name never touches the seed. An empty field starts as `fallback`; the dice never
- * lands on a name in `taken`.
+ * A team name field with Clear (empties it and puts the cursor in it) and Shuffle (`team-name-shuffle`: another invented
+ * club name from `generateTeamName`). Shuffle is UI randomness only: a name never touches the seed. An empty field starts
+ * as `fallback`; Shuffle never lands on the name in the field or a name in `taken`.
  */
-export function TeamNameField({ label = 'Team name', value, onChange, fallback, maxLength = 28, testId = 'team-name', taken }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string; taken?: readonly string[] }) {
+export function TeamNameField({ label = t('teamName'), value, onChange, fallback, maxLength = 28, testId = 'team-name', taken }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string; taken?: readonly string[] }) {
   const ref = useRef<HTMLInputElement>(null)
+  // Shuffle leaves the focus on its button, so the new name is read out from a region that stays mounted (round 4)
+  const [said, setSaid] = useState('')
   return (
     <div className="field team-field">
       <label htmlFor={`${testId}-input`}>{label}</label>
@@ -63,18 +70,32 @@ export function TeamNameField({ label = 'Team name', value, onChange, fallback, 
             onChange('')
             ref.current?.focus()
           }}
-          aria-label={`Clear ${label.toLowerCase()}`}
-          title="Clear"
+          aria-label={t('clearField', { label: label.toLowerCase() })}
+          title={t('clear')}
           data-testid={`${testId}-clear`}
         >
           <X size="1em" aria-hidden="true" />
-          <span className="name-btn-label">Clear</span>
+          <span className="name-btn-label">{t('clear')}</span>
         </button>
-        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={`Random ${label.toLowerCase()}`} title="Randomise" data-testid={`${testId}-random`}>
-          <Dice5 size="1em" aria-hidden="true" />
-          <span className="name-btn-label">Randomise</span>
+        <button
+          type="button"
+          className="btn sm name-btn"
+          onClick={() => {
+            const name = generateTeamName(Math.random, [value, ...(taken ?? [])]).name.slice(0, maxLength)
+            onChange(name)
+            setSaid(t('nameShuffled', { label, name }))
+          }}
+          aria-label={t('randomiseField', { label: label.toLowerCase() })}
+          title={t('randomise')}
+          data-testid={`${testId}-shuffle`}
+        >
+          <Shuffle size="1em" aria-hidden="true" />
+          <span className="name-btn-label">{t('randomise')}</span>
         </button>
       </div>
+      <span className="sr-only" aria-live="polite" data-testid={`${testId}-live`}>
+        {said}
+      </span>
     </div>
   )
 }
@@ -93,8 +114,8 @@ export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]
     <div className="season-range" data-testid="era-slider">
       <div className="track" />
       <div className="fill" style={{ left: `${(a / span) * 100}%`, right: `${((top - b) / span) * 100}%` }} />
-      <input type="range" min={0} max={top} step={1} value={a} aria-label="First season" aria-valuetext={seasonLabel(seasons[a])} onChange={(e) => onChange(seasons[Math.min(Number(e.target.value), b)], seasons[b])} />
-      <input type="range" min={0} max={top} step={1} value={b} aria-label="Last season" aria-valuetext={seasonLabel(seasons[b])} onChange={(e) => onChange(seasons[a], seasons[Math.max(Number(e.target.value), a)])} />
+      <input type="range" min={0} max={top} step={1} value={a} aria-label={t('firstSeason')} aria-valuetext={seasonLabel(seasons[a])} onChange={(e) => onChange(seasons[Math.min(Number(e.target.value), b)], seasons[b])} />
+      <input type="range" min={0} max={top} step={1} value={b} aria-label={t('lastSeason')} aria-valuetext={seasonLabel(seasons[b])} onChange={(e) => onChange(seasons[a], seasons[Math.max(Number(e.target.value), a)])} />
     </div>
   )
 }
@@ -106,7 +127,7 @@ export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]
  */
 export function ModeCards<T extends string>({ cards, on, info, icons, onToggle }: { cards: readonly T[]; on: readonly T[]; info: Record<T, { icon: string; title: string; line: string }>; icons?: Record<T, LucideIcon>; onToggle: (card: T) => void }) {
   return (
-    <div className="qmode-row" role="group" aria-label="Modes" data-testid="modes">
+    <div className="qmode-row" role="group" aria-label={t('modes')} data-testid="modes">
       {cards.map((c) => {
         const active = on.includes(c)
         const Icon: LucideIcon | undefined = icons?.[c]

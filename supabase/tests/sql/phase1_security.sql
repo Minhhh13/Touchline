@@ -8,9 +8,15 @@
 \echo '--- security: anon executes exactly the public board readers and their private helpers'
 -- The 38-0 chase (migration chase_board) adds chase_board and chase_summary for everyone, chase_my_status and
 -- chase_my_entries for signed-in accounts; its writers svc_chase_start, svc_chase_attempt, svc_chase_submit are
--- service_role only like every svc_*.
+-- service_role only like every svc_*. The casual boards (migration casual_boards) add casual_board and casual_summary
+-- for everyone and casual_my_entries for signed-in accounts; svc_casual_pin, svc_casual_get_pin and svc_casual_submit
+-- are service_role only. Error reports (migration error_reports) add nothing for anon or authenticated: the writer
+-- svc_error_report is service_role only and its helpers are private. The arena and Run-in cloud slots (migration
+-- cloud_slots_arena_runin) add no function; they widen save_claim_impl and save_delete_impl, already listed below.
 do $t$ declare got text[]; want text[] := array[
   'private.chase_board_impl', 'private.chase_summary_impl',
+  -- The casual boards (casual_boards migration): the Daily Arena, Weekly Challenge and Run-in of the week readers
+  'private.casual_board_impl', 'private.casual_summary_impl', 'public.casual_board', 'public.casual_summary',
   'private.country_filter', 'private.daily_alltime_impl', 'private.daily_board_impl', 'private.daily_is_open',
   'private.daily_rank_impl', 'private.daily_revealed', 'private.daily_summary_impl', 'private.get_challenge_impl',
   'private.is_anonymous', 'private.is_clean_name', 'private.normalise_code', 'private.week_start_of',
@@ -32,6 +38,8 @@ end $t$;
 do $t$ declare got text[]; want text[] := array[
   'private.chase_board_impl', 'private.chase_my_entries_impl', 'private.chase_my_status_impl', 'private.chase_summary_impl',
   'public.chase_board', 'public.chase_my_entries', 'public.chase_my_status', 'public.chase_summary',
+  'private.casual_board_impl', 'private.casual_my_entries_impl', 'private.casual_summary_impl',
+  'public.casual_board', 'public.casual_my_entries', 'public.casual_summary',
   'private.cloud_delete_all_impl', 'private.country_filter', 'private.create_challenge_impl', 'private.daily_alltime_impl',
   'private.display_name_check_impl', 'public.display_name_check',
   'private.daily_alltime_mine_impl', 'private.daily_board_impl', 'private.daily_is_open', 'private.daily_my_entries_impl',
@@ -60,6 +68,10 @@ do $t$ declare bad text; begin
     and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
          or not has_function_privilege('service_role', p.oid, 'execute'));
   assert bad is null, 'svc_ functions reachable by a client role (or not by service_role): ' || bad;
+  -- The engine 7 release's writers exist, so the check above covers them (error_reports, casual_boards)
+  select string_agg(w, ', ') into bad from unnest(array['svc_error_report', 'svc_casual_pin', 'svc_casual_get_pin', 'svc_casual_submit']) w
+  where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = w);
+  assert bad is null, 'missing svc_ writers: ' || bad;
   select string_agg(p.proname, ', ') into bad from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.prosecdef;
   assert bad is null, 'SECURITY DEFINER in public: ' || bad;

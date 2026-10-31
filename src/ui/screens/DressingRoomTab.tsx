@@ -1,5 +1,5 @@
 import { Crown, Users, Smile } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import type { Boxes } from '../components/Boxes'
 import { surnameOf } from '@game/logic/talks'
 import { atmosphereOf, hierarchy, squadGroups, TIER_LABEL, TIER_ORDER } from '@game/logic/dynamics'
@@ -9,6 +9,11 @@ import { playerLookup } from '@game/logic/players'
 import { Bar, Info } from '../components/bits'
 import { moraleClass, signed } from '../components/Happiness'
 import { meterValue } from '../format'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+import { logicLine } from '../i18n/logicText'
+
+const t = translator(dugout)
 
 const surname = surnameOf
 
@@ -19,7 +24,7 @@ const surname = surnameOf
  */
 /** `boxes` is the Dugout's Boxes control for this tab: an unticked box is left out and the others widen. */
 export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const rows = hierarchy(game, u)
@@ -36,27 +41,27 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
         <div className="panel-head">
           <span className="head-title">
             <h3 className="icon-title">
-              <Crown size={18} aria-hidden="true" /> Hierarchy
+              <Crown size={18} aria-hidden="true" /> {t('hierarchy')}
             </h3>
-            <Info label="About the hierarchy">Who carries weight in the dressing room: mentality, age, reputation, time at the club, apps and squad status. The captain leads it.</Info>
+            <Info label={t('aboutHierarchy')}>{t('hierarchyInfo')}</Info>
           </span>
-          <span className="small muted">{rows.length} players</span>
+          <span className="small muted">{t('nPlayers', { n: rows.length })}</span>
         </div>
         {TIER_ORDER.map((tier) => {
           const list = rows.filter((r) => r.tier === tier)
           if (!list.length) return null
           return (
             <div key={tier} className="room-tier">
-              <div className="eyebrow">{TIER_LABEL[tier]}</div>
+              <div className="eyebrow">{logicLine(TIER_LABEL[tier])}</div>
               {list.map((r) => {
                 const p = get(r.id)
                 return (
                   <button key={r.id} type="button" className="room-row" onClick={() => onPlayer(r.id)}>
                     <span className="who">
                       <b>{r.name}</b>
-                      <span className="small muted">{[...r.reasons, p ? personalityOf(p).label : ''].filter(Boolean).join(' · ')}</span>
+                      <span className="small muted">{[...r.reasons, p ? personalityOf(p).label : ''].filter(Boolean).map(logicLine).join(' · ')}</span>
                     </span>
-                    <span className={`chip ${moraleClass(r.morale)}`} title="Morale">
+                    <span className={`chip ${moraleClass(r.morale)}`} title={t('morale')}>
                       {meterValue(r.morale)}
                     </span>
                   </button>
@@ -72,11 +77,11 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
         <div className="panel-head">
           <span className="head-title">
             <h3 className="icon-title">
-              <Users size={18} aria-hidden="true" /> Atmosphere
+              <Users size={18} aria-hidden="true" /> {t('atmosphere')}
             </h3>
-            <Info label="About the atmosphere">Morale weighted by influence (leaders count three times), with the XI's chemistry. A read-out for now: it does not change results.</Info>
+            <Info label={t('aboutAtmosphere')}>{t('atmosphereInfo')}</Info>
           </span>
-          <span className="chip">{atmos.label}</span>
+          <span className="chip">{logicLine(atmos.label)}</span>
         </div>
         <div className="atmos" data-testid="atmosphere">
           <span className="atmos-value">{atmos.value}</span>
@@ -84,18 +89,18 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
         </div>
         <ul className="atmos-lines small muted">
           {atmos.lines.map((l) => (
-            <li key={l}>{l}</li>
+            <li key={l}>{logicLine(l)}</li>
           ))}
         </ul>
         <h4 className="head-title room-sub">
-          Groups <Info label="About groups">Players drafted from the same club-season stick together, then old club-mates, then countrymen, then by age.</Info>
+          {t('groups')} <Info label={t('aboutGroups')}>{t('groupsInfo')}</Info>
         </h4>
         <div className="room-groups">
           {groups.map((g) => (
             <div key={g.id} className="room-group">
               <div className="row between" style={{ gap: 'var(--space-2)' }}>
-                <b className="one-line">{g.label}</b>
-                <span className={`chip ${moraleClass(g.morale)}`} title="Average morale">
+                <b className="one-line">{logicLine(g.label)}</b>
+                <span className={`chip ${moraleClass(g.morale)}`} title={t('avgMorale')}>
                   {meterValue(g.morale)}
                 </span>
               </div>
@@ -119,9 +124,9 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
         <div className="panel-head">
           <span className="head-title">
             <h3 className="icon-title">
-              <Smile size={18} aria-hidden="true" /> Happiness
+              <Smile size={18} aria-hidden="true" /> {t('happiness')}
             </h3>
-            <Info label="About happiness">Unhappiest first, with the biggest recent cause. Tap a player for his full log and a word with him.</Info>
+            <Info label={t('aboutHappiness')}>{t('happinessInfo')}</Info>
           </span>
         </div>
         <div className="plist lined">
@@ -129,7 +134,7 @@ export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) =>
             <button key={r.id} type="button" className="room-row" onClick={() => onPlayer(r.id)} data-testid="mood-row">
               <span className="who">
                 <b>{r.name}</b>
-                <span className="small muted one-line">{h.main ? `${h.main.text} ${signed(h.main.delta)}` : 'Nothing recorded yet'}</span>
+                <span className="small muted one-line">{h.main ? `${logicLine(h.main.text)} ${signed(h.main.delta)}` : t('nothingRecorded')}</span>
               </span>
               <span className={`chip ${moraleClass(h.morale)}`}>{meterValue(h.morale)}</span>
             </button>

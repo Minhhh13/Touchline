@@ -8,7 +8,7 @@
 import { expect } from 'vitest'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { canBench, canCloseBench, canSpin, eligibleSlots, isComplete, picksMade, positionFirst, spinClubSeason, spinnableSlots, targetSlot } from '@engine/draft'
+import { canBench, canCloseBench, canSpin, eligibleSlots, fillingXI, isComplete, picksMade, positionFirst, spinClubSeason, spinnableSlots, targetSlot } from '@engine/draft'
 import { encodeSave, parseSave } from '../saveStorage'
 import { compactGame } from '../logic/compact'
 import { persistedState, useStore } from '../store'
@@ -16,6 +16,7 @@ import { kickoffStep, caseIconChoices } from '../logic/endCase'
 import { quickManagerOptions } from '../logic/managers'
 import { openSpinChoices, playbackResults, quickChangeProblem, quickSquadAt } from '../logic/quick'
 import { januaryGambleOn } from '../logic/januaryGamble'
+import { januaryStale, quickSeasonStale } from '../logic/quickSeam'
 import type { Game } from '../types'
 
 /** How often each driven action ran, so a harness that stops exercising something fails rather than passing quietly. */
@@ -28,6 +29,12 @@ function act(key: string): ReturnType<typeof useStore.getState> {
   count(key)
   return useStore.getState()
 }
+
+/**
+ * Called at the top of every driver step (draft, quick season, managed season, arena): `reloadSweep.test.ts` reloads
+ * the save there. Unset, it costs nothing.
+ */
+export const stepHook: { run?: () => void } = {}
 
 /** The test's own choices: a stream of its own, never a game's. */
 export class Chooser {
@@ -177,6 +184,7 @@ export function driveDraft(u: LoadedUniverse, ch: Chooser, opts: { autoAt?: numb
   const st = () => useStore.getState()
   let stuck = 0
   for (let step = 0; step < 400; step++) {
+    stepHook.run?.()
     const g = st().game
     if (!g || g.phase !== 'draft' || !g.draft) return log
     const d = g.draft
@@ -187,7 +195,7 @@ export function driveDraft(u: LoadedUniverse, ch: Chooser, opts: { autoAt?: numb
       return log
     }
     log.problems.push(...squadProblems(d.lineup, d.bench, (id) => (g.customPlayers[id] ?? u.index[id])?.playerId, `draft step ${step}`))
-    if (isComplete(d) || (canCloseBench(d) && ch.chance(0.25)) || (picksMade(d) >= 11 && !canSpin(u, d) && !d.current)) {
+    if (isComplete(d) || (canCloseBench(d) && ch.chance(0.25)) || (!fillingXI(d) && !canSpin(u, d) && !d.current)) {
       log.actions.push('finishDraft')
       st().finishDraft()
       if (st().game?.phase === 'draft') {
@@ -302,6 +310,7 @@ export function driveQuickSeason(u: LoadedUniverse, ch: Chooser): string[] {
   const problems: string[] = []
   const st = () => useStore.getState()
   for (let step = 0; step < 60; step++) {
+    stepHook.run?.()
     const g = st().game
     const crash = crashToast()
     if (crash) {
@@ -329,11 +338,14 @@ export function driveQuickSeason(u: LoadedUniverse, ch: Chooser): string[] {
         act('season:kickOff').kickOff(ch.chance(0.2))
       }
     } else if (g.phase === 'january') {
-      const j = g.quickJanuary!
+      // A season this engine kicked off always replays as shown (r7: the check for an earlier engine's season)
+      if (januaryStale(g, u)) problems.push('a January window of this engine read as drawn by an earlier one')
       // A bench change in the first half, sometimes, before the window
       maybeBenchChange(u, ch, problems)
       const g1 = st().game!
       if (g1.phase !== 'january') continue
+      // A bench change in January draws the window again: read it afresh
+      const j = g1.quickJanuary!
       const gamble = januaryGambleOn(g1)
       const r = ch.int(0, 9)
       if (gamble && r === 0 && !j.spin && !j.upgrade) {
@@ -382,6 +394,7 @@ function maybeBenchChange(u: LoadedUniverse, ch: Chooser, problems: string[]): v
   if (!results.length || !ch.chance(0.5)) return
   const revealed = ch.int(0, results.length - 1)
   if (quickChangeProblem(g, u, results, revealed)) return
+  if (quickSeasonStale(g, u)) problems.push(`a season of this engine read as played by an earlier one (${g.phase})`)
   const view = quickSquadAt(g, u, results, revealed)
   const slot = ch.pick(Object.keys(view.lineup))
   const inId = ch.pick(view.bench)

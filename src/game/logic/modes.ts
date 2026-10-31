@@ -44,9 +44,9 @@ export function modeLabel(game: LabelledGame, style: ModeLabelStyle): string {
   const mode = game.settings.mode
   switch (mode) {
     case 'quick':
-      return style === 'share' ? 'Quick Draft' : 'Quick draft'
+      return style === 'share' ? 'Quick Draft' : 'Quick Draft'
     case 'daily':
-      return style === 'share' ? `Daily ${dailyDay(game.settings.seed)}` : 'Daily challenge'
+      return style === 'share' ? `Daily ${dailyDay(game.settings.seed)}` : 'Daily Challenge'
     case 'season':
       return 'Season'
     case 'dynasty':
@@ -70,9 +70,9 @@ export function modeLabel(game: LabelledGame, style: ModeLabelStyle): string {
 
 /** The footer of the share card: the daily's day, or the seed a friend can replay (`Seed K7Q2-MX9A · £180M cap` under a salary cap). */
 export function shareCardFooter(game: LabelledGame): string {
-  if (game.settings.mode === 'weekly') return `Weekly challenge ${weekDay(game.settings.seed)}${capFooter(game)}`
+  if (game.settings.mode === 'weekly') return `Weekly Challenge ${weekDay(game.settings.seed)}${capFooter(game)}`
   if (game.settings.mode === 'arena' && game.settings.arena?.daily) return `Daily Arena ${game.settings.seed.replace('arena-', '')}${capFooter(game)}`
-  return game.settings.mode === 'daily' ? `Daily challenge ${dailyDay(game.settings.seed)}` : `Seed ${game.settings.seed}${capFooter(game)}`
+  return game.settings.mode === 'daily' ? `Daily Challenge ${dailyDay(game.settings.seed)}` : `Seed ${game.settings.seed}${capFooter(game)}`
 }
 
 /** `Year 2` in a dynasty, nothing in a mode that plays one season. */
@@ -110,8 +110,9 @@ export function isSharedPuzzle(mode: Mode): boolean {
  * wheel has run dry and the squad goes on short (`Go to pre-season with 15`).
  */
 export function finishDraftLabel(game: LabelledGame, made?: number): string {
-  // Quick-like drafts stop at the tactics step (`toKickoff`) before the season
-  if (isQuickLike(game.settings.mode)) return 'On to kick-off'
+  // Quick-like drafts stop at the tactics step (`toKickoff`) before the season; with the manager spin on, its three
+  // reels come first, so the button names them rather than promise the kick-off
+  if (isQuickLike(game.settings.mode)) return game.settings.rules?.managers && game.settings.rules.managerSpin ? 'On to your manager' : 'On to kick-off'
   if (game.settings.mode === 'arena') return game.arena && game.arena.step > 0 ? 'Back to the ladder' : arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : game.settings.arena?.format === 'gauntlet' ? 'Onto the ladder' : 'On to the draw'
   if (game.settings.mode === 'dynasty' && game.year > 1) return 'Into the new season'
   if (game.settings.mode === 'runin') return 'Take the job'

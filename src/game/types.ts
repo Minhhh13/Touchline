@@ -10,7 +10,7 @@ import type { TrainingFocus } from '@engine/training'
 import type { SeasonAwards } from '@engine/awards'
 import type { Lineup, PlayerSeason, Position, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
 import type { DraftRules } from '@engine/draft'
-import type { ArenaClaim, ChallengeClaim } from '@engine/challenge'
+import type { ArenaClaim, ChallengeClaim, ChallengePick } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
 import type { AiClub } from '@engine/season'
 import type { ArenaField, ArenaTier } from '@engine/knockout'
@@ -57,6 +57,12 @@ export interface GameSettings {
   matchPlay?: 'watch' | 'auto' | 'sim'
   /** Quick Draft and the Daily: the season stops after the halfway matchweek for a January window. Absent (older saves) is off. */
   january?: boolean
+  /**
+   * Season and Dynasty: player power (`src/game/logic/transferRequests.ts`). On, unhappy players may hand in transfer
+   * requests on their own, rolled on forks of a copy of the stream. Absent (the default) or false, nobody asks to leave
+   * unless the manager broke a promise to him, and a game nobody manages through the office plays exactly as before.
+   */
+  playerPower?: boolean
   /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
   challenge?: ChallengeSettings
   /** The arena format of a mode `arena` game (absent for every other mode). */
@@ -208,12 +214,22 @@ export interface Contract {
   renewed?: boolean
   /** The player will leave when the contract ends. */
   declined?: boolean
+  /**
+   * Dynasty summer: his contract ran out (`years` 0). Talks are open through pre-season; at the opener the
+   * assistant renews him if he is worth keeping and willing (`settleRenewals` in `dynasty.ts`), else he leaves on a free.
+   */
+  expired?: boolean
   /** Transfer-listed: offers come in more often. */
   listed?: boolean
   /** On loan for this season only: he goes back to his club in the summer. */
   loan?: boolean
   /** Squad status: how much football he expects (section 10 of the design doc); rotation when absent. */
   status?: SquadStatus
+  /**
+   * The highest status the Club tab has raised his wage to (`setSquadStatus`), when a demotion has left it above his
+   * status: moving him back up raises the wage only past it. Absent reads as `status`; contract talks clear it.
+   */
+  paidStatus?: SquadStatus
   /** Terms agreed in contract talks (`src/game/logic/contracts.ts`); absent on every contract nobody has negotiated. */
   clauses?: ContractClauses
   /** A sell-on clause agreed when he was signed: the selling club takes `pct` of the fee when he is sold on. */
@@ -274,11 +290,32 @@ export interface SeasonRecord {
   tier: SeasonTier
   cupWon: boolean
   continentalWon?: boolean
-  /** Furthest Continental Cup round reached: R16, QF, SF, F or W (winners). */
+  /** Furthest Continental Cup stage reached: G (out in the groups, from engine 7), R16 (before it), QF, SF, F or W (winners). */
   continentalRun?: string
   potsName?: string
   bootName?: string
   bootGoals?: number
+  /**
+   * The season's notes for the club's history (Dynasty and Season, round 9: `src/game/logic/dynastyHistory.ts`), written
+   * once by the store when the season is recorded; display only, no draw. Absent on older saves and before that.
+   */
+  notes?: SeasonNotes
+}
+
+/** What the club's history shows beside a season's line: what the board asked for and who led the side. */
+export interface SeasonNotes {
+  /** The position the board expected (`SeasonState.boardTarget`). */
+  target: number
+  /** Board objectives met, of how many. */
+  objectivesMet: number
+  objectivesTotal: number
+  /** Board confidence at the end, 0 to 100. */
+  confidence: number
+  sacked?: boolean
+  /** The captain's name at the end of the season. */
+  captain?: string
+  /** The young player of the season, when one qualified. */
+  youngName?: string
 }
 
 export interface MatchContext {
@@ -300,6 +337,10 @@ export interface LiveMatch {
   cupTieIndex?: number
   /** Which knockout the tie belongs to (domestic cup when missing). */
   comp?: Competition
+  /** Engine 7's Continental Cup group stage: the group's index in `continental.groups`; `cupTieIndex` is then the match's index in that group's matches. */
+  group?: number
+  /** A two-legged Continental Cup tie's leg (engine 7). */
+  leg?: 1 | 2
 }
 
 export interface Game {
@@ -350,6 +391,12 @@ export interface Game {
   seasonEnding?: boolean
   /** Player-season ids who played this week (league and cup), for recovery. */
   weekPlayed: string[]
+  /**
+   * Squad men who missed a match this week injured or suspended (engine 6, item 4): the week's housekeeping records no
+   * zero minutes for them and their run of missed matches does not grow, so a key man back from injury does not knock on
+   * the door about minutes. Cleared with `weekPlayed`; absent in older saves (read as nobody).
+   */
+  weekUnavailable?: string[]
   lastMatch: FullMatchResult | null
   lastMatchContext: MatchContext | null
   /** Cup result played this week, if any, shown with the league match. */
@@ -362,6 +409,12 @@ export interface Game {
   history: SeasonRecord[]
   /** Bonus wheel spins available (agent meetings, summer window). */
   bonusSpins: number
+  /**
+   * A run-in's reinforcement draft as link rows (each spin's real player id and slot, or nulls) and its `historyKey`,
+   * kept at the takeover (the draft closes there) for the Run-in of the week's ranked replay. Absent before the
+   * takeover, in any other mode and in older saves.
+   */
+  runInDraft?: { p: ChallengePick[]; k: string }
   /** Friendlies played in preseason (max 3). */
   friendliesPlayed: number
   /** Achievement ids unlocked during this game. */
@@ -370,6 +423,15 @@ export interface Game {
   jobOffers: JobOffer[]
   /** Accepted move for next season. */
   pendingMove: { leagueId: string; clubId: string } | null
+  /** Real player ids of the men who retired from the squad (Dynasty): never offered again, younger, by the summer wheel, the market or the youth intake. Absent until the first retirement. */
+  retiredPlayers?: string[]
+  /**
+   * Real player ids of the men who left the squad (Dynasty: sold, released, out of contract, a loan gone back) with his
+   * age and the game year he left in: a season of him is never offered again, by the summer wheel, the market, the
+   * academy or a scout, in which he is younger than he would be now (`ageFloors` in `departures.ts`). Absent until the
+   * first departure.
+   */
+  departedPlayers?: Record<string, { age: number; year: number }>
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
   /** The arena run of a mode `arena` game; null (or absent, in an older save) otherwise. */
@@ -426,6 +488,123 @@ export interface Game {
   youthFacilities?: number
   /** The data hub: expected goals, expected assists and attempts for the user's players this season, from full-detail matches. */
   dataHub?: Record<string, { xg: number; xa: number; shots: number }>
+  /**
+   * The manager's office (Football Manager depth, round 8: `src/game/logic/office.ts`): promises, transfer requests,
+   * transfer talks with clubs, personal terms, counter-offers, instalments and the week's press conference. Absent until
+   * the manager first uses one of them (or player power lodges a request), and read as empty; everything in it is keyed
+   * by real player id, so a Dynasty summer needs no remap.
+   */
+  office?: OfficeState
+}
+
+/** A promise to one player, kept or broken by what happens over the weeks it runs (`src/game/logic/promises.ts`). */
+export interface OfficePromise {
+  kind: 'minutes' | 'contract' | 'signing'
+  /** Real player id. */
+  playerId: string
+  name: string
+  /** Game year and matchweek it was made in. */
+  year: number
+  madeAt: number
+  /** The matchweek it falls due (the season's last at the latest). */
+  due: number
+  /** Minutes: the share of the minutes on offer he was promised, and his season minutes when it was made. */
+  share?: number
+  minutesAt?: number
+  /** Contract: the seasons left on his contract when it was made. */
+  yearsAt?: number
+  /** Contract: the season's news count (`newsTotal`) when it was made; a "signs a new contract" item after it keeps the promise, however long the new deal (r9). */
+  newsAt?: number
+  /** Signing: the position to strengthen, the overall a signing must reach, the real ids already in the squad, and whether the window it waits on has opened. */
+  position?: Position
+  overall?: number
+  squadAt?: string[]
+  windowSeen?: boolean
+  state: 'open' | 'kept' | 'broken'
+  /** Matchweek it was settled in. */
+  settledAt?: number
+}
+
+/** A transfer request: he wants out, and why. */
+export interface TransferRequest {
+  /** Real player id; the record is kept under it. */
+  playerId: string
+  name: string
+  reason: 'minutes' | 'morale' | 'promise' | 'interest' | 'results'
+  year: number
+  /** Matchweek it was handed in. */
+  at: number
+  /** open: waiting on the manager; listed: he may go; refused: told to stay; withdrawn: talked round. */
+  stage: 'open' | 'listed' | 'refused' | 'withdrawn'
+  /** Talks that failed to change his mind, and the matchweek of the last one. */
+  failedTalks?: number
+  talkedAt?: number
+  /** Matchweek the stage last changed. */
+  settledAt?: number
+  /** Matchweeks it has waited with the manager at the desk (weeks inside a multi-week sim do not count), and the last one counted. */
+  waits?: number
+  seen?: number
+}
+
+/** Fee talks with a selling club for one listing in the open window (`src/game/logic/transferTalks.ts`). */
+export interface FeeTalk {
+  /** The window they belong to (`windowKey`). */
+  window: string
+  rounds: number
+  /** Our last proposal and their answer. */
+  last?: { fee: number; sellOn: number; instalments: 1 | 2 | 3 }
+  counter?: number
+  /** Agreed: personal terms come next. */
+  agreed?: { fee: number; sellOn: number; instalments: 1 | 2 | 3 }
+  /** Talks over: they will not deal again this window. */
+  closed?: boolean
+  /** Personal terms the player turned down. */
+  termsFailed?: number
+}
+
+/** Our counter to an AI club's bid for one of our players. */
+export interface SellTalk {
+  window: string
+  /** Their final offer after our counter, GBP millions; absent once they have walked. */
+  final?: number
+  walked?: boolean
+}
+
+/** A fee being paid in instalments: what is still owed, paid as each later window opens. */
+export interface Instalment {
+  name: string
+  clubId: string
+  /** GBP millions per payment. */
+  amount: number
+  left: number
+  /** The window the last payment fell in. */
+  window: string
+}
+
+/** This week's press conference: the questions asked and the answers given. */
+export interface PressConference {
+  year: number
+  week: number
+  questions: string[]
+  answers: Record<string, string>
+}
+
+export interface OfficeState {
+  /** `${year}:${matchweek}` the office last caught up on. */
+  tick?: string
+  promises?: OfficePromise[]
+  /** By real player id. */
+  requests?: Record<string, TransferRequest>
+  /** Promises broken to each player (real id), this game: he believes the next one less. */
+  broken?: Record<string, number>
+  /** By the listing's player-season id. */
+  feeTalks?: Record<string, FeeTalk>
+  /** By `offerKey`. */
+  sellTalks?: Record<string, SellTalk>
+  instalments?: Instalment[]
+  press?: PressConference
+  /** "We will win it", said to the press before a big league match: settled once that matchweek is played (`settleBoast`). */
+  boast?: { year: number; week: number; opponentId?: string }
 }
 
 /**
@@ -533,6 +712,21 @@ export interface CareerRecord {
   titles: number
   /** Last season played, for the display. */
   lastYear: number
+  /**
+   * Round 9 (`src/game/logic/dynastyHistory.ts`, display only): his natural position, his best overall with us, the
+   * game year he first played for us with his age and overall then, his age and overall in his last season, the sum of
+   * his match ratings (an average over `apps`) and the seasons he ended as captain. Absent on older saves; a man who
+   * was already a legend then gets `firstYear` from his seasons and nothing he cannot know.
+   */
+  pos?: Position
+  peak?: number
+  firstYear?: number
+  firstAge?: number
+  firstOverall?: number
+  lastAge?: number
+  lastOverall?: number
+  ratingSum?: number
+  captainSeasons?: number
 }
 
 export interface JobOffer {
@@ -627,8 +821,8 @@ export interface QuickEuropeTie {
 
 /** A knockout round of the post-season cups: round of 16, quarter-final, semi-final, final. */
 export type QuickCupRound = 'R16' | 'QF' | 'SF' | 'F'
-/** How far a cup run went: the round it ended in, W for winners. */
-export type QuickCupReach = QuickCupRound | 'W'
+/** How far a cup run went: the round it ended in, G for out in the Continental Cup's groups (engine 7), W for winners. */
+export type QuickCupReach = QuickCupRound | 'G' | 'W'
 
 /** One tie of a post-season cup run, from the user's side. */
 export interface QuickCupTie {
@@ -644,9 +838,11 @@ export interface QuickCupTie {
   et?: { for: number; against: number }
   /** Shoot-out score from the user's side, after a draw over 120 minutes. */
   pens?: { for: number; against: number }
-  /** The user's goalscorers, ordered by minute (91 to 120 in extra time). */
+  /** The user's goalscorers, ordered by minute (91 to 120 in extra time); both legs of a two-legged tie, first leg first. */
   scorers: QuickScorer[]
   won: boolean
+  /** A two-legged tie (the Continental Cup's quarter- and semi-finals from engine 7): each leg's venue and score from the user's side, extra time not included; `gf`/`ga` are then the aggregate. */
+  legs?: Array<{ home: boolean; gf: number; ga: number }>
 }
 
 /** A post-season cup run: the user's ties in order, and how far it went. */
@@ -656,9 +852,20 @@ export interface QuickCupRun {
   /**
    * Every tie of every round, first round to final, in the order drawn: the whole bracket for the summary. The rounds
    * after the user went out are played on from the same fork, after every draw the run itself took, so no result moves.
-   * Absent on runs played before the bracket (the summary then shows the user's path alone).
+   * Absent on runs played before the bracket (the summary then shows the user's path alone). From engine 7 the
+   * Continental Cup's bracket starts at the quarter-finals, after its groups.
    */
   bracket?: QuickBracketTie[][]
+  /** The Continental Cup's group stage (engine 7): four groups of four, home and away. Absent on the domestic cup and on older runs. */
+  groups?: QuickGroup[]
+}
+
+/** One group of a post-season Continental Cup: its four sides in draw order and every match by matchday. */
+export interface QuickGroup {
+  name: string
+  teams: string[]
+  /** `[matchday, home, away, homeGoals, awayGoals]`. */
+  matches: Array<[number, string, string, number, number]>
 }
 
 /** One tie of a post-season cup's bracket. Sides are club ids, or `USER_TEAM` for the user. */
@@ -674,6 +881,8 @@ export interface QuickBracketTie {
   pens?: { home: number; away: number }
   /** The side that went through. */
   winner: string
+  /** A two-legged tie's legs, each from the tie's sides (`home`'s goals first), extra time not included. */
+  legs?: Array<{ hg: number; ag: number }>
 }
 
 export interface QuickEuropeRun {
@@ -812,6 +1021,40 @@ export interface Cabinet {
    * its best honour. Optional (absent on cabinets before the bracket); read with `??`, filled by `normaliseCabinet`.
    */
   honours?: HonourEntry[]
+  /**
+   * The r8 feats (`src/game/logic/feats.ts`): engine 7's Continental Cup groups and comebacks, the Dynasty's length and
+   * academy, titles by season, under a cap and in classic seasons, perfect drafts and the Run-in of the week. Optional
+   * (absent on cabinets before them); read through `featsOf`, backfilled once from the leaderboard (`featsFromBoard`).
+   */
+  feats?: CabinetFeats
+}
+
+/** Counts the r8 milestones read; every list holds distinct keys, so a replay never counts twice. */
+export interface CabinetFeats {
+  /** Continental Cup groups finished top (engine 7). */
+  groupsWon: number
+  /** Group stages won with every match won. */
+  groupsPerfect: number
+  /** Two-legged ties won after losing the first leg. */
+  comebacks: number
+  /** The most seasons finished in one Dynasty. */
+  dynastyBest: number
+  /** Academy prospects promoted and still in the squad at the season's end. */
+  graduates: number
+  /** League titles in classic seasons (before 2008-09), every one, not only the leaderboard's 50. */
+  classicTitles: number
+  /** League titles drafted under a salary cap. */
+  cappedTitles: number
+  /** Titles under a cap with at least a quarter of it left unspent. */
+  thriftyTitles: number
+  /** The real seasons (start years) you have won a league in, each once, ascending. */
+  seasonsTitled: number[]
+  /** Seeds of drafts where every pick took an A (`pickGrades`), each once (at most `FEAT_LIST_CAP`). */
+  perfectDrafts: string[]
+  /** Run-in of the week keys (`2026-W44`) whose brief was met, each once (at most `FEAT_LIST_CAP`). */
+  runInWeeks: string[]
+  /** Post-season cups already read for feats (`resultId:comp`), so a cup is counted once (the last `FEAT_LIST_CAP`). */
+  seen: string[]
 }
 
 /** A Treble (league, Cup and Continental Cup) or a Double (the league and one cup), on the Trophy Room's honours board. */

@@ -2,6 +2,10 @@
 import { statsAt } from '@engine/matchStats'
 import { flankRows, sinceMinute } from '../model'
 import type { PanelProps } from '../types'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 export function StatsFlank({ d, side }: PanelProps & { side: 'home' | 'away' }) {
   const at = statsAt(d.series, d.minute)
@@ -12,7 +16,7 @@ export function StatsFlank({ d, side }: PanelProps & { side: 'home' | 'away' }) 
   const since = shouted ? sinceMinute(d.series, 70, d.minute) : null
   const mine = since ? (side === 'home' ? since.home : since.away) : null
   return (
-    <aside className={`md-flank ${side}`} aria-label={`${view.name} stats`}>
+    <aside className={`md-flank ${side}`} aria-label={tx('statsOf', { name: view.name })}>
       <div className="md-flank-head" style={{ borderColor: view.colour }}>
         {view.code}
       </div>
@@ -25,12 +29,12 @@ export function StatsFlank({ d, side }: PanelProps & { side: 'home' | 'away' }) 
         ))}
       </dl>
       {mine && (
-        <div className="md-since small muted" data-testid="since-shout" title="Since the 70th-minute shout: expected goals and shots for this side">
-          Since 70': xG {mine.xg.toFixed(2)} · {mine.shots} shot{mine.shots === 1 ? '' : 's'}
+        <div className="md-since small muted" data-testid="since-shout" title={tx('sinceTip')}>
+          {tx('since70', { xg: mine.xg.toFixed(2), n: mine.shots })}
         </div>
       )}
       <button type="button" className="btn sm md-view-stats" onClick={() => d.show('B', 'match-stats')}>
-        View stats
+        {tx('viewStats')}
       </button>
     </aside>
   )

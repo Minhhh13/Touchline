@@ -175,6 +175,23 @@ describe('the draft, pick by pick', () => {
     expect(h.logs.filter((l) => l.op === 'room.pick').every((l) => l.user === 'guest')).toBe(true)
   }, T)
 
+  it('refuses a pick in a room opened on another engine, before it touches the draft', async () => {
+    const h = makeHarness(new Date('2026-10-26T10:00:00Z'), LIVE)
+    const { code, tokens, room } = await started(h)
+    const c = nextPick(room)
+    // A room opened on the outgoing engine, still drafting when this engine's function takes the pick
+    h.rooms.get(code)!.engine = '5'
+    const r = await call(h, { op: 'room.pick', code, token: tokens[c.seat], version: room.version, playerSeasonId: c.p, slotId: c.k })
+    expect(r.status).toBe(409)
+    expect(r.body).toMatchObject({ code: 'engine_mismatch', roomEngine: '5' })
+    expect(String(r.body.message ?? r.body.reason ?? '')).toContain('engine 5')
+    expect(h.rooms.get(code)!.events).toEqual(room.events)
+    expect(h.rooms.get(code)!.version).toBe(room.version)
+    // On its own engine the same pick goes through
+    h.rooms.get(code)!.engine = ENGINE_VERSION
+    expect((await call(h, { op: 'room.pick', code, token: tokens[c.seat], version: room.version, playerSeasonId: c.p, slotId: c.k })).status).toBe(200)
+  }, T)
+
   it('times a draft out after 15 idle minutes, and lets either manager leave', async () => {
     const h = makeHarness(new Date('2026-10-26T10:00:00Z'), LIVE)
     const { code, tokens, room } = await started(h)

@@ -1,25 +1,44 @@
-import { useEffect, useState } from 'react'
-import { useStore, slotOf } from '@game/store'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { WifiOff } from 'lucide-react'
+import { useStore, slotOf, todaysDailySeed } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
-import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
+import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, CasualKind, CasualRow, CasualSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
+import { startingTeam } from '../teamName'
 import { PAGE } from '../../online/boards'
-import { countryFlag } from '../../online/core/country'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
-import { weeklyStartSettings } from '../../online/daily'
+import { dailyStartSettings, weeklyStartSettings } from '../../online/daily'
 import { PIN_NOTE, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
+import { dailyLoaded, dailyPlan } from '@game/logic/setup'
+import { dailyArenaGameSettings, dailyArenaSettings } from '@game/logic/arenaDaily'
+import { weeklyPlan } from '@game/logic/weekly'
+import { weeklyThemeText } from '../i18n/weeklyThemeText'
+import { arenaDailySeed, weeklySeed } from '@engine/rng'
+import { levelRows, podiumOf, signedGd } from '../boardRows'
+import { isWeeklyRunIn, runInWeekSeed, weeklyRunInJob, weeklyRunInPlan } from '@game/logic/runinWeekly'
 import { Info, Segmented } from '../components/bits'
-import { ordinal, seasonLabel } from '../format'
-import { CountrySelect } from './AccountPanel'
+import { formationName, formatLocale, seasonLabel } from '../format'
+import { CountryFlag, CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
-import { onlineErrorText } from '../../online/postText'
+import { onlineErrorUi as onlineErrorText } from './statusText'
+import { askConfirm } from '../confirm'
+import { onTabListKey } from '../a11y'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+import { B, rich } from '../i18n/rich'
+import { templateText } from '../runInText'
+import { fillAlltimeBoard, fillCasualBoard, fillChaseBoard, fillRankedBoard } from './exhibitionRows'
+import { simulatedGamesAt } from './simulatedActivity'
 
-type Tab = 'daily' | 'weekly' | 'alltime' | 'chase'
-const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase']
+const tr = translator(online)
+
+type Tab = 'daily' | 'weekly' | 'alltime' | 'chase' | CasualKind
+const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase', 'arena', 'themed', 'runin']
 
 /** The World screen's last board, per viewer (a convenience only: a blocked storage opens Today's Daily). */
 const TAB_KEY = 'touchline-world-tab'
@@ -40,107 +59,235 @@ function rememberedTab(): Tab {
 }
 
 const DAY = 86400000
+
+/** The browser says it has no connection (a board then waits for one instead of trying). */
+const offlineNow = () => typeof navigator !== 'undefined' && navigator.onLine === false
 const tierText = (t: string) => TIER_LABEL[t as SeasonTier] ?? t
 
 function Flag({ code }: { code: string | null }) {
   if (!code) return null
   return (
-    <span title={countryName(code)} style={{ marginRight: 4 }}>
-      {countryFlag(code)}
+    <span className="board-flag" title={countryName(code)}>
+      <CountryFlag code={code} size={18} />
     </span>
   )
 }
 
-function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boardKey: string; country: string | null; title: string }) {
-  const openChallenge = useStore((s) => s.openChallenge)
+/**
+ * One board's rows and summary, a page at a time. It loads again on a new key, a sign-in or out, Try again, and by
+ * itself when the connection comes back after a failed load.
+ */
+function useBoard<R, S>(key: string, page: (offset: number) => Promise<R[]>, summary: () => Promise<S>) {
   const session = useOnline((s) => s.session)
-  const [rows, setRows] = useState<BoardRow[] | null>(null)
-  const [summary, setSummary] = useState<BoardSummary | null>(null)
+  const [rows, setRows] = useState<R[] | null>(null)
+  const [sum, setSum] = useState<S | null>(null)
   const [more, setMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [offline, setOffline] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const [busy, setBusy] = useState(false)
+  // The readers change every render; the effect reads the latest through a ref and reloads only on what it names
+  const readers = useRef({ page, summary })
+  readers.current = { page, summary }
   useEffect(() => {
     let live = true
     setRows(null)
+    // A new board never shows the last one's summary while it loads
+    setSum(null)
+    setMore(false)
     setError(null)
-    Promise.all([api.board(kind, boardKey, country), api.boardSummary(kind, boardKey, country)]).then(
+    setOffline(false)
+    if (offlineNow()) {
+      // No connection: say so at once, and load when the browser says it is back (below)
+      setOffline(true)
+      setError(tr('offlineBoard'))
+      return
+    }
+    Promise.all([readers.current.page(0), readers.current.summary()]).then(
       ([r, s]) => {
         if (!live) return
         setRows(r)
-        setSummary(s)
+        setSum(s)
         setMore(r.length === PAGE)
       },
-      (e: unknown) => live && setError(onlineErrorText(e)),
+      (e: unknown) => {
+        if (!live) return
+        setOffline(offlineNow())
+        setError(onlineErrorText(e))
+      },
     )
     return () => {
       live = false
     }
-  }, [kind, boardKey, country, session])
+  }, [key, session, attempt])
+  useEffect(() => {
+    if (!error || typeof window === 'undefined') return
+    const back = () => setAttempt((a) => a + 1)
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  }, [error])
   const loadMore = async () => {
-    if (!rows) return
-    let next: typeof rows
+    if (!rows || busy) return
+    setBusy(true)
+    let next: R[]
     try {
-      next = await api.board(kind, boardKey, country, rows.length)
+      next = await readers.current.page(rows.length)
     } catch (e) {
       // A dropped connection keeps the rows shown and says why the next page did not come
+      setOffline(offlineNow())
       setError(onlineErrorText(e))
+      setBusy(false)
       return
     }
+    setBusy(false)
+    setError(null)
     setRows([...rows, ...next])
     setMore(next.length === PAGE)
   }
+  return { rows, summary: sum, more, error, offline, busy, loadMore, retry: () => setAttempt((a) => a + 1) }
+}
+
+/** A board's state above its table: the error with Try again, loading, or nobody yet (with what to do about it). */
+export function BoardState({ rows, error, offline = false, retry, empty, hint }: { rows: unknown[] | null; error: string | null; offline?: boolean; retry: () => void; empty: string; hint?: string }) {
+  return (
+    <>
+      {error && (
+        <div className={`notice warn row between wrap board-error${offline ? ' board-offline' : ''}`} data-testid={offline ? 'board-offline' : 'board-error'} role="status">
+          <span className="row">
+            {offline && <WifiOff size={16} aria-hidden="true" />}
+            {offline ? error : tr('boardError', { error })}
+          </span>
+          <button type="button" className="btn sm" onClick={retry} data-testid="board-retry">
+            {tr('tryAgain')}
+          </button>
+        </div>
+      )}
+      {!rows && !error && (
+        <div className="board-loading" aria-busy="true" data-testid="board-loading">
+          <span className="sr-only">{tr('loading')}</span>
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="board-skeleton" aria-hidden="true" />
+          ))}
+        </div>
+      )}
+      {rows && rows.length === 0 && (
+        <div className="empty-state board-empty" data-testid="board-empty">
+          <p className="muted">{empty}</p>
+          {hint && <p className="small muted" data-testid="board-empty-hint">{hint}</p>}
+        </div>
+      )}
+    </>
+  )
+}
+
+/** A row's place: the podium's three in their colours, and a mark when only the time of posting split it from a neighbour. */
+function RankCell({ position, level }: { position: number; level: boolean }) {
+  const podium = podiumOf(position)
+  return (
+    <td className="num board-rank">
+      <span className={`rank-pill${podium ? ` p${podium}` : ''}`}>{position}</span>
+      {level && (
+        <span className="rank-level" title={tr('levelTip')}>
+          <span aria-hidden="true">=</span>
+          <span className="sr-only">{tr('levelTip')}</span>
+        </span>
+      )}
+    </td>
+  )
+}
+
+/** The manager's flag, name and, on your own row, the You chip. */
+function ManagerCell({ name, country, isMe }: { name: string; country: string | null; isMe: boolean }) {
+  return (
+    <td className="board-manager">
+      <Flag code={country} />
+      <span className="board-name">{name}</span>
+      {isMe && <span className="chip info board-you">{tr('you')}</span>}
+    </td>
+  )
+}
+
+/** The rows' class: your own row lit, the podium marked. */
+const rowClass = (r: { isMe: boolean; position: number }, extra = '') => [r.isMe ? 'me' : '', podiumOf(r.position) ? 'podium' : '', extra].filter(Boolean).join(' ')
+
+/** Your place pinned at the board's foot while your row is not among those shown. */
+function MineFoot({ children }: { children: ReactNode }) {
+  return (
+    <div className="fit-foot notice row between board-mine" data-testid="board-mine">
+      {children}
+    </div>
+  )
+}
+
+/** The Show more button, busy while the next page loads. */
+function MoreButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
+  return (
+    <button type="button" className="btn sm ghost board-more" onClick={onClick} disabled={busy} aria-busy={busy || undefined}>
+      {tr(busy ? 'loading' : 'showMore')}
+    </button>
+  )
+}
+
+/** An isolated display estimate so its timer does not re-render the board tables. */
+function SimulatedGames() {
+  const [games, setGames] = useState(() => simulatedGamesAt())
+  useEffect(() => {
+    const timer = window.setInterval(() => setGames((current) => Math.max(current, simulatedGamesAt())), 1_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return <span className="world-simulated" data-testid="world-simulated">{tr('gamesSimulated', { n: games.toLocaleString(formatLocale()) })}</span>
+}
+
+function RankedTable({ kind, boardKey, country, title, current }: { kind: RankedKind; boardKey: string; country: string | null; title: string; current: boolean }) {
+  const openChallenge = useStore((s) => s.openChallenge)
+  const b = useBoard<BoardRow, BoardSummary | null>(`${kind}|${boardKey}|${country}`, (offset) => api.board(kind, boardKey, country, offset), () => api.boardSummary(kind, boardKey, country))
+  const realRows = b.rows
+  const rows = realRows ? fillRankedBoard(realRows, kind, country) : null
+  const summary = b.summary
   const meShown = !!rows?.some((r) => r.isMe)
   const race = !!rows?.some((r) => r.revealed && r.payload)
+  const level = levelRows((rows ?? []).map((r) => `${r.points}|${r.lost}|${r.goalDiff}|${r.goalsFor}`))
   return (
     <section className="panel fit-panel" data-testid={`board-${kind}`}>
       <div className="panel-head">
         <h3>{title}</h3>
         <span className="small muted" data-testid="board-summary">
-          {summary ? `${summary.played.toLocaleString()} played${summary.top !== null ? ` · top ${summary.top}` : ''}${summary.open ? ' · posts open' : ' · closed'}${summary.revealed ? ' · picks revealed' : ''}` : ''}
+          {summary ? `${tr('played', { n: summary.played.toLocaleString(formatLocale()) })}${summary.top !== null ? tr('topScore', { n: summary.top }) : ''}${tr(summary.open ? 'postsOpen' : 'closed')}${summary.revealed ? tr('picksRevealed') : ''}` : ''}
         </span>
       </div>
       <div className="fit-scroll">
-        {error && <div className="notice warn" data-testid="board-error">Could not load the board. {error}</div>}
-        {!rows && !error && <div className="muted small">Loading…</div>}
-        {rows && rows.length === 0 && <div className="muted small">Nobody has posted here yet{country ? ` from ${countryName(country)}` : ''}.</div>}
+        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} hint={current && summary?.open !== false ? tr('beFirst') : undefined} />
         {rows && rows.length > 0 && (
-          <table className="tbl sticky-head">
+          <table className="tbl sticky-head board-table">
             <thead>
               <tr>
                 <th className="num">#</th>
-                <th>Manager</th>
-                <th>Team</th>
-                <th className="num">Pts</th>
-                <th className="num">W-D-L</th>
-                <th className="num">GD</th>
-                <th>Result</th>
+                <th>{tr('colManager')}</th>
+                <th>{tr('colTeam')}</th>
+                <th className="num">{tr('colPts')}</th>
+                <th className="num">{tr('colWdl')}</th>
+                <th className="num">{tr('colGd')}</th>
+                <th>{tr('colResult')}</th>
                 {race && <th />}
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={`${r.position}-${r.name}`} className={r.isMe ? 'me' : ''}>
-                  <td className="num">{r.position}</td>
-                  <td>
-                    <Flag code={r.country} />
-                    {r.name}
-                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>You</span>}
-                  </td>
-                  <td>{r.team}</td>
-                  <td className="num" style={{ fontWeight: 700 }}>
-                    {r.points}
-                  </td>
+              {rows.map((r, i) => (
+                <tr key={`${r.position}-${r.name}`} className={rowClass(r)} aria-current={r.isMe || undefined}>
+                  <RankCell position={r.position} level={level[i]} />
+                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                  <td className="board-team">{r.team}</td>
+                  <td className="num board-score">{r.points}</td>
                   <td className="num">
-                    {r.won}-{r.drawn}-{r.lost}
+                    <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />
                   </td>
-                  <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
-                  <td className="small">
-                    {tierText(r.tier)} · {ordinal(r.leaguePosition)}
-                  </td>
+                  <td className="num">{signedGd(r.goalDiff)}</td>
+                  <td className="small">{tr('resultLine', { tier: tierText(r.tier), pos: r.leaguePosition })}</td>
                   {race && (
                     <td className="end">
                       {r.revealed && r.payload && (
                         <button className="btn sm" onClick={() => void openChallenge(r.payload!)}>
-                          Race this run
+                          {tr('raceRun')}
                         </button>
                       )}
                     </td>
@@ -150,17 +297,13 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
             </tbody>
           </table>
         )}
-        {more && (
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
-            Show more
-          </button>
-        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
       </div>
       {!meShown && summary?.myPosition && (
-        <div className="fit-foot notice row between" data-testid="board-mine">
-          <b>You: {ordinal(summary.myPosition)}</b>
-          <span>{summary.myPoints} pts</span>
-        </div>
+        <MineFoot>
+          <b>{tr('youAt', { pos: summary.myPosition })}</b>
+          <span>{tr('pts', { n: summary.myPoints })}</span>
+        </MineFoot>
       )}
     </section>
   )
@@ -168,130 +311,85 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
 
 function AlltimeTable({ country, order }: { country: string | null; order: AlltimeOrder }) {
   const session = useOnline((s) => s.session)
-  const [rows, setRows] = useState<AlltimeRow[] | null>(null)
-  const [mine, setMine] = useState<AlltimeMine | null>(null)
-  const [more, setMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let live = true
-    setRows(null)
-    setError(null)
-    Promise.all([api.alltime(order, country), api.alltimeMine(order, country)]).then(
-      ([r, m]) => {
-        if (!live) return
-        setRows(r)
-        setMine(m)
-        setMore(r.length === PAGE)
-      },
-      (e: unknown) => live && setError(onlineErrorText(e)),
-    )
-    return () => {
-      live = false
-    }
-  }, [order, country, session])
-  const loadMore = async () => {
-    if (!rows) return
-    let next: typeof rows
-    try {
-      next = await api.alltime(order, country, rows.length)
-    } catch (e) {
-      // A dropped connection keeps the rows shown and says why the next page did not come
-      setError(onlineErrorText(e))
-      return
-    }
-    setRows([...rows, ...next])
-    setMore(next.length === PAGE)
-  }
+  const b = useBoard<AlltimeRow, AlltimeMine | null>(`${order}|${country}`, (offset) => api.alltime(order, country, offset), () => api.alltimeMine(order, country))
+  const { rows } = b
+  const displayRows = rows ? fillAlltimeBoard(rows, order, country) : null
+  const mine = b.summary
+  const level = levelRows((displayRows ?? []).map((r) => (order === 'points' ? `${r.totalPoints}|${r.bestStreak}` : `${r.bestStreak}|${r.totalPoints}`)))
   return (
     <section className="panel fit-panel" data-testid="board-alltime">
       <div className="panel-head">
-        <h3>All-time Daily totals</h3>
-        <span className="small muted">{order === 'points' ? 'By total points' : 'By best streak'}</span>
+        <h3>{tr('alltimeTitle')}</h3>
+        <span className="small muted">{tr(order === 'points' ? 'byPoints' : 'byStreak')}</span>
       </div>
       <div className="fit-scroll">
-        {error && <div className="notice warn" data-testid="board-error">Could not load the board. {error}</div>}
-        {!rows && !error && <div className="muted small">Loading…</div>}
-        {rows && rows.length === 0 && <div className="muted small">Nobody has posted a Daily yet{country ? ` from ${countryName(country)}` : ''}.</div>}
-        {rows && rows.length > 0 && (
-          <table className="tbl sticky-head">
+        <BoardState rows={displayRows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyDaily', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} />
+        {displayRows && displayRows.length > 0 && (
+          <table className="tbl sticky-head board-table">
             <thead>
               <tr>
                 <th className="num">#</th>
-                <th>Manager</th>
-                <th className="num">Points</th>
-                <th className="num">Dailies</th>
-                <th className="num">Avg</th>
-                <th className="num">Best streak</th>
-                <th className="num">Streak now</th>
+                <th>{tr('colManager')}</th>
+                <th className="num">{tr('colPoints')}</th>
+                <th className="num">{tr('colDailies')}</th>
+                <th className="num">{tr('colAvg')}</th>
+                <th className="num">{tr('colBestStreak')}</th>
+                <th className="num">{tr('colStreakNow')}</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={`${r.position}-${r.name}`} className={r.isMe ? 'me' : ''}>
-                  <td className="num">{r.position}</td>
-                  <td>
-                    <Flag code={r.country} />
-                    {r.name}
-                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>You</span>}
-                  </td>
-                  <td className="num" style={{ fontWeight: order === 'points' ? 700 : 400 }}>
-                    {r.totalPoints.toLocaleString()}
-                  </td>
-                  <td className="num">{r.played}</td>
-                  <td className="num">{r.average}</td>
-                  <td className="num" style={{ fontWeight: order === 'streak' ? 700 : 400 }}>
-                    {r.bestStreak}
-                  </td>
-                  <td className="num">{r.currentStreak}</td>
-                </tr>
-              ))}
+              {displayRows.map((r, i) => {
+                return (
+                  <tr key={`${r.position}-${r.name}`} className={rowClass(r)} aria-current={r.isMe || undefined}>
+                    <RankCell position={r.position} level={level[i]} />
+                    <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                    <td className={`num${order === 'points' ? ' board-score' : ''}`}>{r.totalPoints.toLocaleString(formatLocale())}</td>
+                    <td className="num">{r.played}</td>
+                    <td className="num">{r.average}</td>
+                    <td className={`num${order === 'streak' ? ' board-score' : ''}`}>{r.bestStreak}</td>
+                    <td className="num">{r.currentStreak}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
-        {more && (
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
-            Show more
-          </button>
-        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
       </div>
       {mine && !rows?.some((r) => r.isMe) && (
-        <div className="fit-foot notice row between wrap" data-testid="board-mine">
-          <b>
-            You: {ordinal(mine.position)} of {mine.players.toLocaleString()}
-          </b>
-          <span>
-            {mine.totalPoints.toLocaleString()} pts · {mine.played} dailies · best streak {mine.bestStreak}
-          </span>
-        </div>
+        <MineFoot>
+          <b>{tr('youOf', { pos: mine.position, total: mine.players.toLocaleString(formatLocale()) })}</b>
+          <span>{tr('mineLine', { pts: mine.totalPoints.toLocaleString(formatLocale()), n: mine.played, streak: mine.bestStreak })}</span>
+        </MineFoot>
       )}
-      {!session && <div className="fit-foot small muted">Sign in to post to the World board and add your Dailies to the all-time totals.</div>}
+      {!session && <div className="fit-foot small muted">{tr('signInAlltime')}</div>}
     </section>
   )
 }
 
 function WeeklyPlay({ weekKey }: { weekKey: string }) {
-  const { universe: u, game, startGame, go, profile, loadedLeagues } = useStore()
+  const { universe: u, game, startGame, go, profile, loadedLeagues } = useStorePick('universe', 'game', 'startGame', 'go', 'profile', 'loadedLeagues')
   const pin = useOnline((s) => (s.pins.week === weekKey ? s.pins.weekly : null))
   if (!u || !loadedLeagues.includes('england')) return null
   const decision = weeklyStartSettings(u, weekKey, profile.managerName.trim() || 'Touchline XI', pin)
   const s = decision.settings
   const underWay = !!game && game.settings.seed === s.seed && game.settings.mode === 'quick' && game.phase !== 'summary'
-  const play = () => {
+  const play = async () => {
     if (underWay) return go('game')
-    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start this week's challenge? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(tr('weeklyConfirm', { mode: tr(game.settings.mode === 'daily' ? 'modeDaily' : 'modeQuick'), team: game.settings.teamName }), { ok: tr('startOk'), danger: true }))) return
     startGame(s)
   }
   return (
     <div className="col world-weekly" data-testid="weekly-card">
       <div>
-        <b>Play this week</b>
+        <b>{tr('playThisWeek')}</b>
         <div className="small muted">
-          Everyone gets the same wheel all week: a <b>{s.formationId}</b> as <b>{u.clubById[s.hostClubId]?.name ?? s.hostClubId}</b>, {seasonLabel(s.leagueSeason)}. Your first finished run counts.
+          {rich(tr('weeklyBlurb', { formation: formationName(s.formationId), club: u.clubById[s.hostClubId]?.name ?? s.hostClubId, season: seasonLabel(s.leagueSeason) }), B)}
           {pin && !decision.ranked && ` ${PIN_NOTE[pinStanding(pin, decision.source) as Exclude<PinStanding, 'ranked'>] ?? ''}`}
         </div>
       </div>
       <button className="btn primary block" onClick={play} data-testid="weekly-play">
-        {underWay ? "Continue this week's challenge" : "Play this week's challenge"}
+        {tr(underWay ? 'continueWeekly' : 'playWeekly')}
       </button>
     </div>
   )
@@ -300,7 +398,7 @@ function WeeklyPlay({ weekKey }: { weekKey: string }) {
 /** W-D-L in the result colours: wins green, draws amber, defeats red. */
 function Wdl({ won, drawn, lost }: { won: number; drawn: number; lost: number }) {
   return (
-    <span className="wdl" role="img" aria-label={`${won} won, ${drawn} drawn, ${lost} lost`}>
+    <span className="wdl" role="img" aria-label={tr('wdlAria', { won, drawn, lost })}>
       <span className="res-w">{won}</span>-<span className="res-d">{drawn}</span>-<span className="res-l">{lost}</span>
     </span>
   )
@@ -309,107 +407,71 @@ function Wdl({ won, drawn, lost }: { won: number; drawn: number; lost: number })
 function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: string | null; week: string }) {
   const openChallenge = useStore((s) => s.openChallenge)
   const u = useStore((s) => s.universe)
-  const session = useOnline((s) => s.session)
-  const [rows, setRows] = useState<ChaseRow[] | null>(null)
-  const [summary, setSummary] = useState<ChaseSummary | null>(null)
-  const [more, setMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let live = true
-    setRows(null)
-    setError(null)
-    Promise.all([api.chaseBoard(scope, week, country), api.chaseSummary(scope, week, country)]).then(
-      ([r, s]) => {
-        if (!live) return
-        setRows(r)
-        setSummary(s)
-        setMore(r.length === PAGE)
-      },
-      (e: unknown) => live && setError(onlineErrorText(e)),
-    )
-    return () => {
-      live = false
-    }
-  }, [scope, week, country, session])
-  const loadMore = async () => {
-    if (!rows) return
-    let next: typeof rows
-    try {
-      next = await api.chaseBoard(scope, week, country, rows.length)
-    } catch (e) {
-      // A dropped connection keeps the rows shown and says why the next page did not come
-      setError(onlineErrorText(e))
-      return
-    }
-    setRows([...rows, ...next])
-    setMore(next.length === PAGE)
-  }
+  const b = useBoard<ChaseRow, ChaseSummary | null>(`${scope}|${week}|${country}`, (offset) => api.chaseBoard(scope, week, country, offset), () => api.chaseSummary(scope, week, country))
+  const realRows = b.rows
+  const rows = realRows ? fillChaseBoard(realRows, country) : null
+  const summary = b.summary
   const league = (id: string) => u?.available.find((l) => l.id === id)?.shortName ?? id
   const meShown = !!rows?.some((r) => r.isMe)
   const rec = summary?.record
+  const level = levelRows((rows ?? []).map((r) => `${r.dropped}|${r.lost}|${r.goalDiff}|${r.goalsFor}`))
   return (
     <section className="panel fit-panel" data-testid="board-chase">
       <div className="panel-head">
-        <h3>{scope === 'week' ? 'The 38-0 chase this week' : 'The 38-0 chase, all time'}</h3>
+        <h3>{tr(scope === 'week' ? 'chaseWeek' : 'chaseAlltime')}</h3>
         <span className="small muted" data-testid="chase-summary">
-          {summary ? `${summary.players.toLocaleString()} manager${summary.players === 1 ? '' : 's'} · ${summary.runs.toLocaleString()} run${summary.runs === 1 ? '' : 's'}${summary.flawless ? ` · ${summary.flawless} flawless` : ''}` : ''}
+          {summary ? `${tr('chaseCounts', { players: summary.players, playersText: summary.players.toLocaleString(formatLocale()), runs: summary.runs, runsText: summary.runs.toLocaleString(formatLocale()) })}${summary.flawless ? tr('flawlessCount', { n: summary.flawless }) : ''}` : ''}
         </span>
       </div>
       {rec && (
         <div className="notice chase-record" data-testid="chase-record">
-          <b>Closest ever to perfect:</b> <Wdl won={rec.won} drawn={rec.drawn} lost={rec.lost} /> ({rec.points} pts{rec.won === rec.games ? `, ${perfectTarget(rec.games)}` : ''}) by <Flag code={rec.country} />
-          {rec.name}, {rec.team}, {league(rec.leagueId)}
-          {summary && summary.recordFlawless > 1 ? ` · ${summary.recordFlawless} flawless seasons in all` : ''}
+          <b>{tr('closestEver')}</b> <Wdl won={rec.won} drawn={rec.drawn} lost={rec.lost} /> {tr('recordPts', { n: rec.points, perfect: rec.won === rec.games ? `, ${perfectTarget(rec.games)}` : '' })} <Flag code={rec.country} />
+          {tr('recordWho', { name: rec.name, team: rec.team, league: league(rec.leagueId) })}
+          {summary && summary.recordFlawless > 1 ? tr('flawlessInAll', { n: summary.recordFlawless }) : ''}
         </div>
       )}
       <div className="fit-scroll">
-        {error && <div className="notice warn" data-testid="board-error">Could not load the board. {error}</div>}
-        {!rows && !error && <div className="muted small">Loading…</div>}
-        {rows && rows.length === 0 && <div className="muted small">Nobody has posted a chase run here yet{country ? ` from ${countryName(country)}` : ''}.</div>}
+        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyChase', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} hint={scope === 'week' ? tr('beFirstChase') : undefined} />
         {rows && rows.length > 0 && (
-          <table className="tbl sticky-head">
+          <table className="tbl sticky-head board-table">
             <thead>
               <tr>
                 <th className="num">#</th>
-                <th>Manager</th>
-                <th>Team</th>
-                <th>League</th>
-                <th className="num">Pts</th>
-                <th className="num">W-D-L</th>
-                <th className="num">GD</th>
+                <th>{tr('colManager')}</th>
+                <th>{tr('colTeam')}</th>
+                <th>{tr('colLeague')}</th>
+                <th className="num">{tr('colPts')}</th>
+                <th className="num">{tr('colWdl')}</th>
+                <th className="num">{tr('colGd')}</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={`${r.position}-${r.name}`} className={`${r.isMe ? 'me' : ''}${r.perfect ? ' chase-perfect' : ''}`}>
-                  <td className="num">{r.position}</td>
-                  <td>
-                    <Flag code={r.country} />
-                    {r.name}
-                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>You</span>}
-                  </td>
-                  <td>{r.team}</td>
-                  <td className="small" title={`${r.ratings === 'prime' ? 'Prime' : 'Season'} ratings · ${r.benchPicks ? `bench of ${r.benchPicks}` : 'no bench'}`}>
+              {rows.map((r, i) => (
+                <tr key={`${r.position}-${r.name}`} className={rowClass(r, r.perfect ? 'chase-perfect' : '')} aria-current={r.isMe || undefined}>
+                  <RankCell position={r.position} level={level[i]} />
+                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                  <td className="board-team">{r.team}</td>
+                  <td className="small" title={tr('chaseRowTip', { ratings: tr(r.ratings === 'prime' ? 'prime' : 'season'), bench: r.benchPicks ? tr('benchOf', { n: r.benchPicks }) : tr('noBench') })}>
                     {league(r.leagueId)}
-                    {r.ratings === 'prime' ? ' · Prime' : ''}
+                    {r.ratings === 'prime' ? tr('primeSuffix') : ''}
                   </td>
-                  <td className="num" style={{ fontWeight: 700 }} title={r.dropped ? `${r.dropped} short of ${r.games * 3}` : 'Every point'}>
+                  <td className="num board-score" title={r.dropped ? tr('shortOf', { n: r.dropped, max: r.games * 3 }) : tr('everyPoint')}>
                     {r.points}
                   </td>
                   <td className="num">
                     <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />
                   </td>
-                  <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
+                  <td className="num">{signedGd(r.goalDiff)}</td>
                   <td className="end">
                     {r.perfect && (
                       <span className="chip good" data-testid="chase-flawless">
-                        Flawless {perfectTarget(r.games)}
+                        {tr('flawless', { target: perfectTarget(r.games) })}
                       </span>
                     )}
                     {r.payload && (
-                      <button className="btn sm ghost" onClick={() => void openChallenge(r.payload!)} title="Race this draft: a challenge, never ranked">
-                        Race
+                      <button className="btn sm ghost" onClick={() => void openChallenge(r.payload!)} title={tr('raceTip')}>
+                        {tr('race')}
                       </button>
                     )}
                   </td>
@@ -418,19 +480,15 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
             </tbody>
           </table>
         )}
-        {more && (
-          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
-            Show more
-          </button>
-        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
       </div>
       {!meShown && summary?.myPosition && summary.my && (
-        <div className="fit-foot notice row between" data-testid="board-mine">
-          <b>You: {ordinal(summary.myPosition)}</b>
+        <MineFoot>
+          <b>{tr('youAt', { pos: summary.myPosition })}</b>
           <span>
-            {recordLabel(summary.my.won, summary.my.drawn, summary.my.lost)} · {summary.my.points} pts
+            {recordLabel(summary.my.won, summary.my.drawn, summary.my.lost)} · {tr('pts', { n: summary.my.points })}
           </span>
-        </div>
+        </MineFoot>
       )}
     </section>
   )
@@ -438,7 +496,7 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
 
 /** The side panel's "Start a chase run": the league and shape, today's attempts left, and the button. */
 function ChasePlay() {
-  const { universe: u, game, go, profile } = useStore()
+  const { universe: u, game, go, profile } = useStorePick('universe', 'game', 'go', 'profile')
   const session = useOnline((s) => s.session)
   const [league, setLeague] = useState('england')
   const [formation, setFormation] = useState('4-3-3')
@@ -460,7 +518,7 @@ function ChasePlay() {
   const left = status ? status.left : null
   const start = async () => {
     if (underWay) return go('game')
-    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start a 38-0 chase run? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(tr('chaseConfirm', { mode: tr(game.settings.mode === 'daily' ? 'modeDaily' : 'modeQuick'), team: game.settings.teamName }), { ok: tr('startOk'), danger: true }))) return
     setBusy(true)
     setMessage(null)
     let r: Awaited<ReturnType<typeof api.startChaseRun>>
@@ -478,13 +536,13 @@ function ChasePlay() {
   return (
     <div className="col world-weekly" data-testid="chase-card">
       <div>
-        <b>Chase 38-0</b>
-        <div className="small muted">A standard Quick Draft (Season or Prime ratings, a bench of up to 5) on a wheel the server deals you: win every league game. {CHASE_ATTEMPTS_PER_DAY} runs a day, each open for {CHASE_ATTEMPT_HOURS} hours, one post each.</div>
+        <b>{tr('chase38')}</b>
+        <div className="small muted">{tr('chaseBlurb', { runs: CHASE_ATTEMPTS_PER_DAY, hours: CHASE_ATTEMPT_HOURS })}</div>
       </div>
       {!underWay && (
         <div className="row wrap chase-pick">
           <label className="field">
-            League
+            {tr('colLeague')}
             <select className="input" value={league} onChange={(e) => setLeague(e.target.value)} data-testid="chase-league">
               {u.available.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -494,28 +552,28 @@ function ChasePlay() {
             </select>
           </label>
           <label className="field">
-            Shape
+            {tr('shape')}
             <select className="input" value={formation} onChange={(e) => setFormation(e.target.value)} data-testid="chase-formation">
               {CHASE_FORMATIONS.map((f) => (
                 <option key={f} value={f}>
-                  {f}
+                  {formationName(f)}
                 </option>
               ))}
             </select>
           </label>
           <label className="field">
-            Ratings
+            {tr('ratings')}
             <select className="input" value={ratings} onChange={(e) => setRatings(e.target.value === 'season' ? 'season' : 'prime')} data-testid="chase-ratings">
-              <option value="prime">Prime</option>
-              <option value="season">Season</option>
+              <option value="prime">{tr('prime')}</option>
+              <option value="season">{tr('season')}</option>
             </select>
           </label>
           <label className="field">
-            Bench
+            {tr('bench')}
             <select className="input" value={bench} onChange={(e) => setBench(Number(e.target.value))} data-testid="chase-bench">
               {[0, 1, 2, 3, 4, 5].map((b) => (
                 <option key={b} value={b}>
-                  {b ? `${b} place${b === 1 ? '' : 's'}` : 'None'}
+                  {tr('benchPlaces', { n: b })}
                 </option>
               ))}
             </select>
@@ -524,28 +582,250 @@ function ChasePlay() {
       )}
       {session && left !== null && !underWay && (
         <div className="small muted" data-testid="chase-left">
-          {left ? `${left} of ${status?.cap ?? CHASE_ATTEMPTS_PER_DAY} runs left today` : 'No runs left today: back at 00:00 UTC'}
-          {status?.best ? ` · your best ${recordLabel(status.best.won, status.best.drawn, status.best.lost)}` : ''}
+          {left ? tr('runsLeft', { n: left, cap: status?.cap ?? CHASE_ATTEMPTS_PER_DAY }) : tr('noRunsLeft')}
+          {status?.best ? tr('yourBest', { record: recordLabel(status.best.won, status.best.drawn, status.best.lost) }) : ''}
         </div>
       )}
       {message && <div className="notice warn small">{message}</div>}
       <button className="btn primary block" onClick={() => void start()} disabled={busy || (!underWay && left === 0)} data-testid="chase-start">
-        {underWay ? 'Continue your chase run' : busy ? 'Dealing your wheel…' : session ? 'Start a chase run' : 'Sign in to chase 38-0'}
+        {tr(underWay ? 'continueChase' : busy ? 'dealing' : session ? 'startChase' : 'signInChase')}
       </button>
     </div>
   )
 }
 
-const BOARDS: Array<{ id: Tab; label: string; meta: string }> = [
-  { id: 'daily', label: "Today's Daily", meta: 'Any of the last 60 days' },
-  { id: 'weekly', label: "This week's challenge", meta: 'One fixed wheel all week' },
-  { id: 'alltime', label: 'All-time Daily totals', meta: 'Points or best streak' },
-  { id: 'chase', label: '38-0 chase', meta: 'Quick Draft: the flawless season' },
+/** A casual board (the Daily Arena, the Weekly Challenge, the Run-in of the week): its rows, your place pinned at the foot. */
+function CasualTable({ board, boardKey, country, title, current }: { board: CasualKind; boardKey: string; country: string | null; title: string; current: boolean }) {
+  const openChallenge = useStore((s) => s.openChallenge)
+  const b = useBoard<CasualRow, CasualSummary | null>(`${board}|${boardKey}|${country}`, (offset) => api.casualBoard(board, boardKey, country, offset), () => api.casualSummary(board, boardKey, country))
+  const realRows = b.rows
+  const rows = realRows ? fillCasualBoard(realRows, board, country) : null
+  const summary = b.summary
+  const arena = board === 'arena'
+  const meShown = !!rows?.some((r) => r.isMe)
+  // An arena or Weekly run is a link anyone can race once posting has closed; a run-in has no link
+  const race = board !== 'runin' && !!rows?.some((r) => r.revealed && r.payload)
+  const level = levelRows((rows ?? []).map((r) => `${r.score}|${r.won}|${r.drawn}|${r.lost}|${r.goalDiff}|${r.goalsFor}|${r.goalsAgainst}`))
+  return (
+    <section className="panel fit-panel" data-testid={`board-${board}`}>
+      <div className="panel-head">
+        <h3>{title}</h3>
+        <span className="small muted" data-testid="board-summary">
+          {summary ? `${tr('played', { n: summary.played.toLocaleString(formatLocale()) })}${summary.trophies ? tr('casualTrophies', { n: summary.trophies, board }) : ''}${tr(summary.open ? 'postsOpen' : 'closed')}${summary.revealed && board !== 'runin' ? tr('picksRevealed') : ''}` : ''}
+        </span>
+      </div>
+      <div className="fit-scroll">
+        <BoardState rows={rows} error={b.error} offline={b.offline} retry={b.retry} empty={tr('nobodyPosted', { from: country ? tr('fromCountry', { country: countryName(country) }) : '' })} hint={current && summary?.open !== false ? tr('beFirst') : undefined} />
+        {rows && rows.length > 0 && (
+          <table className="tbl sticky-head board-table">
+            <thead>
+              <tr>
+                <th className="num">#</th>
+                <th>{tr('colManager')}</th>
+                {board !== 'runin' && <th>{tr('colTeam')}</th>}
+                <th className="num">{tr(arena ? 'colWon' : 'colPts')}</th>
+                <th className="num">{tr(arena ? 'colGoals' : 'colWdl')}</th>
+                <th className="num">{tr('colGd')}</th>
+                <th>{tr('colResult')}</th>
+                {race && <th />}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={`${r.position}-${r.name}`} className={rowClass(r, r.trophy ? 'board-trophy' : '')} aria-current={r.isMe || undefined}>
+                  <RankCell position={r.position} level={level[i]} />
+                  <ManagerCell name={r.name} country={r.country} isMe={r.isMe} />
+                  {board !== 'runin' && <td className="board-team">{r.team}</td>}
+                  <td className="num board-score">{r.score}</td>
+                  <td className="num">{arena ? `${r.goalsFor}-${r.goalsAgainst}` : <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />}</td>
+                  <td className="num">{signedGd(r.goalDiff)}</td>
+                  <td className="small">
+                    {r.trophy && <span className="chip good board-trophy-chip">{tr('casualTrophy', { board })}</span>}
+                    {arena ? r.detail : board === 'runin' ? tr('runInResult', { pos: r.leaguePosition ?? 0, outcome: r.trophy ? 'met' : r.detail === 'SACKED' ? 'sacked' : 'missed' }) : tr('resultLine', { tier: tierText(r.detail), pos: r.leaguePosition ?? 0 })}
+                  </td>
+                  {race && (
+                    <td className="end">
+                      {r.revealed && r.payload && (
+                        <button className="btn sm" onClick={() => void openChallenge(r.payload!)}>
+                          {tr('raceRun')}
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {b.more && <MoreButton onClick={() => void b.loadMore()} busy={b.busy} />}
+      </div>
+      {!meShown && summary?.myPosition && (
+        <MineFoot>
+          <b>{tr('youAt', { pos: summary.myPosition })}</b>
+          <span>{tr(arena ? 'wonN' : 'pts', { n: summary.myScore })}</span>
+        </MineFoot>
+      )}
+    </section>
+  )
+}
+
+/** A side-panel card: what the board is for, your standing on it today, and the one button to play it. */
+function PlayCard({ title, line, done, action, onClick, disabled, testId }: { title: string; line: ReactNode; done: string | null; action: string; onClick: () => void; disabled?: boolean; testId: string }) {
+  return (
+    <div className="col world-weekly world-play" data-testid={testId}>
+      <div>
+        <b>{title}</b>
+        <div className="small muted">{line}</div>
+        {done && <div className="small world-play-done" data-testid={`${testId}-done`}>{done}</div>}
+      </div>
+      <button type="button" className={`btn block${done ? '' : ' primary'}`} onClick={onClick} disabled={disabled} data-testid={`${testId}-go`}>
+        {action}
+      </button>
+    </div>
+  )
+}
+
+/** Today's Daily from its board: it continues where it was left, else opens the Daily's setup (as Home's card does). */
+export function DailyPlay() {
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile', 'loadedLeagues')
+  const pin = useOnline((st) => (st.pins.day === new Date().toISOString().slice(0, 10) ? st.pins.daily : null))
+  if (!u || !loadedLeagues.includes('england')) return null
+  const seed = todaysDailySeed()
+  // A rotated Daily can name a pack the World screen has not loaded. Setup loads it after the button is pressed;
+  // until then use the pack-free plan, as Home does, rather than trying to build the full settings and throwing.
+  const plan = dailyPlan(seed)
+  const here = dailyLoaded(loadedLeagues, seed)
+  const line = here
+    ? (() => {
+        // Online and pinned: the ranked puzzle, as Home's card reads it
+        const s = dailyStartSettings(u, seed, 'Touchline XI', pin).settings
+        return rich(tr('dailyCardLine', { formation: formationName(s.formationId), club: u.clubById[s.hostClubId]?.name ?? s.hostClubId, season: seasonLabel(s.leagueSeason) }), B)
+      })()
+    : rich(tr('dailyCardPlanLine', { formation: formationName(plan.formationId), league: u.available.find((l) => l.id === plan.leagueId)?.name ?? plan.leagueId }), B)
+  const isToday = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === seed && g.phase !== 'summary'
+  const result = profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`]
+  const underWay = isToday(game) || isToday(parked.quick)
+  const play = () => (isToday(game) ? go('game') : isToday(parked.quick) ? resumeGame('quick') : go('setup', 'daily'))
+  return (
+    <PlayCard
+      testId="world-play-daily"
+      title={tr('playTodayDaily')}
+      line={line}
+      done={result && !underWay ? tr('playedToday', { n: result.points, tier: tierText(result.tier) }) : null}
+      action={tr(underWay ? 'continueDailyWorld' : result ? 'playAgainPractice' : 'playDailyWorld')}
+      onClick={play}
+    />
+  )
+}
+
+/** Today's Daily Arena from its board: the run continues wherever it is; another unfinished arena run is only dropped on a yes. */
+function ArenaDailyPlay() {
+  const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues, startGame } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile', 'loadedLeagues', 'startGame')
+  if (!u || !loadedLeagues.includes('england')) return null
+  const seed = arenaDailySeed()
+  const today = dailyArenaSettings(seed)
+  const done = profile.arenaDaily?.results[seed]
+  const isToday = (g: typeof game) => !!g && !!g.settings.arena?.daily && g.settings.seed === seed && g.phase !== 'summary'
+  const underWay = isToday(game) ? 'active' : isToday(parked.arena) ? 'parked' : null
+  const play = async () => {
+    if (underWay === 'active') return go('game')
+    if (underWay === 'parked') return resumeGame('arena')
+    const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
+    if (open && !(await askConfirm(tr('arenaAbandonWorld', { team: open.settings.teamName }), { ok: tr('startOk'), danger: true }))) return
+    if (!open && done && !(await askConfirm(tr('arenaAgainWorld', { label: done.label }), { ok: tr('playAgainOk') }))) return
+    // The manager's own team name (the remembered one, or an invented one), never the logic's "Touchline XI" fallback
+    const team = startingTeam()
+    startGame({ ...dailyArenaGameSettings(u, seed, team.teamName), shortName: team.shortName })
+  }
+  return (
+    <PlayCard
+      testId="world-play-arena"
+      title={tr('playTodayArena')}
+      line={tr(today.format === 'gauntlet' ? 'arenaCardGauntlet' : 'arenaCardCup', { size: today.size ?? 16, wheel: u.available.find((l) => l.id === today.leagueId)?.name ?? today.leagueId })}
+      done={done && !underWay ? tr('playedArenaToday', { label: done.label }) : null}
+      action={tr(underWay ? 'continueArenaWorld' : done ? 'playAgainPractice' : 'playArenaWorld')}
+      onClick={() => void play()}
+    />
+  )
+}
+
+/** This week's Weekly Challenge from its board: under way it continues, else its setup opens (the week's packs load there). */
+function ThemedWeekPlay() {
+  const { universe: u, game, parked, go, resumeGame, profile } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile')
+  if (!u) return null
+  const seed = weeklySeed()
+  const plan = weeklyPlan(u, seed)
+  const done = profile.weekly?.results[seed]
+  const isThisWeek = (g: typeof game) => !!g && g.settings.mode === 'weekly' && g.settings.seed === seed && g.phase !== 'summary'
+  const underWay = isThisWeek(game) || isThisWeek(parked.quick)
+  const play = () => (isThisWeek(game) ? go('game') : isThisWeek(parked.quick) ? resumeGame('quick') : go('setup', 'weekly'))
+  return (
+    <PlayCard
+      testId="world-play-themed"
+      title={tr('playThemedWeek')}
+      line={plan ? tr('themedCardLine', { theme: weeklyThemeText(plan.theme) }) : tr('themedCardFallback')}
+      done={done && !underWay ? tr('playedThemed', { n: done.points, tier: tierText(done.tier) }) : null}
+      action={tr(underWay ? 'continueThemed' : done ? 'playAgainPractice' : 'playThemedGo')}
+      onClick={play}
+    />
+  )
+}
+
+/** The side panel's card for the Run-in of the week: the week's job, and Play (its league loads first). */
+function RunInWeekPlay() {
+  const { universe: u, game, go, startRunInWeek, loadedLeagues, ensureLeagues, parked, resumeGame } = useStorePick('universe', 'game', 'go', 'startRunInWeek', 'loadedLeagues', 'ensureLeagues', 'parked', 'resumeGame')
+  const seed = runInWeekSeed()
+  const plan = weeklyRunInPlan(seed)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (plan) void ensureLeagues([plan.leagueId])
+  }, [ensureLeagues, plan?.leagueId])
+  if (!u || !plan) return null
+  const job = loadedLeagues.includes(plan.leagueId) ? weeklyRunInJob(u, seed) : null
+  const open = [game, parked.runin].find((g) => g && slotOf(g) === 'runin' && g.phase !== 'summary')
+  const underWay = !!open && isWeeklyRunIn(open.settings) && open.settings.seed === seed
+  const play = async () => {
+    if (underWay) return open === game ? go('game') : resumeGame('runin')
+    if (open && !(await askConfirm(tr('runInWeekConfirm', { team: open.settings.teamName }), { ok: tr('takeJobOk'), danger: true }))) return
+    setBusy(true)
+    await startRunInWeek(seed)
+    setBusy(false)
+  }
+  return (
+    <div className="col world-weekly" data-testid="runin-week-card">
+      <div>
+        <b>{tr('playRunInWeek')}</b>
+        <div className="small muted">
+          {job ? (
+            <>
+              {rich(tr('runInWeekJob', { brief: templateText(job.template), club: u.clubById[job.clubId]?.name ?? job.clubId, season: seasonLabel(job.season), pos: job.projected.position, week: job.takeover }), B)}{' '}
+            </>
+          ) : (
+            tr('runInWeekLoading')
+          )}
+          {tr('runInWeekBlurb')}
+        </div>
+      </div>
+      <button className="btn primary block" onClick={() => void play()} disabled={busy || !job} data-testid="runin-week-play">
+        {underWay ? tr('continueRunInWeek') : busy ? tr('loading') : tr('playRunInWeek')}
+      </button>
+    </div>
+  )
+}
+
+const BOARDS: Array<{ id: Tab; label: () => string; meta: () => string }> = [
+  { id: 'daily', label: () => tr('todaysDaily'), meta: () => tr('dailyMeta') },
+  { id: 'weekly', label: () => tr('thisWeeksChallenge'), meta: () => tr('weeklyMeta') },
+  { id: 'alltime', label: () => tr('alltimeTitle'), meta: () => tr('alltimeMeta') },
+  { id: 'chase', label: () => tr('chaseLabel'), meta: () => tr('chaseMeta') },
+  { id: 'arena', label: () => tr('casualTitle', { board: 'arena' }), meta: () => tr('arenaMeta') },
+  { id: 'themed', label: () => tr('casualTitle', { board: 'themed' }), meta: () => tr('themedMeta') },
+  { id: 'runin', label: () => tr('casualTitle', { board: 'runin' }), meta: () => tr('runinMeta') },
 ]
 
 /**
- * The world leaderboard (screen `world`): today's Daily, this week's challenge, all-time Daily totals, a country
- * filter on each. A shell screen: two boxed panels side by side with no page scroll on a desktop (the board scrolls
+ * The world leaderboard (screen `world`): today's Daily, this week's challenge, all-time Daily totals, the 38-0 chase
+ * and the casual boards (the Daily Arena, the Weekly Challenge, the Run-in of the week), a country filter on each. A shell screen: two boxed panels side by side with no page scroll on a desktop (the board scrolls
  * inside its panel under a sticky header, your own row pinned at its foot); stacked on a phone.
  */
 export function WorldBoard() {
@@ -566,84 +846,106 @@ export function WorldBoard() {
   const thisWeek = weekKeyOf(new Date())
   const lastWeek = weekKeyOf(new Date((weekStartOf(thisWeek)?.getTime() ?? Date.now()) - DAY))
   const [week, setWeek] = useState(thisWeek)
+  const [arenaDay, setArenaDay] = useState(today)
+  const [casualWeek, setCasualWeek] = useState(thisWeek)
   useEffect(() => {
     if (configured) void api.startOnline()
   }, [configured])
   const help =
-    tab === 'chase'
-      ? "Ranked by points (as points short of the league's maximum, so a 34-game season stands beside a 38-game one), then goal difference; your best run counts. Quick Draft seeds are your own, so only a wheel the server deals counts here: no grinding seeds offline. The replay is the official result."
-      : "Every score here was replayed by the server from the picks, with the game's own engine: the replay is the official result. The seed is public, so a run can be rehearsed; each account posts once per day and per week, and the picks stay hidden until posting closes."
+    tab === 'arena'
+      ? tr('helpArena')
+      : tab === 'themed' || tab === 'runin'
+        ? tr('helpCasualWeek', { board: tab })
+        : tab === 'chase'
+          ? tr('helpChase')
+          : tr('helpBoards')
   return (
     <div className="page world-page">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>World leaderboard</h1>
+          <h1>{tr('worldLeaderboard')}</h1>
           <div className="screen-meta">
-            <span>Every score replayed by the server from the picks</span>
+            <span>{tr('worldMeta')}</span>
+            <span aria-hidden="true">·</span>
+            <SimulatedGames />
           </div>
         </div>
         <button className="btn ghost" onClick={() => go('home')}>
-          ← Home
+          {tr('backHome')}
         </button>
       </div>
       {!api.onlineAvailable() ? (
         <div className="panel">
-          <p className="muted">Online features are not available in this build. Your own results are on the Profile page.</p>
+          <p className="muted">{tr('notAvailable')}</p>
         </div>
       ) : (
         <div className="screen-body fill">
         <div className="grid world-grid">
           <aside className="panel fit-panel" data-testid="world-side">
             <div className="panel-head">
-              <h3>Boards</h3>
+              <h3>{tr('boards')}</h3>
               {/* A short desktop window: the help below becomes this tip, so the box never shows half a line above its foot */}
               <span className="world-help-tip">
-                <Info label="How the boards are ranked">{help}</Info>
+                <Info label={tr('howRanked')}>{help}</Info>
               </span>
             </div>
             <div className="fit-scroll col">
-              <div className="world-boards" role="tablist" aria-label="Boards">
+              <div className="world-boards" role="tablist" aria-label={tr('boards')} aria-orientation="vertical" onKeyDown={onTabListKey}>
                 {BOARDS.map((b) => (
-                  <button key={b.id} type="button" role="tab" aria-selected={tab === b.id} className={`world-board-pick${tab === b.id ? ' active' : ''}`} onClick={() => setTab(b.id)} data-testid={`world-tab-${b.id}`}>
-                    <b>{b.label}</b>
-                    <span>{b.meta}</span>
+                  <button key={b.id} type="button" role="tab" aria-selected={tab === b.id} tabIndex={tab === b.id ? 0 : -1} className={`world-board-pick${tab === b.id ? ' active' : ''}`} title={b.meta()} onClick={() => setTab(b.id)} data-testid={`world-tab-${b.id}`}>
+                    <b>{b.label()}</b>
+                    <span>{b.meta()}</span>
                   </button>
                 ))}
               </div>
+              {/* The board's Play card first, so what to do next sits under the boards (the weekly's and the run-in's stay with their week switch) */}
+              {tab === 'daily' && day === today && <DailyPlay />}
+              {tab === 'arena' && arenaDay === today && <ArenaDailyPlay />}
+              {tab === 'themed' && casualWeek === thisWeek && <ThemedWeekPlay />}
               <div className="field">
-                Country
-                <CountrySelect value={country} onChange={setCountry} emptyLabel="Everywhere" testId="board-country" />
+                {tr('country')}
+                <CountrySelect value={country} onChange={setCountry} emptyLabel={tr('everywhere')} testId="board-country" />
               </div>
               {account?.country && account.country !== country && (
                 <button className="btn sm ghost" onClick={() => setCountry(account.country)}>
-                  {countryFlag(account.country)} My country
+                  <CountryFlag code={account.country} size={16} /> {tr('myCountry')}
                 </button>
               )}
               {tab === 'daily' && (
                 <label className="field">
-                  Day
-                  <input className="input" type="date" value={day} max={today} min={new Date(Date.now() - 60 * DAY).toISOString().slice(0, 10)} onChange={(e) => setDay(e.target.value || today)} aria-label="Day" />
+                  {tr('day')}
+                  <input className="input" type="date" value={day} max={today} min={new Date(Date.now() - 60 * DAY).toISOString().slice(0, 10)} onChange={(e) => setDay(e.target.value || today)} aria-label={tr('day')} />
                 </label>
               )}
-              {tab === 'weekly' && <Segmented value={week} onChange={setWeek} options={[{ value: thisWeek, label: 'This week' }, { value: lastWeek, label: 'Last week' }]} />}
+              {tab === 'weekly' && <Segmented label={tr('weekChoice')} value={week} onChange={setWeek} options={[{ value: thisWeek, label: tr('thisWeek') }, { value: lastWeek, label: tr('lastWeek') }]} />}
               {tab === 'weekly' && weeklyIsOpen(thisWeek, new Date()) && week === thisWeek && <WeeklyPlay weekKey={thisWeek} />}
-              {tab === 'alltime' && <Segmented value={order} onChange={setOrder} options={[{ value: 'points', label: 'Total points' }, { value: 'streak', label: 'Best streak' }]} />}
-              {tab === 'chase' && <Segmented value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: 'This week', testId: 'chase-scope-week' }, { value: 'alltime', label: 'All time', testId: 'chase-scope-alltime' }]} />}
+              {tab === 'alltime' && <Segmented label={tr('orderBy')} value={order} onChange={setOrder} options={[{ value: 'points', label: tr('totalPoints') }, { value: 'streak', label: tr('colBestStreak') }]} />}
+              {tab === 'chase' && <Segmented label={tr('chaseScope')} value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: tr('thisWeek'), testId: 'chase-scope-week' }, { value: 'alltime', label: tr('allTime'), testId: 'chase-scope-alltime' }]} />}
               {tab === 'chase' && <ChasePlay />}
+              {tab === 'arena' && (
+                <label className="field">
+                  {tr('day')}
+                  <input className="input" type="date" value={arenaDay} max={today} min={new Date(Date.now() - 60 * DAY).toISOString().slice(0, 10)} onChange={(e) => setArenaDay(e.target.value || today)} aria-label={tr('day')} data-testid="arena-day" />
+                </label>
+              )}
+              {(tab === 'themed' || tab === 'runin') && <Segmented label={tr('weekChoice')} value={casualWeek} onChange={setCasualWeek} options={[{ value: thisWeek, label: tr('thisWeek') }, { value: lastWeek, label: tr('lastWeek') }]} />}
+              {tab === 'runin' && casualWeek === thisWeek && <RunInWeekPlay />}
               <p className="help world-help">{help}</p>
             </div>
             {!session && (
               <div className="fit-foot">
                 <button className="btn sm primary block" onClick={() => go('account')} data-testid="world-signin">
-                  Sign in to post to the World board
+                  {tr('signInWorld')}
                 </button>
               </div>
             )}
           </aside>
-          {tab === 'daily' && <RankedTable kind="daily" boardKey={day} country={country} title={day === today ? "Today's Daily" : `Daily of ${day}`} />}
-          {tab === 'weekly' && <RankedTable kind="weekly" boardKey={week} country={country} title={week === thisWeek ? "This week's challenge" : `Week ${week}`} />}
+          {tab === 'daily' && <RankedTable kind="daily" boardKey={day} country={country} current={day === today} title={day === today ? tr('todaysDaily') : tr('dailyOf', { day })} />}
+          {tab === 'weekly' && <RankedTable kind="weekly" boardKey={week} country={country} current={week === thisWeek && weeklyIsOpen(thisWeek, new Date())} title={week === thisWeek ? tr('thisWeeksChallenge') : tr('weekOf', { week })} />}
           {tab === 'alltime' && <AlltimeTable country={country} order={order} />}
           {tab === 'chase' && <ChaseTable scope={chaseScope} country={country} week={thisWeek} />}
+          {tab === 'arena' && <CasualTable board="arena" boardKey={arenaDay} country={country} current={arenaDay === today} title={arenaDay === today ? tr('todaysArena') : tr('arenaOf', { day: arenaDay })} />}
+          {(tab === 'themed' || tab === 'runin') && <CasualTable board={tab} boardKey={casualWeek} country={country} current={casualWeek === thisWeek} title={tr(casualWeek === thisWeek ? 'casualThisWeek' : 'casualWeekOf', { board: tab, week: casualWeek })} />}
         </div>
         </div>
       )}

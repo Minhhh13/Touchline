@@ -5,12 +5,16 @@ import { perfectTarget, recordLabel } from '@game/logic/perfect'
 import { postKey, useOnline } from '../../online/state'
 import { rankedBoardOf } from '../../online/daily'
 import { chaseCodeOfSeed, chaseUnrankedReason, isChaseGame } from '../../online/chase'
-import { countryFlag } from '../../online/core/country'
+import { countryName } from './countries'
 import * as api from '../../online/api'
-import { ordinal } from '../format'
 import { APP_NAME } from '../brand'
 import { rememberWorldTab } from './WorldBoard'
 import { sentence } from '../../online/postText'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+import { formatLocale } from '../format'
+
+const t = translator(online)
 
 /**
  * The 38-0 chase line on a Quick Draft Summary (online builds only): "Submit to the 38-0 chase" for an eligible chase
@@ -29,22 +33,22 @@ export function ChaseStatus({ game }: { game: Game }) {
   if (!configured || !u || game.settings.mode !== 'quick' || game.settings.challenge || rankedBoardOf(game.settings)) return null
   const q = game.quickResult
   const games = q ? q.won + q.drawn + q.lost : 0
-  const record = q ? `${recordLabel(q.won, q.drawn, q.lost)} (${q.points} pts)` : ''
+  const record = q ? t('chaseRecord', { record: recordLabel(q.won, q.drawn, q.lost), pts: q.points }) : ''
   const reason = isChaseGame(game.settings) ? chaseUnrankedReason(game, u) : null
   let line: React.ReactNode
   let share: string | null = null
   let action: React.ReactNode = null
-  if (!isChaseGame(game.settings)) line = <>38-0 chase: only a run started from the World leaderboard counts, on a wheel the server issues.</>
-  else if (reason) line = <>Not on the 38-0 chase: {reason}.</>
+  if (!isChaseGame(game.settings)) line = <>{t('chaseOnlyIssued')}</>
+  else if (reason) line = <>{t('chaseNotOn', { reason })}</>
   else if (!post && !session) {
-    line = <>Sign in to submit {record} to the 38-0 chase.</>
+    line = <>{t('chaseSignInSubmit', { record })}</>
     action = (
       <button className="btn sm primary" onClick={() => go('account')} data-testid="chase-signin">
-        Sign in
+        {t('signIn')}
       </button>
     )
   } else if (!post) {
-    line = <>Submit {record} to the 38-0 chase: one post per run, replayed by the server.</>
+    line = <>{t('chaseSubmitLine', { record })}</>
     action = (
       <button
         className="btn sm primary"
@@ -58,26 +62,20 @@ export function ChaseStatus({ game }: { game: Game }) {
           })
         }}
       >
-        Submit to the 38-0 chase
+        {t('chaseSubmit')}
       </button>
     )
-  } else if (post.state === 'waiting') line = post.reason === 'sign_in' && !session ? <>Sign in to post {record} to the 38-0 chase.</> : <>Posting to the 38-0 chase…</>
+  } else if (post.state === 'waiting') line = post.reason === 'sign_in' && !session ? <>{t('chaseSignInPost', { record })}</> : <>{t('chasePosting')}</>
   else if (post.state === 'posted') {
-    const flawless = post.perfect ? `${perfectTarget(games)}, flawless! ` : ''
-    const week = post.weekPosition ? ` · ${ordinal(post.weekPosition)} of ${(post.weekTotal ?? 0).toLocaleString()} this week` : ''
-    const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} in ${countryFlag(post.country)}` : ''
-    share = `${recordLabel(q?.won ?? 0, q?.drawn ?? 0, q?.lost ?? 0)}: ${ordinal(post.position)} of ${post.total.toLocaleString()} on the 38-0 chase in ${APP_NAME}`
-    line = (
-      <>
-        {post.already ? 'This run was posted already: ' : `${flawless}On the 38-0 chase: `}
-        {ordinal(post.position)} of {post.total.toLocaleString()} all time{week}
-        {country}
-        {post.claimMatched ? '.' : ' (official result from the server’s replay).'}
-      </>
-    )
-  } else if (post.state === 'unranked') line = <>Not on the 38-0 chase: {sentence(post.reason)}</>
-  else if (post.state === 'rejected') line = <>Not ranked: {sentence(post.reason)}</>
-  else line = <>This chase run closed before it was posted.</>
+    const flawless = post.perfect ? t('chaseFlawless', { target: perfectTarget(games) }) : ''
+    const week = post.weekPosition ? t('chaseWeekRank', { pos: post.weekPosition, total: (post.weekTotal ?? 0).toLocaleString(formatLocale()) }) : ''
+    const country = post.country && post.countryPosition ? t('chaseCountry', { pos: post.countryPosition, country: countryName(post.country) }) : ''
+    const total = post.total.toLocaleString(formatLocale())
+    share = t('chaseShare', { record: recordLabel(q?.won ?? 0, q?.drawn ?? 0, q?.lost ?? 0), pos: post.position, total, app: APP_NAME })
+    line = <>{t(post.already ? 'chaseAlready' : 'chasePosted', { flawless, pos: post.position, total, week, country, official: post.claimMatched ? 'no' : 'yes' })}</>
+  } else if (post.state === 'unranked') line = <>{t('chaseNotOnReason', { reason: sentence(post.reason) })}</>
+  else if (post.state === 'rejected') line = <>{t('notRanked', { reason: sentence(post.reason) })}</>
+  else line = <>{t('chaseClosed')}</>
   return (
     <div className={`notice row between wrap ${post?.state === 'rejected' ? 'warn' : ''}`} style={{ marginTop: 12 }} data-testid="chase-status">
       <span>{line}</span>
@@ -88,12 +86,12 @@ export function ChaseStatus({ game }: { game: Game }) {
             className="btn sm ghost"
             onClick={() => {
               void navigator.clipboard?.writeText(share!).then(
-                () => showToast('Copied.'),
+                () => showToast(t('copied')),
                 () => showToast(share!),
               )
             }}
           >
-            Copy
+            {t('copy')}
           </button>
         )}
         <button
@@ -104,7 +102,7 @@ export function ChaseStatus({ game }: { game: Game }) {
           }}
           data-testid="open-chase"
         >
-          38-0 chase
+          {t('chaseBoard')}
         </button>
       </span>
     </div>

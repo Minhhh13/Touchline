@@ -36,6 +36,30 @@
   font-size: calc(var(--fs-base) + 1px);
   letter-spacing: 0.02em;
 }
+/* The replay: the Live and Report tabs and its buttons end the competition line, so the board keeps the row they took */
+.matchday .md-crumb.has-end {
+  align-items: center;
+  overflow: visible;
+}
+.matchday .md-crumb.has-end > b,
+.matchday .md-crumb.has-end > .muted {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-crumb-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  flex: none;
+}
+.matchday .md-crumb-end > .tabs {
+  margin: 0;
+  border-bottom: 0;
+}
+.matchday .md-crumb-end > .row {
+  flex-wrap: nowrap;
+}
 
 /* ------------------------------------------------------------------ top bar */
 .matchday .md-topbar {
@@ -63,10 +87,6 @@
   justify-content: flex-end;
   min-width: 0;
 }
-.matchday .md-playback-speed,
-.matchday .md-playback-actions {
-  display: contents;
-}
 .matchday .scoreboard {
   display: flex;
   align-items: center;
@@ -86,6 +106,7 @@
 }
 .matchday .scoreboard .clock {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-base);
   color: var(--text);
   min-width: 108px;
@@ -249,20 +270,17 @@
     display: none;
   }
   .matchday .md-formation .md-man {
-    transform: translate(-50%, -50%);
-  }
-  .matchday .md-formation .md-man-shirt {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
+    --md-man-dy: -77%;
   }
   .matchday .md-formation .md-man-shirt .md-shirt {
     width: 20px;
     height: 20px;
   }
   .matchday .md-formation .md-man-shirt .md-rating {
-    position: static;
+    right: auto;
+    left: 50%;
+    top: calc(100% + 1px);
+    transform: translateX(-50%);
     min-width: 0;
     padding: 0 2px;
     font-size: 10px; /* px: on the formation pitch */
@@ -279,21 +297,26 @@
 .matchday .md-vpitch-layer {
   position: absolute;
   inset: 4% 6%;
+  /* A size container: each man's place (--x, --y, per cent of the layer) is a transform in cqw and cqh (motion rule 2) */
+  container-type: size;
 }
+/* The button is his shirt alone (24 px, WCAG 2.5.8): the rating pill and the name are drawn outside its box and take
+   no pointer, so two centre-backs 28 px apart no longer overlap as targets (round 4; it was the whole label block) */
 .matchday .md-man {
   position: absolute;
-  transform: translate(-50%, -42%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
+  left: 0;
+  top: 0;
+  transform: translate(calc(var(--x, 0) * 1cqw - 50%), calc(var(--y, 0) * 1cqh + var(--md-man-dy, -65%)));
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
   background: none;
   color: #fff;
   cursor: pointer;
-  max-width: 76px;
-  transition: left calc(var(--dur-1) * 4) var(--ease-out), top calc(var(--dur-1) * 4) var(--ease-out);
+  transition: transform calc(var(--dur-1) * 4) var(--ease-out);
 }
 .matchday .md-man:focus-visible {
   outline: 2px solid var(--focus);
@@ -310,6 +333,10 @@
   position: relative;
   display: block;
   line-height: 0;
+}
+.matchday .md-man-shirt .md-rating,
+.matchday .md-man-name {
+  pointer-events: none;
 }
 .matchday .md-man-shirt .md-rating {
   position: absolute;
@@ -332,8 +359,13 @@
   height: 10px;
 }
 .matchday .md-man-name {
-  /* The man's own width caps it: 76px, or the gap to a team-mate level with him (labelRoom) */
-  max-width: 100%;
+  /* Under his shirt, outside the button's box; 76px wide at most, or the gap to a team-mate level with him (labelRoom) */
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: var(--md-name-max, 76px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -346,6 +378,7 @@
 /* On the grass in both themes: a pale cyan that keeps 4.5:1 on the pitch green (the theme's accent fell to 1.3:1 in Daylight) */
 .matchday .md-role {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 11px; /* px: on the formation pitch */
   font-weight: 700;
   color: #dff7ff;
@@ -359,6 +392,7 @@
   padding: 0 3px;
   border-radius: 4px;
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 10px; /* px: on the formation pitch */
   font-weight: 700;
   line-height: 14px;
@@ -375,7 +409,8 @@
 .matchday .md-rating.bad {
   background: var(--danger);
   border-color: var(--danger);
-  color: var(--text);
+  /* The status ink, as on .good: --text on --danger was 2.5:1 in both themes */
+  color: var(--on-status);
 }
 .matchday .md-rating.none {
   color: var(--text-3);
@@ -547,6 +582,24 @@
   }
 }
 
+/* ------------------------------------------------------------------ paint isolation */
+/* The live pitch repaints every frame. A box beside it that is not a stacking context of its own is painted again with
+   it each frame (the squad strip alone was about 90 ms a second of Paint on a 4x-throttled phone); isolated, each box
+   keeps its cached paint until its own content changes. Nothing in these boxes overlaps a sibling (their pop-ups and
+   drawers are fixed or portalled at the board's root), so the picture is unchanged (docs/PERFORMANCE.md, round 3). */
+.matchday .md-strip-scroll,
+.matchday .md-strip,
+.matchday .md-pulse,
+.matchday .md-tabbed,
+.matchday .md-banner,
+.matchday .md-side,
+.matchday .md-widgets,
+.matchday .md-pitch-row > .mchart,
+.matchday .md-centre > .mchart,
+.matchday .md-flank {
+  isolation: isolate;
+}
+
 /* ------------------------------------------------------------------ squad strip */
 .matchday .md-strip {
   display: flex;
@@ -558,6 +611,13 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   scroll-snap-type: x proximity;
+}
+/* A stop's decisions folded to the fixed pill: on a desktop it rides at the right end of the commentary line, above the
+   squad strip, so it never covers the last man's card */
+@media (min-width: 1200px) {
+  .matchday .decisions-pill {
+    bottom: calc(clamp(112px, 11.3vh, 128px) + var(--safe-bottom));
+  }
 }
 .matchday .md-strip-squad {
   flex: 0 0 auto;
@@ -597,6 +657,11 @@
   box-shadow: 0 0 0 1px var(--primary);
 }
 .matchday .md-card.out {
+  /* A man off (sent off, injured, substituted): a dashed edge and a faded shirt, never faded text (opacity 0.5 took
+     the name, position and rating to 2.5:1; DESIGN_SYSTEM section 15 rule 4) */
+  border-style: dashed;
+}
+.matchday .md-card.out .md-shirt {
   opacity: 0.5;
 }
 .matchday .md-card-top {
@@ -608,6 +673,7 @@
 }
 .matchday .md-pos {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: calc(var(--fs-xs) - 1px);
   font-weight: 700;
   color: var(--text-2);
@@ -633,17 +699,6 @@
   justify-content: space-between;
   gap: 4px;
   align-self: stretch;
-}
-.matchday .md-cond {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--bg-3);
-  overflow: hidden;
-}
-.matchday .md-cond > span {
-  display: block;
-  height: 100%;
 }
 
 /* ------------------------------------------------------------------ event lists */
@@ -916,7 +971,7 @@
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 15%, transparent), var(--gold), var(--danger));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--heat-warm) 15%, transparent), var(--heat-warm), var(--heat-hot));
 }
 
 /* ------------------------------------------------------------------ latest scores, live table, info */
@@ -1069,75 +1124,13 @@
   font-size: var(--fs-xs);
   text-align: center;
 }
-.matchday .md-goals {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-}
 
 /* ------------------------------------------------------------------ stop panel */
-.matchday .md-stop {
-  border-color: var(--primary);
-  border-radius: var(--radius-s);
-  padding: 10px 12px;
-}
-.matchday .md-stop .panel-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin-bottom: 8px;
-}
-.matchday .md-stop .panel-head h2 {
-  font-size: calc(var(--fs-h2) - 2px);
-}
-.matchday .md-stop-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-.matchday .md-stop-actions .btn.big {
-  padding: 8px 16px;
-  font-size: calc(var(--fs-base) + 1px);
-}
 .matchday .md-stop-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   align-items: start;
-}
-.matchday .md-stop .field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: var(--fs-meta);
-  font-weight: 600;
-}
-.matchday .md-stop .field .help {
-  font-weight: 400;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.matchday .md-stop .segmented {
-  align-self: flex-start;
-  flex-wrap: wrap;
-}
-.matchday .md-stop .segmented button {
-  padding: 4px 8px;
-  font-size: var(--fs-meta);
-}
-.matchday .md-stop .col {
-  gap: 8px;
-  min-width: 0;
-}
-.matchday .md-stop .plist {
-  max-height: 220px;
-  overflow: auto;
-}
-.matchday .md-stop .prow {
-  padding: 3px 6px;
-  font-size: var(--fs-meta);
 }
 .matchday .md-two {
   display: grid;
@@ -1174,11 +1167,6 @@
 .matchday.compact .md-pulse > .mchart {
   background: var(--panel);
   padding: 6px 10px;
-}
-.matchday.compact .md-stack {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--md-gap);
 }
 .matchday.compact .md-slot-body {
   flex: none;
@@ -1220,7 +1208,6 @@
     padding-left: 6px;
   }
   .matchday.compact .md-pulse,
-  .matchday.compact .md-stack,
   .matchday .md-two {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1233,14 +1220,11 @@
   .matchday .md-stop-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .matchday .md-stop-actions {
-    margin-left: 0;
-  }
 }
 
 /* ------------------------------------------------------------------ motion */
 @media (prefers-reduced-motion: reduce) {
-  .matchday .md-banner .txt,
+  .matchday .md-banner.key .txt,
   .matchday .md-ev,
   .matchday .md-line,
   .matchday .md-score.fresh .res {

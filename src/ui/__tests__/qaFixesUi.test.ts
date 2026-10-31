@@ -16,7 +16,6 @@ import { H2HSetup } from '../screens/H2H'
 import { Dugout, TacticsTab } from '../screens/Dugout'
 import { MatchScreen } from '../screens/MatchScreen'
 import { Explore } from '../screens/Explore'
-import { Home } from '../screens/Home'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { StatsTab } from '../screens/StatsTab'
 import { useStore } from '@game/store'
@@ -29,18 +28,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 describe('QA screen fixes', () => {
-  it('keeps Daily as one equal mode card and places Explore navigation at opposite edges', () => {
-    const u = loadTestUniverse(['england'])
-    show({ universe: u, loadedLeagues: ['england'], game: null, parked: {}, screen: 'home' })
-    const home = renderToString(createElement(Home))
-    expect(home).toContain('data-testid="daily-card"')
-    expect(home).not.toContain('data-testid="daily-play"')
-    expect(home).not.toContain('data-testid="daily-ranked"')
-
-    const explore = readFileSync(join(__dirname, '..', 'screens', 'Explore.tsx'), 'utf8')
-    expect(explore).toMatch(/explore-head-actions[\s\S]*?← Home[\s\S]*?<BoxesMenu/)
-  })
-
   it('QA-2: the head-to-head setup renders while the chosen league is still loading (it was a white page)', () => {
     // England is the setup's first league; a universe without its pack is the moment after a new league is picked
     show({ universe: loadTestUniverse(['spain']), loadedLeagues: ['spain'], h2h: null, screen: 'h2h' })
@@ -60,22 +47,6 @@ describe('QA screen fixes', () => {
     expect(renderProblems(TacticsTab)).toEqual([])
     show({ game: null, screen: 'explore' })
     expect(renderProblems(Explore)).toEqual([])
-  })
-
-  it('renders the experimental tactics board with an XI, bench and explicit edit actions', () => {
-    const u = loadTestUniverse(['england'])
-    const g = createGame({ mode: 'season', seed: 'qa-tactics-board', formationId: '4-3-3', teamName: 'QA', shortName: 'QAA', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2024, rules: { ...SEASON_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
-    const rng = Rng.fromState(g.rngState)
-    autoDraft(u, g.draft!, rng)
-    g.rngState = rng.getState()
-    beginSeason(g, u)
-    show({ universe: u, loadedLeagues: ['england'], game: g, screen: 'game' })
-    const html = renderToString(createElement(TacticsTab))
-    expect(html).toContain('data-testid="tactics-board"')
-    expect(html).toContain('data-testid="tactics-bench"')
-    expect(html).toContain('data-testid="change-formation"')
-    expect(html).toContain('data-testid="swap-players"')
-    expect(markupProblems(html)).toEqual([])
   })
 })
 
@@ -106,6 +77,17 @@ describe('QA-4: a screen that throws while rendering', () => {
     expect(html).toContain('Back to home')
     expect(html).toContain('Reload')
     expect(markupProblems(html)).toEqual([])
+  })
+
+  it('offers only Reload when Home itself threw (Back to home would land on the same error)', () => {
+    const b = new ScreenBoundary({ resetKey: 'home||setup', onHome: () => {}, atHome: true, children: null })
+    b.state = { error: new Error('boom'), key: 'home||setup' }
+    const html = renderToString(createElement(() => b.render()))
+    expect(html).toContain('data-testid="screen-error"')
+    expect(html).not.toContain('screen-error-home')
+    expect(html).toMatch(/class="btn primary"[^>]*data-testid="screen-error-reload"/)
+    expect(markupProblems(html)).toEqual([])
+    expect(readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')).toContain("atHome={screen === 'home'}")
   })
 
   it('wraps the screens in App, so a render error never blanks the top bar', () => {

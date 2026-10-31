@@ -1,17 +1,28 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { Position } from '@engine/types'
 import { POSITION_GROUP } from '@engine/positions'
 import { inkOn, ratingBand } from '../format'
 import { useStore } from '@game/store'
-import { tipSeen, type TipId } from '@game/logic/tips'
+import { tipInTurn, type TipId } from '@game/logic/tips'
+import { resultsFinished } from '@game/logic/onboarding'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
-import { resultsLabel } from '../a11y'
+import { MODAL_SHEET_HANDLE, useSheetDrag } from '../useSheetDrag'
+import { onRadioGroupKey, onTabListKey, radioTabIndex, resultsLabel } from '../a11y'
+import { playSound } from '../sound/synth'
+import { toastTone } from '../sound/cues'
+import { translator } from '../i18n'
+import { common } from '../i18n/en/common'
+import { shellLogicLine } from '../i18n/logicLine'
 
-export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
+const t = translator(common)
+// The tab strip's own `t` (a tab) shadows the translator inside it
+const tc = translator(common)
+
+export function ClubBadge({ clubId, size = 32, blank }: { clubId: string; size?: number; /** Colours only, no letters: the name is printed beside it (a two-letter cut of the code read as another code; playtest round 2, P10). */ blank?: boolean }) {
   const u = useStore((s) => s.universe)
   const club = u?.clubById[clubId]
   const primary = club?.colours.primary ?? '#555'
@@ -24,7 +35,7 @@ export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number
   const ring = small ? 1.5 : Math.max(2, size * 0.07)
   return (
     <span className="badge" title={club?.name ?? clubId} style={{ width: size, height: size, background: primary, color: inkOn(primary), fontSize, letterSpacing: small ? 0 : undefined, boxShadow: `inset 0 0 0 ${ring}px ${secondary}` }}>
-      {code}
+      {blank ? null : code}
     </span>
   )
 }
@@ -47,7 +58,7 @@ export function Rating({ value, size, hidden, range, reveal, label }: { value: n
   const v = Math.round(value)
   if (!hidden && range && range.hi > range.lo) {
     return (
-      <span className={`rating range ${ratingBand(Math.round((range.lo + range.hi) / 2))} ${size ?? ''}`} title={`Somewhere from ${range.lo} to ${range.hi}: scout him to know`} data-testid="rating-range">
+      <span className={`rating range ${ratingBand(Math.round((range.lo + range.hi) / 2))} ${size ?? ''}`} title={t('ratingRangeTip', { lo: range.lo, hi: range.hi })} data-testid="rating-range">
         {range.lo}–{range.hi}
       </span>
     )
@@ -62,8 +73,8 @@ export function Rating({ value, size, hidden, range, reveal, label }: { value: n
 /** The marker of a classic season's numbers: TouchLine's estimate, not an EA rating. `compact` fits a player row. */
 export function EstimatedChip({ compact }: { compact?: boolean }) {
   return (
-    <span className="chip estimated" data-testid="estimated-chip" title="Estimated ratings: no official ratings exist for this season, so TouchLine estimates them from real appearances, goals and results. Squads and tables are real.">
-      {compact ? 'est.' : 'Estimated ratings'}
+    <span className="chip estimated" data-testid="estimated-chip" title={t('estimatedTip')}>
+      {t(compact ? 'estimatedShort' : 'estimated')}
     </span>
   )
 }
@@ -86,11 +97,13 @@ export function Bar({ value, max = 100, colour, thick }: { value: number; max?: 
   )
 }
 
-export function Segmented<T extends string>({ options, value, onChange }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void }) {
+export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: ReactNode; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void; label: string }) {
+  const checked = options.findIndex((o) => o.value === value)
+  // A named radio group (`label`: what is being chosen), one Tab stop, the arrows move the choice (round 4)
   return (
-    <div className="segmented" role="radiogroup">
-      {options.map((o) => (
-        <button key={o.value} type="button" className={o.value === value ? 'active' : ''} onClick={() => onChange(o.value)} title={o.hint} role="radio" aria-checked={o.value === value} data-testid={o.testId}>
+    <div className="segmented" role="radiogroup" aria-label={label} onKeyDown={onRadioGroupKey}>
+      {options.map((o, i) => (
+        <button key={o.value} type="button" className={o.value === value ? 'active' : ''} onClick={() => onChange(o.value)} title={o.hint} role="radio" aria-checked={o.value === value} tabIndex={radioTabIndex(i, checked)} data-testid={o.testId}>
           {o.label}
         </button>
       ))}
@@ -108,15 +121,17 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId, cla
   const boxRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   useDialog(backRef, boxRef, open, onClose)
+  const drag = useSheetDrag(boxRef, onClose, MODAL_SHEET_HANDLE)
   if (!open) return null
   return (
     <div ref={backRef} className={`modal-back ${sheet ? 'sheet-back' : ''}`} onClick={onClose}>
-      <div ref={boxRef} className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} data-testid={testId}>
+      <div ref={boxRef} className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} data-testid={testId} {...drag}>
+        {onClose && <div className="sheet-grip" aria-hidden="true" data-testid="sheet-grip" />}
         {title && (
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
             {onClose && (
-              <button className="btn sm ghost" onClick={onClose} aria-label="Close">
+              <button className="btn sm ghost" onClick={onClose} aria-label={t('close')}>
                 ✕
               </button>
             )}
@@ -135,6 +150,8 @@ export function Toast() {
   const [leaving, setLeaving] = useState<string | null>(null)
   useEffect(() => {
     if (!toast) return
+    // Heard as it shows: a soft blip, or two falling notes for something that failed (interface sounds, thinned on a burst)
+    playSound({ id: toastTone(toast) })
     // The same message shown again later starts afresh
     setLeaving(null)
     const out = setTimeout(() => setLeaving(toast), 2980)
@@ -149,11 +166,11 @@ export function Toast() {
   return (
     <>
       <div className="sr-only" role="status" data-dialog-keep="" data-testid="toast-live">
-        {toast ?? ''}
+        {toast ? shellLogicLine(toast) : ''}
       </div>
       {toast && (
         <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} aria-hidden="true" data-dialog-keep="">
-          {toast}
+          {shellLogicLine(toast)}
         </div>
       )}
     </>
@@ -179,7 +196,7 @@ export function CountUp({ value }: { value: number }) {
  * clipped by a scrolling list and never widens the page. Keep the text short
  * and plain; no links or buttons inside.
  */
-export function Info({ children, label = 'More information' }: { children: ReactNode; label?: string }) {
+export function Info({ children, label = t('moreInfo') }: { children: ReactNode; label?: string }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ left: number; top: number; below: boolean } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -267,7 +284,7 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
   // The letters show; a screen reader hears the words ("W" alone reads as "double-u")
   return (
-    <span className="form" role="img" aria-label={resultsLabel(form, 'Form')}>
+    <span className="form" role="img" aria-label={resultsLabel(form, t('formLabel'))}>
       {form.map((f, i) => (
         <span key={i} className={f}>
           {f}
@@ -278,16 +295,16 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
 }
 
 /** Tab strip; `alert` draws a dot, `badge` a count (which takes the dot's place when both are set). */
-export function Tabs<T extends string>({ tabs, value, onChange, className = '', testId }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void; /** Extra classes on the strip. */ className?: string; /** Each tab gets `data-testid="<testId>-<id>"`. */ testId?: string }) {
+export function Tabs<T extends string>({ tabs, value, onChange, className = '', testId }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number; /** `aria-keyshortcuts`, for a strip with keys (the Dugout's). */ keys?: string; title?: string }>; value: T; onChange: (t: T) => void; /** Extra classes on the strip. */ className?: string; /** Each tab gets `data-testid="<testId>-<id>"`. */ testId?: string }) {
   const ink = useTabInk(value, tabs.length)
   return (
-    <div className={`tabs ${ink.style ? 'has-ink' : ''} ${className}`} role="tablist" ref={ink.ref}>
+    <div className={`tabs ${ink.style ? 'has-ink' : ''} ${className}`} role="tablist" ref={ink.ref} onKeyDown={onTabListKey}>
       {ink.style && <span className={`tabs-ink ${ink.ready ? 'ready' : ''}`} style={ink.style} aria-hidden="true" />}
       {tabs.map((t) => (
-        <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)} data-testid={testId ? `${testId}-${t.id}` : undefined}>
+        <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} className={t.id === value ? 'active' : ''} aria-keyshortcuts={t.keys} title={t.title} onClick={() => { if (t.id !== value) playSound({ id: 'tab' }); onChange(t.id) }} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
-            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={`${t.badge} new`}>
+            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={tc('newBadge', { n: t.badge })}>
               {t.badge > 99 ? '99+' : t.badge}
             </span>
           ) : (
@@ -318,8 +335,9 @@ function useTabInk(value: string, count: number) {
       const next = { x: b.offsetLeft, y: b.offsetTop + b.offsetHeight - 2, w: b.offsetWidth }
       setBox((prev) => (prev && prev.x === next.x && prev.y === next.y && prev.w === next.w ? prev : next))
     }
-    measure()
-    if (typeof ResizeObserver === 'undefined') return
+    if (typeof ResizeObserver === 'undefined') return measure()
+    // No measure here: the observer's first report comes after the frame's own layout, where reading the boxes is free;
+    // read inside the commit they forced the new screen's layout there (about 90 ms of the Dugout's mount at 4x)
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     el.querySelectorAll('button').forEach((b) => ro.observe(b))
@@ -334,20 +352,54 @@ function useTabInk(value: string, count: number) {
   return { ref, style, ready }
 }
 
+/** The coach marks on screen now (mounted, seen or not), so only one shows at a time (`tipInTurn`). */
+let mountedTips: readonly TipId[] = []
+const tipListeners = new Set<() => void>()
+const tipsOnScreen = {
+  add(id: TipId) {
+    mountedTips = [...mountedTips, id]
+    tipListeners.forEach((f) => f())
+  },
+  remove(id: TipId) {
+    const i = mountedTips.indexOf(id)
+    if (i < 0) return
+    mountedTips = [...mountedTips.slice(0, i), ...mountedTips.slice(i + 1)]
+    tipListeners.forEach((f) => f())
+  },
+  subscribe(f: () => void) {
+    tipListeners.add(f)
+    return () => void tipListeners.delete(f)
+  },
+  get: () => mountedTips,
+}
+
 /**
  * A coach mark: a short callout inline in the page flow, shown until its 'Got it'
  * is pressed (remembered on the profile). Never an overlay, never blocks a button.
+ * One at a time: a second tip on screen waits until the first is dismissed or leaves; a feature tip waits for its
+ * moment (`TIP_AFTER`: results finished). 'No more tips' dismisses them all at once (Profile's 'Show tips again' brings them back).
  */
 export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
-  const seen = useStore((s) => tipSeen(s.profile, id))
+  const mounted = useSyncExternalStore(tipsOnScreen.subscribe, tipsOnScreen.get, tipsOnScreen.get)
+  const shown = useStore((s) => tipInTurn(s.profile, mounted, resultsFinished(s.profile)) === id)
   const dismiss = useStore((s) => s.dismissTip)
-  if (seen) return null
+  const dismissAll = useStore((s) => s.dismissAllTips)
+  useEffect(() => {
+    tipsOnScreen.add(id)
+    return () => tipsOnScreen.remove(id)
+  }, [id])
+  if (!shown) return null
   return (
     <div className="tip" role="note" data-testid={`tip-${id}`}>
       <span className="tip-text">{children}</span>
-      <button type="button" className="btn sm" onClick={() => dismiss(id)}>
-        Got it
-      </button>
+      <span className="tip-actions">
+        <button type="button" className="btn sm" onClick={() => dismiss(id)} data-testid="tip-got-it">
+          {t('gotIt')}
+        </button>
+        <button type="button" className="linklike small" onClick={() => dismissAll()} data-testid="tip-no-more">
+          {t('noMoreTips')}
+        </button>
+      </span>
     </div>
   )
 }

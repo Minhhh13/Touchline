@@ -6,7 +6,8 @@
  * as a projection. Pure: no game state, and no random numbers except
  * `suggestRunIns`' own stream of the setup seed.
  */
-import type { LeagueSeasonRow } from './types'
+import type { ClubSeason, LeagueSeasonRow } from './types'
+import { teamStrengthOf } from './knockout'
 import { isClassicSeason, type LoadedUniverse } from './universe'
 import { Rng } from './rng'
 import { computeTable, positionOf, USER_TEAM, type CarryRow } from './season'
@@ -21,14 +22,30 @@ export const RUN_IN_LEAGUES = ['england', 'spain', 'italy', 'germany'] as const
 /**
  * Leagues whose third-from-bottom club plays a relegation play-off (the
  * Bundesliga's 16th, in every season the packs hold) whose result the data
- * does not keep: only the two below it went down for certain. The game itself
- * still relegates the bottom three.
+ * does not keep: only the two below it went down for certain. From engine 7 a
+ * run-in that finishes there plays the play-off (`playOffOpponent`, the
+ * Run-in's `playRunInPlayOff`): two legs, the survival brief met by winning it.
  */
 export const PLAYOFF_LEAGUES: readonly string[] = ['germany']
 
 /** How many clubs at the foot of a real final table went straight down: two in a play-off league, three elsewhere. */
 export function relegatedDirectly(leagueId: string): number {
   return PLAYOFF_LEAGUES.includes(leagueId) ? 2 : 3
+}
+
+/**
+ * The second division's side a play-off league's 16th meets in a run-in (engine 7). The packs hold no second division,
+ * so it stands in as the weakest, by real team strength, of the clubs promoted for the next season (in the next
+ * season's league and not in this one): the 2. Bundesliga's champions, runners-up and, when it won, the third-placed
+ * side that really played the play-off, at the strength of its first season up. Null outside a play-off league, or
+ * without the next season in the packs. Pure: no draw.
+ */
+export function playOffOpponent(u: LoadedUniverse, leagueId: string, season: number): ClubSeason | null {
+  if (!PLAYOFF_LEAGUES.includes(leagueId)) return null
+  const now = new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).map((cs) => cs.clubId))
+  const up = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season + 1 && !cs.classic && !now.has(cs.clubId) && cs.squad.length >= 11)
+  if (!up.length) return null
+  return [...up].sort((a, b) => teamStrengthOf(u, a) - teamStrengthOf(u, b) || (a.clubId < b.clubId ? -1 : 1))[0]
 }
 
 /** A club-season this many players short of a matchday squad cannot be a league side in a run-in. */
@@ -56,6 +73,40 @@ export function scaleRow(row: Pick<LeagueSeasonRow, 'won' | 'drawn' | 'lost' | '
     left--
   }
   return { won: counts[0], drawn: counts[1], lost: counts[2], goalsFor: Math.round((row.goalsFor * n) / played), goalsAgainst: Math.round((row.goalsAgainst * n) / played) }
+}
+
+/**
+ * A whole real table scaled back to `n` of its `played` matches (engine 6, QA O-1): every row as `scaleRow` scales it,
+ * then reconciled league-wide so the carried table adds up, as one played from fixtures would: while the league has more
+ * wins than losses (or the other way), the row whose rounding gave it the most turns one of them into a draw; while its
+ * goals for and against differ, the row whose rounding gave it the most loses one (never below its wins, or its losses,
+ * so a win is still a scoring match). Each row stays within one result and one goal of its own `scaleRow`. Pure.
+ */
+export function scaleTable(rows: LeagueSeasonRow[], played: number, n: number): Record<string, CarryRow> {
+  const out = rows.map((r) => scaleRow(r, played, n))
+  const exact = (x: number) => (x * n) / played
+  const excess = (i: number, k: 'won' | 'lost' | 'goalsFor' | 'goalsAgainst') => out[i][k] - exact(rows[i][k])
+  const pick = (k: 'won' | 'lost' | 'goalsFor' | 'goalsAgainst', ok: (i: number) => boolean) => {
+    let best = -1
+    for (let i = 0; i < out.length; i++) if (ok(i) && (best < 0 || excess(i, k) > excess(best, k))) best = i
+    return best
+  }
+  const total = (k: keyof CarryRow) => out.reduce((a, r) => a + r[k], 0)
+  for (let gap = total('won') - total('lost'); gap !== 0; gap = total('won') - total('lost')) {
+    const k = gap > 0 ? 'won' : 'lost'
+    const i = pick(k, (j) => out[j][k] > 0)
+    if (i < 0) break
+    out[i][k]--
+    out[i].drawn++
+  }
+  for (let gap = total('goalsFor') - total('goalsAgainst'); gap !== 0; gap = total('goalsFor') - total('goalsAgainst')) {
+    const k = gap > 0 ? 'goalsFor' : 'goalsAgainst'
+    const floor = gap > 0 ? 'won' : 'lost'
+    const i = pick(k, (j) => out[j][k] > out[j][floor])
+    if (i < 0) break
+    out[i][k]--
+  }
+  return Object.fromEntries(rows.map((r, i) => [r.clubId, out[i]]))
 }
 
 /** The place a brief asks for: 1 for the title, 4 for Europe, the last safe place (`clubs − 3`) for survival. */
@@ -101,14 +152,16 @@ export function projectedCarryIn(u: LoadedUniverse, leagueId: string, season: nu
   if (!rows) return null
   const played = 2 * (rows.length - 1)
   const n = takeoverWeek(played)
-  return Object.fromEntries(rows.map((r) => [r.clubId === hostClubId ? USER_TEAM : r.clubId, scaleRow(r, played, n)]))
+  const scaled = scaleTable(rows, played, n)
+  return Object.fromEntries(rows.map((r) => [r.clubId === hostClubId ? USER_TEAM : r.clubId, scaled[r.clubId]]))
 }
 
 function jobOf(template: RunInTemplate, leagueId: string, season: number, rows: LeagueSeasonRow[], row: LeagueSeasonRow): RunInJob {
   const clubs = rows.length
   const matchweeks = 2 * (clubs - 1)
   const takeover = takeoverWeek(matchweeks)
-  const carry = Object.fromEntries(rows.map((r) => [r.clubId === row.clubId ? USER_TEAM : r.clubId, scaleRow(r, matchweeks, takeover)]))
+  const scaled = scaleTable(rows, matchweeks, takeover)
+  const carry = Object.fromEntries(rows.map((r) => [r.clubId === row.clubId ? USER_TEAM : r.clubId, scaled[r.clubId]]))
   const table = computeTable([], Object.keys(carry), carry)
   const position = positionOf(table, USER_TEAM)
   const points = table[position - 1].points

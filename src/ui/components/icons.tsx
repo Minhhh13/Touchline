@@ -4,6 +4,11 @@ import type { Twist } from '@engine/draft'
 import type { ModeCard } from '@engine/modes'
 import { POWER_UPS, type PowerUp } from '@engine/powerups'
 import type { BriefingItem } from '@game/logic/briefing'
+import type { RuleIcon } from '@game/logic/setup'
+import { FerrisWheel, Gift, Package, UserRound } from 'lucide-react'
+import { Activity, Award, CalendarClock, Flame, Gavel, Goal, Hourglass, Newspaper, Scale, ShieldAlert, Swords, TrendingDown, Undo2 } from 'lucide-react'
+import type { StorylineKind } from '@game/logic/storylines'
+import type { PreviewLineId } from '../storyText'
 
 /** The Inbox's picture for each kind of news; the same meanings as the digest's groups (DESIGN_SYSTEM.md section 7). */
 export const NEWS_ICON: Record<NewsItem['kind'], LucideIcon> = {
@@ -18,6 +23,34 @@ export const NEWS_ICON: Record<NewsItem['kind'], LucideIcon> = {
   training: Dumbbell,
   info: InfoGlyph,
 }
+
+/** The storylines' pictures (the Inbox's Storylines box and the Dugout's chip). */
+export const STORY_ICON: Record<StorylineKind, LucideIcon> = {
+  'title-race': Crown,
+  relegation: ShieldAlert,
+  'golden-boot': Goal,
+  'winning-run': Flame,
+  'unbeaten-run': Shield,
+  'losing-run': TrendingDown,
+  'winless-run': TrendingDown,
+  milestone: Award,
+  'old-club': Undo2,
+  pressure: Gavel,
+  'run-in': Hourglass,
+}
+
+/** A match preview's lines; the summer's review is `SUMMER_ICON`. */
+export const PREVIEW_ICON: Record<PreviewLineId, LucideIcon> = {
+  stake: Scale,
+  derby: Swords,
+  form: Activity,
+  meetings: CalendarClock,
+  'watch-theirs': Eye,
+  'watch-ours': Star,
+  'old-boys': Undo2,
+}
+
+export const SUMMER_ICON = Newspaper
 
 /** One picture per wheel twist, drawn in the twist card and the draft log. */
 export const TWIST_ICON: Record<Twist, LucideIcon> = {
@@ -36,6 +69,15 @@ export const MODE_ICON: Record<ModeCard, LucideIcon> = {
   speedrun: Timer,
   gamble: Coins,
   upgrader: CircleArrowUp,
+}
+
+/** The fixed-rules chips' pictures (`describeRuleChips`): the mode cards' own, and the ones Setup's Power-ups, End case and Manager cards draw. */
+export const RULE_ICON: Record<RuleIcon, LucideIcon> = {
+  ...MODE_ICON,
+  'power-ups': Package,
+  'end-case': Gift,
+  'manager-spin': FerrisWheel,
+  'manager-pick': UserRound,
 }
 
 /** A red card: the suspension icon filled in the bad colour. */

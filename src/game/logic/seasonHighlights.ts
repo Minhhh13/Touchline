@@ -9,7 +9,7 @@
 import { ordinal, type LoadedUniverse } from '@engine/universe'
 import { describeImportance, positionOf, seasonTable, USER_TEAM, type Competition } from '@engine/season'
 import type { Game } from '../types'
-import { nextOpponent, playMatchweek, startSeasonProper, upcomingCupTie } from './week'
+import { nextOpponent, playMatchweekSteps, runSteps, startSeasonProper, upcomingCupTie, WEEK_END, type GameBox, type WeekStep } from './week'
 import { briefOpen, briefStanding, gapLine, RUN_IN_LAST_STOPS } from './runin'
 
 /** Why the sim stopped, most important first among the before-the-week reasons. */
@@ -57,11 +57,11 @@ export function nextStop(game: Game, u: LoadedUniverse): StopReason | null {
   const table = seasonTable(season)
 
   const tie = upcomingCupTie(game)
-  if (tie && (tie.tie.round === 'F' || tie.tie.round === 'SF')) {
-    const home = tie.tie.homeTeamId === USER_TEAM
-    const opponentClubId = home ? tie.tie.awayTeamId : tie.tie.homeTeamId
-    const label = describeImportance(u, season.hostClubId, opponentClubId, null, mw, tie.tie.round, tie.comp).label ?? tie.label
-    return { kind: tie.tie.round === 'F' ? 'final' : 'semi-final', matchweek: mw, label, opponentClubId, home, comp: tie.comp }
+  if (tie && (tie.round === 'F' || tie.round === 'SF')) {
+    const home = tie.homeTeamId === USER_TEAM
+    const opponentClubId = home ? tie.awayTeamId : tie.homeTeamId
+    const label = describeImportance(u, season.hostClubId, opponentClubId, null, mw, tie.round, tie.comp).label ?? tie.label
+    return { kind: tie.round === 'F' ? 'final' : 'semi-final', matchweek: mw, label, opponentClubId, home, comp: tie.comp }
   }
 
   const opp = nextOpponent(game)
@@ -123,17 +123,24 @@ export function stopAfterWeek(game: Game, before: WeekMark): StopReason | null {
  * back to `week`. Returns the stop, or null when the run ended the season.
  */
 export function simToNextStop(game: Game, u: LoadedUniverse): StopReason | null {
-  if (game.phase === 'preseason') startSeasonProper(game)
+  return runSteps(simToNextStopSteps({ g: game }, u))
+}
+
+/** `simToNextStop` in steps (each week's `playMatchweekSteps`, then `WEEK_END`), for a caller that gives the page a task between them. */
+export function* simToNextStopSteps(box: GameBox, u: LoadedUniverse): Generator<WeekStep, StopReason | null, undefined> {
+  if (box.g.phase === 'preseason') startSeasonProper(box.g, u)
   for (;;) {
+    const game = box.g
     const season = game.season
     if (game.phase === 'summary' || !season || season.sacked || season.matchweek >= season.matchweeks) return null
     const before = nextStop(game, u)
     if (before) return before
     const m = weekMark(game)
-    playMatchweek(game, u, true)
+    yield* playMatchweekSteps(game, u, true)
     if (game.phase === 'match') game.phase = 'week'
     const after = stopAfterWeek(game, m)
     if (after) return after
+    yield WEEK_END
   }
 }
 
@@ -159,7 +166,9 @@ export function foreseeStop(game: Game, u: LoadedUniverse): { label: string; mat
   for (const k of knockouts) {
     if (k.out) continue
     const tie = k.ties.find((t) => !t.result && (t.round === 'SF' || t.round === 'F') && t.afterMatchweek > season.matchweek && (t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM))
-    if (tie) found.push({ label: describeImportance(u, season.hostClubId, '', null, tie.afterMatchweek, tie.round, k.comp).label ?? 'Cup tie', matchweek: tie.afterMatchweek })
+    // A two-legged tie (engine 7's Continental Cup) stops at its first leg while that is still to play, as `nextStop` does
+    const at = tie?.firstLeg && !tie.firstLeg.result && tie.firstLeg.afterMatchweek > season.matchweek ? tie.firstLeg.afterMatchweek : tie?.afterMatchweek
+    if (tie && at) found.push({ label: describeImportance(u, season.hostClubId, '', null, at, tie.round, k.comp).label ?? 'Cup tie', matchweek: at })
   }
   const half = Math.floor(season.matchweeks / 2)
   if (!game.window && season.matchweek < half) found.push({ label: 'the January window', matchweek: half })

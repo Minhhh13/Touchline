@@ -4,6 +4,7 @@
  */
 import { binOf, MOMENTUM_BINS } from '@engine/matchDetail'
 import type { Side } from './pitchGeometry'
+import { contrastRatio } from '../format'
 
 /**
  * Cumulative expected goals for one side, minute by minute (index 0 is kick-off,
@@ -47,4 +48,26 @@ export function momentumScale(momentum: number[], clock: number): number {
     if (clock > i * 5) dev = Math.max(dev, Math.abs(m - 0.5))
   })
   return Math.min(0.5, Math.max(0.1, Math.ceil(dev * 20 - 1e-9) / 20))
+}
+
+// The chart panel (`--panel-2`) in each theme (styles.css): a line's colour is judged against the panel it is drawn on
+const DAYLIGHT_CHART = '#f2f4fc'
+const FLOODLIT_CHART = '#112152'
+/**
+ * Under this contrast with the chart panel a kit's line gets a casing: WCAG 1.4.11's 3:1 for a graphic the chart needs
+ * (accessibility round 3; it was 2:1, which left a sky blue line in Daylight and a deep red one in Floodlit at about
+ * 2.3:1). The casing itself clears 3:1 on its panel in both themes.
+ */
+export const LINE_CONTRAST = 3
+
+/**
+ * Whether a side's line needs a casing to read on the chart panel: `pale` (a white or yellow kit) on the Daylight
+ * panel, `deep` (a navy or black kit) on the Floodlit one, null when it reads in both, or for a colour that is not
+ * #rrggbb. The stylesheet shows the casing only in the theme that needs it (`.line-casing`).
+ */
+export function lineTone(colour: string): 'pale' | 'deep' | 'both' | null {
+  if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(colour)) return null
+  const pale = contrastRatio(colour, DAYLIGHT_CHART) < LINE_CONTRAST
+  const deep = contrastRatio(colour, FLOODLIT_CHART) < LINE_CONTRAST
+  return pale && deep ? 'both' : pale ? 'pale' : deep ? 'deep' : null
 }

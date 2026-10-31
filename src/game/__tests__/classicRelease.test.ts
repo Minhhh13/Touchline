@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { breathe, loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES, type DraftRules } from '@engine/draft'
 import { buildLeague, mergeUniverses, type LeaguesFile, type LoadedUniverse, type MetaFile, type PlayersFile } from '@engine/universe'
@@ -75,7 +75,7 @@ describe('the classic pack moves no standard game on the release line', { timeou
     expect(wheelSeasons(full, ['england'])).toEqual(wheelSeasons(standard, ['england']))
   })
 
-  it('seeded quick seasons with Prime, the bench, Position First, January and Europe play identically', () => {
+  it('seeded quick seasons with Prime, the bench, Position First, January and Europe play identically', async () => {
     const cases: Array<[string, Partial<DraftRules>, Partial<GameSettings>]> = [
       ['gate-plain', {}, {}],
       ['gate-prime', { ratings: 'prime' }, {}],
@@ -86,12 +86,14 @@ describe('the classic pack moves no standard game on the release line', { timeou
       ['gate-era', { fromSeason: 2008, toSeason: 2012 }, {}],
     ]
     for (const [seed, rules, partial] of cases) {
+      await breathe()
       for (let i = 0; i < 3; i++) expect(play(full, settings(`${seed}-${i}`, rules, partial))).toEqual(play(standard, settings(`${seed}-${i}`, rules, partial)))
     }
   })
 
   it('the Daily is the same game on both, settings and season', () => {
-    for (const date of ['2026-10-25', '2026-01-01', '2027-02-28', '2025-07-14']) {
+    // 2026-10-30 is the rotation's first day, a Premier League one (DAILY_EPOCHS); its other leagues have no classic pack
+    for (const date of ['2026-10-25', '2026-01-01', '2026-10-30', '2025-07-14']) {
       const seed = `daily-${date}`
       const a = dailyGameSettings(full, seed)
       expect(a).toEqual(dailyGameSettings(standard, seed))

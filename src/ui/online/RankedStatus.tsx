@@ -2,10 +2,14 @@ import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { postKey, useOnline } from '../../online/state'
 import { rankedBoardOf, unrankedReason } from '../../online/daily'
-import { countryFlag } from '../../online/core/country'
-import { ordinal } from '../format'
+import { countryName } from './countries'
 import { APP_NAME } from '../brand'
 import { sentence } from '../../online/postText'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+import { formatLocale } from '../format'
+
+const t = translator(online)
 
 /** One line on a Daily or weekly Summary: posted and where it ranks, waiting for sign-in, or why it is unranked. */
 export function RankedStatus({ game }: { game: Game }) {
@@ -18,41 +22,38 @@ export function RankedStatus({ game }: { game: Game }) {
   const u = useStore((s) => s.universe)
   if (!configured || !board) return null
   const extra = !post && u ? unrankedReason(game, u) : null
-  const where = board.kind === 'daily' ? "today's Daily" : "this week's challenge"
+  const where = t(board.kind === 'daily' ? 'whereDaily' : 'whereWeekly')
   const points = game.quickResult?.points ?? 0
   let line: React.ReactNode
   let share: string | null = null
-  if (extra) line = <>Unranked: {extra}.</>
-  else if (!post) line = <>Finished before this device kept ranked posts: it is not on the board.</>
+  if (extra) line = <>{t('unrankedExtra', { reason: extra })}</>
+  else if (!post) line = <>{t('beforePosts')}</>
   else if (post.state === 'waiting' && post.reason === 'sign_in' && !session)
     line = (
       <>
-        Sign in to post {post.points ?? points} pts to the board for {where}.{' '}
+        {t('signInToPost', { n: post.points ?? points, where })}{' '}
         <button className="btn sm primary" onClick={() => go('account')} data-testid="ranked-signin">
-          Sign in
+          {t('signIn')}
         </button>
       </>
     )
-  else if (post.state === 'waiting' && post.reason === 'retry') line = <>Waiting to post {post.points ?? points} pts: the server did not answer, so this device tries again shortly.</>
-  else if (post.state === 'waiting') line = <>Posting to the world leaderboard…</>
+  else if (post.state === 'waiting' && post.reason === 'retry') line = <>{t('waitingRetry', { n: post.points ?? points })}</>
+  else if (post.state === 'waiting') line = <>{t('posting')}</>
   else if (post.state === 'posted') {
-    const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} of ${post.countryTotal ?? 0} in ${countryFlag(post.country)}` : ''
-    share = `${ordinal(post.position)} of ${post.total.toLocaleString()} on ${where} in ${APP_NAME}`
+    const country = post.country && post.countryPosition ? t('countryRank', { pos: post.countryPosition, total: post.countryTotal ?? 0, country: countryName(post.country) }) : ''
+    share = t('shareRank', { pos: post.position, total: post.total.toLocaleString(formatLocale()), where, app: APP_NAME })
     line = post.already ? (
       <>
-        Your first finished run counts: {post.points} pts, {ordinal(post.position)} of {post.total.toLocaleString()}
-        {country}.
+        {t('firstRunCounts', { n: post.points, pos: post.position, total: post.total.toLocaleString(formatLocale()), country })}
       </>
     ) : (
       <>
-        Posted: {ordinal(post.position)} of {post.total.toLocaleString()} on {where}
-        {country}
-        {post.claimMatched ? '.' : ' (official result from the server’s replay).'}
+        {t(post.claimMatched ? 'posted' : 'postedOfficial', { pos: post.position, total: post.total.toLocaleString(formatLocale()), where, country })}
       </>
     )
-  } else if (post.state === 'unranked') line = <>Unranked: {sentence(post.reason)}</>
-  else if (post.state === 'rejected') line = <>Not ranked: {sentence(post.reason)}</>
-  else line = <>That board has closed.</>
+  } else if (post.state === 'unranked') line = <>{t('unranked', { reason: sentence(post.reason) })}</>
+  else if (post.state === 'rejected') line = <>{t('notRanked', { reason: sentence(post.reason) })}</>
+  else line = <>{t('boardClosed')}</>
   return (
     <div className={`notice row between wrap ${post?.state === 'rejected' ? 'warn' : ''}`} style={{ marginTop: 12 }} data-testid="ranked-status">
       <span>{line}</span>
@@ -62,16 +63,16 @@ export function RankedStatus({ game }: { game: Game }) {
             className="btn sm ghost"
             onClick={() => {
               void navigator.clipboard?.writeText(share!).then(
-                () => showToast('Copied.'),
+                () => showToast(t('copied')),
                 () => showToast(share!),
               )
             }}
           >
-            Copy
+            {t('copy')}
           </button>
         )}
         <button className="btn sm" onClick={() => go('world')} data-testid="open-world">
-          World leaderboard
+          {t('worldLeaderboard')}
         </button>
       </span>
     </div>

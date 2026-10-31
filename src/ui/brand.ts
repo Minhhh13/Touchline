@@ -132,7 +132,8 @@ export function markTier(px: number): MarkTier {
  */
 export const LOCKUP = {
   grid: 64,
-  pole: { x: 9, y1: 13.4, y2: 49.5, w: 3 },
+  /** The pole runs into the line (its round foot ends inside it), so the two join with no seam. */
+  pole: { x: 9, y1: 13.4, y2: 51, w: 3 },
   /** The round cap on the pole's top: the highest point of the mark. */
   finial: { cy: 12.4, r: 2.2 },
   /** The pennant's top sits just above the name's cap tops (15.6u). */

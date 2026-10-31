@@ -2,13 +2,30 @@ import { Shuffle } from 'lucide-react'
 import { TWIST_EVERY, type Twist } from '@engine/draft'
 import { seasonLabel } from '../format'
 import { TWIST_ICON } from './icons'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+
+const t = translator(setup)
+
+/** A twist's emoji, title and rule; title and rule are read through `t()` when used, so they follow the language. */
+function twistInfo(twist: Twist, icon: string): { icon: string; title: string; rule: string } {
+  return {
+    icon,
+    get title() {
+      return t(`twistTitle_${twist}`)
+    },
+    get rule() {
+      return t(`twistRule_${twist}`)
+    },
+  }
+}
 
 /** `icon` is the emoji kept for share text and the summary; screens draw TWIST_ICON. */
 export const TWIST_INFO: Record<Twist, { icon: string; title: string; rule: string }> = {
-  golden: { icon: '🥇', title: 'Golden spin', rule: 'The wheel only stops on title-winning sides.' },
-  basement: { icon: '🪣', title: 'Basement spin', rule: 'The wheel only stops on the bottom three of their league that season.' },
-  blind: { icon: '🙈', title: 'Blind spin', rule: 'Ratings are hidden until you have picked. Trust the name.' },
-  decade: { icon: '📅', title: 'Decade spin', rule: 'The wheel stays in the decade of your last pick.' },
+  golden: twistInfo('golden', '🥇'),
+  basement: twistInfo('basement', '🪣'),
+  blind: twistInfo('blind', '🙈'),
+  decade: twistInfo('decade', '📅'),
 }
 
 /** The twist on the spin now showing (or the one coming), above the wheel. */
@@ -16,7 +33,7 @@ export function TwistCard({ twist, decade, next, every, coming }: { twist: Twist
   if (twist) {
     const info = TWIST_INFO[twist]
     const Icon = TWIST_ICON[twist]
-    const rule = twist === 'decade' && decade !== null ? `The wheel stays in the ${decade}s: ${seasonLabel(decade)} to ${seasonLabel(decade + 9)}.` : info.rule
+    const rule = twist === 'decade' && decade !== null ? t('decadeRule', { decade: String(decade), from: seasonLabel(decade), to: seasonLabel(decade + 9) }) : info.rule
     return (
       <div className={`twist-card ${twist}`} data-testid="twist-card">
         <span className="twist-icon" aria-hidden>
@@ -38,7 +55,7 @@ export function TwistCard({ twist, decade, next, every, coming }: { twist: Twist
           {info.icon}
         </span>
         <div>
-          <div className="twist-title">{info.title} next</div>
+          <div className="twist-title">{t('twistComing', { title: info.title })}</div>
           <div className="small muted">{info.rule}</div>
         </div>
       </div>
@@ -51,8 +68,8 @@ export function TwistCard({ twist, decade, next, every, coming }: { twist: Twist
           <Shuffle size={20} />
         </span>
         <div>
-          <div className="twist-title">Twist spin next</div>
-          <div className="small muted">{every ? 'Crazy: every' : `Every ${TWIST_EVERY === 3 ? 'third' : `${TWIST_EVERY}th`}`} spin: golden, basement, blind or decade.</div>
+          <div className="twist-title">{t('twistSpinNext')}</div>
+          <div className="small muted">{t('twistEvery', { crazy: every ? 'yes' : 'no', nth: TWIST_EVERY === 3 ? t('third') : `${TWIST_EVERY}th` })}</div>
         </div>
       </div>
     )

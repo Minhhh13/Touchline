@@ -2,14 +2,15 @@ import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { benchPlaces, difficultyOf, DIFFICULTY_RESPINS, draftModeOf, modesOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
-import { MODE_INFO, crazyFormation, withModes } from '@engine/modes'
+import { MODE_INFO, crazyFormation, withModes, type ModeCard } from '@engine/modes'
 import { POWER_UPS_ICON } from '@engine/powerups'
 import { dailySettings } from './daily'
 import { eraFirstSeason } from './era'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
-import { newSquadPlayer, buildAiClubs, buildContinentalClubs, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
+import { newSquadPlayer, buildAiClubs, buildContinentalClubs, humansOf, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
 import { startingFinances } from '@engine/market'
+import { continentalPlan, drawGroups, potOrder } from '@engine/continental'
 import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
 import { buildYouthIntake } from './youth'
@@ -25,7 +26,7 @@ import { isSuperLeague } from './superLeague'
 export const DEFAULT_HOST_POSITION = 10
 
 // The Daily's fixed settings and rules live in ./daily; re-exported here beside the rest of the setup logic
-export { DAILY_FORMATIONS, DAILY_RULES, DAILY_SEASON, dailySettings, type DailySettings } from './daily'
+export { DAILY_EPOCHS, DAILY_FORMATIONS, DAILY_RULES, DAILY_SEASON, dailyLeagueOf, dailyLoaded, dailyPlan, dailySettings, type DailyPlan, type DailySettings } from './daily'
 
 /**
  * The club whose place a new side takes when the player has not chosen: the one whose real finish that season is
@@ -113,11 +114,21 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     ...(c.managerSpin && (c.managers ?? base.managers) ? { managerSpin: true } : {}),
     ...(c.endCase ? { endCase: true } : {}),
     ...(c.classic ? { classic: true } : {}),
-    ...(c.superLeague ? { superLeague: true } : {}),
+    // The Super League's rivals a rating point off (`superEase`, `SUPER_LEAGUE_HANDICAP`); older games and links lack it
+    ...(c.superLeague ? { superLeague: true, superEase: true } : {}),
   }
   // The mode flags (and Crazy's twists); Hard is already the difficulty, so it rides along unchanged
   const moded = c.modes?.length ? withModes(rules, [...(hard ? (['hard'] as const) : []), ...c.modes]) : rules
   return c.powerUps ? { ...moded, powerUps: true } : moded
+}
+
+/** The picture a fixed-rules chip carries (`describeRuleChips`): a Quick Draft mode card, the power-ups, the end case or the manager; the screen draws its Lucide icon (`RULE_ICON`), never an emoji. */
+export type RuleIcon = ModeCard | 'power-ups' | 'end-case' | 'manager-spin' | 'manager-pick'
+
+/** One fixed-rules chip: its words, and the picture beside them when it has one. */
+export interface RuleChip {
+  text: string
+  icon?: RuleIcon
 }
 
 /**
@@ -126,25 +137,35 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
  * 'All-time', 'Twists on']`.
  */
 export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
+  return describeRuleChips(u, r).map((c) => c.text)
+}
+
+/**
+ * `describeRules` as chips: the same words in the same order, the modes, the Player Upgrader, the power-ups, the
+ * manager and the end case with the id of their picture (the cards Setup draws for them carry the same icons).
+ */
+export function describeRuleChips(u: LoadedUniverse, r: DraftRules): RuleChip[] {
   const diff = difficultyOf(r)
   const name = diff === 'easy' ? 'Easy' : diff === 'hard' ? 'Hard' : 'Normal'
   const respins = r.respins
   const respinWords = respins === 0 ? 'no re-spins' : `${respins} re-spin${respins === 1 ? '' : 's'}`
+  const plain = (text: string): RuleChip => ({ text })
   return [
     // A budget that is not the difficulty's own (the Daily's 2) is stated alone, so it never reads as "Normal: 2"
-    respins === DIFFICULTY_RESPINS[diff] ? `${name}: ${respinWords}` : respinWords[0].toUpperCase() + respinWords.slice(1),
-    ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on',
-    draftModeOf(r) === 'position' ? 'Position First' : 'Squad First',
-    ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
-    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
-    r.twists ? 'Twists on' : 'No twists',
-    ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
-    ...modesOf(r).map((m) => `${MODE_INFO[m].icon} ${MODE_INFO[m].title}`),
-    ...(r.upgrader ? [`${MODE_INFO.upgrader.icon} ${MODE_INFO.upgrader.title}`] : []),
-    ...(r.powerUps ? [`${POWER_UPS_ICON} Power-ups`] : []),
-    ...(r.managers ? [r.managerSpin ? 'Manager spin' : 'Manager pick'] : []),
-    ...(r.endCase ? ['🎁 End case'] : []),
-    ...(r.superLeague ? [SUPER_LEAGUE_NAME] : []),
+    plain(respins === DIFFICULTY_RESPINS[diff] ? `${name}: ${respinWords}` : respinWords[0].toUpperCase() + respinWords.slice(1)),
+    plain(ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on'),
+    plain(draftModeOf(r) === 'position' ? 'Position First' : 'Squad First'),
+    plain(ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings'),
+    plain(r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`),
+    plain(r.twists ? 'Twists on' : 'No twists'),
+    ...(benchPlaces(r) ? [plain(`Bench of ${benchPlaces(r)}`)] : []),
+    // Plain words with a picture id: the screen draws the Lucide icon beside the label, never an emoji
+    ...modesOf(r).map((m): RuleChip => ({ text: MODE_INFO[m].title, icon: m })),
+    ...(r.upgrader ? [{ text: MODE_INFO.upgrader.title, icon: 'upgrader' } satisfies RuleChip] : []),
+    ...(r.powerUps ? [{ text: 'Power-ups', icon: 'power-ups' } satisfies RuleChip] : []),
+    ...(r.managers ? [r.managerSpin ? ({ text: 'Manager spin', icon: 'manager-spin' } satisfies RuleChip) : ({ text: 'Manager pick', icon: 'manager-pick' } satisfies RuleChip)] : []),
+    ...(r.endCase ? [{ text: 'End case', icon: 'end-case' } satisfies RuleChip] : []),
+    ...(r.superLeague ? [plain(SUPER_LEAGUE_NAME)] : []),
   ]
 }
 
@@ -160,8 +181,9 @@ export function shortNameFor(name: string): string {
 }
 
 /** The complete settings of today's Daily, ready for `startGame`; only the team name is the player's. */
-export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'Touchline XI'): GameSettings {
-  const d = dailySettings(u, seed)
+export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'Touchline XI', leagueId?: string): GameSettings {
+  // `leagueId` only for the tests that pin the original Premier League mapping on a rotated date (`dailySettings`)
+  const d = leagueId ? dailySettings(u, seed, leagueId) : dailySettings(u, seed)
   const name = teamName.trim() || 'Touchline XI'
   return {
     mode: 'daily',
@@ -198,10 +220,11 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   // A quick draft's XI is the user's own team: only a managed season takes a club's place, so only it says "as"
   const host = s.mode === 'season' || s.mode === 'dynasty' ? `as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ` : ''
   // The Super League is no real league season, and its nineteen play at full strength whatever the opposition setting
-  const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, full strength` : `in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
+  const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, ${s.rules.superEase ? 'a point below full strength' : 'full strength'}` : `in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}${where}, seed ${s.seed}`]
   const r = s.rules
-  if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
+  // The Super League loads every league for its field; that is no European Nights wheel
+  if (s.wheelLeagues.length > 1 && !isSuperLeague(s)) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
   if (r.classic) parts.push('classic seasons (estimated ratings)')
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
@@ -383,13 +406,17 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   const inLeague = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === game.settings.leagueSeason).map((cs) => cs.clubId)
   if (inLeague.length && !inLeague.includes(game.settings.hostClubId)) game.settings = { ...game.settings, hostClubId: rng.pick(inLeague) }
   const s = game.settings
-  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
+  // The squad's humans play for us alone, in any season of theirs (engine 6, E6-2); the calibration stays the league's
+  // own, from full squads
+  const taken = humansOf(Object.keys(game.squad), playerLookup(game, u))
+  const full = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
+  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, taken)
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
   const cup = drawFirstCupRound(ids, rng, matchweeks)
   const userStrength = teamStrength(game, u).overall
-  const aiOffset = aiRatingOffset(u, ai, s.difficulty ?? 'calibrated')
+  const aiOffset = aiRatingOffset(u, full, s.difficulty ?? 'calibrated')
   const aiStrengths = Object.values(ai).map((c) => {
     const inp = aiTeamInput(u, c)
     return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall - aiOffset
@@ -399,8 +426,9 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   let continental: ContinentalState | undefined
   const wantsEurope = game.year === 1 ? !!s.continental : !!game.qualifiedContinental
   if (wantsEurope) {
-    const clubs = buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, 15)
-    if (Object.keys(clubs).length === 15) continental = { ties: drawFirstRound([USER_TEAM, ...Object.keys(clubs)], rng, continentalRounds(matchweeks)), clubs, eliminated: false, won: false }
+    const clubs = buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, 15, taken)
+    // Engine 7: four groups of four, the user at the head of the second pot (`continental.ts`)
+    if (Object.keys(clubs).length === 15) continental = { ties: [], groups: drawGroups(potOrder(Object.keys(clubs), USER_TEAM), rng, continentalPlan(matchweeks)), clubs, eliminated: false, won: false }
   }
   game.season = {
     leagueId: s.leagueId,
@@ -425,10 +453,10 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     sacked: false,
   }
   game.season.news.unshift({ matchweek: 0, kind: 'board', title: 'Board objectives', body: `Beyond the league position the board asks for two things: ${game.season.objectives!.map((o) => o.label.toLowerCase()).join(', and ')}. Each one met adds £${OBJECTIVE_REWARD.budget}M to next season's budget.` })
-  if (continental) {
-    const tie = continental.ties.find((t) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)!
-    const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
-    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'Continental Cup draw', body: `${wantsEurope && game.year > 1 ? 'Qualified by right. ' : ''}Round of 16: ${tie.homeTeamId === USER_TEAM ? 'home to' : 'away at'} ${continental.clubs[opp]?.name ?? opp}, after matchweek ${continentalRounds(matchweeks)[0].afterMatchweek}.` })
+  if (continental?.groups) {
+    const group = continental.groups.find((g) => g.teams.includes(USER_TEAM))!
+    const rivals = group.teams.filter((id) => id !== USER_TEAM).map((id) => continental!.clubs[id]?.name ?? id)
+    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'Continental Cup draw', body: `${wantsEurope && game.year > 1 ? 'Qualified by right. ' : ''}Group ${group.name}: ${rivals.join(', ')}. Six matchdays, home and away, from after matchweek ${continentalPlan(matchweeks).groupWeeks[0]}; the top two go through to the quarter-finals.` })
   } else if (wantsEurope) {
     game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'No Continental Cup', body: 'Not enough clubs from other leagues are loaded to form a field this season.' })
   }

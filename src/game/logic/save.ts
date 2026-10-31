@@ -1,4 +1,4 @@
-import type { Game, GameSettings, Profile, QuickBests, QuickJanuary } from '../types'
+import type { Game, GameSettings, Phase, Profile, QuickBests, QuickJanuary } from '../types'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
@@ -20,9 +20,19 @@ export function normaliseRules(r: DraftRules): DraftRules {
   return { ...r, difficulty, hardMode: !!r.hardMode || hard, showRatings: hard ? false : r.showRatings ?? true, draftMode: r.draftMode ?? 'squad', ratings: r.ratings ?? 'season' }
 }
 
+const PHASES: readonly Phase[] = ['draft', 'kickoff', 'january', 'preseason', 'week', 'match', 'summary']
+
+function isRngState(r: unknown): boolean {
+  if (!r || typeof r !== 'object') return false
+  const s = r as Record<string, unknown>
+  return ['a', 'b', 'c', 'd'].every((k) => Number.isInteger(s[k]))
+}
+
 /** Fill in fields added since the save was written; null for anything that is not a game. */
 export function normaliseGame(g: Game | null | undefined): Game | null {
   if (!g || typeof g !== 'object' || !g.settings || typeof g.settings !== 'object') return null
+  // What every build has written on every game: without it nothing can be shown or played (a damaged or foreign file)
+  if (typeof g.id !== 'string' || !PHASES.includes(g.phase) || typeof g.settings.mode !== 'string' || typeof g.settings.seed !== 'string' || !isRngState(g.rngState)) return null
   const settings: GameSettings = { ...g.settings }
   settings.leagueId ??= DEFAULT_LEAGUE
   settings.wheelLeagues ??= [settings.leagueId]
@@ -147,5 +157,30 @@ export function normaliseProfile(p: Partial<Profile> | null | undefined, default
   const quickBests: QuickBests = { perfectSeasons: b.perfectSeasons ?? 0, longestPerfectRun: b.longestPerfectRun ?? 0, ...(b.bestRecord ? { bestRecord: b.bestRecord } : {}) }
   // The locker (end-of-draft case drops): known power-ups with whole counts only; empty on a profile from before it
   const inventory = cleanLocker(saved.inventory)
-  return { ...defaults, ...saved, quickBests, inventory }
+  return { ...defaults, ...saved, quickBests, inventory, ...profileShapes(saved, defaults) }
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+/**
+ * The profile's lists, records and counts in their shapes (r9): a save file edited by hand or damaged on the way in
+ * passes `readSaveFile` with any of them bent, and the Trophy Room, Profile and Home threw reading one (a leaderboard
+ * that is not a list, a Daily Arena record with no results). A sound profile gets nothing back, so nothing changes.
+ */
+function profileShapes(saved: Partial<Profile>, defaults: Profile): Partial<Profile> {
+  const out: Partial<Profile> = {}
+  const rows = <T,>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []).filter((x) => isRecord(x))
+  if ('leaderboard' in saved && (!Array.isArray(saved.leaderboard) || saved.leaderboard.some((x) => !isRecord(x)))) out.leaderboard = rows(saved.leaderboard)
+  if (saved.arenaRuns !== undefined && (!Array.isArray(saved.arenaRuns) || saved.arenaRuns.some((x) => !isRecord(x)))) out.arenaRuns = rows(saved.arenaRuns)
+  if (saved.runIns !== undefined && (!Array.isArray(saved.runIns) || saved.runIns.some((x) => !isRecord(x)))) out.runIns = rows(saved.runIns)
+  if ('achievements' in saved && !isRecord(saved.achievements)) out.achievements = {}
+  if ('dailyResults' in saved && !isRecord(saved.dailyResults)) out.dailyResults = {}
+  if (saved.seenTips !== undefined && !isRecord(saved.seenTips)) out.seenTips = {}
+  for (const k of ['arenaDaily', 'weekly'] as const) {
+    const v = saved[k] as unknown
+    if (v === undefined || (isRecord(v) && isRecord(v.results) && Number.isFinite(v.streak) && (v.last === null || typeof v.last === 'string'))) continue
+    out[k] = isRecord(v) && isRecord(v.results) ? ({ streak: Number.isFinite(v.streak) ? (v.streak as number) : 0, last: typeof v.last === 'string' ? v.last : null, results: v.results } as never) : undefined
+  }
+  for (const k of ['dailyStreak', 'gamesPlayed', 'seasonsSimulated'] as const) if (k in saved && !Number.isFinite(saved[k])) out[k] = defaults[k]
+  return out
 }

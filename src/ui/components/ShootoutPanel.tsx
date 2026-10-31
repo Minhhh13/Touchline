@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { playSound } from '../sound/synth'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
+import { aiLookup } from '@engine/reserve'
+import { useMediaQuery } from './LivePitch'
+import { clubCode, kickLine, takerMoved } from '../arenaText'
+import { ShootoutRows } from './ShootoutRows'
+import { setShootoutRevealed, shootoutKey } from '../shootoutReveal'
+import { prefersReducedMotion } from '../motion'
+import { translator } from '../i18n'
+import { arena } from '../i18n/en/arena'
 
-/** The kicks reveal one at a time, at once for anyone who asked the system for less motion. */
-function prefersReducedMotion(): boolean {
-  try {
-    return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  } catch {
-    return false
-  }
-}
+const t = translator(arena)
 
 /**
  * An arena shoot-out. While a live match level at 90 waits (`arena.pending`):
@@ -18,13 +20,24 @@ function prefersReducedMotion(): boolean {
  * them), the kicks reveal one at a time.
  */
 export function ShootoutPanel() {
-  const { universe: u, game, takePenalties } = useStore()
+  // Each field on its own: the whole store would re-render the match screen's panel on every store write
+  const u = useStore((s) => s.universe)
+  const game = useStore((s) => s.game)
+  const takePenalties = useStore((s) => s.takePenalties)
   const pending = game?.arena?.pending?.shootout ?? null
   const [order, setOrder] = useState<string[] | null>(null)
   const [keeper, setKeeper] = useState<string | null>(null)
+  // The last move in the order, said once; the focus stays with the man moved (on his other arrow at either end)
+  const [moved, setMoved] = useState<{ id: string; at: number; by: number } | null>(null)
+  useEffect(() => {
+    if (!moved || typeof document === 'undefined') return
+    const active = document.activeElement as HTMLButtonElement | null
+    if (active && active !== document.body && !active.disabled) return
+    document.querySelector<HTMLButtonElement>(`[data-taker="${CSS.escape(moved.id)}"][data-dir="${moved.by < 0 ? 'down' : 'up'}"]`)?.focus()
+  }, [moved])
   const last = game?.arena?.log.at(-1)
   const pens = last?.pens
-  const revealKey = pens ? `${game?.id}-${game?.arena?.log.length}-${pens.kicks.length}` : ''
+  const revealKey = pens && game?.arena ? shootoutKey(game.id, game.arena.log.length, pens.kicks.length) : ''
   const [shown, setShown] = useState(0)
   useEffect(() => {
     if (!pens) return
@@ -43,9 +56,28 @@ export function ShootoutPanel() {
     return () => clearInterval(id)
     // The reveal restarts only for a new shoot-out
   }, [revealKey])
+  // Each kick heard as it shows: the boot, then the net or the gloves (match sounds); a jump (Show them all, reduced motion) sounds its last kick only
+  const heard = useRef({ key: '', shown: 0 })
+  useEffect(() => {
+    if (!pens) return
+    const before = heard.current.key === revealKey ? heard.current.shown : 0
+    heard.current = { key: revealKey, shown }
+    if (shown <= before) return
+    const k = pens.kicks[shown - 1]
+    if (k) playSound({ id: 'kick', scored: k.scored, ours: !!k.us })
+  }, [revealKey, shown])
+  // The report's verdict and Next button wait for the last kick (shootoutReveal.ts)
+  const allShown = !!pens && shown >= pens.kicks.length
+  useEffect(() => {
+    if (revealKey) setShootoutRevealed(revealKey, allShown)
+  }, [revealKey, allShown])
+  // On a phone the takers stack above the keeper: Take the penalties rides at the foot of the window instead
+  const phone = useMediaQuery('(max-width: 720px)')
   if (!u || !game?.arena) return null
   const get = playerLookup(game, u)
-  const name = (id: string, ours: boolean) => (ours ? get(id)?.name : u.index[id]?.name) ?? id
+  // Their men through the AI lookup, so a reserve keeper reads as one (he is never in the index)
+  const theirMan = aiLookup(u)
+  const name = (id: string, ours: boolean) => (ours ? get(id)?.name : theirMan(id)?.name) ?? id
 
   if (pending) {
     const list = order ?? pending.defaultOrder
@@ -56,12 +88,18 @@ export function ShootoutPanel() {
       if (j < 0 || j >= next.length) return
       ;[next[i], next[j]] = [next[j], next[i]]
       setOrder(next)
+      setMoved({ id: next[j], at: j, by })
     }
+    const take = (
+      <button type="button" className="btn primary big" data-testid="take-penalties" onClick={() => takePenalties(list, gk)}>
+        {t('takePens')}
+      </button>
+    )
     return (
       <div className="panel" style={{ borderColor: 'var(--gold)', marginBottom: 12 }} data-testid="shootout-panel">
         <div className="panel-head">
-          <h2>Penalties</h2>
-          <span className="small muted">Level at 90. Pick the order: the pressure grows on kicks four and five and in sudden death, so composure counts there.</span>
+          <h2>{t('penalties')}</h2>
+          <span className="small muted">{t('pensHelp')}</span>
         </div>
         <div className="grid two">
           <ol className="plist" style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
@@ -72,13 +110,13 @@ export function ShootoutPanel() {
                   <span className="mono" style={{ width: 22 }}>{i + 1}</span>
                   <span className="name">
                     {p?.name ?? id}
-                    {p && <span className="muted small taker-meta">shooting {p.attributes.shooting} · composure {p.attributes.mentality}</span>}
+                    {p && <span className="muted small taker-meta">{t('takerMeta', { shooting: p.attributes.shooting, composure: p.attributes.mentality })}</span>}
                   </span>
                   <span className="row" style={{ gap: 4 }}>
-                    <button type="button" className="btn sm ghost" aria-label={`Move ${p?.name ?? id} up`} disabled={i === 0} onClick={() => move(i, -1)}>
+                    <button type="button" className="btn sm ghost" aria-label={t('moveUp', { name: p?.name ?? id })} disabled={i === 0} onClick={() => move(i, -1)} data-taker={id} data-dir="up">
                       ↑
                     </button>
-                    <button type="button" className="btn sm ghost" aria-label={`Move ${p?.name ?? id} down`} disabled={i === list.length - 1} onClick={() => move(i, 1)}>
+                    <button type="button" className="btn sm ghost" aria-label={t('moveDown', { name: p?.name ?? id })} disabled={i === list.length - 1} onClick={() => move(i, 1)} data-taker={id} data-dir="down">
                       ↓
                     </button>
                   </span>
@@ -88,21 +126,23 @@ export function ShootoutPanel() {
           </ol>
           <div className="col">
             <label className="field">
-              In goal
+              {t('inGoal')}
               <select className="input" value={gk} onChange={(e) => setKeeper(e.target.value)} data-testid="shootout-keeper">
                 {pending.keepers.map((id) => (
                   <option key={id} value={id}>
-                    {get(id)?.name ?? id} (goalkeeping {get(id)?.attributes.goalkeeping ?? '?'}){pending.defaultOrder.includes(id) ? '' : ' · off the bench, uses a change'}
+                    {t('keeperOption', { name: get(id)?.name ?? id, n: get(id)?.attributes.goalkeeping ?? '?', bench: pending.defaultOrder.includes(id) ? 'no' : 'yes' })}
                   </option>
                 ))}
               </select>
             </label>
-            <p className="help">The takers go in this order and start again from the top in sudden death. Their side: {pending.theirOrder.slice(0, 5).map((id) => u.index[id]?.name ?? id).join(', ')}.</p>
-            <button type="button" className="btn primary big" data-testid="take-penalties" onClick={() => takePenalties(list, gk)}>
-              Take the penalties
-            </button>
+            <p className="help">{t('takersHelp', { names: pending.theirOrder.slice(0, 5).map((id) => theirMan(id)?.name ?? id).join(', ') })}</p>
+            {!phone && take}
           </div>
         </div>
+        {phone && <div className="shootout-foot">{take}</div>}
+        <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="shootout-order-live">
+          {moved ? takerMoved(get(moved.id)?.name ?? moved.id, moved.at) : ''}
+        </span>
       </div>
     )
   }
@@ -112,32 +152,31 @@ export function ShootoutPanel() {
   const us = kicks.filter((k) => k.us && k.scored).length
   const them = kicks.filter((k) => !k.us && k.scored).length
   const done = shown >= pens.kicks.length
+  const lastKick = kicks.at(-1)
+  const verdict = t(pens.us > pens.them ? 'wonPens' : 'lostPens', { score: `${pens.us}-${pens.them}` })
   return (
     <div className="panel" style={{ borderColor: 'var(--gold)', marginBottom: 12 }} data-testid="shootout-reveal">
       <div className="panel-head">
         <h2>
-          Penalties {us}-{them}
+          {t('penaltiesScore', { us, them })}
         </h2>
         {done ? (
           <span className={`chip ${pens.us > pens.them ? 'good' : 'bad'}`} data-testid="shootout-result">
-            {pens.us > pens.them ? `Won ${pens.us}-${pens.them} on penalties` : `Lost ${pens.us}-${pens.them} on penalties`}
+            {verdict}
           </span>
         ) : (
           // In the head beside the score, so the box keeps one line of kicks under it
           <button type="button" className="btn sm ghost" onClick={() => setShown(pens.kicks.length)}>
-            Show them all
+            {t('showAll')}
           </button>
         )}
       </div>
-      <div className="row wrap shootout-kicks" style={{ gap: 6 }}>
-        {kicks.map((k, i) => (
-          <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`} title={k.us ? 'Ours' : 'Theirs'}>
-            {k.us ? '' : '⇢ '}
-            {name(k.takerId, k.us)} {k.scored ? '✓' : '✗'}
-          </span>
-        ))}
-      </div>
-      {pens.keeperSwap && <p className="help">{get(pens.keeperSwap.on)?.name} came off the bench to face them, for {get(pens.keeperSwap.off)?.name}.</p>}
+      <ShootoutRows kicks={kicks} ourCode={game.settings.shortName} theirCode={last ? clubCode(u, last.opponent) : ''} name={(k) => name(k.takerId, k.us)} pending={!done} />
+      {/* Each kick said once as it shows (the chips are ticks and colours), then the verdict */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="shootout-live">
+        {lastKick ? kickLine(lastKick, kicks.length, name(lastKick.takerId, lastKick.us), us, them, done ? verdict : null) : ''}
+      </span>
+      {pens.keeperSwap && <p className="help">{t('keeperSwap', { on: get(pens.keeperSwap.on)?.name, off: get(pens.keeperSwap.off)?.name })}</p>}
     </div>
   )
 }

@@ -337,7 +337,8 @@ describe('depth in the match engine', () => {
   }, 30000)
 
   it('a seeded match is deterministic and pinned to the engine version', () => {
-    expect(ENGINE_VERSION).toBe('5')
+    // Engine 7 changed no match draw: the literals below held from engine 6
+    expect(ENGINE_VERSION).toBe('7')
     const play = () => {
       const rng = new Rng('depth-pin')
       const home: MatchTeamInput = teamInputFromPool('E', 'Elite', 'ELI', tacticsForStyle('possession', '4-3-3'), elite)
@@ -353,6 +354,7 @@ describe('depth in the match engine', () => {
     // and must bump the version: a mismatch here is the reminder. A data rebuild can move them too
     // (the pools are real players): 3.2 became 3.18 when the 2026-10-25 rebuild un-swapped the
     // 2008-14 left and right positions and C. Ronaldo 2008-09 joined the elite pool as a right winger.
-    expect(summary).toEqual({ score: '1-0', events: 25, xg: '3.18/0.37', cards: 5 })
+    // Re-pinned on engine 6 (base xG 1.28, the soft ceiling, keepers booked and the card rates retuned)
+    expect(summary).toEqual({ score: '1-0', events: 19, xg: '3.08/0.36', cards: 3 })
   })
 })

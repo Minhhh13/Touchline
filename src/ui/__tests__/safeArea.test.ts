@@ -5,7 +5,7 @@ import { DEVICE_INSETS, SAFE_TOKENS, safeAreaOverride, strayInsets } from '../sa
 
 const UI = path.resolve(__dirname, '..')
 const css = (f: string) => readFileSync(path.join(UI, f), 'utf8')
-const SHEETS = ['styles.css', 'mobile.css', 'mobileGame.css', 'mobileSetup.css', 'matchday/matchday.css', 'matchday/matchday-controls.css', 'matchday/matchday-phone.css', 'matchday/mobileMatch.css']
+const SHEETS = ['styles.css', 'gameScreens.css', 'mobile.css', 'matchday/matchday.css', 'matchday/matchday-controls.css', 'matchday/matchday-phone.css']
 
 /** The declarations of the first rule whose selector is exactly `sel`. */
 function rule(text: string, sel: string): string {
@@ -24,7 +24,8 @@ describe('safe areas', () => {
   })
 
   it('keeps the top bar, the bottom bars, the toast and full-screen sheets clear of the notch and the home indicator', () => {
-    const s = css('styles.css')
+    // The game screens' sheet follows styles.css (round 9): the player card's dialog is there
+    const s = css('styles.css') + css('gameScreens.css')
     expect(rule(s, '.topbar')).toContain('calc(10px + var(--safe-top))')
     expect(rule(s, '.topbar-restore')).toContain('top: calc(10px + var(--safe-top))')
     expect(rule(s, '.toast')).toContain('bottom: calc(22px + var(--safe-bottom))')

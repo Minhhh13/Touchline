@@ -4,10 +4,12 @@ import { Capacitor } from '@capacitor/core'
 import { App } from './ui/App'
 import './ui/styles.css'
 import './ui/mobile.css'
-import './ui/mobileGame.css'
-import './ui/mobileSetup.css'
 import { onlineConfig } from './online/config'
 import { whenScreensFetched } from './ui/lazyScreens'
+import { startLanguage } from './ui/i18n/language'
+
+// The viewer's language (Profile, Settings): English at once, a translation as soon as its chunk arrives
+startLanguage()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -5,10 +5,11 @@
  * runs through quickly. Presentation only, pure and tested; nothing here reads the game's RNG.
  */
 import { USER_TEAM } from '@engine/season'
-import { inTie, tieAtStep, type BracketView } from '@game/logic/bracket'
+import { inTie, revealCount, tieAtStep, type BracketView } from '@game/logic/bracket'
 
-/** Milliseconds: a tie of the field, one once the user is out, the user's tie in play, the hold after it, a new round's draw. */
-export const CUP_REVEAL = { step: 240, fast: 140, live: 1000, hold: 600, round: 450 } as const
+/** Milliseconds: a tie of the field, one once the user is out, the user's tie in play, the hold after it, a new round's
+ * draw, and the user's final in play (round 9: the last tie of the night waits longest). */
+export const CUP_REVEAL = { step: 340, fast: 200, live: 1400, hold: 850, round: 650, final: 2200 } as const
 
 function isMine(view: BracketView, at: { round: number; tie: number } | null, userId: string): boolean {
   return !!at && inTie(view.rounds[at.round].ties[at.tie], userId)
@@ -30,7 +31,7 @@ export function revealDelay(view: BracketView, steps: number[][], n: number, use
   const here = tieAtStep(steps, n)
   if (!here) return 0
   const prev = n > 0 ? tieAtStep(steps, n - 1) : null
-  const ms = isMine(view, here, userId) ? CUP_REVEAL.live : isMine(view, prev, userId) ? CUP_REVEAL.hold : userOutBy(view, steps, n, userId) ? CUP_REVEAL.fast : CUP_REVEAL.step
+  const ms = isMine(view, here, userId) ? (here.round === view.rounds.length - 1 ? CUP_REVEAL.final : CUP_REVEAL.live) : isMine(view, prev, userId) ? CUP_REVEAL.hold : userOutBy(view, steps, n, userId) ? CUP_REVEAL.fast : CUP_REVEAL.step
   return ms + (prev && prev.round !== here.round ? CUP_REVEAL.round : 0)
 }
 
@@ -39,6 +40,24 @@ export function revealLength(view: BracketView, steps: number[][], userId: strin
   let total = 0
   for (let n = 0; tieAtStep(steps, n); n++) total += revealDelay(view, steps, n, userId)
   return total
+}
+
+/** A group matchday's moment in the reveal (engine 7's Continental Cup: the draw, then one matchday a step). */
+export const GROUP_STEP_MS = 900
+
+/**
+ * How long the cup night waits before its next step when `all` steps are shown: the `groupSteps` group steps first,
+ * then the bracket's ties; null once everything is shown. The night counts one step at a time through all of them.
+ */
+export function nightStepDelay(view: BracketView, steps: number[][], all: number, groupSteps: number, userId: string = USER_TEAM): number | null {
+  if (all >= groupSteps + revealCount(view)) return null
+  return all < groupSteps ? GROUP_STEP_MS : revealDelay(view, steps, all - groupSteps, userId)
+}
+
+/** The user's tie in play at step `n` is the final. */
+export function userFinalInPlay(view: BracketView, steps: number[][], n: number, userId: string = USER_TEAM): boolean {
+  const here = tieAtStep(steps, n)
+  return !!here && here.round === view.rounds.length - 1 && isMine(view, here, userId)
 }
 
 /** The user's tie is the one in play at step `n` (the moment before its score lands). */

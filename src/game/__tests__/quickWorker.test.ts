@@ -5,11 +5,12 @@ import { produce } from 'immer'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { buildLeague, mergeUniverses, type LeaguesFile, type LoadedUniverse, type MetaFile, type PlayersFile } from '@engine/universe'
-import { closeJanuary, kickOff, toKickoff } from '../logic/quick'
+import { closeJanuary, closeJanuarySpin, kickOff, openSpinChoices, rollJanuarySpin, toKickoff } from '../logic/quick'
 import { kickoffStep } from '../logic/endCase'
 import { tidyUniverseNames } from '../logic/playerNames'
 import { createGame } from '../logic/setup'
 import { runQuickJob, universeMark } from '../quickJob'
+import { breathe } from '../../engine/__tests__/helpers'
 import type { Game } from '../types'
 
 const root = path.resolve(__dirname, '..', '..', '..')
@@ -41,10 +42,12 @@ function atKickoff(seed: string, i: number): Game {
 }
 
 describe('the quick-season worker', () => {
-  it('kicks off 50 seeded seasons byte for byte as the page does', () => {
+  it('kicks off 50 seeded seasons, and closes their January windows, byte for byte as the page does', async () => {
     expect(universeMark(worker)).toBe(universeMark(page))
     let january = 0
+    let spins = 0
     for (let i = 0; i < 50; i++) {
+      if (i % 5 === 0) await breathe()
       const game = atKickoff(`quick-worker-${i}`, i)
       expect(kickoffStep(game)).toBe('tactics')
       const skip = i % 7 === 3
@@ -63,9 +66,24 @@ describe('the quick-season worker', () => {
         const a = produce(onPage, (g) => closeJanuary(g, page, null))
         const b = produce(inWorker, (g) => closeJanuary(g, page, null))
         expect(JSON.stringify(b)).toBe(JSON.stringify(a))
+        // The window closed in the worker, passing or signing a listing, is the page's close too
+        const index = i % 4 === 0 ? null : 0
+        const closed = produce(onPage, (g) => closeJanuary(g, page, index))
+        const closedInWorker = structuredClone(runQuickJob({ op: 'closeJanuary', game: structuredClone(onPage), index }, worker))
+        expect(JSON.stringify(closedInWorker), `seed ${i} January ${index}`).toBe(JSON.stringify(closed))
+        // The January spin: its player kept out, or placed in the first slot he can take
+        if (i % 3 === 0) {
+          const spun = produce(onPage, (g) => rollJanuarySpin(g, page))
+          const slotId = i % 6 === 0 ? (openSpinChoices(spun, page)[0]?.slotId ?? null) : null
+          const kept = produce(spun, (g) => closeJanuarySpin(g, page, slotId))
+          const keptInWorker = structuredClone(runQuickJob({ op: 'closeJanuarySpin', game: structuredClone(spun), slotId }, worker))
+          expect(JSON.stringify(keptInWorker), `seed ${i} January spin ${slotId}`).toBe(JSON.stringify(kept))
+          spins++
+        }
       }
     }
     expect(january).toBeGreaterThanOrEqual(20)
+    expect(spins).toBeGreaterThanOrEqual(5)
   }, 300_000)
 
   it('marks a universe with other leagues or the classic seasons as different', () => {

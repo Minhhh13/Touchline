@@ -21,6 +21,9 @@ export function tidyPlayerName(name: string): string {
   return clean || name
 }
 
+/** Player-seasons already looked at (a load merges the same objects again with each league added). */
+const checked = new WeakSet<object>()
+
 /**
  * Clean every player-season's name in a universe the loader has just built, in place, and return it with how many
  * names changed. Run only at load, before the store publishes the universe (after that it is read-only); idempotent,
@@ -28,7 +31,11 @@ export function tidyPlayerName(name: string): string {
  */
 export function tidyUniverseNames(u: LoadedUniverse): { universe: LoadedUniverse; tidied: number } {
   let tidied = 0
-  for (const p of Object.values(u.index)) {
+  for (const id in u.index) {
+    const p = u.index[id]
+    // A league the loader cached comes back in every later merge: its player-seasons are tidy already
+    if (checked.has(p)) continue
+    checked.add(p)
     const clean = tidyPlayerName(p.name)
     if (clean !== p.name) {
       p.name = clean

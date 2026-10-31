@@ -1,6 +1,11 @@
 import { FORMATIONS } from '@engine/formations'
 import type { Formation } from '@engine/types'
 import { THUMB_DOT_R, THUMB_H, THUMB_PAD, THUMB_W, formationThumb } from '@game/logic/formationThumb'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+import { formationBlurb } from '../i18n/engineText'
+
+const t = translator(setup)
 
 /** A small drawn pitch with the shape's eleven slots as dots, attack pointing up. A picture, hidden from screen readers. */
 export function FormationThumb({ formation }: { formation: Formation }) {
@@ -49,7 +54,7 @@ export interface FormationPickerProps {
 }
 
 /** The one formation chooser: a tile per shape with its mini pitch, the chosen tile highlighted. */
-export function FormationPicker({ value, onChange, blurbs, label = 'Formation', testId = 'formation-picker' }: FormationPickerProps) {
+export function FormationPicker({ value, onChange, blurbs, label = t('formation'), testId = 'formation-picker' }: FormationPickerProps) {
   return (
     <div className={`formations${blurbs ? ' with-blurbs' : ''}`} role="group" aria-label={label} data-testid={testId}>
       {FORMATIONS.map((f) => (
@@ -57,7 +62,7 @@ export function FormationPicker({ value, onChange, blurbs, label = 'Formation', 
           <FormationThumb formation={f} />
           <span className="ftext">
             <FormationName name={f.name} />
-            {blurbs && <span className="fblurb">{f.blurb}</span>}
+            {blurbs && <span className="fblurb">{formationBlurb(f)}</span>}
           </span>
         </button>
       ))}

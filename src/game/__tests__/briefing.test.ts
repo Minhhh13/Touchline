@@ -202,8 +202,15 @@ describe("the assistant's briefing", () => {
     expect(objectiveRisk({ ...homeForm, met: false }, g, u)).toBeNull()
     season.objectives = [homeForm]
     season.matchweek = 5
-    const line = weeklyBriefing(g, u).find((i) => i.id === 'objective-home-form')
-    expect(line).toMatchObject({ level: 'info', text: 'Lose at most four home league matches: 5 home defeats, 4 allowed: the objective is gone', action: { tab: 'club' } })
+    // r8: an objective already gone is on the Club tab and in the Inbox, not in the week's briefing
+    expect(weeklyBriefing(g, u).some((i) => i.id === 'objective-home-form')).toBe(false)
+    // While it is still at risk (three defeats of four, on a copy) the line stays
+    const risky = structuredClone(g)
+    const riskyHomes = risky.season!.fixtures.filter((f) => f.homeTeamId === USER_TEAM).slice(0, 5)
+    score(riskyHomes[3], 1, 0)
+    score(riskyHomes[4], 1, 0)
+    const line = weeklyBriefing(risky, u).find((i) => i.id === 'objective-home-form')
+    expect(line).toMatchObject({ level: 'info', text: 'Lose at most four home league matches: 3 home defeats of 4 allowed', action: { tab: 'club' } })
 
     // Pace objectives wait for matchweek 8, then judge the projection
     const goals = { id: 'goals' as const, label: 'Score 57 league goals', target: 57 }

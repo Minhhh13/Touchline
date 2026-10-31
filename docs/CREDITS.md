@@ -43,3 +43,7 @@ The TouchLine mark and the wordmark are our own (`src/ui/brand.ts`), and so are 
 
 None to credit: every sound in TouchLine (the case reel's ticks, the season whoosh and pop, the rarity reveals, the referee's whistle, the crowd, the net, the fanfares and the rest of the palette) is synthesised in code with the Web Audio API in `src/ui/sound/`, from oscillators and seeded noise. No audio files ship, and no recording, sample or sound from any game or website (Counter-Strike, case-opening sites or others) is used or copied.
 
+
+## Typeface
+
+[Sora](https://fonts.google.com/specimen/Sora) by Jonathan Barnbrook and Julián Moncada, under the [SIL Open Font License 1.1](https://openfontlicense.org). Served by Google Fonts (linked in `index.html`, the one third-party request the game makes when the online layer is off); the font files are not in the repository.

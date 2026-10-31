@@ -4,6 +4,9 @@
 import type { PlayerSeason, SquadPlayer, TableRow, SeasonTier, Position } from './types'
 import { FORMATION_BY_ID } from './formations'
 import { tierLabel } from './season'
+import { ordinal } from './universe'
+
+export { ordinal }
 
 export interface AwardWinner {
   playerSeasonId: string
@@ -161,6 +164,8 @@ export interface ArenaShareInput {
   motm?: string
   /** What the man of the match line calls him: `MOTM` unless set (`Final MOTM` in the Cup). */
   motmLabel?: string
+  /** An opponent's man of the match: his club's short name, printed after him (`S. Savinho (Man City)`), as the summary does. */
+  motmClub?: string
   seed?: string
   /** The Gauntlet: one mark per rung printed in place of the per-match lines, then `lines` (the fall, the scorer). */
   strip?: string
@@ -200,7 +205,7 @@ export function arenaShareText(s: ArenaShareInput, appName = 'TouchLine'): strin
     for (const st of s.steps) lines.push(`${st.code} ${arenaStepMark(st)} ${st.gf}-${st.ga} ${st.opponent}${st.pens ? ` (${st.pens.us}-${st.pens.them} pens)` : ''}`)
     for (const l of s.lines ?? []) if (l.trim()) lines.push(l)
   }
-  if (s.motm) lines.push(`⭐ ${s.motmLabel ?? 'MOTM'}: ${initialName(s.motm)}`)
+  if (s.motm) lines.push(`⭐ ${s.motmLabel ?? 'MOTM'}: ${initialName(s.motm)}${s.motmClub ? ` (${s.motmClub})` : ''}`)
   if (s.seed) lines.push(`Seed ${s.seed}`)
   return lines.join('\n')
 }
@@ -239,10 +244,4 @@ function formBlocks(row: TableRow): string {
   const d = '🟨'.repeat(Math.min(row.drawn, 46))
   const l = '🟥'.repeat(Math.min(row.lost, 46))
   return w + d + l
-}
-
-export function ordinal(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
 }

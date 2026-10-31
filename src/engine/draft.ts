@@ -12,8 +12,8 @@
  *  - casual modes: a salary cap (Moneyball) and the Teammate Chain (every pick after the first a former teammate of the one before).
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
-import { Rng, type RngState } from './rng'
-import { canCover, positionFactor, type Fit } from './positions'
+import { Rng, compareText, type RngState } from './rng'
+import { POSITIONS, canCover, positionFactor, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
 import { formerTeammates, sharedClubSeasons } from './teammates'
 import { primeOf } from './prime'
@@ -111,6 +111,12 @@ export interface DraftRules {
    * changed by it. Off when omitted, so older saves, links and every other mode are unchanged.
    */
   superLeague?: boolean
+  /**
+   * The Super League a little easier (2026-10-28, after engine 7 shipped): its rivals carry `SUPER_LEAGUE_HANDICAP`, a
+   * rating point off every line (`quickLeague`). Setup writes it beside `superLeague`; absent on every Super League game
+   * and link made before it, which therefore replay at full strength exactly as they were played.
+   */
+  superEase?: boolean
 }
 
 /** The mode flags a set of draft rules may carry (Hard is the difficulty). */
@@ -252,6 +258,11 @@ export interface DraftState {
   target?: string | null
   /** Quick bench: the manager closed the draft with bench places to spare (`closeBench`). Absent otherwise. */
   benchClosed?: boolean
+  /**
+   * Dynasty summer wheel: real player id -> the youngest age he may come back at (a man who left the club is never
+   * drafted as his younger self). Absent everywhere else, and then nothing changes.
+   */
+  ageFloor?: Record<string, number>
   /**
    * Quick bench: the stream the spins after the XI is full draw from, forked off a copy of the game's stream at the
    * first such spin, so the season (which starts from the game's stream) is the same however many bench spins follow.
@@ -400,9 +411,16 @@ export function benchRoom(d: DraftState): boolean {
   return !fillingXI(d)
 }
 
+/** Drafted already, or (a Dynasty summer) a season of a man who left in which he is younger than he would be now. */
+function isTaken(d: DraftState, p: PlayerSeason): boolean {
+  if (d.takenPlayers.includes(p.playerId)) return true
+  const floor = d.ageFloor?.[p.playerId]
+  return floor !== undefined && p.age < floor
+}
+
 /** Whether this player could be sent to the bench from the current spin. */
 export function canBench(d: DraftState, p: PlayerSeason): boolean {
-  return benchRoom(d) && !d.takenPlayers.includes(p.playerId) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p)
+  return benchRoom(d) && !isTaken(d, p) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p) && benchAffordable(d, p)
 }
 
 /** Quick bench: the XI is full and bench places are left, so the manager may stop drafting. */
@@ -463,12 +481,31 @@ export function capSpent(d: DraftState): number {
   return d.spent ?? 0
 }
 
+/**
+ * The picks the cap keeps `BUDGET_FLOOR` for after the next one. A squad draft owes it to every pick up to its size. A
+ * Quick Draft with a bench owes it to its open XI slots only (its bench may close once the XI is full), whatever the
+ * bench already holds: counting bench picks against the XI's eleven let an early bench pick spend the money the last
+ * XI slots needed, and the wheel ran dry with a keeper still to find (r7 QA; engine 6).
+ */
+function picksOwed(d: DraftState): number {
+  if (hasQuickBench(d)) return Math.max(0, openSlots(d).length - 1)
+  return Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+}
+
 /** The most the next pick may cost: what is left of the cap after keeping `BUDGET_FLOOR` for every pick still to make after it. Infinite without a cap. */
 export function capRoom(d: DraftState): number {
   const budget = d.rules.budget
   if (budget === undefined) return Infinity
-  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
-  return round1(budget - capSpent(d) - BUDGET_FLOOR * after)
+  return round1(budget - capSpent(d) - BUDGET_FLOOR * picksOwed(d))
+}
+
+/**
+ * A Quick Draft bench pick while XI slots are open fills none of them, so it keeps the floor for every one: one floor
+ * more than an XI pick. Always true without a cap.
+ */
+function benchAffordable(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions'>): boolean {
+  if (d.rules.budget === undefined) return true
+  return capPrice(p) <= capRoom(d) - (hasQuickBench(d) && fillingXI(d) ? BUDGET_FLOOR : 0) + 1e-9
 }
 
 /**
@@ -518,7 +555,7 @@ export function capMoney(m: number): string {
 export function capRefusal(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions' | 'name'>): string | null {
   if (affordable(d, p)) return null
   const price = capPrice(p)
-  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+  const after = picksOwed(d)
   // Within the cap itself, it is the money kept for the picks still to make that rules him out
   const reserve = d.rules.budget !== undefined && price <= d.rules.budget - capSpent(d) + 1e-9 && after > 0
   return `${p.name} (${capMoney(price)}) would take you ${capMoney(capOverBy(d, p))} over the cap${reserve ? `, keeping ${capMoney(BUDGET_FLOOR)} for each of the ${after} picks still to make` : ''}`
@@ -570,16 +607,62 @@ function candidateSlots(d: DraftState): Formation['slots'] {
 }
 
 /**
+ * What `usableFor` reads off the draft, worked out once for a pass over the wheel rather than once per player: the
+ * drafted humans, the Teammate Chain's set (null when the chain does not bind), whether the XI is still being filled,
+ * the positions of the slots in play and the cap's room (Infinity without a cap). Nothing here changes during a pass.
+ */
+interface UsableCtx {
+  taken: Set<string>
+  mates: Set<string> | null
+  filling: boolean
+  /** The slots' positions as bits (`coverMask`). */
+  slotMask: number
+  room: number
+}
+
+function usableCtx(d: DraftState, slots: Formation['slots'], mates: Set<string> | null = chainSet(d)): UsableCtx {
+  let slotMask = 0
+  for (const s of slots) slotMask |= POSITION_BIT[s.position]
+  return { taken: new Set(d.takenPlayers), mates, filling: fillingXI(d), slotMask, room: capRoom(d) }
+}
+
+const POSITION_BIT = Object.fromEntries(POSITIONS.map((pos, i) => [pos, 1 << i])) as Record<Position, number>
+const coverMasks = new WeakMap<readonly Position[], Partial<Record<Fit, number>>>()
+
+/**
+ * The positions a player can cover at a minimum fit (`canCover`), as bits of `POSITION_BIT`: worked out once per
+ * positions list and fit, since the answer depends on nothing else. A cache beside the universe, never a change to it.
+ */
+function coverMask(p: Pick<PlayerSeason, 'positions'>, minFit: Fit): number {
+  let byFit = coverMasks.get(p.positions)
+  if (!byFit) coverMasks.set(p.positions, (byFit = {}))
+  let mask = byFit[minFit]
+  if (mask === undefined) {
+    mask = 0
+    for (const pos of POSITIONS) if (canCover(p, pos, minFit)) mask |= POSITION_BIT[pos]
+    byFit[minFit] = mask
+  }
+  return mask
+}
+
+/** `usableFor` against a context built once for the pass (`usableCtx`): the same checks in the same order. */
+function usableWith(d: DraftState, p: PlayerSeason, c: UsableCtx): boolean {
+  if (c.taken.has(p.playerId)) return false
+  const floor = d.ageFloor?.[p.playerId]
+  if (floor !== undefined && p.age < floor) return false
+  if (!nationAllows(d, p)) return false
+  if (c.mates && !c.mates.has(p.playerId)) return false
+  if (d.rules.budget !== undefined && !(capPrice(p) <= c.room + 1e-9)) return false
+  if (c.filling) return (coverMask(p, d.rules.minFit) & c.slotMask) !== 0
+  return true
+}
+
+/**
  * Whether a player is usable for one of `slots` (anyone undrafted for the bench once the XI is full). `mates` is the
- * Teammate Chain's set (null when the chain does not bind), passed in so a pass over the wheel builds it once.
+ * Teammate Chain's set (null when the chain does not bind). A pass over the wheel builds a `usableCtx` once instead.
  */
 function usableFor(d: DraftState, p: PlayerSeason, slots: Formation['slots'], mates: Set<string> | null = chainSet(d)): boolean {
-  if (d.takenPlayers.includes(p.playerId)) return false
-  if (!nationAllows(d, p)) return false
-  if (mates && !mates.has(p.playerId)) return false
-  if (!affordable(d, p)) return false
-  if (fillingXI(d)) return slots.some((s) => canCover(p, s.position, d.rules.minFit))
-  return true
+  return usableWith(d, p, usableCtx(d, slots, mates))
 }
 
 export function canUse(d: DraftState, p: PlayerSeason): boolean {
@@ -587,7 +670,7 @@ export function canUse(d: DraftState, p: PlayerSeason): boolean {
 }
 
 export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'] {
-  if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p) || !chainAllows(d, p) || !affordable(d, p)) return []
+  if (isTaken(d, p) || !nationAllows(d, p) || !chainAllows(d, p) || !affordable(d, p)) return []
   return candidateSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
 }
 
@@ -601,7 +684,8 @@ export function draftRating(u: LoadedUniverse, d: DraftState, p: PlayerSeason): 
  * someone usable (`mates` the chain's teammates, or null): the expensive pass, independent of the twist.
  */
 function rulesPool(u: LoadedUniverse, d: DraftState, slots: Formation['slots'] = candidateSlots(d), mates: Set<string> | null = chainSet(d)): ClubSeason[] {
-  return u.clubSeasons.filter((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableFor(d, p, slots, mates)))
+  const c = usableCtx(d, slots, mates)
+  return u.clubSeasons.filter((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableWith(d, p, c)))
 }
 
 /** The era, club and league rules for one club-season (the cheap half of `rulesPool`). */
@@ -653,7 +737,7 @@ export function bottomHalf(u: LoadedUniverse, cs: ClubSeason): boolean {
       else groups.set(key, [x])
     }
     for (const g of groups.values()) {
-      const ranked = g.map((x) => ({ x, s: squadStrength(x) })).sort((a, b) => b.s - a.s || a.x.clubId.localeCompare(b.x.clubId))
+      const ranked = g.map((x) => ({ x, s: squadStrength(x) })).sort((a, b) => b.s - a.s || compareText(a.x.clubId, b.x.clubId))
       ranked.forEach((r, i) => {
         if (i + 1 > ranked.length / 2) set!.add(`${r.x.clubId}@${r.x.season}`)
       })
@@ -681,7 +765,8 @@ function narrowPool(u: LoadedUniverse, d: DraftState, twist: Twist | null | unde
   if (!d.rules.uniqueClubSeasons) return allowed
   // Each club-season once, but when a narrow wheel (one club, a short era) has used them all,
   // the wheel reopens rather than stopping the draft with slots still to fill
-  const fresh = allowed.filter((cs) => !d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`))
+  const used = new Set(d.usedClubSeasons)
+  const fresh = allowed.filter((cs) => !used.has(`${cs.clubId}@${cs.season}`))
   return fresh.length ? fresh : allowed
 }
 
@@ -707,7 +792,8 @@ export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
 
 /** Whether some club-season the rules admit holds a player usable in this slot (the wheel would not be empty). */
 function slotSpinnable(u: LoadedUniverse, d: DraftState, slot: Formation['slots'][number]): boolean {
-  return u.clubSeasons.some((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableFor(d, p, [slot], null)))
+  const c = usableCtx(d, [slot], null)
+  return u.clubSeasons.some((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableWith(d, p, c)))
 }
 
 /**
@@ -741,9 +827,13 @@ export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): vo
  * about twice as likely as a relegated side), and clubs with more useful players, so late picks are not hopeless.
  */
 export function spinWeight(d: DraftState, cs: ClubSeason, mates: Set<string> | null = chainSet(d)): number {
+  return spinWeightWith(d, cs, usableCtx(d, candidateSlots(d), mates))
+}
+
+/** `spinWeight` against a context built once for a pass over many club-seasons. */
+function spinWeightWith(d: DraftState, cs: ClubSeason, c: UsableCtx): number {
   const quality = cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6
-  const slots = candidateSlots(d)
-  return quality * (1 + Math.min(10, cs.squad.filter((p) => usableFor(d, p, slots, mates)).length) / 10)
+  return quality * (1 + Math.min(10, cs.squad.filter((p) => usableWith(d, p, c)).length) / 10)
 }
 
 /** Gamble: whether the Icons spin has come in this draft (landed on, re-spun or picked from). */
@@ -780,7 +870,8 @@ export function spinOdds(u: LoadedUniverse, d: DraftState): SpinOdds {
   const chained = chainedPool(u, { ...d, twist: null })
   // A spin that breaks the chain draws from the free wheel, as `spin` does
   const view: DraftState = { ...d, twist: null, ...(chained.broken ? { chainMates: null } : {}) }
-  const icons = d.gambleRng && !iconsUsed(d) && iconsFit(u, view) ? ICONS_CHANCE : 0
+  // `spin` rolls for the Icons before it breaks the chain, so whether an icon fits is read on the draft as it stands
+  const icons = d.gambleRng && !iconsUsed(d) && iconsFit(u, d) ? ICONS_CHANCE : 0
   const base = chained.pool
   const forced = view.forcedTwist && narrowPool(u, view, view.forcedTwist, base).length > 0 ? view.forcedTwist : null
   let twists: Array<Twist | null> = [null]
@@ -791,6 +882,8 @@ export function spinOdds(u: LoadedUniverse, d: DraftState): SpinOdds {
   }
   const byKey = new Map<string, { cs: ClubSeason; p: number }>()
   let reachable = false
+  // Every club-season's weight reads the same draft state: the context is built once, not once per club-season
+  const weightCtx = usableCtx(view, candidateSlots(view))
   for (const t of twists) {
     const pool = narrowPool(u, view, t, base)
     if (!pool.length) continue
@@ -798,7 +891,7 @@ export function spinOdds(u: LoadedUniverse, d: DraftState): SpinOdds {
     const seasons = [...new Set(pool.map((cs) => cs.season))]
     for (const season of seasons) {
       const inSeason = pool.filter((cs) => cs.season === season)
-      const weights = inSeason.map((cs) => Math.max(0, spinWeight(view, cs)))
+      const weights = inSeason.map((cs) => Math.max(0, spinWeightWith(view, cs, weightCtx)))
       const total = weights.reduce((a, b) => a + b, 0)
       inSeason.forEach((cs, i) => {
         const share = total > 0 ? weights[i] / total : 1 / inSeason.length
@@ -861,7 +954,8 @@ export function spin(u: LoadedUniverse, d: DraftState, main: Rng): ClubSeason {
   const seasons = [...new Set(pool.map((cs) => cs.season))]
   const season = rng.pick(seasons)
   const inSeason = pool.filter((cs) => cs.season === season)
-  const chosen = rng.pickWeighted(inSeason, (cs) => spinWeight(d, cs, mates))
+  const weightCtx = usableCtx(d, candidateSlots(d), mates)
+  const chosen = rng.pickWeighted(inSeason, (cs) => spinWeightWith(d, cs, weightCtx))
   d.current = { clubId: chosen.clubId, season: chosen.season }
   d.spins++
   if (benchSpin) d.benchRng = rng.getState()
@@ -884,7 +978,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   const p = u.index[playerSeasonId]
   if (!p) throw new Error('Unknown player')
   if (isIcons(d.current) ? !iconsCollection(u, d.rules.leagues).squad.some((x) => x.id === p.id) : p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
-  if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
+  if (isTaken(d, p)) throw new Error('Already drafted that player')
   if (!nationAllows(d, p)) throw new Error(`${p.name} is not ${u.nations[d.rules.onlyNation ?? '']?.name ?? d.rules.onlyNation}`)
   if (!chainAllows(d, p)) throw new Error(`${p.name} is not a former teammate of ${u.index[d.chainFrom ?? '']?.name ?? 'your last pick'}`)
   const refusal = capRefusal(d, p)
@@ -892,6 +986,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (slotId === 'bench') {
     if (isComplete(d)) throw new Error('Squad complete')
     if (!benchRoom(d)) throw new Error(!hasQuickBench(d) ? 'Fill your starting XI first' : positionFirst(d) ? 'This spin fills the slot you chose' : 'The bench is full: this pick goes into the XI')
+    if (!benchAffordable(d, p)) throw new Error(`${p.name} (${capMoney(capPrice(p))}) would leave too little for the ${openSlots(d).length} XI places still open: keep ${capMoney(BUDGET_FLOOR)} for each`)
     d.bench.push(p.id)
   } else {
     const slot = d.formation.slots.find((s) => s.id === slotId)
@@ -1003,17 +1098,53 @@ export function neededPositions(d: DraftState): Position[] {
 }
 
 /**
+ * Keepers in an assistant-drafted squad (engine 6, item 3): at least `MIN_KEEPERS` in a squad of `FULL_SQUAD` places or
+ * more (one keeper in 18 put an outfielder in goal when he was hurt), and never more than `MAX_KEEPERS` (Dynasty summer
+ * drafts reached six or seven in 23). The XI's own keeper slot is filled as before; the rule only steers bench picks.
+ */
+export const MIN_KEEPERS = 2
+export const MAX_KEEPERS = 3
+export const FULL_SQUAD = 16
+
+function isKeeper(p: PlayerSeason | undefined): boolean {
+  return p?.positions[0] === 'GK'
+}
+
+/**
+ * What the bench needs from this pick: `'keeper'` (only a keeper will do while one is on offer), `'outfield'` (no more
+ * keepers), or null (anyone). `keeperShort` says the squad cannot afford to pass on the keeper it needs.
+ */
+function benchNeed(d: DraftState, get: (id: string) => PlayerSeason | undefined): { need: 'keeper' | 'outfield' | null; keeperShort: boolean } {
+  const held = [...Object.values(d.lineup), ...d.bench].filter((id) => isKeeper(get(id))).length
+  if (held >= MAX_KEEPERS) return { need: 'outfield', keeperShort: false }
+  const min = d.rules.squadSize >= FULL_SQUAD ? MIN_KEEPERS : 1
+  if (held >= min) return { need: null, keeperShort: false }
+  // Picks still to make after this one
+  const left = d.rules.squadSize - picksMade(d) - 1
+  return { need: 'keeper', keeperShort: left < min - held }
+}
+
+/**
  * The assistant's pick from a club-season: the man who would play best where he would go, his rating (career best under
  * Prime) times his `positionFactor` in the slot `bestSlotFor` gives him (natural first, then the scarcest open place);
  * the highest rating onto the bench once the XI is full. Null when no one can be used. No RNG.
  *
  * ENGINE_VERSION 4 and before charged every cover a flat 0.92 and took the first slot of a tie in formation order.
  */
-export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason): { id: string; slot: string | 'bench' } | null {
+export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason, get: (id: string) => PlayerSeason | undefined = (id) => u.index[id]): { id: string; slot: string | 'bench' } | null {
   // Under a salary cap the assistant spreads the money (`capCandidates`); everyone is a candidate without one
-  const candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))
+  let candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))
   if (!candidates.length) return null
   const open = candidateSlots(d)
+  if (!open.length) {
+    const { need, keeperShort } = benchNeed(d, get)
+    const keepers = candidates.filter(isKeeper)
+    if (need === 'outfield') candidates = candidates.filter((p) => !isKeeper(p))
+    else if (need === 'keeper' && keepers.length) candidates = keepers
+    // Short of a keeper with no picks to spare: pass on this spin rather than fill the last place outfield
+    else if (need === 'keeper' && keeperShort) return null
+    if (!candidates.length) return null
+  }
   let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
   for (const p of candidates) {
     if (open.length) {
@@ -1033,16 +1164,20 @@ export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason
  * Auto-draft the rest (used by "sim the rest" and for AI opponents in head-to-head).
  * Stops short of the squad size when the wheel has run dry (a one-nation draft).
  */
-export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
+export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng, get?: (id: string) => PlayerSeason | undefined): void {
   let guard = 0
   while (!isComplete(d) && guard++ < 200) {
     if (!canSpin(u, d)) break
     // Position First: keep a slot already chosen, otherwise take the first open slot (formation order) the wheel can fill. No RNG.
     if (positionFirst(d) && !targetSlot(d)) d.target = spinnableSlots(u, d)[0].id
     const cs = spin(u, d, rng)
-    const best = assistantChoice(u, d, cs)
+    const best = assistantChoice(u, d, cs, get)
     if (best) pick(u, d, best.id, best.slot)
     else {
+      // A spin the assistant passes on (nobody usable, or only a keeper the squad has no room for) is logged as a
+      // discarded spin, as the store logs the one showing when Auto-complete starts: it drew from the stream, so a
+      // challenge replay spins it too (engine 6; before, it left no row and the replay fell out of step)
+      if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, skipped: true, ...(d.twist ? { twist: d.twist } : {}), ...(targetSlot(d) ? { target: targetSlot(d)!.id } : {}) })
       d.current = null
       d.twist = null
     }

@@ -55,7 +55,7 @@ do $t$ declare n int; begin
   assert n = 0, format('%s svc_ functions reachable by a client role', n);
   select count(*) into n from pg_proc p join pg_namespace s on s.oid = p.pronamespace
   where s.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
-    and p.proname not in ('daily_board', 'daily_summary', 'daily_rank', 'daily_alltime_board', 'weekly_board', 'weekly_summary', 'weekly_rank', 'get_challenge', 'h2h_peek', 'chase_board', 'chase_summary');
+    and p.proname not in ('daily_board', 'daily_summary', 'daily_rank', 'daily_alltime_board', 'weekly_board', 'weekly_summary', 'weekly_rank', 'get_challenge', 'h2h_peek', 'chase_board', 'chase_summary', 'casual_board', 'casual_summary');
   assert n = 0, 'anon can execute a public function outside the read list';
 end $t$;
 

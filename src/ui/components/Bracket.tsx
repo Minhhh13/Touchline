@@ -1,6 +1,12 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { inTie, type BracketTie, type BracketView } from '@game/logic/bracket'
+import { bracketLegs, inTie, type BracketTie, type BracketView } from '@game/logic/bracket'
 import { TrophyArt, type TrophyKind } from './TrophyArt'
+import { playSound } from '../sound/synth'
+import { translator } from '../i18n'
+import { summary } from '../i18n/en/summary'
+import { logicLine } from '../i18n/logicText'
+
+const tr = translator(summary)
 
 /** What a reveal has shown so far: ties whose step is below `shown` are played; the tie at `shown` is the one in play. */
 export interface BracketReveal {
@@ -34,7 +40,19 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
     const el = box.current?.querySelector<HTMLElement>('[data-in-play="true"]')
     el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [reveal?.shown, reveal])
+  // Each tie heard as the reveal fills it in: a soft tick, a little chime for the user's own (match sounds, thinned on a quick run)
+  const heardAt = useRef(reveal?.shown ?? 0)
+  useEffect(() => {
+    if (!reveal) return
+    const before = heardAt.current
+    heardAt.current = reveal.shown
+    if (reveal.shown !== before + 1) return
+    const user = view.rounds.some((round, r) => round.ties.some((t, i) => !!t && reveal.steps[r]?.[i] === before && inTie(t, userId)))
+    playSound({ id: 'bracket-tie', user })
+  }, [reveal?.shown])
 
+  // A two-legged tie between its legs (a Season's bracket): the first leg's score shows, nobody through yet
+  const midway = (t: BracketTie) => !reveal && !!t.legs?.length && t.winner === undefined
   const side = (t: BracketTie, which: 'home' | 'away', show: boolean, done: boolean) => {
     const id = t[which]
     const goals = which === 'home' ? t.hg : t.ag
@@ -46,10 +64,10 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
         {show ? badge(id) : <span className="br-blank-badge" aria-hidden="true" />}
         <span className="br-name" title={show ? nameOf(id) : undefined}>
           {show ? nameOf(id) : '?'}
-          {show && seeded.has(id) && <span className="muted small" title="Seeded"> (s)</span>}
+          {show && seeded.has(id) && <span className="muted small" title={tr('seeded')}>{tr('seededMark')}</span>}
         </span>
-        <span className="br-goals">{done && goals !== undefined ? goals : ''}</span>
-        {done && pens !== undefined && <span className="br-pens" title="Penalties">{pens}</span>}
+        <span className="br-goals">{(done || midway(t)) && goals !== undefined ? goals : ''}</span>
+        {done && pens !== undefined && <span className="br-pens" title={tr('penalties')}>{pens}</span>}
       </div>
     )
   }
@@ -61,13 +79,20 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
     const me = show && inTie(t, userId)
     const done = played(r, i) && t.winner !== undefined
     const live = inPlay(r, i) && me && !!reveal?.live
-    const extra = done ? (t.pens ? 'pens' : t.et ? 'aet' : '') : ''
+    const extra = done ? (t.pens ? tr('pens') : t.et ? tr('aet') : t.legs ? tr('agg') : '') : ''
+    // A two-legged tie's legs under its aggregate (engine 7's Continental Cup); a first leg alone as it stands
+    const legs = played(r, i) ? bracketLegs(t) : null
     return (
       <div className={`br-tie ${me ? 'me' : ''} ${done ? 'done' : 'open'} ${reveal && done ? 'landed' : ''} ${live ? 'live' : ''}`} data-testid={me ? meTestId : tieTestId} data-me={me ? 'true' : undefined} data-played={done ? 'true' : 'false'} data-in-play={inPlay(r, i) ? 'true' : undefined}>
         {side(t, 'home', show, done)}
         {side(t, 'away', show, done)}
+        {legs && (
+          <span className="br-legs" data-testid="bracket-legs" title={tr('legsTip')}>
+            {tr('legs', { legs })}
+          </span>
+        )}
         {extra && <span className="br-extra">{extra}</span>}
-        {live && <span className="br-live small">In play</span>}
+        {live && <span className="br-live small">{tr('inPlay')}</span>}
       </div>
     )
   }
@@ -84,8 +109,8 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
           return (
             <div key={round.name} className={`br-col ${r === 0 ? 'first' : ''} ${r === view.rounds.length - 1 && !tree ? 'last' : ''}`} data-testid={`${testId}-round-${r}`} style={{ gridColumn: r + 1 }}>
               <div className="br-head">
-                <span className="br-round">{round.name}</span>
-                {!round.ties.length && round.pending && <span className="br-pending small muted">{round.pending}</span>}
+                <span className="br-round">{logicLine(round.name)}</span>
+                {!round.ties.length && round.pending && <span className="br-pending small muted">{logicLine(round.pending)}</span>}
               </div>
               <div className="br-body">
                 {pairs.map((pair) => {
@@ -107,7 +132,7 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
         {tree && (
           <div className="br-col last champ" style={{ gridColumn: view.rounds.length + 1 }} data-testid={`${testId}-winner`}>
             <div className="br-head">
-              <span className="br-round">Winner</span>
+              <span className="br-round">{tr('winner')}</span>
             </div>
             <div className="br-body">
               <div className="br-pair">
@@ -119,7 +144,7 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
                         {badge(champion)} {nameOf(champion)}
                       </span>
                     ) : (
-                      <span className="small muted">To be decided</span>
+                      <span className="small muted">{tr('toBeDecided')}</span>
                     )}
                   </div>
                 </div>

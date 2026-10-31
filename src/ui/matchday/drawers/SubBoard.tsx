@@ -7,7 +7,8 @@
  * so does the keyboard (Enter or Space picks up, the arrows move, Enter drops,
  * Escape lets go), with each step announced. Staged changes are listed with
  * Undo, and the team rating and the slot's role rating preview them. Pointer
- * events, not HTML5 drag, so a finger, a pen and a mouse all work.
+ * events, not HTML5 drag, so a finger, a pen and a mouse all work; under a
+ * finger the man in hand rides above it and is the one aimed with (`aimPoint`).
  *
  * The board only stages: the sheet sends the staged list through the hand's
  * `submit`, exactly as the lists before it did.
@@ -21,10 +22,15 @@ import { ConditionIcon } from '../ConditionIcon'
 import { OnArrow } from '../icons'
 import { labelRoom, panelPoints } from '../model'
 import { Shirt } from '../Shirt'
-import { FIT_WORDS, fitGlow, lineupAfter, moveOnBoard, slotRole, slotRoleRating, stageSub, teamRating, type FitGlow, type StageRefusal } from '../subBoard'
+import { FIT_WORDS, aimPoint, fitGlow, lineupAfter, moveOnBoard, slotRole, slotRoleRating, stageSub, teamRating, type FitGlow, type StageRefusal } from '../subBoard'
 import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { VerticalPitch } from '../VerticalPitch'
+import { translator } from '../../i18n'
+import { roleName } from '../../i18n/engineText'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 type Kind = 'bench' | 'slot'
 interface Held {
@@ -34,12 +40,12 @@ interface Held {
   via: 'drag' | 'tap'
 }
 
-const REFUSED: Record<StageRefusal, string> = {
-  'no-room': 'No room for another change in this window.',
-  'not-on-pitch': 'That man cannot come off.',
-  'not-on-bench': 'That man cannot come on: nobody who has played comes back on.',
-  'already-on': 'He is already coming on.',
-  same: 'Pick a man from the other side.',
+const REFUSED: Record<StageRefusal, () => string> = {
+  'no-room': () => tx('refusedNoRoom'),
+  'not-on-pitch': () => tx('refusedNotOnPitch'),
+  'not-on-bench': () => tx('refusedNotOnBench'),
+  'already-on': () => tx('refusedAlreadyOn'),
+  same: () => tx('refusedSame'),
 }
 
 /** Pixels a pointer travels before a press becomes a drag (below it, it is a tap). */
@@ -103,9 +109,13 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   })
   const [hover, setHover] = useState<string | null>(null)
   const [say, setSay] = useState('')
+  // The dragged man's ghost: mounted once when a drag starts, then moved by writing its transform straight to the
+  // element (`ghostRef`), so a pointer move does not re-render the board and recompute its team ratings every frame
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null)
+  const ghostRef = useRef<HTMLDivElement>(null)
+  const ghostAt = useRef<{ x: number; y: number } | null>(null)
   const root = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ kind: Kind; id: string; pointerId: number; x0: number; y0: number; started: boolean } | null>(null)
+  const drag = useRef<{ kind: Kind; id: string; pointerId: number; x0: number; y0: number; started: boolean; touch: boolean } | null>(null)
   const swallowClick = useRef(false)
 
   const canTake = (slotId: string) => !disabled && !!original.get(slotId)
@@ -125,25 +135,25 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     const shown = shownAt(slotId)!
     const r = stageSub(queue, { off: shown, on }, { onPitch: hand.onPitch, bench: hand.bench, cap: room })
     if (r.refused) {
-      setSay(REFUSED[r.refused])
+      setSay(REFUSED[r.refused]())
       return
     }
     setQueue(r.subs)
     const p = get(on)
     const left = room - r.subs.length
-    setSay(`${nameOf(on)} on for ${nameOf(off)} at ${slotName(slot)}${p ? `, ${FIT_WORDS[fitGlow(p, slot.position)]}` : ''}. ${left > 0 ? `${left} more ${left === 1 ? 'change' : 'changes'} possible.` : 'No more changes in this window.'}`)
+    setSay(tx('sayStaged', { on: nameOf(on), off: nameOf(off), slot: slotName(slot), fit: p ? `, ${FIT_WORDS[fitGlow(p, slot.position)]}` : '', left: Math.max(0, left) }))
   }
 
   const pickUp = (h: Held) => {
     setHeld(h)
     setHover(null)
     const who = h.kind === 'bench' ? nameOf(h.id) : nameOf(shownAt(h.id))
-    setSay(h.kind === 'bench' ? `Picked up ${who}. Arrow keys move between the starters, Enter brings him on, Escape lets go.` : `${who} picked to come off. Arrow keys move along the bench, Enter brings that man on, Escape lets go.`)
+    setSay(tx(h.kind === 'bench' ? 'sayPickedBench' : 'sayPickedSlot', { who }))
   }
   const letGo = (quiet = false) => {
     setHeld(null)
     setHover(null)
-    if (!quiet) setSay('Let go.')
+    if (!quiet) setSay(tx('sayLetGo'))
   }
 
   // ------------------------------------------------------------------ tap (and Enter or Space on a focused card)
@@ -170,7 +180,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   }
   const down = (e: ReactPointerEvent<HTMLElement>, kind: Kind, id: string) => {
     if (disabled || (e.pointerType === 'mouse' && e.button !== 0)) return
-    drag.current = { kind, id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, started: false }
+    drag.current = { kind, id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, started: false, touch: e.pointerType === 'touch' }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -184,11 +194,15 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
       if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < DRAG_START) return
       d.started = true
       setHeld({ kind: d.kind, id: d.id, via: 'drag' })
-      setSay(d.kind === 'bench' ? `Dragging ${nameOf(d.id)}.` : `Dragging ${nameOf(shownAt(d.id))}.`)
+      setSay(tx('sayDragging', { who: d.kind === 'bench' ? nameOf(d.id) : nameOf(shownAt(d.id)) }))
     }
     e.preventDefault()
-    setGhost({ x: e.clientX, y: e.clientY })
-    const t = targetAt(e.clientX, e.clientY, d.kind)
+    const at = { x: e.clientX, y: e.clientY }
+    ghostAt.current = at
+    if (ghostRef.current) ghostRef.current.style.transform = `translate(${at.x}px, ${at.y}px)`
+    else if (!ghost) setGhost(at)
+    const aim = aimPoint(e.clientX, e.clientY, e.pointerType)
+    const t = targetAt(aim.x, aim.y, d.kind)
     setHover((h) => (h === t ? h : t))
   }
   const up = (e: ReactPointerEvent<HTMLElement>) => {
@@ -199,16 +213,19 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     // The click that follows a drag is not a tap
     swallowClick.current = true
     window.setTimeout(() => (swallowClick.current = false), 0)
-    const t = targetAt(e.clientX, e.clientY, d.kind)
+    const aim = aimPoint(e.clientX, e.clientY, e.pointerType)
+    const t = targetAt(aim.x, aim.y, d.kind)
+    ghostAt.current = null
     setGhost(null)
     if (t) drop(d, { kind: d.kind === 'bench' ? 'slot' : 'bench', id: t })
-    else setSay('Dropped nowhere: nothing changed.')
+    else setSay(tx('sayDroppedNowhere'))
     setHeld(null)
     setHover(null)
   }
   const cancel = () => {
     if (!drag.current) return
     drag.current = null
+    ghostAt.current = null
     setGhost(null)
     letGo(true)
   }
@@ -279,7 +296,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     const pOn = get(on)
     if (!slot || !offId || !pOn) return null
     const trial = stageSub(queue, { off: offId, on }, { onPitch: hand.onPitch, bench: hand.bench, cap: room })
-    return { slot, role: slotRole(tactics, slot).name, off: get(offId), on: pOn, fit: fitGlow(pOn, slot.position), team: trial.refused ? null : teamRating(tactics, lineupAfter(men, trial.subs), get, state), refused: trial.refused }
+    return { slot, role: roleName(slotRole(tactics, slot)), off: get(offId), on: pOn, fit: fitGlow(pOn, slot.position), team: trial.refused ? null : teamRating(tactics, lineupAfter(men, trial.subs), get, state), refused: trial.refused }
   })()
   const num = (n: number | null | undefined, digits = 0) => (hideRatings || n === null || n === undefined ? '?' : n.toFixed(digits))
   const delta = (a: number, b: number) => (b > a + 0.05 ? 'up' : b < a - 0.05 ? 'down' : 'same')
@@ -287,7 +304,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   return (
     <div className={`sub-board ${held ? 'holding' : ''}`} data-testid="sub-board" ref={root} onKeyDown={keys}>
       <div className="sub-pitch">
-        <VerticalPitch label={`${view.name} in a ${formation.name}: drop a substitute on a starter`} ratio={1.18}>
+        <VerticalPitch label={tx('pitchLabel', { name: view.name, formation: formation.name })} ratio={1.18}>
           {formation.slots.map((slot, i) => {
             const { left, top } = points[i]
             const id = shownAt(slot.id)
@@ -312,7 +329,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 data-fit={glow ?? undefined}
                 disabled={!takeable}
                 aria-pressed={isHeld}
-                aria-label={`${slotName(slot)}, ${slotRole(tactics, slot).name}: ${p?.name ?? 'empty'}${isStaged ? ', coming on' : ''}${pending ? ', coming on at the stop' : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : `, role rating ${rr}`}` : ''}`}
+                aria-label={`${slotName(slot)}, ${roleName(slotRole(tactics, slot))}: ${p?.name ?? tx('empty')}${isStaged ? tx('comingOn') : ''}${pending ? tx('comingOnStop') : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : tx('roleRating', { r: rr })}` : ''}`}
                 {...handlers('slot', slot.id)}
               >
                 <span className="sub-slot-shirt">
@@ -348,22 +365,22 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 <b>{surname(preview.on.name)}</b> <span className={`mono fit-text ${preview.fit}`}>{num(slotRoleRating(preview.on, tactics, preview.slot))}</span> <span className={`fit-text ${preview.fit}`}>{FIT_WORDS[preview.fit]}</span>
               </span>
               <span className="sub-team">
-                Team <span className="mono">{num(before, 1)}</span>
+                {tx('team')} <span className="mono">{num(before, 1)}</span>
                 {preview.team !== null ? (
                   <>
                     <span aria-hidden> → </span>
                     <b className={`mono ${hideRatings ? '' : delta(before, preview.team)}`}>{num(preview.team, 1)}</b>
                   </>
                 ) : (
-                  <span className="muted"> · {REFUSED[preview.refused!]}</span>
+                  <span className="muted"> · {REFUSED[preview.refused!]()}</span>
                 )}
               </span>
             </>
           ) : (
             <>
-              <span className="muted small">{held ? (held.kind === 'bench' ? 'Drop him on a starter: green is his position, amber he can cover, red is out of position.' : 'Now pick who comes on.') : disabled ? 'No changes right now.' : 'Drag a substitute onto a starter, or tap one and then the other.'}</span>
+              <span className="muted small">{tx(held ? (held.kind === 'bench' ? 'hintDrop' : 'hintPickOn') : disabled ? 'hintNoChanges' : 'hintDrag')}</span>
               <span className="sub-team">
-                Team rating <span className="mono">{num(before, 1)}</span>
+                {tx('teamRating')} <span className="mono">{num(before, 1)}</span>
                 {queue.length > 0 && (
                   <>
                     <span aria-hidden> → </span>
@@ -377,8 +394,8 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
           )}
         </div>
 
-        <div className="md-group">Bench</div>
-        <div className="sub-bench" role="group" aria-label="Bench">
+        <div className="md-group">{tx('bench')}</div>
+        <div className="sub-bench" role="group" aria-label={tx('bench')}>
           {bench.map((id) => {
             const p = get(id)
             const cond = squad[id]?.condition
@@ -396,7 +413,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 data-fit={glow ?? undefined}
                 disabled={disabled}
                 aria-pressed={isHeld}
-                aria-label={`${p?.name ?? id}, ${p?.positions.join(' ') ?? ''}${cond !== undefined ? `, condition ${cond}` : ''}${glow && heldSlot ? `. At ${slotName(heldSlot)}: ${FIT_WORDS[glow]}` : ''}`}
+                aria-label={`${p?.name ?? id}, ${p?.positions.join(' ') ?? ''}${cond !== undefined ? tx('conditionOf', { c: cond }) : ''}${glow && heldSlot ? tx('atSlot', { slot: slotName(heldSlot), fit: FIT_WORDS[glow] }) : ''}`}
                 {...handlers('bench', id)}
               >
                 <Shirt colour={p?.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[id]} size={22} />
@@ -407,19 +424,19 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
               </button>
             )
           })}
-          {bench.length === 0 && <div className="small muted">{hand.bench.length ? 'Everyone on the bench is coming on.' : 'Nobody available on the bench.'}</div>}
+          {bench.length === 0 && <div className="small muted">{tx(hand.bench.length ? 'benchAllOn' : 'benchEmpty')}</div>}
         </div>
 
         {(hand.pendingSubs.length > 0 || queue.length > 0) && (
           <>
-            <div className="md-group">Changes</div>
-            <ul className="md-queue sub-queue" aria-label="Changes to make">
+            <div className="md-group">{tx('changes')}</div>
+            <ul className="md-queue sub-queue" aria-label={tx('changesToMake')}>
               {hand.pendingSubs.map((s) => (
                 <li key={`p-${s.on}`} className="muted">
                   <span>
                     {nameOf(s.on)} ↔ {nameOf(s.off)}
                   </span>
-                  <span className="md-tag">at the stop</span>
+                  <span className="md-tag">{tx('atTheStop')}</span>
                 </li>
               ))}
               {queue.map((s) => {
@@ -438,11 +455,11 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                       data-testid="sub-undo"
                       onClick={() => {
                         setQueue(queue.filter((x) => x !== s))
-                        setSay(`Undone: ${nameOf(s.off)} stays on.`)
+                        setSay(tx('sayUndone', { who: nameOf(s.off) }))
                       }}
-                      aria-label={`Undo ${get(s.on)?.name} for ${get(s.off)?.name}`}
+                      aria-label={tx('undoSub', { on: get(s.on)?.name, off: get(s.off)?.name })}
                     >
-                      Undo
+                      {tx('undo')}
                     </button>
                   </li>
                 )
@@ -456,7 +473,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
         {say}
       </div>
       {ghost && held?.via === 'drag' && heldMan && (
-        <div className="sub-ghost" style={{ transform: `translate(${ghost.x}px, ${ghost.y}px)` }} aria-hidden>
+        <div className={`sub-ghost ${drag.current?.touch ? 'lifted' : ''}`} ref={ghostRef} style={{ transform: `translate(${(ghostAt.current ?? ghost).x}px, ${(ghostAt.current ?? ghost).y}px)` }} aria-hidden>
           <Shirt colour={heldMan.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[heldMan.id]} size={26} />
           <span>{surname(heldMan.name)}</span>
         </div>

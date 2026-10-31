@@ -183,7 +183,7 @@ describe('Weekly Challenge', () => {
     const g = createGame(s)
     expect(modeLabel(g, 'short')).toBe('Weekly · Moneyball')
     expect(modeLabel(g, 'share')).toBe('Weekly 2026-W46 · Moneyball')
-    expect(shareCardFooter(g)).toBe('Weekly challenge 2026-W46 · £180M cap')
+    expect(shareCardFooter(g)).toBe('Weekly Challenge 2026-W46 · £180M cap')
     expect(slotOf(g)).toBe('quick')
   })
 })

@@ -6,6 +6,8 @@ import { OVERSHOOT, reelKeyframes, reelPosition, type ReelTiming } from '../reel
 import { NeonFlow } from './Art'
 import { REDUCED_MS } from './CaseReel'
 import { CaseItemIcon, isCaseItemKey } from './icons'
+import { caseRowTitle } from '../i18n/engineText'
+import { landedBefore, readLandedReel, rememberLandedReel } from '../reelLanded'
 
 function prefersReducedMotion(): boolean {
   try {
@@ -19,7 +21,8 @@ function Card({ c, landed }: { c: ItemCard; landed?: boolean }) {
   return (
     <div className={`reel-card item-card${landed ? ' landed' : ''}`} data-tier={c.tier}>
       <span className="code">{isCaseItemKey(c.key) ? <CaseItemIcon item={c.key} size="0.9em" /> : c.face}</span>
-      <span className="item-lbl">{c.label}</span>
+      {/* A case item's name in the viewer's language (the logic's card keeps the English); a manager's is his surname */}
+      <span className="item-lbl">{isCaseItemKey(c.key) ? caseRowTitle({ item: c.key, title: c.label }) : c.label}</span>
     </div>
   )
 }
@@ -29,13 +32,16 @@ function Card({ c, landed }: { c: ItemCard; landed?: boolean }) {
  * same curve, ticks and landing sound (`src/ui/reelCurve.ts`, `src/ui/sound/reel.ts`). The item is already drawn
  * (`deal.target`); this only slides onto it. `stagger` lengthens the slide so side-by-side reels land one after
  * another; a change of `skip` lands at once (the parent's tap-to-skip); `sound` off keeps a second or third reel quiet
- * except for its landing.
+ * except for its landing. With a `scope` (`itemReelMark`), a run that already landed on this device mounts landed after a
+ * reload, with no slide and no sound, as the case reel's does; `restored` mounts it landed for a parent that keeps its own
+ * mark (the manager spin's three reels land as one).
  */
-export function ItemReel({ deal, timing: runTiming, stagger = 0, sound = true, skip = 0, onSettled, testId }: { deal: ItemDeal; timing: ReelTiming; stagger?: number; sound?: boolean; skip?: number; onSettled?: () => void; testId?: string }) {
+export function ItemReel({ deal, timing: runTiming, stagger = 0, sound = true, skip = 0, onSettled, testId, scope, restored = false }: { deal: ItemDeal; timing: ReelTiming; stagger?: number; sound?: boolean; skip?: number; onSettled?: () => void; testId?: string; scope?: string; restored?: boolean }) {
   const [reduced] = useState(prefersReducedMotion)
   // Fixed for the run, the strip starting at once (there is no season to show first)
   const [timing] = useState<ReelTiming>(() => ({ ...runTiming, drum: 0, season: 0, spin: runTiming.spin + stagger }))
-  const [landed, setLanded] = useState(false)
+  const [already] = useState(() => restored || (!!scope && landedBefore(scope, readLandedReel())))
+  const [landed, setLanded] = useState(already)
   const windowRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   const skipRef = useRef<() => void>(() => undefined)
@@ -91,7 +97,16 @@ export function ItemReel({ deal, timing: runTiming, stagger = 0, sound = true, s
       strip.style.transform = end()
       snd?.land(deal.target.tier)
       setLanded(true)
+      if (scope) rememberLandedReel(scope)
       settledCb.current?.()
+    }
+    // Landed before a reload: at the stop before the first paint, silent
+    if (already) {
+      land()
+      return () => {
+        alive = false
+        observer?.disconnect()
+      }
     }
     if (reduced || typeof strip.animate !== 'function') {
       snd = sound ? soundOf(null) : { land: (tier) => playLanding(tier, true), stop: () => undefined }

@@ -8,6 +8,10 @@
  */
 import { useId, useRef, type ReactNode } from 'react'
 import { useDialog } from '../useDialog'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 export function DecisionSheet({ open, title, subtitle, onMinimise, children, actions, testId }: { open: boolean; title: string; subtitle?: string; onMinimise: () => void; children: ReactNode; actions: ReactNode; testId: string }) {
   const backRef = useRef<HTMLDivElement>(null)
@@ -25,7 +29,7 @@ export function DecisionSheet({ open, title, subtitle, onMinimise, children, act
             <h2 id={titleId}>{title}</h2>
             {subtitle && <div className="small muted">{subtitle}</div>}
           </div>
-          <button className="btn sm ghost" onClick={onMinimise} aria-label="Minimise" data-testid="decisions-close">
+          <button className="btn sm ghost" onClick={onMinimise} aria-label={t('minimise')} data-testid="decisions-close">
             ✕
           </button>
         </div>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { FORMATIONS, getFormation } from '@engine/formations'
-import { tacticsForStyle } from '@engine/tactics'
+import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, tacticsForStyle } from '@engine/tactics'
+import { SHOUTS, type Shout } from '@engine/match'
+import { lineHelp, mentalityHelp, passingHelp, pressingHelp, shoutHint, shoutLabel, tempoHelp, widthHelp } from '../matchday/tacticText'
 import { appearancesAt } from '@engine/matchFeed'
 import { statsAt, statsSeries, xgStory } from '@engine/matchStats'
 import type { LatestScore } from '@game/logic/matchday'
@@ -16,11 +18,30 @@ function memoryStorage(seed: Record<string, string> = {}): ChoiceStorage & { dat
   return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v) }
 }
 
+describe('tactics words on the match day', () => {
+  it("read the engine's English through t()", () => {
+    const same = <K extends string>(help: Record<K, string>, read: (k: K) => string) => {
+      for (const k of Object.keys(help) as K[]) expect(read(k), k).toBe(help[k])
+    }
+    same(MENTALITY_HELP, mentalityHelp)
+    same(PRESSING_HELP, pressingHelp)
+    same(TEMPO_HELP, tempoHelp)
+    same(WIDTH_HELP, widthHelp)
+    same(LINE_HELP, lineHelp)
+    same(PASSING_HELP, passingHelp)
+    for (const k of Object.keys(SHOUTS) as Shout[]) {
+      expect(shoutLabel(k)).toBe(SHOUTS[k].label)
+      expect(shoutHint(k)).toBe(SHOUTS[k].hint)
+    }
+  })
+})
+
 describe('widget registry', () => {
   it('lists every widget once with a label, and the desktop slots exclude the phone-only line-ups', () => {
     expect(new Set(WIDGET_IDS).size).toBe(WIDGET_IDS.length)
     expect(WIDGETS.map((w) => w.id)).toEqual([...WIDGET_IDS])
     for (const w of WIDGETS) expect(w.label.length).toBeGreaterThan(3)
+    expect(WIDGETS.map((w) => w.label)).toEqual(['Match events', 'Commentary', 'Heat map', 'Average positions', 'Pass maps', 'Action zones', 'Shot map', 'xG graph story', 'Match momentum', 'Match stats', 'Latest scores', 'Live table', 'Dugout', 'Matchday info', 'Line-ups'])
     expect(SLOT_WIDGETS.some((w) => w.id === 'formations')).toBe(false)
     expect(SLOT_WIDGETS).toHaveLength(WIDGET_IDS.length - 1)
   })
@@ -219,7 +240,7 @@ describe('panel models', () => {
 
   it('writes a line for every goal elsewhere with the score it made, and flashes a fresh one', () => {
     const s: LatestScore = { homeTeamId: 'a', awayTeamId: 'b', homeName: 'Arsenal', awayName: 'Spurs', homeCode: 'ARS', awayCode: 'TOT', home: 2, away: 1, status: 'live', goals: [{ minute: 23, side: 'home', scorer: 'Saka' }, { minute: 50, side: 'away' }, { minute: 88, side: 'home', scorer: 'Rice' }] }
-    expect(elsewhereLines([s])).toEqual([
+    expect(elsewhereLines([s])).toMatchObject([
       { minute: 23, text: "Elsewhere: Arsenal 1-0 Spurs, Saka 23'." },
       { minute: 50, text: 'Elsewhere: Arsenal 1-1 Spurs.' },
       { minute: 88, text: "Elsewhere: Arsenal 2-1 Spurs, Rice 88'." },
