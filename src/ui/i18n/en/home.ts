@@ -13,7 +13,7 @@ export const home = catalog('home', {
   stepTitle: '{n}. {title}',
   playFirst: 'Play your first draft',
   loading: 'Loading…',
-  firstNote: 'About 5 minutes, no sign-up.',
+  firstNote: 'A free football draft in about 5 minutes, no sign-up.',
   howItWorks: 'How it works',
   arenaAbandon: "Start today's arena? Your current {mode} run ({team}) will be abandoned.",
   startOk: 'Start',

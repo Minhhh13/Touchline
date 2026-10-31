@@ -180,6 +180,8 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 
 ## Conventions
 
+- Keep the public homepage URL in `index.html`, `public/robots.txt` and `public/sitemap.xml` aligned with `https://touchline.quest/`. Only public, indexable page URLs belong in the sitemap.
+
 - Style: 2 spaces, LF, no semicolons, single quotes, long single-line JSX is normal. Do not reflow existing lines (it creates huge conflicts).
 - Hooks above early returns in every component (Dugout, Summary and Explore are fixed; keep it that way).
 - Read the store with `useStorePick('game', 'universe', ...)` (`src/ui/useStorePick.ts`), naming every key the component reads; a bare `useStore()` re-renders on every store write. A selector of one value (`useStore((s) => s.game)`) is fine too.
