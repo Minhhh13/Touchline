@@ -33,6 +33,7 @@ import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
 import { templateText } from '../runInText'
 import { fillAlltimeBoard, fillCasualBoard, fillChaseBoard, fillRankedBoard } from './exhibitionRows'
+import { simulatedGamesAt } from './simulatedActivity'
 
 const tr = translator(online)
 
@@ -225,6 +226,16 @@ function MoreButton({ onClick, busy }: { onClick: () => void; busy: boolean }) {
       {tr(busy ? 'loading' : 'showMore')}
     </button>
   )
+}
+
+/** An isolated display estimate so its timer does not re-render the board tables. */
+function SimulatedGames() {
+  const [games, setGames] = useState(() => simulatedGamesAt())
+  useEffect(() => {
+    const timer = window.setInterval(() => setGames((current) => Math.max(current, simulatedGamesAt())), 1_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return <span className="world-simulated" data-testid="world-simulated">{tr('gamesSimulated', { n: games.toLocaleString(formatLocale()) })}</span>
 }
 
 function RankedTable({ kind, boardKey, country, title, current }: { kind: RankedKind; boardKey: string; country: string | null; title: string; current: boolean }) {
@@ -853,7 +864,11 @@ export function WorldBoard() {
       <div className="screen-head">
         <div className="screen-title">
           <h1>{tr('worldLeaderboard')}</h1>
-          <div className="screen-meta">{tr('worldMeta')}</div>
+          <div className="screen-meta">
+            <span>{tr('worldMeta')}</span>
+            <span aria-hidden="true">·</span>
+            <SimulatedGames />
+          </div>
         </div>
         <button className="btn ghost" onClick={() => go('home')}>
           {tr('backHome')}

@@ -311,3 +311,7 @@ The live list, with owners, state and the PRs that shipped, is `docs/HANDOVER.md
 - `ios-native` (local) and PR #72 (`feat/ios-mobile`, open): the Capacitor 8 iOS wrapper (`ios/`, safe areas, Universal Links, native share, haptics, icon and launch image, App Store screenshots, `docs/IOS_RELEASE.md`); later, the owner's call, built and submitted on a Mac.
 - `neutral-names` (on GitHub): neutral league and cup names, on hold (the owner's call).
 - Waiting on the owner: deleting the merged branches in `docs/branch-cleanup.txt`, the engine 7 smoke row in `private.error_reports`, the ",NN" names data rebuild, a licence, Google and Apple sign-in, AI rivals on near-empty boards, leaked-password protection and the Supabase paid plan before a public launch.
+
+## World exhibition display
+
+`src/ui/online/exhibitionRows.ts` fills sparse World boards with client-only display managers without changing verified results. `src/ui/online/simulatedActivity.ts` supplies the labelled, illustrative games-simulated counter (500,000 base, then a fixed time step). Neither is server telemetry or part of the verifier.

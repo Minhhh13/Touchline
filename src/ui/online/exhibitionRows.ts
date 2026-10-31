@@ -14,24 +14,44 @@ interface ExhibitionManager {
 
 export const BOARD_SIZE = 200
 
-const FIRST_NAMES = ['Jamie', 'Sofia', 'Lukas', 'Marco', 'Daan', 'Camille', 'Riley', 'Rafael', 'Youssef', 'Haru', 'Avery', 'Tiago', 'Maya', 'Noah', 'Elena', 'Leo', 'Amara', 'Nico', 'Zara', 'Elias'] as const
-const LAST_NAMES = ['Carter', 'Reyes', 'Weber', 'Bianchi', 'de Wit', 'Laurent', 'Hayes', 'Costa', 'Amrani', 'Sato', 'Clarke', 'Martins', 'Khan', 'Petrov', 'Silva', 'Nielsen', 'Okafor', 'Rossi', 'Tanaka', 'Morgan'] as const
-const COUNTRIES = ['GB', 'ES', 'DE', 'IT', 'NL', 'FR', 'AU', 'BR', 'MA', 'JP', 'CA', 'PT'] as const
+const NAME_POOLS = [
+  { country: 'GB', first: ['Oliver', 'Amelia', 'Harry', 'Isla', 'George', 'Priya'], last: ['Bennett', 'Holloway', 'Patel', 'Turner', 'Shaw', 'Walker', 'Hughes'] },
+  { country: 'ES', first: ['Lucía', 'Javier', 'Alba', 'Mateo', 'Elena', 'Iker'], last: ['Navarro', 'Morales', 'García', 'López', 'Martín', 'Serrano', 'Vega'] },
+  { country: 'DE', first: ['Felix', 'Lea', 'Jonas', 'Mia', 'Leon', 'Klara'], last: ['Becker', 'Schneider', 'Hoffmann', 'Fischer', 'Wagner', 'Neumann', 'Krause'] },
+  { country: 'IT', first: ['Giulia', 'Andrea', 'Luca', 'Sofia', 'Matteo', 'Chiara'], last: ['Russo', 'Esposito', 'Conti', 'Ferraro', 'Moretti', 'Ricci', 'Gallo'] },
+  { country: 'NL', first: ['Daan', 'Lotte', 'Bram', 'Noor', 'Sven', 'Tess'], last: ['van Dijk', 'de Vries', 'Bakker', 'Smit', 'Visser', 'van Leeuwen', 'Dekker'] },
+  { country: 'FR', first: ['Camille', 'Hugo', 'Léa', 'Enzo', 'Manon', 'Théo'], last: ['Dubois', 'Bernard', 'Petit', 'Moreau', 'Laurent', 'Michel', 'Lefebvre'] },
+  { country: 'AU', first: ['Riley', 'Matilda', 'Lachlan', 'Zara', 'Noah', 'Tahlia'], last: ['McKenzie', 'Nguyen', "O'Connor", 'Walsh', 'Fraser', 'Singh', 'Campbell'] },
+  { country: 'BR', first: ['Rafael', 'Camila', 'João', 'Beatriz', 'Lucas', 'Ana'], last: ['Costa', 'Oliveira', 'Pereira', 'Almeida', 'Rocha', 'Souza', 'Barbosa'] },
+  { country: 'MA', first: ['Youssef', 'Salma', 'Amine', 'Iman', 'Hamza', 'Amina'], last: ['El Fassi', 'Bennani', 'Alaoui', 'Amrani', 'Idrissi', 'Chraïbi', 'Berrada'] },
+  { country: 'JP', first: ['Haru', 'Yui', 'Ren', 'Sakura', 'Daichi', 'Mei'], last: ['Sato', 'Tanaka', 'Nakamura', 'Kobayashi', 'Yamamoto', 'Ishikawa', 'Mori'] },
+  { country: 'CA', first: ['Avery', 'Émile', 'Quinn', 'Chloé', 'Logan', 'Maya'], last: ['Tremblay', 'Chen', 'Gagnon', 'Dubé', 'Brooks', 'MacDonald', 'Roy'] },
+  { country: 'PT', first: ['Tiago', 'Inês', 'Duarte', 'Teresa', 'Gonçalo', 'Mariana'], last: ['Martins', 'Ferreira', 'Sousa', 'Ribeiro', 'Carvalho', 'Pires', 'Almeida'] },
+] as const
 const CLUB_PLACES = ['Northbridge', 'Puerto', 'Rheinland', 'Verona', 'Oranje', 'Lumiere', 'Harbour', 'Estrela', 'Atlas', 'Sakura', 'Maple', 'Lusitania', 'Riverside', 'Kingsport', 'Valley', 'Coastal', 'Central', 'Union', 'Olympic', 'Victoria'] as const
 const CLUB_TYPES = ['FC', 'Athletic', '04', 'Sporting', 'City', 'Racing', 'United', 'Rovers', 'Eleven', 'SC'] as const
 
-const MANAGERS: readonly ExhibitionManager[] = Array.from({ length: BOARD_SIZE }, (_, index) => ({
-  name: `${FIRST_NAMES[index % FIRST_NAMES.length]} ${LAST_NAMES[Math.floor(index / FIRST_NAMES.length) % LAST_NAMES.length]}`,
-  country: COUNTRIES[index % COUNTRIES.length],
-  team: `${CLUB_PLACES[index % CLUB_PLACES.length]} ${CLUB_TYPES[Math.floor(index / CLUB_PLACES.length) % CLUB_TYPES.length]}`,
-}))
+const MANAGERS: readonly ExhibitionManager[] = Array.from({ length: BOARD_SIZE }, (_, index) => {
+  const poolIndex = index % NAME_POOLS.length
+  const pool = NAME_POOLS[poolIndex]
+  const ordinal = Math.floor(index / NAME_POOLS.length)
+  return {
+    name: `${pool.first[ordinal % pool.first.length]} ${pool.last[(ordinal * 3 + poolIndex) % pool.last.length]}`,
+    country: pool.country,
+    team: `${CLUB_PLACES[index % CLUB_PLACES.length]} ${CLUB_TYPES[Math.floor(index / CLUB_PLACES.length) % CLUB_TYPES.length]}`,
+  }
+})
 
 const positionAfter = (rows: readonly { position: number }[]) => Math.max(rows.length, ...rows.map((r) => r.position), 0) + 1
 
-function fill<T extends { position: number }>(real: readonly T[], make: (manager: ExhibitionManager, index: number, position: number) => T): Array<T | ExhibitionRow<T>> {
+function fill<T extends { position: number; name: string }>(real: readonly T[], boardOffset: number, make: (manager: ExhibitionManager, index: number, position: number) => T): Array<T | ExhibitionRow<T>> {
   if (real.length >= BOARD_SIZE) return [...real]
   const firstPosition = positionAfter(real)
-  const added = MANAGERS.slice(0, BOARD_SIZE - real.length).map((manager, index) => ({ ...make(manager, index, firstPosition + index), exhibition: true }) as ExhibitionRow<T>)
+  const verifiedNames = new Set(real.map((row) => row.name.toLocaleLowerCase()))
+  const managers = Array.from({ length: BOARD_SIZE }, (_, index) => MANAGERS[(index * 73 + boardOffset) % BOARD_SIZE])
+    .filter((manager) => !verifiedNames.has(manager.name.toLocaleLowerCase()))
+    .slice(0, BOARD_SIZE - real.length)
+  const added = managers.map((manager, index) => ({ ...make(manager, index, firstPosition + index), exhibition: true }) as ExhibitionRow<T>)
   return [...real, ...added]
 }
 
@@ -46,7 +66,7 @@ const tierFor = (points: number) => (points >= 95 ? 'CHAMPIONS' : points >= 78 ?
 /** Today's Daily and the fixed weekly puzzle. Verified rows stay first and retain their official positions. */
 export function fillRankedBoard(real: readonly BoardRow[], kind: RankedKind, country: string | null): Array<BoardRow | ExhibitionRow<BoardRow>> {
   const lastPoints = real.at(-1)?.points
-  return fill(real, (manager, index, position) => {
+  return fill(real, kind === 'daily' ? 0 : 37, (manager, index, position) => {
     const points = Math.max(0, lastPoints === undefined ? 92 - Math.floor(index / 3) - (kind === 'weekly' ? 1 : 0) : lastPoints - Math.ceil((index + 1) / 3))
     const record = recordFor(points, 38)
     const goalsFor = Math.max(12, 86 - Math.floor(index / 3))
@@ -74,7 +94,7 @@ export function fillRankedBoard(real: readonly BoardRow[], kind: RankedKind, cou
 /** All-time totals, ordered consistently with the selected view. */
 export function fillAlltimeBoard(real: readonly AlltimeRow[], order: AlltimeOrder, country: string | null): Array<AlltimeRow | ExhibitionRow<AlltimeRow>> {
   const last = real.at(-1)
-  return fill(real, (manager, index, position) => {
+  return fill(real, order === 'points' ? 74 : 111, (manager, index, position) => {
     const totalPoints = Math.max(0, last ? last.totalPoints - Math.ceil((index + 1) / 3) : 15_200 - index * 53)
     const played = Math.max(1, Math.min(365, Math.ceil(totalPoints / 76)))
     const bestStreak = Math.max(0, last && order === 'streak' ? last.bestStreak - Math.ceil((index + 1) / 5) : 45 - Math.floor(index / 5))
@@ -96,7 +116,7 @@ export function fillAlltimeBoard(real: readonly AlltimeRow[], order: AlltimeOrde
 /** The weekly and all-time 38–0 chase tables. */
 export function fillChaseBoard(real: readonly ChaseRow[], country: string | null): Array<ChaseRow | ExhibitionRow<ChaseRow>> {
   const lastPoints = real.at(-1)?.points
-  return fill(real, (manager, index, position) => {
+  return fill(real, 148, (manager, index, position) => {
     const points = Math.max(0, lastPoints === undefined ? 114 - Math.floor(index / 4) : lastPoints - Math.ceil((index + 1) / 4))
     const record = recordFor(points, 38)
     const goalsFor = Math.max(20, 112 - Math.floor(index / 2))
@@ -129,7 +149,7 @@ export function fillChaseBoard(real: readonly ChaseRow[], country: string | null
 /** Daily Arena, themed Weekly Challenge and Run-in of the week. */
 export function fillCasualBoard(real: readonly CasualRow[], board: CasualKind, country: string | null): Array<CasualRow | ExhibitionRow<CasualRow>> {
   const lastScore = real.at(-1)?.score
-  return fill(real, (manager, index, position) => {
+  return fill(real, board === 'arena' ? 185 : board === 'themed' ? 22 : 59, (manager, index, position) => {
     const arena = board === 'arena'
     const runin = board === 'runin'
     const games = arena ? 9 : runin ? 10 : 38
