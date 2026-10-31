@@ -7860,6 +7860,10 @@ dl.kv {
 .screen-meta .mono {
   font-size: var(--fs-meta);
 }
+.world-simulated {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
 .draft-progress {
   display: flex;
   flex-direction: column;
