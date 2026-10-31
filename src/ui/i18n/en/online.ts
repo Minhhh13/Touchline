@@ -204,6 +204,7 @@ export const online = catalog('online', {
   levelTip: 'Level on every count with the row beside it: the earlier post ranks higher.',
   playTodayDaily: "Play today's Daily",
   dailyCardLine: 'Everyone gets the same eleven spins today: a <b>{formation}</b> as <b>{club}</b>, {season}.',
+  dailyCardPlanLine: "Today's fixed wheel is a <b>{formation}</b> in <b>{league}</b>. Open it to load the full fixture.",
   playedToday: 'Played today: {n} pts, {tier}. Your first finished run is the one on the board.',
   continueDailyWorld: "Continue today's Daily",
   playDailyWorld: "Play today's Daily",
