@@ -21,7 +21,7 @@ import { onlineStore } from '../../online/state'
 import type { Guest } from '../../online/server/service'
 import { fakeRoomView, makeHarness, VISITOR, VISITOR2 } from '../../online/__tests__/serverHarness'
 import { RoomScreen } from '../online/Rooms'
-import { BoardState } from '../online/WorldBoard'
+import { BoardState, DailyPlay } from '../online/WorldBoard'
 import { authModes, authNoteText, authText } from '../online/authText'
 import { markupProblems, show } from './qaSsr'
 
@@ -227,6 +227,26 @@ describe('the World boards: empty, offline and failed states', () => {
     const failed = render({ rows: null, error: 'The server did not answer.', retry: () => undefined, empty: '' })
     expect(failed).toContain('data-testid="board-error"')
     expect(text(failed)).toContain('Could not load the board')
+  })
+})
+
+describe("the World board's rotated Daily card", () => {
+  it('uses the pack-free plan until the day\'s league loads', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-31T12:00:00Z'))
+    try {
+      const england = loadTestUniverse(['england'])
+      show({ universe: england, loadedLeagues: ['england'], game: null, screen: 'world' })
+      onlineStore.setState({ pins: { ...onlineStore.getState().pins, day: '2026-10-31', daily: null } })
+      Object.assign(onlineStore.getInitialState(), onlineStore.getState())
+      const html = renderToString(createElement(DailyPlay))
+      expect(markupProblems(html)).toEqual([])
+      expect(html).toContain('data-testid="world-play-daily"')
+      expect(text(html)).toContain("Today's fixed wheel")
+      expect(text(html)).toContain('La Liga')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
