@@ -3,7 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="TouchLine: spin the wheel, draft an all-time XI from real players, then manage the season. A football game fusing 38-0's draft with Football Manager's depth." />
+    <title>TouchLine – Football Draft &amp; Management Game</title>
+    <meta name="description" content="Spin the wheel, draft an XI from real club seasons and see if you can win all 38 matches. Play TouchLine, a free football draft and management game for your browser." />
+    <link rel="canonical" href="https://touchline.quest/" />
+    <meta name="google-site-verification" content="NbpuIXkYKRlBEY0KKU6NLe8T1odsrTdJIjgHMC7KG-U" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TouchLine" />
+    <meta property="og:url" content="https://touchline.quest/" />
+    <meta property="og:title" content="TouchLine – Football Draft &amp; Management Game" />
+    <meta property="og:description" content="Spin the wheel, draft an XI from real club seasons and try to win all 38 matches. Play free in your browser." />
+    <meta property="og:image" content="https://touchline.quest/icons/icon-512.png" />
+    <meta property="og:image:alt" content="TouchLine game icon" />
+    <meta name="twitter:card" content="summary" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://touchline.quest/#website",
+            "url": "https://touchline.quest/",
+            "name": "TouchLine"
+          },
+          {
+            "@type": "VideoGame",
+            "@id": "https://touchline.quest/#game",
+            "name": "TouchLine",
+            "url": "https://touchline.quest/",
+            "isPartOf": { "@id": "https://touchline.quest/#website" },
+            "description": "Spin the wheel, draft an XI from real club seasons and manage a football season in your browser.",
+            "genre": "Football management",
+            "gamePlatform": "Web browser",
+            "isAccessibleForFree": true,
+            "image": "https://touchline.quest/icons/icon-512.png"
+          }
+        ]
+      }
+    </script>
     <meta name="theme-color" content="#07102e" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,7 +51,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TouchLine" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <title>TouchLine</title>
     <script>
       // Paint the right theme before the app loads (App.tsx keeps it in sync afterwards): the saved choice, or the device's for Auto.
       // The choice is mirrored under touchline-theme (src/ui/theme.ts) because the save is compressed; a plain save from an older build is the fallback.
@@ -55,7 +90,14 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="page">
+        <h1>TouchLine – Football Draft &amp; Management Game</h1>
+        <p>Spin the wheel to draw a real club in a real season. Pick one footballer from its squad on each spin, then send your XI into a 38-match season. Can you win them all?</p>
+        <p>Play a free Quick Draft, try the same Daily Challenge as everyone else, or manage your club across seasons in Dynasty.</p>
+        <noscript>Enable JavaScript to play TouchLine in your browser.</noscript>
+      </main>
+    </div>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
