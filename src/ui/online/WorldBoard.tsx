@@ -14,6 +14,7 @@ import { dailyStartSettings, weeklyStartSettings } from '../../online/daily'
 import { PIN_NOTE, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
+import { dailyLoaded, dailyPlan } from '@game/logic/setup'
 import { dailyArenaGameSettings, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeText } from '../i18n/weeklyThemeText'
@@ -664,13 +665,22 @@ function PlayCard({ title, line, done, action, onClick, disabled, testId }: { ti
 }
 
 /** Today's Daily from its board: it continues where it was left, else opens the Daily's setup (as Home's card does). */
-function DailyPlay() {
+export function DailyPlay() {
   const { universe: u, game, parked, go, resumeGame, profile, loadedLeagues } = useStorePick('universe', 'game', 'parked', 'go', 'resumeGame', 'profile', 'loadedLeagues')
   const pin = useOnline((st) => (st.pins.day === new Date().toISOString().slice(0, 10) ? st.pins.daily : null))
   if (!u || !loadedLeagues.includes('england')) return null
   const seed = todaysDailySeed()
-  // Online and pinned: the ranked puzzle, as Home's card reads it
-  const s = dailyStartSettings(u, seed, 'Touchline XI', pin).settings
+  // A rotated Daily can name a pack the World screen has not loaded. Setup loads it after the button is pressed;
+  // until then use the pack-free plan, as Home does, rather than trying to build the full settings and throwing.
+  const plan = dailyPlan(seed)
+  const here = dailyLoaded(loadedLeagues, seed)
+  const line = here
+    ? (() => {
+        // Online and pinned: the ranked puzzle, as Home's card reads it
+        const s = dailyStartSettings(u, seed, 'Touchline XI', pin).settings
+        return rich(tr('dailyCardLine', { formation: formationName(s.formationId), club: u.clubById[s.hostClubId]?.name ?? s.hostClubId, season: seasonLabel(s.leagueSeason) }), B)
+      })()
+    : rich(tr('dailyCardPlanLine', { formation: formationName(plan.formationId), league: u.available.find((l) => l.id === plan.leagueId)?.name ?? plan.leagueId }), B)
   const isToday = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === seed && g.phase !== 'summary'
   const result = profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`]
   const underWay = isToday(game) || isToday(parked.quick)
@@ -679,7 +689,7 @@ function DailyPlay() {
     <PlayCard
       testId="world-play-daily"
       title={tr('playTodayDaily')}
-      line={rich(tr('dailyCardLine', { formation: formationName(s.formationId), club: u.clubById[s.hostClubId]?.name ?? s.hostClubId, season: seasonLabel(s.leagueSeason) }), B)}
+      line={line}
       done={result && !underWay ? tr('playedToday', { n: result.points, tier: tierText(result.tier) }) : null}
       action={tr(underWay ? 'continueDailyWorld' : result ? 'playAgainPractice' : 'playDailyWorld')}
       onClick={play}
