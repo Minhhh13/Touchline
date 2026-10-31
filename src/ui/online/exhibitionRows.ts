@@ -12,22 +12,19 @@ interface ExhibitionManager {
   team: string
 }
 
-const MANAGERS: readonly ExhibitionManager[] = [
-  { name: 'Jamie Carter', country: 'GB', team: 'Northbridge FC' },
-  { name: 'Sofia Reyes', country: 'ES', team: 'Puerto Athletic' },
-  { name: 'Lukas Weber', country: 'DE', team: 'Rheinland 04' },
-  { name: 'Marco Bianchi', country: 'IT', team: 'Sporting Verona' },
-  { name: 'Daan de Wit', country: 'NL', team: 'Oranje City' },
-  { name: 'Camille Laurent', country: 'FR', team: 'Racing Lumiere' },
-  { name: 'Riley Hayes', country: 'AU', team: 'Harbour United' },
-  { name: 'Rafael Costa', country: 'BR', team: 'Estrela FC' },
-  { name: 'Youssef Amrani', country: 'MA', team: 'Atlas Sporting' },
-  { name: 'Haru Sato', country: 'JP', team: 'Sakura Eleven' },
-  { name: 'Avery Clarke', country: 'CA', team: 'Maple Rovers' },
-  { name: 'Tiago Martins', country: 'PT', team: 'Lusitania SC' },
-] as const
+export const BOARD_SIZE = 200
 
-export const BOARD_SIZE = 12
+const FIRST_NAMES = ['Jamie', 'Sofia', 'Lukas', 'Marco', 'Daan', 'Camille', 'Riley', 'Rafael', 'Youssef', 'Haru', 'Avery', 'Tiago', 'Maya', 'Noah', 'Elena', 'Leo', 'Amara', 'Nico', 'Zara', 'Elias'] as const
+const LAST_NAMES = ['Carter', 'Reyes', 'Weber', 'Bianchi', 'de Wit', 'Laurent', 'Hayes', 'Costa', 'Amrani', 'Sato', 'Clarke', 'Martins', 'Khan', 'Petrov', 'Silva', 'Nielsen', 'Okafor', 'Rossi', 'Tanaka', 'Morgan'] as const
+const COUNTRIES = ['GB', 'ES', 'DE', 'IT', 'NL', 'FR', 'AU', 'BR', 'MA', 'JP', 'CA', 'PT'] as const
+const CLUB_PLACES = ['Northbridge', 'Puerto', 'Rheinland', 'Verona', 'Oranje', 'Lumiere', 'Harbour', 'Estrela', 'Atlas', 'Sakura', 'Maple', 'Lusitania', 'Riverside', 'Kingsport', 'Valley', 'Coastal', 'Central', 'Union', 'Olympic', 'Victoria'] as const
+const CLUB_TYPES = ['FC', 'Athletic', '04', 'Sporting', 'City', 'Racing', 'United', 'Rovers', 'Eleven', 'SC'] as const
+
+const MANAGERS: readonly ExhibitionManager[] = Array.from({ length: BOARD_SIZE }, (_, index) => ({
+  name: `${FIRST_NAMES[index % FIRST_NAMES.length]} ${LAST_NAMES[Math.floor(index / FIRST_NAMES.length) % LAST_NAMES.length]}`,
+  country: COUNTRIES[index % COUNTRIES.length],
+  team: `${CLUB_PLACES[index % CLUB_PLACES.length]} ${CLUB_TYPES[Math.floor(index / CLUB_PLACES.length) % CLUB_TYPES.length]}`,
+}))
 
 const positionAfter = (rows: readonly { position: number }[]) => Math.max(rows.length, ...rows.map((r) => r.position), 0) + 1
 
@@ -50,10 +47,10 @@ const tierFor = (points: number) => (points >= 95 ? 'CHAMPIONS' : points >= 78 ?
 export function fillRankedBoard(real: readonly BoardRow[], kind: RankedKind, country: string | null): Array<BoardRow | ExhibitionRow<BoardRow>> {
   const lastPoints = real.at(-1)?.points
   return fill(real, (manager, index, position) => {
-    const points = Math.max(3, lastPoints === undefined ? 88 - index * 3 - (kind === 'weekly' ? 1 : 0) : lastPoints - (index + 1) * 2)
+    const points = Math.max(0, lastPoints === undefined ? 92 - Math.floor(index / 3) - (kind === 'weekly' ? 1 : 0) : lastPoints - Math.ceil((index + 1) / 3))
     const record = recordFor(points, 38)
-    const goalsFor = Math.max(28, 82 - index * 3)
-    const goalsAgainst = Math.max(18, 37 + index * 2)
+    const goalsFor = Math.max(12, 86 - Math.floor(index / 3))
+    const goalsAgainst = Math.min(100, 34 + Math.floor(index / 4))
     return {
       position,
       name: manager.name,
@@ -64,7 +61,7 @@ export function fillRankedBoard(real: readonly BoardRow[], kind: RankedKind, cou
       goalsFor,
       goalsAgainst,
       goalDiff: goalsFor - goalsAgainst,
-      leaguePosition: Math.min(20, index + 1),
+      leaguePosition: (index % 20) + 1,
       tier: tierFor(points),
       createdAt: '2026-10-31T12:00:00.000Z',
       isMe: false,
@@ -78,9 +75,9 @@ export function fillRankedBoard(real: readonly BoardRow[], kind: RankedKind, cou
 export function fillAlltimeBoard(real: readonly AlltimeRow[], order: AlltimeOrder, country: string | null): Array<AlltimeRow | ExhibitionRow<AlltimeRow>> {
   const last = real.at(-1)
   return fill(real, (manager, index, position) => {
-    const totalPoints = Math.max(1, last ? last.totalPoints - (index + 1) * 3 : 1_520 - index * 64)
-    const played = Math.max(1, Math.min(20, Math.floor(totalPoints / 72)))
-    const bestStreak = Math.max(0, last && order === 'streak' ? last.bestStreak - Math.ceil((index + 1) / 2) : 12 - Math.floor(index / 2))
+    const totalPoints = Math.max(0, last ? last.totalPoints - Math.ceil((index + 1) / 3) : 15_200 - index * 53)
+    const played = Math.max(1, Math.min(365, Math.ceil(totalPoints / 76)))
+    const bestStreak = Math.max(0, last && order === 'streak' ? last.bestStreak - Math.ceil((index + 1) / 5) : 45 - Math.floor(index / 5))
     return {
       position,
       name: manager.name,
@@ -100,10 +97,10 @@ export function fillAlltimeBoard(real: readonly AlltimeRow[], order: AlltimeOrde
 export function fillChaseBoard(real: readonly ChaseRow[], country: string | null): Array<ChaseRow | ExhibitionRow<ChaseRow>> {
   const lastPoints = real.at(-1)?.points
   return fill(real, (manager, index, position) => {
-    const points = Math.max(3, lastPoints === undefined ? 114 - index * 3 : lastPoints - (index + 1) * 2)
+    const points = Math.max(0, lastPoints === undefined ? 114 - Math.floor(index / 4) : lastPoints - Math.ceil((index + 1) / 4))
     const record = recordFor(points, 38)
-    const goalsFor = Math.max(38, 104 - index * 4)
-    const goalsAgainst = Math.max(15, 24 + index * 2)
+    const goalsFor = Math.max(20, 112 - Math.floor(index / 2))
+    const goalsAgainst = Math.min(110, 20 + Math.floor(index / 3))
     return {
       position,
       name: manager.name,
@@ -136,10 +133,11 @@ export function fillCasualBoard(real: readonly CasualRow[], board: CasualKind, c
     const arena = board === 'arena'
     const runin = board === 'runin'
     const games = arena ? 9 : runin ? 10 : 38
-    const score = Math.max(1, lastScore === undefined ? (arena ? 9 - Math.floor(index / 2) : runin ? 25 - index : 86 - index * 3) : lastScore - Math.ceil((index + 1) / (arena ? 2 : 1)))
+    const group = arena ? 20 : runin ? 10 : 3
+    const score = Math.max(0, lastScore === undefined ? (arena ? 9 - Math.floor(index / group) : runin ? 25 - Math.floor(index / group) : 86 - Math.floor(index / group)) : lastScore - Math.ceil((index + 1) / group))
     const record = arena ? { won: score, drawn: 0, lost: score >= 9 ? 0 : 1 } : recordFor(score, games)
-    const goalsFor = Math.max(8, (arena ? 24 : runin ? 22 : 78) - index * 2)
-    const goalsAgainst = Math.max(5, (arena ? 9 : runin ? 12 : 35) + index)
+    const goalsFor = Math.max(4, (arena ? 24 : runin ? 22 : 78) - Math.floor(index / 3))
+    const goalsAgainst = Math.min(100, (arena ? 9 : runin ? 12 : 35) + Math.floor(index / 4))
     const trophy = position === 1 || (arena && score >= 9)
     return {
       position,
@@ -151,7 +149,7 @@ export function fillCasualBoard(real: readonly CasualRow[], board: CasualKind, c
       goalsFor,
       goalsAgainst,
       goalDiff: goalsFor - goalsAgainst,
-      leaguePosition: arena ? null : Math.min(20, index + 1),
+      leaguePosition: arena ? null : (index % 20) + 1,
       trophy,
       detail: arena ? (trophy ? 'Gauntlet winners' : `${score} rungs`) : runin ? (trophy ? 'BRIEF MET' : 'SURVIVED') : tierFor(score),
       createdAt: '2026-10-31T12:00:00.000Z',

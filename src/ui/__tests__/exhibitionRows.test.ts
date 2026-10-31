@@ -36,7 +36,7 @@ const REAL_RANKED: BoardRow = {
 }
 
 describe('full World leaderboard display rows', () => {
-  it('fills every kind of board to twelve numbered places', () => {
+  it('fills every kind of board to two hundred numbered places', () => {
     const boards = [
       fillRankedBoard([], 'daily', null),
       fillRankedBoard([], 'weekly', null),
@@ -93,7 +93,7 @@ describe('full World leaderboard display rows', () => {
     expect([...arena, ...themed, ...runin].every((row) => row.payload === null && row.revealed === false)).toBe(true)
   })
 
-  it('adds nothing once a board already has twelve verified rows', () => {
+  it('adds nothing once a board already has two hundred verified rows', () => {
     const full = Array.from({ length: BOARD_SIZE }, (_, index) => ({ ...REAL_RANKED, position: index + 1, name: `Manager ${index + 1}` }))
     expect(fillRankedBoard(full, 'daily', null)).toEqual(full)
     expect(fillRankedBoard(full, 'daily', null).some(isExhibitionRow)).toBe(false)
