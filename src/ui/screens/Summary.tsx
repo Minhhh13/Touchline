@@ -74,11 +74,10 @@ import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
 import { Mic, PartyPopper } from 'lucide-react'
 import { useFlash } from '../useFlash'
-import { copyText } from '../shareSheet'
+import { copyText, shareGameResult } from '../shareSheet'
 import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
 import { askConfirm } from '../confirm'
 import { inviteFor, inviteKindOf, oneMore, shareWithInvite, tidyShareText, versusOf } from '@game/logic/shareInvite'
-import { shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
 import { tierBlurbText, tierText } from '../i18n/tierText'
@@ -283,8 +282,7 @@ export function Summary() {
   }
   // A Season or a Dynasty has no wheel to pack into a link: the result goes out through the share sheet with its invitation
   const inviteFriend = async () => {
-    const url = `${location.origin}${location.pathname}`
-    const outcome = await shareOrCopy({ title: APP_NAME, text: `${tidyShareText(rawText)}\n${invite.title}`, url })
+    const outcome = await shareGameResult(APP_NAME, `${tidyShareText(rawText)}\n${invite.title}`)
     if (outcome === 'copied') showToast(t('inviteCopied'))
     else if (outcome === 'failed') showToast(t('copyFailed'))
   }

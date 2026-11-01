@@ -34,7 +34,7 @@ PNG cards are passed to the native share sheet as images, so choose **Save Image
 
 Local play remains available with no Supabase configuration. Optional `VITE_SUPABASE_*` settings are public build-time values as documented in `ONLINE.md`; changing them requires another build and sync. Never bundle a service-role key.
 
-Native email/OAuth redirects need a callback flow back into the app and the corresponding Supabase redirect allowlist. A browser callback to `capacitor://localhost` is not a finished native authentication flow. Verify sign-in, account deletion, cloud saves and online rooms on a device before enabling online features in a distributed iOS build. Public challenge links must continue to point to `https://touchline.quest`, so recipients can open them in a browser.
+Native email/OAuth redirects need a callback flow back into the app and the corresponding Supabase redirect allowlist. A browser callback to `capacitor://localhost` is not a finished native authentication flow. Verify sign-in, account deletion, cloud saves and online rooms on a device before enabling online features in a distributed iOS build. The app shares `https://touchline.quest/` for season, Run-in and head-to-head results. Challenge and room links use the same public host with their invite details. Browser shares keep their current deployment URL.
 
 ## Phone verification
 

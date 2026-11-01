@@ -1,8 +1,33 @@
-import { describe, expect, it } from 'vitest'
-import { copyText, hasShareSheet, shareMessage, shareOrCopy } from '../shareSheet'
+import { Capacitor } from '@capacitor/core'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { copyText, hasShareSheet, shareGameResult, shareMessage, shareOrCopy } from '../shareSheet'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('the share sheet', () => {
   const input = { title: 'TouchLine head-to-head', text: 'Ana invites you', url: 'https://touchline.quest/#h=K7Q2MX9A' }
+  it('sends a public result invite from the native app and keeps a web preview on its own path', async () => {
+    const native = vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    const share = vi.fn().mockResolvedValue(undefined)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('location', { origin: 'capacitor://localhost', pathname: '/index.html' })
+    vi.stubGlobal('navigator', { share })
+    expect(await shareGameResult('TouchLine', 'Play my season')).toBe('shared')
+    expect(share).toHaveBeenCalledWith({ title: 'TouchLine', text: 'Play my season', url: 'https://touchline.quest/' })
+
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    expect(await shareGameResult('TouchLine', 'Play my season')).toBe('copied')
+    expect(writeText).toHaveBeenLastCalledWith('Play my season\nhttps://touchline.quest/')
+
+    native.mockReturnValue(false)
+    vi.stubGlobal('location', { origin: 'https://preview.example', pathname: '/touchline/' })
+    expect(await shareGameResult('TouchLine', 'Play my season')).toBe('copied')
+    expect(writeText).toHaveBeenLastCalledWith('Play my season\nhttps://preview.example/touchline/')
+  })
+
   it('shares where there is a sheet, takes a closed sheet as an answer, and copies everywhere else', async () => {
     const shared: unknown[] = []
     const copied: string[] = []
