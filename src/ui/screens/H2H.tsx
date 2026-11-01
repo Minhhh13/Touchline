@@ -33,7 +33,7 @@ import { ratingHidden } from '@game/logic/ratingVisibility'
 import { onlineAvailable } from '../../online/api'
 import { RoomSetup } from '../online/Rooms'
 import { askConfirm } from '../confirm'
-import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
+import { copyText, hasShareSheet, shareGameResult } from '../shareSheet'
 import { Celebrate } from '../components/Celebrate'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
@@ -427,7 +427,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
   const sheet = hasShareSheet()
   const copy = async () => {
     // The share sheet on a phone (Messages, WhatsApp...), the clipboard elsewhere
-    const out = sheet ? await shareOrCopy({ title: `${APP_NAME} ${label}`, text, url: location.origin + location.pathname }) : await copyText(text)
+    const out = sheet ? await shareGameResult(`${APP_NAME} ${label}`, text) : await copyText(text)
     if (out === 'failed') showToast(t('shareFailed'))
     else if (out !== 'dismissed') {
       flashCopied()
@@ -450,7 +450,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
         mode: 'Head-to-head',
         beatMe: inviteFor('h2h'),
       })
-      downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
+      await downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
       showToast(t('cardFailed'))
     }

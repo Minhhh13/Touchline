@@ -80,6 +80,8 @@ To rebuild the data from the public datasets, run `node scripts/import/build.mjs
 
 ## How the code is organised
 
+The iOS development app bundles this same game and league packs with Capacitor. On a Mac with Xcode, run `npm run ios:sync` and `npm run ios:open`. Native exports support Save Image and Save to Files; the native top menu uses accessible icons. See [the iOS guide](docs/IOS.md) for Simulator, signing and the mobile experiments deferred during integration with main.
+
 - `src/engine/`: the pure, deterministic engine (the RNG, wheel and draft, ratings, match engine, season, cups, market, the arena's knockouts). No React, no DOM.
 - `src/game/`: the save format, the Zustand store and the game rules on top of the engine (`logic/`).
 - `src/ui/`: the React screens and components, one stylesheet built on the tokens in [DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).

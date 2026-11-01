@@ -6,7 +6,7 @@ import { tickTimes } from '../sound/schedule'
 import { LANDING_NOTES, liveAudio, playLanding, playTick, unlockAudio } from '../sound/synth'
 import { startReelSound } from '../sound/reel'
 import { soundOn } from '../sound/prefs'
-import { quickSpinPref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref } from '../viewerPrefs'
 
 const GAP = 6
 
@@ -157,6 +157,7 @@ describe('sound without Web Audio', () => {
   it('is on by default, quick spin off by default, and silent where there is no AudioContext (tests, headless)', () => {
     expect(soundOn()).toBe(true)
     expect(quickSpinPref.get()).toBe(false)
+    expect(skipReelsPref.get()).toBe(false)
     expect(() => unlockAudio()).not.toThrow()
     expect(liveAudio()).toBeNull()
     expect(playTick(0, 1)).toBeNull()

@@ -15,7 +15,7 @@ import { modeLabel, shareCardFooter } from '@game/logic/modes'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { inviteFor, shareWithInvite, tidyShareText } from '@game/logic/shareInvite'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
-import { shareOrCopy } from '../shareSheet'
+import { shareGameResult } from '../shareSheet'
 import { APP_NAME, BRAND_COLOURS } from '../brand'
 import { Celebrate } from '../components/Celebrate'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
@@ -82,13 +82,13 @@ export function RunInSummary() {
         beatMe: invite,
         lines: tidyShareText([`Brief: ${RUN_IN_TEMPLATE_LABEL[v.template]}`, `Took over ${ordinal(v.from.position)}, finished ${ordinal(v.position)} on ${v.points}`, ...(v.realLine ? [v.realLine] : [])].join('\n')).split('\n'),
       })
-      downloadDataUrl(url, `touchline-runin-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+      await downloadDataUrl(url, `touchline-runin-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
       showToast(t('cardFailed'))
     }
   }
   const challenge = async () => {
-    const outcome = await shareOrCopy({ title: APP_NAME, text: `${tidyShareText(raw)}\n${invite.title}`, url: `${location.origin}${location.pathname}` })
+    const outcome = await shareGameResult(APP_NAME, `${tidyShareText(raw)}\n${invite.title}`)
     if (outcome === 'copied') showToast(t('inviteCopied'))
     else if (outcome === 'failed') showToast(t('copyFailed'))
   }

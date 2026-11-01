@@ -2,6 +2,7 @@
  * Sharing a link: the system share sheet where there is one (phones, Safari, Edge), the clipboard everywhere else.
  * The sheet closing without a choice is the player's answer, never an error, so nothing is copied behind their back.
  */
+import { shareLocation } from '../platform'
 
 export type ShareOutcome = 'shared' | 'copied' | 'dismissed' | 'failed'
 
@@ -30,6 +31,12 @@ export function hasShareSheet(n: ShareNavigator | undefined = typeof navigator =
 /** What the clipboard gets when there is no sheet: the words, then the link on its own line. Pure. */
 export function shareMessage(input: ShareInput): string {
   return `${input.text}\n${input.url}`
+}
+
+/** A result invite opens the game at its public address, including when sent from the native app. */
+export function shareGameResult(title: string, text: string): Promise<ShareOutcome> {
+  const { origin, pathname } = shareLocation()
+  return shareOrCopy({ title, text, url: origin + pathname })
 }
 
 /** Open the share sheet, or copy the message; resolves to what happened. */

@@ -1106,6 +1106,14 @@
     align-items: start;
   }
 }
+/* A completed season keeps all results available without extending the whole page. */
+.gbg.scroll-rows .gbg-list {
+  max-height: calc(var(--gbg-visible-rows, 6) * 70px);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
 /* Setup's Modes row on a desktop: eleven cards in two rows of six, each its icon beside its name, so every name reads
    whole ("Chain" for the Teammate chain; the card's tooltip and the Info tip keep the full line) */
 .qmode .lbl-short {

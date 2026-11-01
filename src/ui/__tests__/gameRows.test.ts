@@ -20,6 +20,18 @@ const games: QuickGameResult[] = [
 const NAMES: Record<string, { name: string; short?: string }> = { 'wolverhampton-wanderers': { name: 'Wolverhampton Wanderers', short: 'Wolves' }, sunderland: { name: 'Sunderland', short: 'Sunderland' } }
 
 describe('the game rows (U19)', () => {
+  it('keeps every result in a six-row scroll box without a Show all action', () => {
+    const season = Array.from({ length: 38 }, (_, i) => ({ ...games[i % games.length], matchweek: i + 1 }))
+    const opponent = (id: string) => ({ clubId: id, ...NAMES[id] })
+    const html = renderToString(createElement(GameByGame, { results: season, opponent, compact: true, fold: 6, scrollRows: 6 }))
+    expect(html.match(/data-testid="gbg-game"/g)).toHaveLength(38)
+    expect(html).toContain('--gbg-visible-rows:6')
+    expect(html).not.toContain('gbg-more')
+    const folded = renderToString(createElement(GameByGame, { results: season, opponent, fold: 6 }))
+    expect(folded.match(/data-testid="gbg-game"/g)).toHaveLength(6)
+    expect(folded).toContain('gbg-more')
+  })
+
   it("carry a club's short name beside the full one, for a narrow list, and the full one as its tooltip", () => {
     const html = renderToString(createElement(GameByGame, { results: games, opponent: (id: string) => ({ clubId: id, ...NAMES[id] }) }))
     expect(html).toContain('class="gbg-name has-short" title="Wolverhampton Wanderers"')

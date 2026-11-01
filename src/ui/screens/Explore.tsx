@@ -191,11 +191,11 @@ export function Explore() {
             <Info label={t('aboutLabel')}>{t('about')}</Info>
           </div>
         </div>
-        <div className="head-actions">
-          {view === 'browse' && <BoxesMenu groups={[boxes]} />}
+        <div className="head-actions explore-head-actions">
           <button className="btn ghost" onClick={() => go('home')}>
             {t('home')}
           </button>
+          {view === 'browse' && <BoxesMenu groups={[boxes]} />}
         </div>
       </div>
       <div className="screen-body fill">

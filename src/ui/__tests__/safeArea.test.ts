@@ -5,7 +5,7 @@ import { DEVICE_INSETS, SAFE_TOKENS, safeAreaOverride, strayInsets } from '../sa
 
 const UI = path.resolve(__dirname, '..')
 const css = (f: string) => readFileSync(path.join(UI, f), 'utf8')
-const SHEETS = ['styles.css', 'gameScreens.css', 'matchday/matchday.css', 'matchday/matchday-controls.css', 'matchday/matchday-phone.css']
+const SHEETS = ['styles.css', 'gameScreens.css', 'mobile.css', 'matchday/matchday.css', 'matchday/matchday-controls.css', 'matchday/matchday-phone.css']
 
 /** The declarations of the first rule whose selector is exactly `sel`. */
 function rule(text: string, sel: string): string {

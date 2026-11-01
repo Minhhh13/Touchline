@@ -23,6 +23,7 @@ import { LeagueFlag } from '../components/Flag'
 import { BoardMessage, DraftBoard, H2HHead, H2HSteps, ManagerCard, ManagerFields, OfferPanel, OfferRows, SquadPitches, TurnBanner, TurnPill } from '../components/H2HBoard'
 import { seasonLabel } from '../format'
 import { H2HResultView } from '../screens/H2H'
+import { shareLocation } from '../../platform'
 import { roomVersionNote } from '../../online/engineRoute'
 import { askConfirm } from '../confirm'
 import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
@@ -36,7 +37,7 @@ const t = translator(h2hText)
 const MONO = { m: (c: ReactNode) => <span className="mono">{c}</span> }
 
 /** The page's own address, for the room's link (none when rendered off a page, as the tests do). */
-const here = () => (typeof location === 'undefined' ? { origin: '', pathname: '/' } : location)
+const here = () => (typeof location === 'undefined' ? { origin: '', pathname: '/' } : shareLocation())
 
 /** The four rules of an online room, as pictures with a line each (the hot-seat's, for two devices). */
 const roomSteps = (): Array<{ Icon: LucideIcon; title: string; line: string }> => [

@@ -74,11 +74,10 @@ import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
 import { Mic, PartyPopper } from 'lucide-react'
 import { useFlash } from '../useFlash'
-import { copyText } from '../shareSheet'
+import { copyText, shareGameResult } from '../shareSheet'
 import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
 import { askConfirm } from '../confirm'
 import { inviteFor, inviteKindOf, oneMore, shareWithInvite, tidyShareText, versusOf } from '@game/logic/shareInvite'
-import { shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { summary } from '../i18n/en/summary'
 import { tierBlurbText, tierText } from '../i18n/tierText'
@@ -283,8 +282,7 @@ export function Summary() {
   }
   // A Season or a Dynasty has no wheel to pack into a link: the result goes out through the share sheet with its invitation
   const inviteFriend = async () => {
-    const url = `${location.origin}${location.pathname}`
-    const outcome = await shareOrCopy({ title: APP_NAME, text: `${tidyShareText(rawText)}\n${invite.title}`, url })
+    const outcome = await shareGameResult(APP_NAME, `${tidyShareText(rawText)}\n${invite.title}`)
     if (outcome === 'copied') showToast(t('inviteCopied'))
     else if (outcome === 'failed') showToast(t('copyFailed'))
   }
@@ -332,7 +330,7 @@ export function Summary() {
         ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${countPhrase(record.points, 'points')} · finished ${ordinal(record.position)}`, ...codes] } : {}),
       })
       setCardUrl(url)
-      downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+      await downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
       showToast(t('cardFailed'))
     }
@@ -685,7 +683,7 @@ export function Summary() {
       )}
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
       {story && !replay.playing && on('story') && <SeasonStoryPanel story={story} opponentName={(id) => sideName(id)} />}
-      {!q && story && on('games') && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id), short: clubShort(u, id) })} compact fold={8} />}
+      {!q && story && on('games') && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id), short: clubShort(u, id) })} scrollRows={6} />}
 
       {q?.january && on('january') && (
         <div className="panel" data-testid="january-summary">
@@ -875,6 +873,11 @@ export function Summary() {
                   <button className={`btn sm ${chosen ? '' : 'primary'}`} onClick={() => acceptJob(chosen ? null : i)}>
                     {t(chosen ? 'changeMind' : 'accept')}
                   </button>
+                  {chosen && continuing && (
+                    <button className="btn sm primary" onClick={() => nextSeason()} disabled={loadingLeagues} data-testid="job-next-season">
+                      {loadingLeagues ? t('loadingLeagues') : t('joinClub', { club: clubName(u, o.clubId) })}
+                    </button>
+                  )}
                 </div>
               )
             })}

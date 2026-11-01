@@ -265,7 +265,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
         xgAway: cardSeries(story.perMinute.away),
         footer: t('cardFooter', { ht: `${res.halfTimeScore.home}-${res.halfTimeScore.away}`, shots: `${fig.home.shots}-${fig.away.shots}` }),
       })
-      downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
+      await downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
     } catch {
       showToast(t('cardFailed'))
     }

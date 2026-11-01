@@ -32,6 +32,7 @@ import { cleanName } from '@engine/challenge'
 import { inviteFor, inviteKindOf, shareWithInvite, tidyShareText } from '@game/logic/shareInvite'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
+import { shareLocation } from '../../platform'
 import { CasualStatus } from '../online/CasualStatus'
 import { BadgeUnlocks } from '../components/BadgeUnlocks'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
@@ -110,7 +111,8 @@ export function ArenaSummary() {
       showToast(t('cannotPack'))
       return
     }
-    const url = challengeLink(c, location.origin, location.pathname)
+    const { origin, pathname } = shareLocation()
+    const url = challengeLink(c, origin, pathname)
     setLink(url)
     try {
       await navigator.clipboard.writeText(url)
@@ -149,7 +151,7 @@ export function ArenaSummary() {
         beatMe: invite,
         lines: cardLines([...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])]),
       })
-      downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+      await downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
       showToast(t('cardFailed'))
     }

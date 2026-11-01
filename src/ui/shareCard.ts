@@ -10,7 +10,7 @@ import type { BadgeState, BadgeTier } from '@engine/badges'
 import type { Cabinet } from '@game/types'
 import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, clothStops, pennantPath } from './brand'
 import { tierName } from './format'
-import { saveDataUrl } from './saveFile'
+import { exportDataUrl } from './exportFile'
 import type { CardVersus, Invite } from '@game/logic/shareInvite'
 
 export interface ShareCardInput {
@@ -838,7 +838,6 @@ function fit(ctx: CanvasRenderingContext2D, text: string, max: number): string {
   return t + '…'
 }
 
-/** Download a card; where a download goes nowhere (an iOS home-screen app or web view), the share sheet (saveFile.ts). */
-export function downloadDataUrl(dataUrl: string, filename: string): void {
-  void saveDataUrl(dataUrl, filename)
+export function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
+  return exportDataUrl(dataUrl, filename)
 }

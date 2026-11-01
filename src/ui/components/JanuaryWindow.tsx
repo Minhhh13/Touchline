@@ -22,7 +22,7 @@ import { SpinOdds } from './SpinOdds'
 import { UpgraderStage } from './Upgrader'
 import { armAudio, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { useFocusOnLanding } from '../a11y'
 import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
@@ -201,6 +201,7 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
 function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
   const { januarySpin, closeJanuarySpinSoon: closeJanuarySpin, closingJanuary: busy } = useStorePick('januarySpin', 'closeJanuarySpinSoon', 'closingJanuary')
   const [quick] = usePref(quickSpinPref)
+  const [skipReels] = usePref(skipReelsPref)
   const get = playerLookup(game, u)
   // The player the case lands on is still being chosen until he is brought in: hidden in blind mode, as any offer;
   // the XI man he would replace is the user's own, so his rating shows
@@ -225,6 +226,9 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spin?.playerSeasonId])
   const spinning = opened && !!spin && !landed
+  useEffect(() => {
+    if (spinning && skipReels) setSkip((n) => n + 1)
+  }, [spinning, skipReels])
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {

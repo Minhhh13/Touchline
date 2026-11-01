@@ -3,7 +3,6 @@ import { Award, CalendarDays, ChevronsUp, Crown, Download, Flame, Gem, Lock, Shi
 import { exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { persistLine, usePersistState } from '../persistStorage'
-import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
 import { TrophyShelf, type ShelfTrophy } from '../components/TrophyShelf'
@@ -41,7 +40,7 @@ import { careerOverview, orderAchievements, type AchievementView } from '@game/l
 import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoundOn } from '../sound/prefs'
 import { playSound } from '../sound/synth'
 import { useBadgeSound } from '../sound/useBadgeSound'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
 import { askConfirm } from '../confirm'
@@ -53,6 +52,7 @@ import { powerUpTitle } from '../i18n/engineText'
 import { tierText } from '../i18n/tierText'
 
 const t = translator(profileText)
+import { exportTextFile } from '../exportFile'
 
 const FILTER_KEY = 'touchline-record-filter'
 const RUNS_VIEW_KEY = 'touchline-runs-view'
@@ -74,10 +74,9 @@ function readFilter(): BoardFilter {
   }
 }
 
-function exportSave(): void {
+async function exportSave(): Promise<void> {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
-  // Downloaded; shared where a download goes nowhere (an iOS home-screen app or web view: saveFile.ts)
-  void saveBlob(new Blob([exportSaveJson()], { type: 'application/json' }), `touchline-save-${new Date().toISOString().slice(0, 10)}.json`)
+  await exportTextFile(exportSaveJson(), `touchline-save-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
 }
 
 export function ProfileScreen() {
@@ -88,6 +87,7 @@ export function ProfileScreen() {
   const [uiSound, setUiSound] = useUiSoundOn()
   const [volume, setVolume] = useSoundVolume()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
+  const [skipReels, setSkipReels] = usePref(skipReelsPref)
   const language = useLanguage()
   const [reportsOn, setReportsOn] = useState(errorReportsOn)
   const setReports = (on: boolean) => {
@@ -190,13 +190,17 @@ export function ProfileScreen() {
       </td>
     </tr>
   )
-  const downloadCard = () => {
+  const downloadCard = async () => {
     const best = profile.leaderboard.slice(0, 3).map((e) => ({
       title: `${e.teamName} · ${e.points} pts · ${ordinal(e.position)}`,
       detail: `${tierName(e.tier, e.position, e.superLeague)} · ${u?.clubById[e.hostClubId] ? clubName(u, e.hostClubId) : (clubLeagues?.[e.hostClubId]?.name ?? e.hostClubId)} ${seasonLabel(e.leagueSeason)} · ${MODE_TITLE[e.mode] ?? e.mode}`,
     }))
-    const url = renderManagerCard({ name: profile.managerName.trim() || 'The Gaffer', seasons: profile.seasonsSimulated, cabinet, badges: topBadges(badges), best, dataStamp: u ? `Data ${u.generatedAt}` : 'Trophy Room' })
-    downloadDataUrl(url, 'touchline-manager-card.png')
+    try {
+      const url = renderManagerCard({ name: profile.managerName.trim() || 'The Gaffer', seasons: profile.seasonsSimulated, cabinet, badges: topBadges(badges), best, dataStamp: u ? `Data ${u.generatedAt}` : 'Trophy Room' })
+      await downloadDataUrl(url, 'touchline-manager-card.png')
+    } catch {
+      showToast(t('cardExportFailed'))
+    }
   }
   const importSave = async (file: File) => {
     try {
@@ -508,7 +512,7 @@ export function ProfileScreen() {
               </span>
             </div>
             <div className="toolbar">
-              <button className="btn" onClick={exportSave}>
+              <button className="btn" onClick={() => void exportSave().catch(() => showToast(t('exportFailed')))} data-testid="export-save">
                 <Download size={16} aria-hidden="true" /> {t('exportSave')}
               </button>
               <button className="btn" onClick={() => fileRef.current?.click()}>
@@ -594,7 +598,7 @@ export function ProfileScreen() {
               <span>
                 {t('reelSpeed')} <Info label={t('reelAbout')}>{t('reelInfo')}</Info>
               </span>
-              <Segmented label={t('reelSpeed')} value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: t('full'), testId: 'reel-full' }, { value: 'quick', label: t('quick'), testId: 'reel-quick' }]} />
+              <Segmented label={t('reelSpeed')} value={skipReels ? 'skip' : quickSpin ? 'quick' : 'full'} onChange={(v) => { setSkipReels(v === 'skip'); if (v !== 'skip') setQuickSpin(v === 'quick') }} options={[{ value: 'full', label: t('full'), testId: 'reel-full' }, { value: 'quick', label: t('quick'), testId: 'reel-quick' }, { value: 'skip', label: t('skipReels'), testId: 'reel-skip-all' }]} />
             </div>
             {onlineAvailable() && (
               <div className="field">

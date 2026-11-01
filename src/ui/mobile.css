@@ -1,0 +1,67 @@
+/* Native-only adjustments. The web uses main's layouts, safe-area tokens and navigation dock. */
+.app[data-native]::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--safe-top);
+  background: var(--bg);
+  z-index: 35;
+  pointer-events: none;
+}
+
+@media (max-width: 720px), (max-width: 1100px) and (pointer: coarse) {
+  .app[data-native] > .topbar nav {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .app[data-native] > .topbar nav button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
+  }
+  .app[data-native] > .topbar nav .nav-tiny {
+    display: none;
+  }
+  /* Keep accessible names while showing only the icons in the native app. */
+  .app[data-native] > .topbar nav .nav-label {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .app[data-native] .reel-skip {
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid var(--primary);
+    background: var(--primary-soft);
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: 700;
+  }
+  .app[data-native] .dugout-page .cta-main {
+    max-height: none;
+    overflow: visible;
+  }
+  .app[data-native] .briefing.checklist {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app[data-native] .briefing.checklist .brief {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 44px;
+  }
+  .app[data-native] .briefing.checklist .brief > .btn {
+    margin-left: auto;
+  }
+  .explore-head-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

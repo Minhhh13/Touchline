@@ -9,6 +9,7 @@ import type { CasualMine, MyEntry } from '../../online/boards'
 import type { ChallengeRow } from '../../online/transport'
 import { formatCode } from '../../online/core/codes'
 import { shortLinkUrl } from '../../online/challengeLinks'
+import { shareLocation } from '../../platform'
 import { devicePostsText } from './statusText'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
@@ -144,7 +145,8 @@ export function OnlineRecord() {
               <button
                 className="btn sm ghost"
                 onClick={() => {
-                  const url = shortLinkUrl(c.code, location.origin, location.pathname)
+                  const { origin, pathname } = shareLocation()
+                  const url = shortLinkUrl(c.code, origin, pathname)
                   void navigator.clipboard?.writeText(url).then(
                     () => showToast(t('linkCopied')),
                     () => showToast(url),

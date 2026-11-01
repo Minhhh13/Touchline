@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Dices, Flame, Globe, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
@@ -130,7 +131,7 @@ function subscribeDock(onChange: () => void) {
   mq.addEventListener('change', onChange)
   return () => mq.removeEventListener('change', onChange)
 }
-const dockedNow = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(DOCK_QUERY).matches
+const dockedNow = () => !Capacitor.isNativePlatform() && typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(DOCK_QUERY).matches
 function useDocked(): boolean {
   return useSyncExternalStore(subscribeDock, dockedNow, () => false)
 }

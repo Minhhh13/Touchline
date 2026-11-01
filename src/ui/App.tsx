@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { useStore } from '@game/store'
 import { loadRules, rules } from '@game/rulesHook'
 import { useStorePick } from './useStorePick'
@@ -212,6 +213,9 @@ export function App() {
     root.setAttribute('data-theme', theme)
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
     if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
+    if (Capacitor.isNativePlatform()) {
+      void import('@capacitor/status-bar').then(({ StatusBar, Style }) => StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light })).catch(() => undefined)
+    }
   }, [theme])
   useEffect(() => {
     rememberThemePreference(profile.theme)
@@ -301,7 +305,7 @@ export function App() {
   else body = <Home />
 
   return (
-    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''} ${screen === 'game' && game?.phase === 'match' && !shell ? 'dock-off' : ''}`} ref={watchMainLandmark}>
+    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''} ${Capacitor.isNativePlatform() || (screen === 'game' && game?.phase === 'match' && !shell) ? 'dock-off' : ''}`} data-native={Capacitor.isNativePlatform() || undefined} ref={watchMainLandmark}>
       <a className="skip-link" href="#main" onClick={skipToMain} data-testid="skip-link">
         {t('skipToContent')}
       </a>

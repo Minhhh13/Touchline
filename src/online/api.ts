@@ -22,6 +22,7 @@ import type { AlltimeOrder, CasualKind, ChaseScope, RankedKind } from './boards'
 const boards = () => import('./boards')
 import type { ChaseOptions } from './chase'
 import { updateRecord } from './localState'
+import { shareLocation } from '../platform'
 import type { Resolved, ShareLink } from './challengeLinks'
 
 // The account checks and the challenge links load with their first use: they bring the challenge codec (and through
@@ -240,11 +241,12 @@ export async function mine(kind: RankedKind) {
 
 export async function shareLink(payload: ChallengePayload): Promise<ShareLink> {
   const r = await rt()
+  const { origin, pathname } = shareLocation()
   if (!r) {
-    const longUrl = (await import('@game/logic/challenge')).challengeLink(payload, location.origin, location.pathname)
+    const longUrl = (await import('@game/logic/challenge')).challengeLink(payload, origin, pathname)
     return { url: longUrl, code: null, fallback: 'not_configured', longUrl }
   }
-  return (await links()).createShortLink(r.transport, r.signedIn, payload, location.origin, location.pathname, navigator.onLine !== false)
+  return (await links()).createShortLink(r.transport, r.signedIn, payload, origin, pathname, navigator.onLine !== false)
 }
 
 export async function resolveShort(code: string): Promise<Resolved> {

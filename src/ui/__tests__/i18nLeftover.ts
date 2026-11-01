@@ -34,7 +34,8 @@ export function leftover(html: string, data: Set<string>): string[] {
     if (isPseudo(s) || data.has(s)) return false
     const rest = s
       .split(/\s*(?:·|,|:|—|–|\(|\)|\/|\|)\s*/)
-      .map((x) => x.replace(/\b\d{4}-\d{2}\b|[\d.,%'+−-]+/g, ' ').replace(/\s+/g, ' ').trim())
+      // A scorer line starts with a football glyph; the following player name is still data.
+      .map((x) => x.replace(/^⚽\s*/, '').replace(/\b\d{4}-\d{2}\b|[\d.,%'+−-]+/g, ' ').replace(/\s+/g, ' ').trim())
       .filter((x) => x && !data.has(x) && !isPseudo(x))
     // A word is a run of letters, accents included, so "Martínez" is a name and not the English word "nez"
     return rest.some((x) => (x.match(/\p{L}+/gu) ?? []).some((w) => /^[a-z]{3,}$/.test(w)))

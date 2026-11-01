@@ -13,7 +13,7 @@ import { slotRating } from '@game/logic/slotRating'
 import { fitText, slotRatingText } from '../slotRatingText'
 import { armAudio, playSound, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { clubName, seasonLabel } from '../format'
 import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
@@ -40,6 +40,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   const { openCase, subCaseIcon, finishCase, profile } = useStorePick('openCase', 'subCaseIcon', 'finishCase', 'profile')
   const c = game.endCase!
   const [quick] = usePref(quickSpinPref)
+  const [skipReels] = usePref(skipReelsPref)
   // The case's reel, kept per device once it lands: a reload after the landing shows the reel landed (`reelLanded.ts`)
   const mark = itemReelMark(game.id, 'end-case', c.drop.kind === 'icon' ? c.drop.id : c.drop.powerUp)
   const [seen] = useState(() => !!c.opened && landedSeen(mark))
@@ -52,6 +53,9 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   // Opened before this view (a reload): the result shows at once
   const revealed = (c.opened && run === 0) || landed
   const spinning = run > 0 && !landed
+  useEffect(() => {
+    if (spinning && skipReels) setSkip((n) => n + 1)
+  }, [spinning, skipReels])
   const odds = caseRarityOdds()
   const get = playerLookup(game, u)
   const icon = c.drop.kind === 'icon' ? get(c.drop.id) : undefined

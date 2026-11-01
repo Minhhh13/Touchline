@@ -10,7 +10,7 @@ import { dealItems, managerCard, type ItemDeal } from '@game/logic/itemReel'
 import { reelLeagues } from '@game/logic/reel'
 import { armAudio, playSound, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
-import { quickSpinPref, usePref } from '../viewerPrefs'
+import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
 import { clubName, seasonLabel } from '../format'
 import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
@@ -56,6 +56,7 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
     return Object.fromEntries(MANAGER_STYLES.map((st) => [st, managerEdge(game, st, get)])) as Record<Manager['style'], ReturnType<typeof managerEdge>>
   }, [u, game])
   const [quick] = usePref(quickSpinPref)
+  const [skipReels] = usePref(skipReelsPref)
   // These three, landed on this device before a reload: the reels mount landed and the cards show
   const mark = itemReelMark(game.id, 'manager-spin', options.map((m) => m.id).join(','))
   const [restored] = useState(() => options.length > 0 && landedSeen(mark))
@@ -118,7 +119,7 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
           return (
             <div key={m.id} className="mspin-col" data-testid={`mspin-col-${i}`}>
               {run > 0 ? (
-                <ItemReel key={run} deal={deals[i]} restored={restored} timing={timing} stagger={i * stagger} sound={i === 0} skip={skip} onSettled={() => setLandedAt((a) => Object.assign([...a], { [i]: true }))} testId={`mspin-reel-${i}`} />
+                <ItemReel key={run} deal={deals[i]} restored={restored} timing={timing} stagger={i * stagger} sound={i === 0} skip={skip + (skipReels ? 1 : 0)} onSettled={() => setLandedAt((a) => Object.assign([...a], { [i]: true }))} testId={`mspin-reel-${i}`} />
               ) : (
                 <div className="reel-run item-reel idle">
                   <div className="reel-window" aria-hidden="true">
