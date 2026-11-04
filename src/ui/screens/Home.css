@@ -68,7 +68,29 @@
   list-style: none;
 }
 .programme-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   min-width: 0;
+}
+.programme-step-icon,
+.programme-daily-icon,
+.programme-mode-icon,
+.programme-tile-icon {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-m);
+}
+.programme-step-icon,
+.programme-daily-icon,
+.programme-tile-icon {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.programme-step-icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
 }
 .programme-steps li > span:last-child {
   display: grid;
@@ -144,11 +166,13 @@
   padding: var(--space-4) var(--space-5);
   border: var(--border);
   border-left: 3px solid var(--primary);
-  border-radius: var(--radius-s);
+  border-radius: var(--radius);
   background: var(--panel);
 }
 .programme-daily-body {
-  display: block;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
   width: 100%;
   padding: 0;
   border: 0;
@@ -156,6 +180,10 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+.programme-daily-icon {
+  width: 46px;
+  height: 46px;
 }
 .programme-daily-text {
   display: block;
@@ -202,26 +230,32 @@
 .programme-mode-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--space-5);
-  border-top: var(--border);
+  gap: var(--space-3);
 }
 .programme-mode {
+  --programme-accent: var(--primary);
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-4) var(--space-2);
-  border: 0;
-  border-bottom: var(--border);
-  border-radius: 0;
-  background: none;
+  min-height: 92px;
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
   color: var(--text);
   text-align: left;
   cursor: pointer;
+  box-shadow: inset 3px 0 0 var(--programme-accent);
 }
-.programme-mode:hover,
-.programme-tile:hover {
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
+.programme-mode.season {
+  --programme-accent: var(--good);
+}
+.programme-mode.dynasty {
+  --programme-accent: var(--gold-text);
+}
+.programme-mode.h2h {
+  --programme-accent: var(--pos-mid);
 }
 .programme-mode:focus-visible,
 .programme-daily-body:focus-visible,
@@ -229,11 +263,12 @@
   outline: 2px solid var(--primary);
   outline-offset: 3px;
 }
-.programme-mode-number {
-  flex: 0 0 2ch;
-  color: var(--text-2);
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
+.programme-mode-icon {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  background: color-mix(in srgb, var(--programme-accent) 12%, transparent);
+  color: var(--programme-accent);
 }
 .programme-mode-copy {
   flex: 1;
@@ -271,13 +306,13 @@
 }
 .programme-tile {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: flex-start;
   min-width: 0;
-  padding: var(--space-2) 0;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: none;
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -287,8 +322,9 @@
   cursor: default;
 }
 .programme-tile-icon {
-  flex-shrink: 0;
-  color: var(--primary);
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
 }
 .programme-tile-text {
   display: grid;
@@ -370,6 +406,9 @@
     gap: var(--space-3);
     margin-bottom: var(--space-3);
   }
+  .programme-steps li {
+    flex-direction: column;
+  }
   .programme-steps li > span:last-child > span {
     font-size: var(--fs-meta);
   }
@@ -390,10 +429,29 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .programme-mode {
-    padding-block: var(--space-3);
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'icon copy go'
+      'icon time go';
+    min-height: 80px;
+    padding: var(--space-3);
+  }
+  .programme-mode-icon {
+    grid-area: icon;
+    width: 40px;
+    height: 40px;
+  }
+  .programme-mode-copy {
+    grid-area: copy;
   }
   .programme-mode .time-tag {
+    grid-area: time;
+    justify-self: start;
     font-size: var(--fs-meta);
+  }
+  .programme-mode .programme-go {
+    grid-area: go;
   }
   .programme-mode .time-tag svg {
     display: none;

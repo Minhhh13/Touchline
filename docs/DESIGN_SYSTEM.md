@@ -27,7 +27,7 @@ The rule for everyone building screens: **use the tokens and shared components b
 
 The owner asked for a more intentional design, with less generic decoration. Keep the existing TouchLine mark and Sora typeface. Use clear type, alignment and real football information instead of repeated illustrated cards, purple gradients and large empty panels.
 
-- **Home** (`screens/Home.tsx`, `Home.css`): compact masthead, saved games first, a featured Daily, direct first-draft action and numbered format rows. The rendered brand/domain line and every mode remain available.
+- **Home** (`screens/Home.tsx`, `Home.css`): compact masthead, saved games first, a featured Daily, direct first-draft action and icon-led format cards. The Spin / Draft / Play steps, Daily, four main formats and five secondary formats each use one consistent Lucide cue; colour accents distinguish the cards without replacing their labels. The rendered brand/domain line and every mode remain available.
 - **Setup** (`screens/Setup.tsx`, `Setup.css`): team name first, a small selected formation with all eight choices on demand, and optional Quick Draft rules behind a disclosure. Rule defaults remain unchanged.
 - **Draft** (`screens/Draft.tsx`, `Draft.css`): the waiting panel shows a real team sheet with signed players and open positions. The landed club stays the main decision; the draft log is expandable, and phone offers scroll within a bounded list.
 - **Dugout** (`screens/Dugout.tsx`, `Dugout.css`): one scrollable tab row, a compact pre-season checklist with its completion count, and a bounded phone roster. Blocking lineup problems remain outside the collapsed checklist. Audio controls stay available.
