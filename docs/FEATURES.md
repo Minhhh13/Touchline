@@ -68,6 +68,8 @@ The [public homepage](https://touchline.quest/) introduces the football draft an
 
 ## Management
 
+- **Audio during play**: the simulated-season playback, Dugout and match-day screen have a speaker button and volume slider. Mute keeps the chosen level, and changing the slider while muted sets the level for when sound is turned back on. They share Profile's saved sound settings on this device.
+
 - Thirty-four player roles and six team instructions whose effects are printed in every match report.
 - An xG-based match engine with a live ticker, scorers, assists, cards, injuries, substitutions and player ratings. Fixture lists alternate home and away (never more than two in a row), automatic substitutions never send a keeper on outfield, and player development moves the rating a player shows rather than recomputing it. Calibrated to real football (engine 6): about 2.7 goals a game in a quick season and 2.9 in a managed one, top sides on 80 to 100 goals and Golden Boots of 25 to 40, each league at its own scoring level, keepers booked and red cards at the real rate; a side with no fit keeper fields its reserve keeper, and no drafted player also plays for his real club.
 - **Dynasty money**: a tenth of the wage room under the cap drips into the budget, and the season's league money is net of running costs (+£20M for the title down to −£20M for last place), so a winning side's budget grows about £30M a season and a losing one's shrinks, never below a £10M summer budget for a club not in debt.

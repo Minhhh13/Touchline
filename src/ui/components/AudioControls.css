@@ -1,0 +1,75 @@
+.audio-controls {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+}
+.audio-controls .audio-mute {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px;
+}
+.audio-controls input[type='range'] {
+  width: 80px;
+  min-width: 0;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.audio-controls input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.audio-controls .audio-level {
+  min-width: 4ch;
+  font-variant-numeric: tabular-nums;
+}
+.dugout-tools {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.matchday .md-crumb:has(> .audio-controls) {
+  flex-wrap: wrap;
+  align-items: center;
+  overflow: visible;
+}
+.matchday .md-crumb:has(> .audio-controls) > b,
+.matchday .md-crumb:has(> .audio-controls) > .muted {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 720px), (pointer: coarse) {
+  .audio-controls .audio-mute {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .audio-controls input[type='range'] {
+    min-height: 44px;
+  }
+}
+@media (max-width: 720px) {
+  .dugout-page .tabs-row {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+  .dugout-page .tabs-row > .tabs {
+    flex-basis: 100%;
+  }
+  .dugout-tools {
+    justify-content: flex-end;
+    width: 100%;
+  }
+  .matchday.compact .md-crumb > .audio-controls {
+    margin-left: auto;
+  }
+}

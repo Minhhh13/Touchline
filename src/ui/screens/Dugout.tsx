@@ -68,6 +68,7 @@ import { clickedTabAfter, DUGOUT_TAB_ORDER, dugoutKey, isControlTarget, tabShort
 import { PositionChart } from '../components/LiveLeague'
 import { PlayerPeek } from '../components/PlayerPeek'
 import { BoxesMenu, useBoxes, type Boxes } from '../components/Boxes'
+import { AudioControls } from '../components/AudioControls'
 import { DUGOUT_ALL, DUGOUT_HEAD, DUGOUT_TABS } from '../boxSets'
 import type { BoxSet } from '../boxes'
 import type { Game } from '@game/types'
@@ -428,7 +429,10 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
         <span className="dugout-keys" data-testid="dugout-keys">
           <Info label={t('keysLabel')}>{t('playTip')}</Info>
         </span>
-        <BoxesMenu groups={[headBoxes, tabBoxes]} resets={DUGOUT_ALL} />
+        <div className="dugout-tools">
+          <AudioControls />
+          <BoxesMenu groups={[headBoxes, tabBoxes]} resets={DUGOUT_ALL} />
+        </div>
       </div>
 
       {/* The tab's content: on a desktop it scrolls inside itself under the fixed header, briefing and tab bar */}
