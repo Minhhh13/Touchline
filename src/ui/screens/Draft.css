@@ -1,0 +1,98 @@
+/* A draft desk: the current club is the decision, the team sheet records what is built. */
+.draft-page .screen-head {
+  padding-bottom: var(--space-3);
+  border-bottom: 2px solid var(--text);
+}
+.draft-page .screen-meta {
+  gap: 4px var(--space-3);
+}
+.draft-page .draft-squad > .draft-waiting {
+  flex: 0 1 auto;
+  min-height: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  padding: var(--space-2);
+}
+.draft-waiting h3 {
+  font-size: var(--fs-h3);
+  margin-bottom: var(--space-2);
+}
+.draft-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  padding-block: var(--space-2);
+  border-bottom: 2px solid var(--text);
+}
+.draft-build-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  max-height: 350px;
+  scrollbar-gutter: stable;
+}
+.draft-build-list li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 36px;
+  border-bottom: var(--border);
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+.draft-build-list li.filled {
+  color: var(--text);
+  font-weight: 600;
+}
+.draft-build-list li > span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-page .draft-log {
+  scrollbar-gutter: stable;
+}
+.draft-history > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+.draft-history > summary::-webkit-details-marker {
+  display: none;
+}
+.draft-history > summary > svg {
+  margin-left: auto;
+}
+.draft-history[open] > summary {
+  margin-bottom: var(--space-3);
+}
+.draft-history[open] > summary > svg {
+  transform: rotate(180deg);
+}
+@media (max-width: 720px) {
+  .draft-page .draft-squad > .draft-waiting {
+    padding: 0;
+  }
+  .draft-sheet-head {
+    margin-top: var(--space-3);
+  }
+  .draft-build-list {
+    max-height: 180px;
+  }
+  .draft-page .draft-list {
+    max-height: 65svh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+}

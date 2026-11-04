@@ -14,6 +14,8 @@ export const draft = catalog('draft', {
   summerDraft: 'Summer draft · Year {year}',
   reinforcements: 'Reinforcements',
   theDraft: 'The draft',
+  teamSheet: 'Team sheet',
+  openPlace: 'To be drafted',
   playingDraft: "You're playing {name}'s draft · <b>beat {headline}</b>",
   clubOnly: '{club} only',
   nationOnly: '<nation></nation> only',

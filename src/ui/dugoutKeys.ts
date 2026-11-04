@@ -44,12 +44,14 @@ export interface DugoutKeyContext {
 
 const CONTROL_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'SUMMARY'])
 
-/** Whether a key event's target handles keys itself (fields, buttons, links, anything editable or with a widget role). */
+/** Whether a key event's target handles keys itself (controls, editable content or an explicitly focusable scroll region). */
 export function isControlTarget(t: { tagName?: string; isContentEditable?: boolean; getAttribute?: (n: string) => string | null } | null): boolean {
   if (!t) return false
   if (t.isContentEditable) return true
   if (t.tagName && CONTROL_TAGS.has(t.tagName.toUpperCase())) return true
   const role = t.getAttribute?.('role')
+  // Space scrolls a focused roster; it must not also start the matchweek.
+  if (role === 'region' && t.getAttribute?.('tabindex') != null) return true
   return !!role && ['button', 'radio', 'tab', 'checkbox', 'switch', 'slider', 'textbox', 'option', 'menuitem'].includes(role)
 }
 

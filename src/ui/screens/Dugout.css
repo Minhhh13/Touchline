@@ -1,0 +1,54 @@
+/* Keep the next fixture and the squad visible; preparation is one expandable list. */
+.dugout-page .club-header {
+  border-top: 2px solid var(--text);
+}
+.dugout-page .tabs-row > .tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+.dugout-page .tabs-row > .tabs > button {
+  flex: none;
+}
+.preseason-checklist {
+  border-top: var(--border);
+}
+.preseason-checklist > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-height: 44px;
+  padding-block: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+.preseason-checklist > summary::-webkit-details-marker {
+  display: none;
+}
+.preseason-checklist > summary > svg {
+  margin-left: auto;
+  flex: none;
+}
+.preseason-checklist[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.dugout-page .preseason-checklist .briefing.checklist {
+  margin-top: var(--space-2);
+}
+.dugout-roster-list {
+  scrollbar-gutter: stable;
+}
+@media (max-width: 720px) {
+  .dugout-page .dugout-roster-list {
+    max-height: 55svh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+  .dugout-page .grid.dugout > .col .pitch-wrap {
+    max-width: 340px;
+    margin-inline: auto;
+  }
+}

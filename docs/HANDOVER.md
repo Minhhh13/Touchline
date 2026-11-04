@@ -4,11 +4,11 @@ For the people working on TouchLine: what it is, what works today, what is being
 
 ## 0. Start here (checked 2026-11-04 UTC, for the next agent: Claude, Codex or a person)
 
-Read this section, then [CLAUDE.md](../CLAUDE.md) (the architecture map, the commands and the numbered invariants: never break them), then the rest of this file. This status was checked against `main` at `f8c33f40` ([PR #116](https://github.com/Minhhh13/Touchline/pull/116)) and the live site's `build.json`. Older dated round notes and [docs/CONTINUE-PROMPT.md](CONTINUE-PROMPT.md) may describe work before it shipped; check this section and GitHub before starting it again.
+Read this section, then [CLAUDE.md](../CLAUDE.md) (the architecture map, the commands and the numbered invariants: never break them), then the rest of this file. This status was checked against `main` at `0e8e8b09` ([PR #119](https://github.com/Minhhh13/Touchline/pull/119)) and the live site's `build.json`. Older dated round notes and [docs/CONTINUE-PROMPT.md](CONTINUE-PROMPT.md) may describe work before it shipped; check this section and GitHub before starting it again.
 
 ### What is live
 
-- **Site:** https://touchline.quest serves `main` through [PR #116](https://github.com/Minhhh13/Touchline/pull/116). The live build was made at `2026-11-04T13:28:35.507Z`. Render deploys `main` once CI is green. The 200-place World exhibition boards, varied names and display counter shipped in #108–#111, with playful football nicknames in [#112](https://github.com/Minhhh13/Touchline/pull/112). The iOS development target shipped in [#72](https://github.com/Minhhh13/Touchline/pull/72), and the brand/search metadata in [#113](https://github.com/Minhhh13/Touchline/pull/113). #105 fixed the rotated-Daily World crash; #104 shipped the round-16 reload fixes. Before them:
+- **Site:** https://touchline.quest serves `main` through [PR #119](https://github.com/Minhhh13/Touchline/pull/119). The live build was made at `2026-11-04T14:24:42.463Z`. #119 added shared mute and volume controls to season playback, the Dugout and match/replay screens. Render deploys `main` once CI is green. The 200-place World exhibition boards, varied names and display counter shipped in #108–#111, with playful football nicknames in [#112](https://github.com/Minhhh13/Touchline/pull/112). The iOS development target shipped in [#72](https://github.com/Minhhh13/Touchline/pull/72), and the brand/search metadata in [#113](https://github.com/Minhhh13/Touchline/pull/113). #105 fixed the rotated-Daily World crash; #104 shipped the round-16 reload fixes. Before them:
   - #101: round 15, the new-player playtest round 2 with proposals P4 to P8 and P10, plus QA round 13;
   - #100: round 14, phone layouts on five device sizes, plus QA round 11;
   - #99: round 13 part 2, content depth and accessibility round 7;
@@ -68,7 +68,7 @@ A free web football game that fuses the wheel draft of **38-0** with the depth o
 
 ## 2. What it does today
 
-The released base is `main` through PR #117 (`a636c3fb`, 2026-11-04 UTC), on engine 7 at https://touchline.quest. This change adds compact mute and volume controls to the simulated-season playback, Dugout and match-day screen, sharing Profile's existing device-local audio settings ([#118](https://github.com/Minhhh13/Touchline/issues/118)). The full list is [FEATURES.md](FEATURES.md); this section is the overview.
+The released base is `main` through PR #119 (`0e8e8b09`, 2026-11-04 UTC), on engine 7 at https://touchline.quest, including shared mute and volume controls. This change refreshes the shared styling and Home, Setup, Draft and Dugout layouts ([#120](https://github.com/Minhhh13/Touchline/issues/120)). The full list is [FEATURES.md](FEATURES.md); this section is the overview.
 
 **Modes**
 - **Quick Draft** (the 38-0 mode): a one-page 38-0 setup (Easy, Normal or Hard; ratings on or off; Squad First or Position First; Season or Prime ratings, Prime by default; era presets and a season slider; every formation tile drawn as a mini pitch), draft an XI and a bench of up to five (one place by default), then Squad complete: the pundits' prediction (the chance of a perfect and an unbeaten season among it), a scouting report on the XI and the manager's edge. The manager is spun (three reels of real managers from the clubs drafted, pick one) or picked; the draft ends with a recap (a grade from A to D, the best pick, the one that got away, the Hindsight XI: the best XI the same spins held) and a case (a power-up for the Profile locker, unpacked in a later draft, or a rare Icon who can take a drafted starter's place, a non-standard season). Set the captain, penalty taker and instructions at kick-off, then watch the season game by game beside a live table, with three bench changes and injury cover, highlights of any game, and a January window that offers the January spin (a tiered case reel onto a wheel player), the January Upgrader (one roll on one of the XI), the transfer market or Skip. After the league come the Cup and the Continental Cup, each revealed round by round in a full bracket and ending on our own cartoon trophy lifted; the league with both cups is the Treble, with its own celebration. The 38-0 chase (win every game) runs through setup, playback, summary, profile and share text. Setup's Modes add Crazy, Hard, Underdog, Legends, Speedrun, Gamble and the Upgrader, and a power-up tray; spin odds show in every mode and always add up to 100% (marked rounded unless exact).
@@ -115,7 +115,7 @@ Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.
 
 ## 3. Shipped and in progress
 
-Each piece of work lives on its own branch until a pull request into `main` ships it. Checked against `main` at #116 on 2026-11-04 UTC. Completed rows are recorded below and in the change log (section 10); a surviving feature branch alone does not mean its work is unfinished.
+Each piece of work lives on its own branch until a pull request into `main` ships it. Checked against `main` at #119 on 2026-11-04 UTC. Completed rows are recorded below and in the change log (section 10); a surviving feature branch alone does not mean its work is unfinished.
 
 ### Shipped
 
@@ -140,6 +140,7 @@ PRs #1 to #62 carried the game up to the online layer and its rooms. Since then,
 | [#108](https://github.com/Minhhh13/Touchline/pull/108) to [#112](https://github.com/Minhhh13/Touchline/pull/112) | World exhibition boards, expanded to 200 places, the labelled display counter, varied manager names and then the 160 nickname / 40 ordinary-name pool. #109 superseded #108's visible AI badges and AI notice; current disclosure is the World board's exhibition explanation |
 | [#72](https://github.com/Minhhh13/Touchline/pull/72) | iOS development target, native image/save exports, public sharing URLs, Profile Skip reels, native pre-season layout and completed-season results scroller. Distribution and deferred prototypes remain in [IOS.md](IOS.md) |
 | [#107](https://github.com/Minhhh13/Touchline/pull/107), [#113](https://github.com/Minhhh13/Touchline/pull/113), [#116](https://github.com/Minhhh13/Touchline/pull/116) | Homepage search/share metadata, consistent brand/domain naming and release record. #115 closed as superseded by #113 |
+| [#119](https://github.com/Minhhh13/Touchline/pull/119) | Shared mute and volume controls for season playback, the Dugout and match/replay screens, using Profile's saved device preferences. Live and browser-verified. |
 
 (#68 remains the iOS issue for release follow-ups after merged PR #72; #90 was a docs-only PR.)
 
@@ -147,8 +148,7 @@ PRs #1 to #62 carried the game up to the online layer and its rooms. Since then,
 
 | Work | Branch | State |
 | --- | --- | --- |
-| Audio controls during seasons and simulated games ([#118](https://github.com/Minhhh13/Touchline/issues/118)) | `codex/season-audio` | Included with this change: compact mute and volume beside the season playback, Dugout and match-day controls, using the existing device-local Profile settings. Desktop and phone browser checks pass, including a simulated-result replay. Engine 7 and its verifier are unchanged; no backend redeploy. |
-| Visual design for the owner's "less AI" request | Current `main` audit; implementation pending | Findings and proposed tasks below. Earlier visual-polish rounds shipped; this new design pass remains to be built. |
+| Visual design for the owner's "less AI" request ([#120](https://github.com/Minhhh13/Touchline/issues/120)) | `codex/design-refresh` | Included with this change: shared styling, Home hierarchy, compact Setup, Draft team sheet and log, Dugout checklist and roster. Production browser review passes; release checks are recorded in the dated change log below. |
 | iOS release follow-ups ([#68](https://github.com/Minhhh13/Touchline/issues/68)) | Merged [PR #72](https://github.com/Minhhh13/Touchline/pull/72) is the baseline; separate unpublished `ios-native` work | Native authentication callbacks, real-device sharing/Photos verification, signing and TestFlight remain. Review the omitted phone layout prototypes separately ([IOS.md](IOS.md)). |
 | Engine 8: `ENGINE_VERSION` `'8'` with the four fixes held back because they move seeded outcomes, the pins re-baselined, engine 7's bundle in `public/edge/` | `claude/r10-engine8` | Prepared and unreleased. Preserve the branch, integrate current main and revalidate for a future Monday boundary (section 0). |
 | Engine 9: playtest P1 current-spin auto-complete, P2 stronger bench starters and P3 natural-position lineup swaps | `claude/r16-engine9` | Prepared on engine 8, unreleased. Preserve the branch; release after engine 8. P9's dominant-team scoring change is measured/proposed and still needs the owner's gameplay decision. |
@@ -156,16 +156,16 @@ PRs #1 to #62 carried the game up to the online layer and its rooms. Since then,
 | Neutral league and cup names ("European Nights" for the continental cup, real names swept from player text) | `neutral-names` (on GitHub) | On hold since 2026-10-25 (the owner's call) |
 | The column-index `buildLeague` | `perf-r2-with-buildleague` (local, never pushed) | Parked: it renames the edge verifier, so it can only ride an engine bump |
 
-### Visual design follow-up
+### Visual design refresh
 
-The owner clarified that "less AI" primarily means the visual design. The current-screen audit found these remaining tasks, proposed for a new implementation pass:
+The owner clarified that "less AI" primarily means the visual design and authorized implementation. This change implements the refresh on `codex/design-refresh`. It ships through the same reviewed PR and Render workflow as other static UI changes:
 
-- Bring the pastel Home cards and glowing buttons, neon reels and green pitch into a consistent visual style.
-- Give Home a stronger Daily/continue hierarchy; reduce the space taken by the repeated logo/tutorial and four equally prominent mode cards.
-- Shorten the phone Setup journey before the team-name field.
-- Keep the main choice or action in Draft and Dugout reachable without scrolling past long squad lists.
+- A paper/navy palette, flat blue primary controls, quieter panels and tighter corners, keeping the TouchLine mark, Sora, pitch and game-event artwork.
+- Home puts saved games and the Daily first, with compact format rows replacing the repeated hero and four equal illustrated cards.
+- Setup starts with the team name; the formation preview and optional special rules expand on demand without changing saved choices or defaults.
+- Draft shows a real team sheet between spins and keeps its full history in a disclosure. Dugout keeps blocking tasks visible, folds routine pre-season preparation and bounds long phone rosters. All tabs remain reachable; focused scroll regions retain their keyboard controls.
 
-Earlier layout, accessibility and visual-polish rounds shipped. These audit findings are proposed work; the new design pass has no completed implementation yet.
+See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the updated style guidance and the same PR's change-log entry for verification. Hosting is unchanged: Render builds `main` after CI. This static UI release preserves engine 7's exact verifier hash and requires no database migration or function redeploy.
 
 ### Branch cleanup completed — 2026-11-04 UTC
 
@@ -1094,3 +1094,5 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-11-04 UTC · Codex (branch cleanup and handover audit) · `codex/branch-cleanup`: deleted 115 completed remote branches in one atomic push with exact-SHA guards after the owner's authorization; verified all 13 retained tips, including `main` at `f8c33f40`, against the audit. Removed the completed local branches `codex/search-homepage` and `codex/brand-search` and the old SEO worktree after discarding its sole tracked change, generated `tsconfig.node.tsbuildinfo`. Removed the obsolete deletion list and pending cleanup instructions. Corrected current status through #116, recorded shipped World/iOS work and rounds 13–16, preserved unreleased engines 8/9, and recorded the owner's visual-design request with proposed tasks from the audit. The new design pass remains unimplemented. Historical change-log entries are preserved.
 
 - 2026-11-04 UTC · Codex (audio controls, [#118](https://github.com/Minhhh13/Touchline/issues/118)) · `codex/season-audio`: adds a compact master mute and volume slider to the season playback, Dugout and match-day screen. The controls share Profile's saved preferences, preserve volume across mute/unmute, keep zero valid and stay muted when the slider is adjusted while muted. Includes translated accessible labels, keyboard range support and 44-pixel touch targets. Typecheck, production build, download budget, dist-key scan and verifier checks pass; engine 7's verifier hash remains `ecc269657e48639b`. Chromium checks at 1280 and 390 pixels pass with real master-gain changes at 0/50/100, mute and volume surviving reload, all 13 Dugout tabs usable and no page errors or horizontal overflow. A production-build simulated-result replay passes too. Full Vitest passes with 2,805 tests (22 skipped) at three workers; the initial six-worker run passed its assertions but reported an RPC worker timeout, so it was rerun cleanly before push. No engine, save, backend or hosting setting changes.
+
+- 2026-11-04 UTC · Codex (visual refresh, [#120](https://github.com/Minhhh13/Touchline/issues/120)) · `codex/design-refresh`: replaces generic glow and equal illustrated cards with a quieter football programme style, saved-game/Daily priorities, compact setup, a real draft team sheet and a shorter Dugout checklist/roster. Keeps the TouchLine mark, Sora, every mode and rule default, saves, audio controls and engine 7. Checks: typecheck; 2,818 Vitest tests passed (22 skipped) across 402 passing files at three workers; production build; download budget (246.75 KiB JavaScript, 49.82 KiB CSS gzip); 425-file dist-key scan; verifier replay checks with the engine 7 hash unchanged at `ecc269657e48639b`. Independent review fixed the focused-roster Space shortcut and dark danger-button contrast. Production Chromium passed complete Quick Draft and Season flows, history/checklist controls, audio gain/mute persistence, all 13 Dugout tabs, desktop/phone, light/dark, 320px and 200% text. Profile, Explore, How-to and head-to-head navigation also passed. Initial validation caught an unused formation translation key and Windows CRLF source guards; the label was removed, exact LF bytes restored, and the full suite rerun cleanly. Windows checkout guidance is now in CLAUDE.md. No engine, save, backend or hosting-setting change; merge and live deployment follow green PR CI.

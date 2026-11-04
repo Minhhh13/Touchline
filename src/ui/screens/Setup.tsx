@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { runAfterPaint } from '../afterPaint'
 import { focusHasFallen, rescuedElement } from '../focusRescue'
-import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
+import { Armchair, Ban, Calendar, ChevronDown, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { leagueGate } from '@game/logic/leagueLoad'
@@ -30,8 +30,7 @@ import { ClubBadge, EstimatedChip, Segmented, Tip } from '../components/bits'
 import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_ID, SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
-import { Pitch } from '../components/Pitch'
-import { FormationPicker } from '../components/FormationPicker'
+import { FormationPicker, FormationThumb } from '../components/FormationPicker'
 import { ChoiceCards, type ChoiceOption, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
 import { MODE_ICON, RULE_ICON } from '../components/icons'
 import { clubName } from '../format'
@@ -56,6 +55,7 @@ import { formationBlurb, modeCardInfo, modeCardLine, modeCardTitle, powerUpTitle
 import { weeklyThemeLineText, weeklyThemeText } from '../i18n/weeklyThemeText'
 import { logicLine, logicList } from '../i18n/logicText'
 import { useTallBar } from '../tallBar'
+import './Setup.css'
 
 const t = translator(setup)
 
@@ -441,8 +441,17 @@ export function Setup() {
     setModes(next.filter((c): c is QuickMode | 'upgrader' => c !== 'hard'))
   }
   const teamField = <TeamNameField value={team.value} onChange={team.setValue} fallback={team.fallback} />
+  const formationSummary = (
+    <>
+      <span className="setup-shape-thumb" data-testid="formation-preview"><FormationThumb formation={shownFormation} /></span>
+      <span className="setup-shape-copy">
+        <strong>{shownFormation.name}</strong>
+        <span>{formationBlurb(shownFormation)}</span>
+      </span>
+    </>
+  )
   return (
-    <div className={`page setup-page has-bottom-bar${tallBar ? ' bar-static' : ''}`} style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page setup-page setup-refresh has-bottom-bar${tallBar ? ' bar-static' : ''}`} style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">
         {/* Start is the last of about forty controls: a skip link, the screen's first Tab stop, goes straight to it (QA r11, R11-O1) */}
         <a className="skip-link" href={`#${SETUP_START_ID}`} onClick={(e) => skipToControl(SETUP_START_ID, e)} data-testid="setup-skip-start">
@@ -461,8 +470,6 @@ export function Setup() {
               )}
             </p>
           </div>
-          {/* The online build's sign-in line sits in the head's row on a desktop (between the title and Back), so the two boxes keep their height; under 1000 px it takes a line of its own */}
-          {isManage && !challenge && <SignInPrompt id={mode} text={t('backUp', { mode })} />}
           <button className="btn ghost setup-back" onClick={() => go('home')}>
             {t('back')}
           </button>
@@ -470,37 +477,36 @@ export function Setup() {
 
         {/* The Daily's league rotates (engine 7's `DAILY_EPOCHS`): said once, on a day whose league tomorrow differs, above the steps so a phone sees it before Start */}
         {fixed?.kind === 'daily' && rotation && <Tip id="daily-rotation">{t('dailyRotationTip', { today: `${leagueArticle(leagueNameOf(rotation.today))}${leagueNameOf(rotation.today)}`, tomorrow: `${leagueArticle(leagueNameOf(rotation.tomorrow))}${leagueNameOf(rotation.tomorrow)}` })}</Tip>}
-        {/* Numbered steps in two boxes, as 38-0 reads: formation, name and league on the left; the rules and Spin on the right */}
+        {/* Club identity and the selected shape first; alternative shapes and special rules open only when wanted. */}
         <div className="setup-grid">
           <div className="panel setup-box">
+            <section className="setup-step setup-team">
+              <StepHead n={1} title={t('nameTeam')} />
+              <div className="setup-name">{teamField}</div>
+            </section>
+
             <section className="setup-step setup-formation">
-              <StepHead n={1} title={t(fixed || crazyOn ? 'yourFormation' : 'pickFormation')} />
+              <StepHead n={2} title={t('yourFormation')} />
               {crazyOn && (
                 <div className="notice small" data-testid="crazy-formation">
                   {crazyKnown ? t('crazySeed', { seed: seed.trim(), formation: shownFormation.name }) : t('crazyDrawn')}
                 </div>
               )}
-              <div className="setup-formation-body">
-                {!fixed && !crazyOn && <FormationPicker value={formationId} onChange={setFormationId} />}
-                <div className="setup-preview">
-                  {/* A picture of the shape, not a control: inert keeps its slot discs out of the tab order and the accessibility tree */}
-                  <div className="pitch-mini" data-testid="formation-preview" inert>
-                    <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
-                  </div>
-                  <p className="help setup-line">
-                    <b>{shownFormation.name}</b>: {formationBlurb(shownFormation)}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="setup-step setup-team">
-              <StepHead n={2} title={t('nameTeam')} />
-              <div className="setup-name">{teamField}</div>
+              {!fixed && !crazyOn ? (
+                <details className="setup-shapes" data-testid="formation-details">
+                  <summary className="setup-shape-summary" data-testid="formation-toggle">
+                    {formationSummary}
+                    <span className="setup-shape-change">{t('changeFormation')} <ChevronDown size={14} aria-hidden="true" /></span>
+                  </summary>
+                  <FormationPicker value={formationId} onChange={setFormationId} />
+                </details>
+              ) : (
+                <div className="setup-shape-summary setup-shape-fixed">{formationSummary}</div>
+              )}
             </section>
 
             {!fixed && (
-              <section className="setup-step">
+              <section className="setup-step setup-competition">
                 <div className="step-head-row">
                   <StepHead n={3} title={t('leagueSeason')} />
                   {superLeague ? (
@@ -534,6 +540,7 @@ export function Setup() {
                 )}
               </section>
             )}
+            {isManage && !challenge && <SignInPrompt id={mode} text={t('backUp', { mode })} />}
           </div>
 
           <div className="panel setup-box">
@@ -601,7 +608,11 @@ export function Setup() {
               <section className="setup-step">
                 <StepHead n={4} title={t('setRules')} />
                 {!isManage && (
-                  <div className="setup-modes" data-testid="modes-panel">
+                  <details className="setup-modes setup-mode-fold" data-testid="modes-panel">
+                    <summary className="setup-mode-summary" data-testid="modes-toggle">
+                      <span>{t('specialRules')}</span>
+                      <span className="small muted">{t('modesOn', { n: cardsOn.length + [powerUps, endCase, capOn, chain].filter(Boolean).length })}</span>
+                    </summary>
                     <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => t('modeInfoItem', { title: modeCardTitle(c), line: modeCardLine(c) })).join(' ') })} testId="modes" right={<span className="small muted" data-testid="modes-on">{t('modesOn', { n: cardsOn.length + [powerUps, endCase, capOn, chain].filter(Boolean).length })}</span>} />
                     <HoverTips className="setup-modes-row" testId="mode-tip">
                       <ModeCards cards={MODE_CARDS} on={cardsOn} info={modeCardInfo()} icons={MODE_ICON} onToggle={toggleMode} />
@@ -643,7 +654,7 @@ export function Setup() {
                         </label>
                       </div>
                     </HoverTips>
-                  </div>
+                  </details>
                 )}
                 <div className="setup-rules">
                   <div className="setup-opt">
