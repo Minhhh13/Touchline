@@ -14,7 +14,7 @@ interface ExhibitionManager {
 
 export const BOARD_SIZE = 200
 
-const NAME_POOLS = [
+const ORDINARY_NAME_POOLS = [
   { country: 'GB', first: ['Oliver', 'Amelia', 'Harry', 'Isla', 'George', 'Priya'], last: ['Bennett', 'Holloway', 'Patel', 'Turner', 'Shaw', 'Walker', 'Hughes'] },
   { country: 'ES', first: ['Lucía', 'Javier', 'Alba', 'Mateo', 'Elena', 'Iker'], last: ['Navarro', 'Morales', 'García', 'López', 'Martín', 'Serrano', 'Vega'] },
   { country: 'DE', first: ['Felix', 'Lea', 'Jonas', 'Mia', 'Leon', 'Klara'], last: ['Becker', 'Schneider', 'Hoffmann', 'Fischer', 'Wagner', 'Neumann', 'Krause'] },
@@ -28,16 +28,49 @@ const NAME_POOLS = [
   { country: 'CA', first: ['Avery', 'Émile', 'Quinn', 'Chloé', 'Logan', 'Maya'], last: ['Tremblay', 'Chen', 'Gagnon', 'Dubé', 'Brooks', 'MacDonald', 'Roy'] },
   { country: 'PT', first: ['Tiago', 'Inês', 'Duarte', 'Teresa', 'Gonçalo', 'Mariana'], last: ['Martins', 'Ferreira', 'Sousa', 'Ribeiro', 'Carvalho', 'Pires', 'Almeida'] },
 ] as const
+const NICKNAME_PLAYS = [
+  'Nutmeg',
+  'Top-Bins',
+  'Back-Post',
+  'False-Nine',
+  'Clean-Sheet',
+  'Route-One',
+  'Tiki-Taka',
+  'Gegenpress',
+  'Crossbar',
+  'Stoppage-Time',
+  'Half-Space',
+  'Second-Ball',
+  'Sunday-League',
+  'Five-at-the-Back',
+  'Panenka',
+  'Rabona',
+  'Touchline',
+  'Dugout',
+  'Goal-Line',
+  'Last-Minute',
+] as const
+const NICKNAME_CHARACTERS = ['Merchant', 'Wizard', 'Gremlin', 'Gaffer', 'Guru', 'Bandit', 'Enthusiast', 'Specialist'] as const
 const CLUB_PLACES = ['Northbridge', 'Puerto', 'Rheinland', 'Verona', 'Oranje', 'Lumiere', 'Harbour', 'Estrela', 'Atlas', 'Sakura', 'Maple', 'Lusitania', 'Riverside', 'Kingsport', 'Valley', 'Coastal', 'Central', 'Union', 'Olympic', 'Victoria'] as const
 const CLUB_TYPES = ['FC', 'Athletic', '04', 'Sporting', 'City', 'Racing', 'United', 'Rovers', 'Eleven', 'SC'] as const
 
 const MANAGERS: readonly ExhibitionManager[] = Array.from({ length: BOARD_SIZE }, (_, index) => {
-  const poolIndex = index % NAME_POOLS.length
-  const pool = NAME_POOLS[poolIndex]
-  const ordinal = Math.floor(index / NAME_POOLS.length)
+  const country = ORDINARY_NAME_POOLS[index % ORDINARY_NAME_POOLS.length].country
+  const ordinary = index % 5 === 0
+  const name = (() => {
+    if (!ordinary) {
+      const ordinal = index - Math.floor(index / 5) - 1
+      return `${NICKNAME_PLAYS[ordinal % NICKNAME_PLAYS.length]} ${NICKNAME_CHARACTERS[Math.floor(ordinal / NICKNAME_PLAYS.length)]}`
+    }
+    const ordinal = index / 5
+    const poolIndex = ordinal % ORDINARY_NAME_POOLS.length
+    const pool = ORDINARY_NAME_POOLS[poolIndex]
+    const pass = Math.floor(ordinal / ORDINARY_NAME_POOLS.length)
+    return `${pool.first[pass % pool.first.length]} ${pool.last[(pass * 3 + poolIndex) % pool.last.length]}`
+  })()
   return {
-    name: `${pool.first[ordinal % pool.first.length]} ${pool.last[(ordinal * 3 + poolIndex) % pool.last.length]}`,
-    country: pool.country,
+    name,
+    country,
     team: `${CLUB_PLACES[index % CLUB_PLACES.length]} ${CLUB_TYPES[Math.floor(index / CLUB_PLACES.length) % CLUB_TYPES.length]}`,
   }
 })
