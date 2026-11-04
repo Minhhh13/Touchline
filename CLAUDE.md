@@ -182,7 +182,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 
 ## Conventions
 
-- Keep the public homepage URL in `index.html`, `public/robots.txt` and `public/sitemap.xml` aligned with `https://touchline.quest/`. Only public, indexable page URLs belong in the sitemap.
+- Keep the public homepage URL in `index.html`, `public/robots.txt` and `public/sitemap.xml` aligned with `https://touchline.quest/`. Only public, indexable page URLs belong in the sitemap. TouchLine stays the primary name; the structured alternate name `TouchLine Quest` also appears in the initial introduction and Home's catalogue footer, with `touchline.quest` as the site's domain alternate. Keep these names consistent without adding misspellings or repeated keyword variants.
 
 - Style: 2 spaces, LF, no semicolons, single quotes, long single-line JSX is normal. Do not reflow existing lines (it creates huge conflicts).
 - Hooks above early returns in every component (Dugout, Summary and Explore are fixed; keep it that way).

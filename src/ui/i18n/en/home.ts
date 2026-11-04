@@ -84,7 +84,7 @@ export const home = catalog('home', {
   worldTitle: 'World leaderboard',
   worldNext: 'Try next: see where your Daily ranks',
   tryNext: 'Try next',
-  footer: 'Free, no ads, no account needed.',
+  footer: 'TouchLine Quest · Free football draft and management game. No ads, no account needed.',
   privacy: 'Privacy and fair play',
   arenaDayGauntlet: 'The Gauntlet on the {wheel} wheel',
   arenaDayCup: 'The Cup of {size} on the {wheel} wheel',

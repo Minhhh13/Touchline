@@ -8,6 +8,8 @@ This document describes the game as implemented in `src/engine` and `src/game`. 
 
 Tagline: **Spin the wheel. Draft the XI. Manage the season.**
 
+**TouchLine Quest** is an alternate name used in the Home footer and the initial HTML introduction. The homepage's `WebSite` structured data lists `TouchLine Quest` and `touchline.quest` as alternate names, and its `VideoGame` lists `TouchLine Quest`. The primary name, page title and canonical address remain TouchLine and `https://touchline.quest/`; these identity hints do not guarantee a search position.
+
 Alternatives considered and set aside:
 
 | Name | Why not |
