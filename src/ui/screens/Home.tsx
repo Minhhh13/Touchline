@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Flame, Globe, Timer, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Award, CalendarCheck2, CalendarDays, CalendarRange, ChevronsUp, Clock, Crown, Dices, Flame, Globe, Sparkles, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { dailyLoaded, dailyPlan, dailySettings } from '@game/logic/setup'
@@ -126,19 +126,27 @@ function useDocked(): boolean {
   return useSyncExternalStore(subscribeDock, dockedNow, () => false)
 }
 
+const STEP_ICON: Record<(typeof FIRST_RUN_STEPS)[number]['id'], LucideIcon> = { spin: Dices, draft: UserPlus, play: Trophy }
+
 /** A short introduction and one button into a Quick Draft on Setup's defaults. */
 function FirstRun({ ready, onPlay, onHowTo }: { ready: boolean; onPlay: () => void; onHowTo: () => void }) {
   return (
     <div className="programme-first" data-testid="first-run">
       <ol className="programme-steps">
-        {FIRST_RUN_STEPS.map((step, i) => (
+        {FIRST_RUN_STEPS.map((step, i) => {
+          const Icon = STEP_ICON[step.id]
+          return (
             <li key={step.id}>
+              <span className="programme-step-icon" aria-hidden="true">
+                <Icon size={18} />
+              </span>
               <span>
                 <b>{t('stepTitle', { n: i + 1, title: t(`step_${step.id}_title`) })}</b>
                 <span>{t(`step_${step.id}_line`)}</span>
               </span>
             </li>
-        ))}
+          )
+        })}
       </ol>
       <div className="programme-first-go">
         <button type="button" className="btn primary big" disabled={!ready} onClick={onPlay} data-testid="first-draft">
@@ -384,6 +392,9 @@ export function Home() {
         </section>
         <div className={`programme-daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
           <button type="button" className="programme-daily-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
+            <span className="programme-daily-icon" aria-hidden="true">
+              <CalendarCheck2 size={24} />
+            </span>
             <span className="programme-daily-text">
               <span className="eyebrow programme-daily-date">{t('todayDate', { date: today })}</span>
               <h3>{t('dailyTitle')}</h3>
@@ -449,8 +460,8 @@ export function Home() {
           <span className="muted small">{t('modeNote')}</span>
         </div>
         <div className="programme-mode-list">
-          <button className="programme-mode" onClick={() => go('setup', 'quick')} data-testid="quick-card">
-            <span className="programme-mode-number" aria-hidden="true">01</span>
+          <button className="programme-mode quick" onClick={() => go('setup', 'quick')} data-testid="quick-card">
+            <span className="programme-mode-icon" aria-hidden="true"><Dices size={22} /></span>
             <span className="programme-mode-copy">
               <h3>{t('quickTitle')}</h3>
               <p>{t('quickLine')}</p>
@@ -458,8 +469,8 @@ export function Home() {
             <TimeTag>{t('minutes', { n: 5 })}</TimeTag>
             <GoLabel />
           </button>
-          <button className={'programme-mode' + (nextUp === 'season' ? ' next-up' : '')} onClick={() => go('setup', 'season')} data-testid="season-card">
-            <span className="programme-mode-number" aria-hidden="true">02</span>
+          <button className={'programme-mode season' + (nextUp === 'season' ? ' next-up' : '')} onClick={() => go('setup', 'season')} data-testid="season-card">
+            <span className="programme-mode-icon" aria-hidden="true"><CalendarDays size={22} /></span>
             <span className="programme-mode-copy">
               <h3>{t('seasonTitle')}</h3>
               <p>{t('seasonLine')}</p>
@@ -468,8 +479,8 @@ export function Home() {
             <TimeTag>{t('minutes', { n: 45 })}</TimeTag>
             <GoLabel />
           </button>
-          <button className="programme-mode" onClick={() => go('setup', 'dynasty')} data-testid="dynasty-card">
-            <span className="programme-mode-number" aria-hidden="true">03</span>
+          <button className="programme-mode dynasty" onClick={() => go('setup', 'dynasty')} data-testid="dynasty-card">
+            <span className="programme-mode-icon" aria-hidden="true"><Crown size={22} /></span>
             <span className="programme-mode-copy">
               <h3>{t('dynastyTitle')}</h3>
               <p>{t('dynastyLine')}</p>
@@ -477,8 +488,8 @@ export function Home() {
             <TimeTag>{t('career')}</TimeTag>
             <GoLabel />
           </button>
-          <button className="programme-mode" onClick={() => go('h2h')} data-testid="h2h-card">
-            <span className="programme-mode-number" aria-hidden="true">04</span>
+          <button className="programme-mode h2h" onClick={() => go('h2h')} data-testid="h2h-card">
+            <span className="programme-mode-icon" aria-hidden="true"><Swords size={22} /></span>
             <span className="programme-mode-copy">
               <h3>{t('h2hTitle')}</h3>
               <p>{t('h2hLine')}</p>

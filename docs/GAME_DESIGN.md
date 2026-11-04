@@ -1409,7 +1409,7 @@ The site is hosted as a Render static site (build `npm ci && npm run build`, pub
 
 ### Main-screen visual hierarchy
 
-The November 2026 refresh uses a football programme and team-sheet layout, with neutral surfaces, one blue action colour and restrained borders. Home puts saved games before a featured Daily and compact format rows. Setup starts with the team name; the selected shape expands to the full formation picker, and optional Quick Draft rules use a disclosure. Draft shows the actual starting XI and open slots between spins, with an expandable draft log. The Dugout keeps blocking preparation visible and collapses routine pre-season tasks behind their completion count. Long phone player lists remain accessible in labelled scrolling regions. Seeds, rule defaults, formation IDs, saves and match outcomes are unchanged. Details are in DESIGN_SYSTEM.md.
+The November 2026 refresh uses a football programme and team-sheet layout, with neutral surfaces, one blue action colour and restrained borders. Home puts saved games before a featured Daily and compact, icon-led format cards; its Spin / Draft / Play introduction uses the same Lucide language as the app shell. Setup starts with the team name; the selected shape expands to the full formation picker, and optional Quick Draft rules use a disclosure. Draft shows the actual starting XI and open slots between spins, with an expandable draft log. The Dugout keeps blocking preparation visible and collapses routine pre-season tasks behind their completion count. Long phone player lists remain accessible in labelled scrolling regions. Seeds, rule defaults, formation IDs, saves and match outcomes are unchanged. Details are in DESIGN_SYSTEM.md.
 
 ### Audio controls during play
 

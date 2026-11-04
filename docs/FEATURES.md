@@ -68,7 +68,7 @@ The [public homepage](https://touchline.quest/) introduces the football draft an
 
 ## Visual design
 
-- A football programme style with warm neutral or charcoal navy surfaces, blue controls and compact navigation. Home prioritises saves and the Daily; setup starts with the team name and a compact formation chooser. Draft shows a team sheet between spins and an expandable pick log. The Dugout keeps preparation and phone rosters compact. Every mode, custom rule, save and audio setting remains available.
+- A football programme style with warm neutral or charcoal navy surfaces, blue controls and compact navigation. Home prioritises saves and the Daily, with clear Lucide icons on the first-draft steps and every game format; setup starts with the team name and a compact formation chooser. Draft shows a team sheet between spins and an expandable pick log. The Dugout keeps preparation and phone rosters compact. Every mode, custom rule, save and audio setting remains available.
 
 ## Management
 
