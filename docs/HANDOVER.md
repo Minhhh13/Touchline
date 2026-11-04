@@ -2,21 +2,22 @@
 
 For the people working on TouchLine: what it is, what works today, what is being built, where everything lives and how it is hosted. AI agents should start from [CLAUDE.md](../CLAUDE.md); the way we work together is in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-## 0. Start here (2026-10-31, for the next agent: Claude, Codex or a person)
+## 0. Start here (checked 2026-11-04 UTC, for the next agent: Claude, Codex or a person)
 
-The owner's Claude subscription ends on 2026-10-29 and the work may go on in Codex or with the owner's friend, from these documents alone. Read this section, then [CLAUDE.md](../CLAUDE.md) (the architecture map, the commands and the numbered invariants: never break them), then the rest of this file. [docs/CONTINUE-PROMPT.md](CONTINUE-PROMPT.md) is the same start page written as a prompt to paste into an agent.
+Read this section, then [CLAUDE.md](../CLAUDE.md) (the architecture map, the commands and the numbered invariants: never break them), then the rest of this file. This status was checked against `main` at `f8c33f40` ([PR #116](https://github.com/Minhhh13/Touchline/pull/116)) and the live site's `build.json`. Older dated round notes and [docs/CONTINUE-PROMPT.md](CONTINUE-PROMPT.md) may describe work before it shipped; check this section and GitHub before starting it again.
 
 ### What is live
 
-- **Site:** https://touchline.quest serves `main`. Render deploys `main` by itself once CI is green on the commit. PR #110 shipped the 200-place World boards (squash `2060c146`, live on Render 2026-10-31 16:29 UTC); [PR #111](https://github.com/Minhhh13/Touchline/pull/111) follows with varied exhibition names and the labelled display counter (check its CI and Render deploy status). #105 fixed the rotated-Daily World crash; #104 shipped the round-16 reload fixes. Before them:
+- **Site:** https://touchline.quest serves `main` through [PR #116](https://github.com/Minhhh13/Touchline/pull/116). The live build was made at `2026-11-04T13:28:35.507Z`. Render deploys `main` once CI is green. The 200-place World exhibition boards, varied names and display counter shipped in #108–#111, with playful football nicknames in [#112](https://github.com/Minhhh13/Touchline/pull/112). The iOS development target shipped in [#72](https://github.com/Minhhh13/Touchline/pull/72), and the brand/search metadata in [#113](https://github.com/Minhhh13/Touchline/pull/113). #105 fixed the rotated-Daily World crash; #104 shipped the round-16 reload fixes. Before them:
   - #101: round 15, the new-player playtest round 2 with proposals P4 to P8 and P10, plus QA round 13;
   - #100: round 14, phone layouts on five device sizes, plus QA round 11;
   - #99: round 13 part 2, content depth and accessibility round 7;
   - #98: round 13, QA round 9, the head-to-head look and phones round 5;
   - #97: round 12, a visual audit, Skip to Start, room codes from any keyboard, and commentary in the viewer's language.
 
-  Finished and held: `claude/r16-engine9` (engine 9, built on top of engine 8: P1, P2 and P3 built, P9 measured and waiting on the owner; `docs/ENGINE9.md` and "Release engine 9" in `docs/ONLINE.md` section 7 on that branch). It goes no earlier than Monday 2026-11-09, after engine 8, with a new `touchline-e9` loader. Before #97: #96 (QA round 6), #95 (round 11), #93 and #94 (round 10), #91 and #92 (round 9), #88 and #89 (round 8), #87 (the Daily rotation), #86 (engine 7), #85 and #84 (engine 6).
+  Prepared and unreleased: `claude/r16-engine9` (engine 9, built on top of engine 8: P1, P2 and P3 built, P9 measured and waiting on the owner; `docs/ENGINE9.md` and "Release engine 9" in `docs/ONLINE.md` section 7 on that branch). It needs engine 8 released first and its own checked release window and `touchline-e9` loader. Before #97: #96 (QA round 6), #95 (round 11), #93 and #94 (round 10), #91 and #92 (round 9), #88 and #89 (round 8), #87 (the Daily rotation), #86 (engine 7), #85 and #84 (engine 6).
 - **Engine:** `ENGINE_VERSION` `'7'`. Engine 8 is prepared and not released (below).
+- **Repository cleanup:** 115 completed remote branches were deleted on 2026-11-04 UTC after the owner authorized cleanup. The 13 retained tips matched the audit after deletion; their purposes are recorded in section 3. The obsolete `docs/branch-cleanup.txt` list has been retired.
 - **Online:** Supabase project `yvqpmyqomkwtudxmkeou` (Sydney, Free plan) with every migration in `supabase/migrations/` applied, the three engine 7 ones included (`20261028000100` to `000300`, pasted by the owner on 2026-10-28 and recorded). Edge Functions, all with **Verify JWT off**: `touchline-e7` (the live one: a loader pinning `edge/verifier-ecc269657e48639b.js`, deployed 2026-10-28 20:03 UTC; #89 to #102 left that bundle's bytes unchanged), and the outgoing `touchline-e6` (keep to at least 2026-11-05), `touchline-e5` (to 2026-11-04) and `touchline-e4` (to 2026-11-03). The site serves their bundles from `public/edge/` until they retire (invariant 15).
 - **How to check it** (read only, no account needed):
   - `curl -s https://touchline.quest/build.json` gives `engine`, `data` (the packs' `generatedAt` stamp), `builtAt` and `verifier.path` / `verifier.sha256` (the edge bundle this build publishes, the one the live loader must pin). `curl -s https://touchline.quest/edge/verifier-<hash16>.js | sha256sum` must equal `verifier.sha256`.
@@ -33,22 +34,20 @@ The way rounds 8 to 12 shipped, and the way to keep doing it:
 4. After the squash lands, record it on the integration branch with `git merge -s ours origin/main`, **only** when the branch holds a commit with exactly the squash's tree (`git rev-parse origin/main^{tree}` equals your tip's tree). Otherwise do a real merge.
 5. If the build renamed the edge bundle (`dist/build.json`'s `verifier.path` changed), rebuild the loader from `main` at exactly the deployed commit (`node scripts/online/build-loader.mjs`) and redeploy `touchline-e7` with Verify JWT off ([ONLINE.md](ONLINE.md) section 6 and section 7, "Release the Daily rotation", step 2). A loader pinned to a bundle the site no longer serves answers 503 `verifier_unavailable`. Then a change-log line here.
 
-### Engine 8: Monday 2026-11-02, just before 00:00 UTC
+### Engine 8: prepared, awaiting a new release window
 
-- Branch `claude/r10-engine8` (main through #110 merged at `5fac990`, never rebased): `ENGINE_VERSION` `'8'`, four fixes held back because they move seeded outcomes (the capped assistant's share over a Quick Draft bench's owed picks, `45f5754`; a simmed week's stream started after the assistant answers the week's event; the Gauntlet's alternates; a Dynasty board that raises its bar after success), the pins re-baselined, engine 7's bundle in `public/edge/` and pinned in `legacyEdge.test.ts`, `[functions.touchline-e8]` in `supabase/config.toml`.
-- The runbook is "Release engine 8" in that branch's `docs/ONLINE.md` section 7 (read it with `git show origin/claude/r10-engine8:docs/ONLINE.md`; main's ONLINE.md section 7 points to it; when `main` is merged into the branch, keep the branch's full runbook and drop main's short pointer). In short: merge the latest `main` into the branch and check for any newer `FIX (moves draws):` or `BUNDLED:` commits; run every check; merge into `main` at about 23:30 UTC on Sunday 2026-11-01; once Render serves `build.json` with `"engine":"8"`, build the loader from the deployed commit and deploy the **new** function `touchline-e8` (Verify JWT off) before 00:00 UTC; smoke it (`status`, a guest `room.create`, `scripts/online/smoke-function.mjs`); after midnight check that 2026-11-02's Daily and W45's Weekly pin on engine 8; keep `touchline-e7` for at least 7 days (to 2026-11-09).
-- Why Monday: a week's Weekly is pinned once, on the engine of its first ranked request, so a mid-week bump leaves that week's ranked Weekly on the old function. If Monday 2026-11-02 is missed, wait for the next Monday.
+- Preserve branch `claude/r10-engine8`: `ENGINE_VERSION` `'8'`, four fixes held back because they move seeded outcomes (the capped assistant's share over a Quick Draft bench's owed picks, `45f5754`; a simmed week's stream started after the assistant answers the week's event; the Gauntlet's alternates; a Dynasty board that raises its bar after success), the pins re-baselined, engine 7's bundle in `public/edge/` and pinned in `legacyEdge.test.ts`, `[functions.touchline-e8]` in `supabase/config.toml`.
+- The planned 2026-11-02 release did not ship: the live site still reports engine 7. The runbook is "Release engine 8" in that branch's `docs/ONLINE.md` section 7 (read it with `git show origin/claude/r10-engine8:docs/ONLINE.md`). Refresh its dates when preparing the next release. Merge the latest `main`, check for newer `FIX (moves draws):` or `BUNDLED:` commits and run every check. Once the scheduled site build serves engine 8, deploy its matching `touchline-e8` loader with Verify JWT off, smoke it, and check the new day's Daily and week's Weekly after midnight. Keep `touchline-e7` for at least seven days after the actual release.
+- Use a future Monday boundary: a week's Weekly is pinned once, on the engine of its first ranked request, so a mid-week bump leaves that week's ranked Weekly on the old function. No new release date is committed here.
 - Retire the old functions on time: `touchline-e4` on or after 2026-11-03, `touchline-e5` on or after 2026-11-04, `touchline-e6` on or after 2026-11-05. For each: delete the function in the Supabase dashboard, then in one PR remove its `[functions.touchline-eN]` block from `supabase/config.toml`, its file in `public/edge/` and its entry in `src/online/__tests__/legacyEdge.test.ts`.
 
 ### The owner's to-dos
 
-- **Delete the merged branches only after asking the owner immediately beforehand.** The 87 SHA-checked tips in `docs/branch-cleanup.txt` plus 18 fully merged PR #94–#104 tips form 105 deletion candidates; none has been deleted. Preserve these 13 branches: `main`, `claude/youthful-mccarthy-a57idu`, `claude/touchline-preview`, `claude/r10-engine8`, `claude/r16-engine9`, `feat/ios-mobile`, `neutral-names`, `wip/neutral-names`, `codex/tanvuxd-features`, `engine-e5`, `release-e6`, `release-e7`, and `claude/r8-audit-engine`.
 - **Delete the smoke row** filed during engine 7's release: in the SQL editor, look first with `select id, message, day from private.error_reports where message like '%SMOKE e7 release check%';`, then delete that row by its `id` (the owner's view `private.error_report_summary` shows everything filed).
-- **AI rivals on empty boards** (approved idea, not built): clearly labelled AI entries (an "AI" badge), shown only when a board has few real players, computed on the device and never stored. Never fake real players.
 - **A licence.** The repository is public but all rights reserved until the owner chooses one; never add a licence file without them.
 - **Sign-in providers.** Google (needs the owner's Google Cloud OAuth client, [ONLINE.md](ONLINE.md) section 5c) and Apple. Email sign-in sends a six-digit code only.
 - **Supabase before a public launch:** switch on leaked-password protection (the one security-advisor warning) and upgrade the same project to a paid plan (Free projects pause after a week idle; the keep-alive covers it once its secrets are set).
-- **iOS:** Tanvu's development target in [PR #72](https://github.com/Minhhh13/Touchline/pull/72) is the starting point. Compare the separate unpublished `ios-native` work before signing and submitting on a Mac.
+- **iOS release:** Tanvu's development target from [PR #72](https://github.com/Minhhh13/Touchline/pull/72) is merged. Native authentication, real-device sharing/Photos checks, signing and TestFlight remain; compare the separate unpublished `ios-native` work before distribution ([IOS.md](IOS.md)).
 - **Data:** a rebuild that strips the 54 ",NN" player-name suffixes (cleaned for display at load meanwhile).
 
 ### Rules learned the hard way
@@ -114,9 +113,9 @@ The World tables also show up to 200 client-only exhibition places while real bo
 
 Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.md](DATA.md). Design research: [RESEARCH.md](RESEARCH.md). The online layer: [ONLINE.md](ONLINE.md).
 
-## 3. In progress (not shipped yet)
+## 3. Shipped and in progress
 
-Each piece of work lives on its own branch until a pull request into `main` ships it. Brought up to date on 2026-10-29 (`claude/r13-docs`): the rows for branches that have since shipped are gone from this section; what each branch did is in the change log (section 10) and the PR descriptions.
+Each piece of work lives on its own branch until a pull request into `main` ships it. Checked against `main` at #116 on 2026-11-04 UTC. Completed rows are recorded below and in the change log (section 10); a surviving feature branch alone does not mean its work is unfinished.
 
 ### Shipped
 
@@ -134,25 +133,58 @@ PRs #1 to #62 carried the game up to the online layer and its rooms. Since then,
 | [#93](https://github.com/Minhhh13/Touchline/pull/93), [#94](https://github.com/Minhhh13/Touchline/pull/94) | Round 10: round 9's open bugs, test coverage, Explore's faster search and progressive rows, the room Rematch, Dugout and Setup usability (Setup's memory); the game logic's lines translated on screen and accessibility round 6 on the signed-in screens |
 | [#95](https://github.com/Minhhh13/Touchline/pull/95), [#96](https://github.com/Minhhh13/Touchline/pull/96) | Round 11: the online client under test with three runtime fixes; QA round 6 over round 10 |
 | [#97](https://github.com/Minhhh13/Touchline/pull/97) | Round 12: the visual audit (QA round 8), Setup's Skip to Start, room codes from any keyboard, the match commentary in the viewer's language |
+| [#98](https://github.com/Minhhh13/Touchline/pull/98), [#99](https://github.com/Minhhh13/Touchline/pull/99) | Round 13: QA, hot-seat head-to-head layout, phone performance, refreshed docs, content depth and accessibility round 7 |
+| [#100](https://github.com/Minhhh13/Touchline/pull/100) | Round 14: phone layouts on five device sizes and QA round 11 |
+| [#101](https://github.com/Minhhh13/Touchline/pull/101) to [#104](https://github.com/Minhhh13/Touchline/pull/104) | Round 15 playtest, P4–P8 and P10, QA rounds 13–15 and round 16 reload fixes; the draw-changing P1–P3 remain on engine 9 |
+| [#105](https://github.com/Minhhh13/Touchline/pull/105) | Rotated-Daily World-board crash fix |
+| [#108](https://github.com/Minhhh13/Touchline/pull/108) to [#112](https://github.com/Minhhh13/Touchline/pull/112) | World exhibition boards, expanded to 200 places, the labelled display counter, varied manager names and then the 160 nickname / 40 ordinary-name pool. #109 superseded #108's visible AI badges and AI notice; current disclosure is the World board's exhibition explanation |
+| [#72](https://github.com/Minhhh13/Touchline/pull/72) | iOS development target, native image/save exports, public sharing URLs, Profile Skip reels, native pre-season layout and completed-season results scroller. Distribution and deferred prototypes remain in [IOS.md](IOS.md) |
+| [#107](https://github.com/Minhhh13/Touchline/pull/107), [#113](https://github.com/Minhhh13/Touchline/pull/113), [#116](https://github.com/Minhhh13/Touchline/pull/116) | Homepage search/share metadata, consistent brand/domain naming and release record. #115 closed as superseded by #113 |
 
-(#68 is the iOS issue and #72 an open pull request, below; #90 was a docs-only PR.)
+(#68 remains the iOS issue for release follow-ups after merged PR #72; #90 was a docs-only PR.)
 
 ### In progress
 
 | Work | Branch | State |
 | --- | --- | --- |
-| iOS development app and native exports ([#68](https://github.com/Minhhh13/Touchline/issues/68)) | `feat/ios-mobile`, [PR #72](https://github.com/Minhhh13/Touchline/pull/72) | Main-first integration through `50abbc59` (engine 7), 2026-11-01. Keeps Capacitor/Xcode, bundled packs, native image/file sharing, public share links, icon navigation, pre-season spacing, Profile Skip reels, a six-row season-results scroller and accepted-job next-season action. Uses main's current game screens; supersedes the earlier phone workspace prototypes. Deferred items and validation: [IOS.md](IOS.md). Compare the separate unpublished `ios-native` work before TestFlight. TestFlight and native authentication remain separate release work. No engine, RNG, save-format or backend changes relative to main. |
-| Engine 8: `ENGINE_VERSION` `'8'` with the four fixes held back because they move seeded outcomes, the pins re-baselined, engine 7's bundle in `public/edge/` | `claude/r10-engine8` | Ready; release just before 00:00 UTC on Monday 2026-11-02 (section 0, and the "Release engine 8" runbook in that branch's ONLINE.md) |
-| These docs brought to the code at round 12, section 0 rewritten as a start page | `claude/r13-docs` | Pushed for the next PR |
+| Visual design for the owner's "less AI" request | Current `main` audit; implementation pending | Findings and proposed tasks below. Earlier visual-polish rounds shipped; this new design pass remains to be built. |
+| iOS release follow-ups ([#68](https://github.com/Minhhh13/Touchline/issues/68)) | Merged [PR #72](https://github.com/Minhhh13/Touchline/pull/72) is the baseline; separate unpublished `ios-native` work | Native authentication callbacks, real-device sharing/Photos verification, signing and TestFlight remain. Review the omitted phone layout prototypes separately ([IOS.md](IOS.md)). |
+| Engine 8: `ENGINE_VERSION` `'8'` with the four fixes held back because they move seeded outcomes, the pins re-baselined, engine 7's bundle in `public/edge/` | `claude/r10-engine8` | Prepared and unreleased. Preserve the branch, integrate current main and revalidate for a future Monday boundary (section 0). |
+| Engine 9: playtest P1 current-spin auto-complete, P2 stronger bench starters and P3 natural-position lineup swaps | `claude/r16-engine9` | Prepared on engine 8, unreleased. Preserve the branch; release after engine 8. P9's dominant-team scoring change is measured/proposed and still needs the owner's gameplay decision. |
 | The engine audit's draw-moving fix `45f5754` | `claude/r8-audit-engine` | Taken into `claude/r10-engine8`; the branch stays because the docs name it |
 | Neutral league and cup names ("European Nights" for the continental cup, real names swept from player text) | `neutral-names` (on GitHub) | On hold since 2026-10-25 (the owner's call) |
 | The column-index `buildLeague` | `perf-r2-with-buildleague` (local, never pushed) | Parked: it renames the edge verifier, so it can only ride an engine bump |
-| Round 13: QA round 9 over round 12, head-to-head on one device built from the online room's boxes, phone performance round 5 (first load, Squad complete's odds, Explore's wheel chances) | `claude/r13-qa`, `claude/r13-h2h-look`, `claude/r13-perf` and these docs, merged on `claude/youthful-mccarthy-a57idu` | In the next PR; `claude/r13-a11y` (accessibility round 7 on the game screens) and `claude/r13-content` (content depth round 2) still running, for the PR after |
-| Round 14, phones: a layout pass on five phones upright and on their side, both themes and 200 % text (docs/QA.md, "Round 12: phones") | `claude/r14-phones` | Pushed, no PR (for the round's integration branch); display only, edge bundle unchanged |
-| QA round 11 over round 13 ([QA.md](QA.md) round 11): R14-1 (the first tap after typing on a phone) and R14-2 (Explore's unknown wheel) fixed, sweeps `qaR14*`, R14-O1 to O3 open | `claude/r14-qa` | Pushed, no pull request; display and client only, nothing moves a draw, bundle unchanged |
-| Round 15: a new-player playtest, round 2 ([PLAYTEST.md](PLAYTEST.md) "Round 2"): 16 small fixes (copy, hints, labels), 10 proposals | `claude/r15-playtest` | Pushed, no PR; display only, bundle unchanged |
-| QA round 13 over round 14 ([QA.md](QA.md) round 13): R14-O1 (a chunk reload heals itself), R14-O2 (the hot-seat's assistant one Tab from the club) and R14-O3 (a landed hot-seat reel stays landed after a reload) closed, R15-1 (Home at 200 % on a small phone) fixed, sweeps `qaR15*`, R15-O1 open | `claude/r15-qa` | Pushed, no pull request; display and client only, nothing moves a draw, bundle unchanged |
-| Round 15: the playtest's proposals that move no draw, P4 to P8 and P10 ([PLAYTEST.md](PLAYTEST.md) "Proposals built"); P1 to P3 (they move the assistant's picks) and P9 (engine feel) left for a later engine | `claude/r15-proposals` | Pushed, no PR; no draw, no save field, bundle unchanged |
+
+### Visual design follow-up
+
+The owner clarified that "less AI" primarily means the visual design. The current-screen audit found these remaining tasks, proposed for a new implementation pass:
+
+- Bring the pastel Home cards and glowing buttons, neon reels and green pitch into a consistent visual style.
+- Give Home a stronger Daily/continue hierarchy; reduce the space taken by the repeated logo/tutorial and four equally prominent mode cards.
+- Shorten the phone Setup journey before the team-name field.
+- Keep the main choice or action in Draft and Dugout reachable without scrolling past long squad lists.
+
+Earlier layout, accessibility and visual-polish rounds shipped. These audit findings are proposed work; the new design pass has no completed implementation yet.
+
+### Branch cleanup completed — 2026-11-04 UTC
+
+The owner authorized removing unused branches. The audit compared the 128 remote tips with the recorded completed work and merged PRs, then deleted 115 branches in one atomic push guarded by each branch's exact SHA. Verification found these 13 retained branches at their audited tips, including `main` at `f8c33f40`. This records the remote state immediately after cleanup; future task branches may be added normally. The old deletion list `docs/branch-cleanup.txt` is removed, and its historical change-log references are preserved.
+
+| Retained branch | Tip at verification | Purpose |
+| --- | --- | --- |
+| `main` | `f8c33f40` | Default branch and live release source |
+| `claude/r10-engine8` | `812d1849` | Unreleased engine 8; the owner's active checkout is older than this remote tip |
+| `claude/r16-engine9` | `f33d52ff` | Unreleased engine 9, prepared on engine 8 |
+| `claude/r8-audit-engine` | `d2bd26fc` | Referenced audit source with fixes that change seeded results |
+| `claude/touchline-preview` | `cbcb17c5` | Preview deployment branch |
+| `claude/youthful-mccarthy-a57idu` | `b7187d16` | Shared Claude integration branch |
+| `codex/tanvuxd-features` | `fc0d62c6` | Collaborator branch retained for coordination |
+| `feat/ios-mobile` | `816bb373` | Retained iOS development branch and follow-up context after merged #72 |
+| `neutral-names` | `84c2253f` | Parked naming work awaiting the owner's decision |
+| `wip/neutral-names` | `4a357e8a` | Backup of the parked naming work |
+| `engine-e5` | `ec520f35` | Referenced engine 5 release/checker source |
+| `release-e6` | `45e30933` | Referenced engine 6 release/checker source |
+| `release-e7` | `cbcb17c5` | Referenced engine 7 release/checker source |
 
 **Owner decisions of 2026-10-26** (they settle the questions in [BACKLOG.md](BACKLOG.md), "Pending owner decisions"):
 - Guests are allowed in online rooms, so `touchline-e4` (and `touchline-e5`) run with Verify JWT off.
@@ -309,11 +341,11 @@ Brought up to date on 2026-10-27 (`claude/r7-docs`) and again on 2026-10-29 (`cl
 
 Tracked as GitHub issues, labelled by area (`area:engine`, `area:game`, `area:ui`, `area:data`, `area:online`, `area:ops`) and size (`size:S/M/L`); work being built carries `status:in-progress`: https://github.com/Minhhh13/Touchline/issues. Issues #3 to #12 and #19 describe work that has shipped and can be closed.
 
-1. **Engine 8** (`claude/r10-engine8`): release just before 00:00 UTC on Monday 2026-11-02 (section 0); keep `touchline-e7` to at least 2026-11-09.
+1. **Engines 8 and 9** (`claude/r10-engine8`, `claude/r16-engine9`): preserve both branches. Engine 7 is still live; integrate and revalidate engine 8 for a future Monday boundary (section 0), then prepare engine 9 separately. Keep each outgoing loader and bundle for at least seven days after its successor actually ships.
 2. **Retire the old functions**: `touchline-e4` on or after 2026-11-03, `touchline-e5` on or after 2026-11-04, `touchline-e6` on or after 2026-11-05, each with its `public/edge/` bundle, `legacyEdge.test.ts` entry and `config.toml` block.
 3. **The iOS release** (issue #68, development target from PR #72 and separate local `ios-native` release work): the owner builds, signs and runs the app on a Mac and submits it to App Store Connect (`docs/IOS_RELEASE.md` on that branch).
 4. **Supabase before a public launch**: switch on leaked-password protection (the one security-advisor warning), add Google sign-in (the owner's OAuth client) and Apple sign-in, and upgrade the same project to a paid plan.
-5. **Owner decisions waiting**: a licence, AI rivals on near-empty boards (approved in principle: labelled, never stored), the first translation languages, neutral names (`neutral-names`).
+5. **Owner decisions waiting**: a licence, the first translation languages, neutral names (`neutral-names`) and engine 9's P9 scoring proposal. The World exhibition display already shipped in #108–#112.
 6. Later: the next ranked items in [BACKLOG.md](BACKLOG.md), the engine 8 leftovers (an arena AI side short of men, England's Gauntlet alternates, the r8 audit's bundled dead-code cleanups), the data rebuild that strips the ",NN" names, classic seasons for the other leagues and in online head-to-head rooms, a Playwright suite in the repo (#17), the next EA FC edition's data (#18).
 
 ## 9. Keeping this document current
@@ -1058,3 +1090,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-11-04 · Codex (World exhibition nicknames) · `feat/funny-world-nicknames` from `main` at `f1a357f` changes only the client-side exhibition name pool: 160 of the 200 display managers use playful football nicknames and 40 retain culturally varied ordinary names. Every board still gets a different deterministic order; verified player names, official ranks, scores and Supabase data remain untouched. No engine, draw, save, migration or Edge Function change. Checks: clean `npm ci`; typecheck; focused exhibition coverage 7 passed; full Vitest 2,802 passed (22 skipped) in 398 files (4 skipped), no failures or RPC errors; production build; budget 4 passed; `check:dist-keys` clean across 418 files; `build:verifier` and `check:verifier` OK with engine 7 unchanged at `verifier-ecc269657e48639b.js`; local-mock Chromium at 1280×720 and 390×844 rendered all seven boards with 200 unique rows and the 160/40 mix, with no application error or page overflow (the managed network alone blocked Google Fonts).
 - 2026-11-04 · Codex (brand search signals) · `feat/brand-search-signals` from `main` at `f1a357f`, with `main` merged through PR #112 at `2a31a27`, consistently associates `TouchLine` with `touchline.quest` in the search title and description, sharing metadata, WebSite/VideoGame structured data, initial HTML and rendered Home tagline. Adds the normalised aliases `Touchline`, `touchline.quest` and `Touchline Quest` without keyword-stuffing malformed punctuation variants; preserves the canonical URL, one-page sitemap and Search Console verification. Metadata/display only: no engine, draw, save, database, Supabase or Render-setting change. Checks before the merge: typecheck; focused discovery 3 passed; full Vitest 2,803 passed (22 skipped); production build; budget 4 passed; `check:dist-keys`; `build:verifier` and `check:verifier`, engine 7 hash unchanged; Chromium at 1280×720 and 390×844 showed the domain line with no page error or horizontal overflow. Google still controls indexing and ranking, especially for the generic word “touchline”.
 - 2026-11-05 · Codex (leaderboard and search release) · [PR #112](https://github.com/Minhhh13/Touchline/pull/112) squash-merged as `2a31a27` after green CI and reached Render live as `dep-dblisrflk1mc73f1f6f0`. Its `main` was merged normally into [PR #113](https://github.com/Minhhh13/Touchline/pull/113), preserving both handover entries; the combined focused tests, typecheck and build passed locally, then #113's build and all three test shards passed. #113 squash-merged as `8187854c`; `main` CI passed and exact Render deploy `dep-dblj0t5bedkc73ad5k70` reached `live`. Engine 7, its verifier, Supabase and every Edge Function were untouched. Direct requests to `touchline.quest` from the managed cloud still receive the environment's known 403, so the release is verified through GitHub CI and Render's exact live commit rather than inferred from an external HTTP response.
+- 2026-11-04 UTC · Codex (branch cleanup and handover audit) · `codex/branch-cleanup`: deleted 115 completed remote branches in one atomic push with exact-SHA guards after the owner's authorization; verified all 13 retained tips, including `main` at `f8c33f40`, against the audit. Removed the completed local branches `codex/search-homepage` and `codex/brand-search` and the old SEO worktree after discarding its sole tracked change, generated `tsconfig.node.tsbuildinfo`. Removed the obsolete deletion list and pending cleanup instructions. Corrected current status through #116, recorded shipped World/iOS work and rounds 13–16, preserved unreleased engines 8/9, and recorded the owner's visual-design request with proposed tasks from the audit. The new design pass remains unimplemented. Historical change-log entries are preserved.

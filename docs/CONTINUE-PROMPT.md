@@ -4,6 +4,8 @@ Paste everything below the line into the agent, with the repository `Minhhh13/To
 
 ---
 
+**Current-status pointer (2026-11-04 UTC):** read section 0 of [HANDOVER.md](HANDOVER.md) first. This prompt retains an older dated snapshot. Its release dates and pending-work lists must be reconciled with the current handover, code and GitHub before acting; do not execute a release from an outdated date here. Engine 7 remains live, engines 8/9 are unreleased, PR #72 is merged, and branch cleanup has completed.
+
 You are taking over **TouchLine**, a browser football game: 38-0's spin-the-wheel draft fused with Football Manager depth.
 
 - **Repo:** https://github.com/Minhhh13/Touchline (public; all rights reserved, no licence yet).
@@ -63,7 +65,8 @@ State on 2026-10-30 (late morning UTC): `main` is live through round 16 (#102, s
 
 ## 5. Waiting on the owner
 
-- Deleting the 87 merged branches in `docs/branch-cleanup.txt` (a cloud session cannot delete other branches).
+Branch cleanup completed on 2026-11-04 UTC: 115 remote branches deleted, 13 retained at their verified tips. The obsolete deletion list is removed. Read HANDOVER section 3 for the retained branches and current pending work.
+
 - Deleting the engine 7 release's smoke row ("SMOKE e7 release check") from `private.error_reports`.
 - A licence; Google and Apple sign-in; leaked-password protection and the Supabase paid plan before a public launch.
 - The iOS app; a data rebuild that strips the 54 ",NN" player names; the first translation languages.
