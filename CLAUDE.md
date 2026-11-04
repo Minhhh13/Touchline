@@ -316,4 +316,4 @@ The live list, with owners, state and the PRs that shipped, is `docs/HANDOVER.md
 
 ## World exhibition display
 
-`src/ui/online/exhibitionRows.ts` fills sparse World boards with client-only display managers without changing verified results. `src/ui/online/simulatedActivity.ts` supplies the labelled, illustrative games-simulated counter (500,000 base, then a fixed time step). Neither is server telemetry or part of the verifier.
+`src/ui/online/exhibitionRows.ts` fills sparse World boards with client-only display managers (four playful football nicknames to each ordinary name) without changing verified results. `src/ui/online/simulatedActivity.ts` supplies the labelled, illustrative games-simulated counter (500,000 base, then a fixed time step). Neither is server telemetry or part of the verifier.
