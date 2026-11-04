@@ -28,6 +28,7 @@ import { JanuaryWindow } from '../components/JanuaryWindow'
 import { clubName, clubShort } from '../format'
 import { sideNamer } from '@game/logic/superLeague'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { AudioControls } from '../components/AudioControls'
 import { useMediaQuery } from '../components/LivePitch'
 import { PLAYBACK } from '../boxSets'
 import { clinchMatchweeks } from '@engine/story'
@@ -162,6 +163,7 @@ export function SeasonPlayback() {
         <div className="col fit-head-side" style={{ gap: 6 }}>
           <div className="row wrap pb-head-row pb-head-meta">
             {!phone && game.manager && <ManagerChip manager={game.manager} />}
+            <AudioControls />
             <BoxesMenu groups={[boxes]} />
             <span className="playback-mw" data-testid="playback-matchweek">
               {rich(t('matchweekOf', { n: pb.revealed, total }), B)}

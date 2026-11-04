@@ -51,6 +51,7 @@ import type { LiveControl, MatchdayData, SideView } from './types'
 import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
 import { readMark, resumeFrom, resumeLine, segmentKey, writeMark } from './resume'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { AudioControls } from '../components/AudioControls'
 import { MATCHDAY_COMPACT, matchdayBoxes, readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
 import { useMatchSounds } from '../sound/useMatchSounds'
@@ -292,6 +293,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
       <span className="muted">
         {tx('matchTag', { home: feed.home.name, away: feed.away.name, mode: live ? 'live' : 'replay' })}
       </span>
+      <AudioControls />
       <BoxesMenu groups={[compact ? compactBoxes : boxes]} className="md-boxes" />
       {crumbEnd && <div className="md-crumb-end">{crumbEnd}</div>}
     </div>

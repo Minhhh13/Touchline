@@ -106,4 +106,10 @@ export const common = catalog('common', {
   weeklyThemeLine: '{name}: {blurb}',
   newBadge: '{n} new',
   noMoreTips: 'No more tips',
+  audioSettings: 'Sound',
+  muteAudio: 'Mute audio',
+  unmuteAudio: 'Unmute audio',
+  audioVolume: 'Volume',
+  audioMuted: 'Muted',
+  audioVolumeMuted: '{n}%, muted',
 })
