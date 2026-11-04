@@ -5,16 +5,25 @@ import { describe, expect, it } from 'vitest'
 const read = (file: string) => readFileSync(resolve(__dirname, '../../..', file), 'utf8')
 const homepage = 'https://touchline.quest/'
 const html = read('index.html')
+const json = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/)?.[1]
+const graph = JSON.parse(json ?? '{}')['@graph'] as Record<string, unknown>[]
 
 describe('public homepage discovery', () => {
   it('uses the production homepage in search, sharing and structured data', () => {
     expect(html).toContain(`<link rel="canonical" href="${homepage}"`)
     expect(html).toContain(`property="og:url" content="${homepage}"`)
-    const json = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/)?.[1]
-    expect(JSON.parse(json ?? '{}')['@graph']).toEqual(expect.arrayContaining([
-      expect.objectContaining({ '@type': 'WebSite', name: 'TouchLine', url: homepage }),
-      expect.objectContaining({ '@type': 'VideoGame', name: 'TouchLine', url: homepage }),
+    expect(graph).toEqual(expect.arrayContaining([
+      expect.objectContaining({ '@type': 'WebSite', name: 'TouchLine', url: homepage, alternateName: ['Touchline', 'touchline.quest', 'Touchline Quest'], about: { '@id': `${homepage}#game` } }),
+      expect.objectContaining({ '@type': 'VideoGame', name: 'TouchLine', url: homepage, mainEntityOfPage: { '@id': `${homepage}#website` } }),
     ]))
+  })
+
+  it('associates the TouchLine brand with its canonical domain before and after JavaScript runs', () => {
+    expect(html).toContain('<title>TouchLine – Football Draft &amp; Management Game | touchline.quest</title>')
+    expect(html).toContain('<meta name="application-name" content="TouchLine"')
+    expect(html).toContain('TouchLine</strong> at <strong>touchline.quest</strong> is a free football draft and management game')
+    expect(read('src/ui/i18n/en/home.ts')).toContain("tagline: 'TouchLine at touchline.quest — spin, draft and manage the season.'")
+    expect(html).toContain('<meta name="google-site-verification"')
   })
 
   it('introduces the game before JavaScript runs and lists only the public homepage', () => {
