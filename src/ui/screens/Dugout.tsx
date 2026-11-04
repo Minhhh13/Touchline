@@ -83,6 +83,7 @@ import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
 import { WeekStrip } from '../components/WeekStrip'
 import '../motionSeason.css'
+import './Dugout.css'
 import { rich } from '../i18n/rich'
 import { playStyleLabel, roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, statusLabel, statusLower, trainingBlurb, trainingLabel } from '../i18n/engineText'
 import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
@@ -481,7 +482,7 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
       {tab === 'squad' && (
         <div className={`grid dugout ${squadGrid.className}`} style={squadGrid.style}>
           {tabBoxes.on('squad-list') && (
-          <div className="panel">
+          <div className="panel dugout-roster">
             <div className="panel-head">
               <span className="head-title">
                 <h3>{t('squadCount', { n: squad.length, cap: SQUAD_CAP })}</h3>
@@ -503,7 +504,7 @@ export function Dugout({ startTab }: { startTab?: DugoutTab } = {}) {
                 </button>
               </div>
             </div>
-            <div className="plist lined">
+            <div className="plist lined dugout-roster-list" tabIndex={0} role="region" aria-label={t('squadList')}>
               {sortedSquad.map(({ p, s }) => {
                 const starting = inXI.has(p.id)
                 const slot = formation.slots.find((sl) => game.lineup[sl.id] === p.id)
@@ -1036,7 +1037,7 @@ function simToText(seen: { label: string; matchweek: number } | null): string {
   return seen ? t('simToStop', { label: seen.label, n: seen.matchweek }) : t('simToNextBig')
 }
 
-function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
+export function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
   const line = (item: BriefingItem, toggle?: ReactNode) => (
@@ -1059,10 +1060,30 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
       {toggle}
     </li>
   )
-  if (checklist || items.length === 1) {
+  if (checklist) {
+    const urgent = items.filter((item) => item.level === 'block')
+    const routine = items.filter((item) => item.level !== 'block')
+    const tasks = routine.filter((item) => typeof item.done === 'boolean')
     return (
       <div className="briefing-wrap" data-testid="briefing">
-        <ul className={`briefing ${checklist ? 'checklist' : ''}`}>{items.map((item) => line(item))}</ul>
+        {urgent.length > 0 && <ul className="briefing">{urgent.map((item) => line(item))}</ul>}
+        {routine.length > 0 && (
+          <details className="preseason-checklist" data-testid="preseason-checklist">
+            <summary>
+              <span>{t('preseasonChecklist')}</span>
+              {tasks.length > 0 && <span className="small muted">{t('checklistProgress', { done: tasks.filter((item) => item.done).length, total: tasks.length })}</span>}
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <ul className="briefing checklist">{routine.map((item) => line(item))}</ul>
+          </details>
+        )}
+      </div>
+    )
+  }
+  if (items.length === 1) {
+    return (
+      <div className="briefing-wrap" data-testid="briefing">
+        <ul className="briefing">{items.map((item) => line(item))}</ul>
       </div>
     )
   }

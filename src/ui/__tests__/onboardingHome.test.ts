@@ -1,6 +1,6 @@
 /**
- * Home for a newcomer and an early player (round 9's onboarding pass): the newcomer's Home keeps to the first draft
- * and the four modes, the five more modes come in with the first result, the Daily is pointed at once (the Try next
+ * Home for a newcomer and an early player: first draft, Daily and main formats retain a clear order; the five more
+ * formats come in with the first result, the Daily is pointed at once (the Try next
  * marker, not the nudge as well), Try next never sends a player to start a Season while one waits, and the next
  * badge says what is left in its own words. Server-rendered from the store, as `i18nScreens.test.ts` does.
  */
@@ -35,13 +35,17 @@ const markedCard = (html: string): string | null => {
 }
 
 describe("a newcomer's Home", () => {
-  it('shows the first-run panel and the four modes, not the five more modes', () => {
+  it('keeps the first draft and Daily ahead of every main format, with more formats introduced after a result', () => {
     show({ ...base, profile: fresh })
-    const ids = testIds(render())
+    const html = render()
+    const ids = testIds(html)
     expect(ids).toContain('first-run')
     expect(ids).toContain('first-draft')
     expect(ids).toContain('daily-card')
     expect(ids).toContain('season-card')
+    for (const id of ['quick-card', 'dynasty-card', 'h2h-card']) expect(ids).toContain(id)
+    expect(ids.indexOf('first-draft')).toBeLessThan(ids.indexOf('daily-card'))
+    expect(ids.indexOf('daily-card')).toBeLessThan(ids.indexOf('quick-card'))
     expect(ids).not.toContain('casual-row')
     expect(ids).not.toContain('arena-daily-card')
     expect(ids).not.toContain('next-up')
@@ -76,7 +80,11 @@ describe("an early player's Try next", () => {
     const settings = { mode: 'season' as const, seed: 'ONBOARD-HOME-1', formationId: '4-3-3', teamName: 'Test Town', shortName: 'TST', leagueId: 'england', wheelLeagues: ['england'], hostClubId: u.clubSeasons.find((cs) => cs.leagueId === 'england' && cs.season === u.lastSeason - 1)!.clubId, leagueSeason: u.lastSeason - 1, rules: setupRules(SEASON_RULES, { difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season', eraFrom: u.firstSeason, eraTo: u.lastSeason, first: u.firstSeason, last: u.lastSeason, twists: false, leagues: ['england'], benchPicks: 0, modes: [], powerUps: false, classic: false, superLeague: false }), jobSecurity: false, difficulty: 'calibrated' as const, continental: false, january: true }
     const season = createGame(settings)
     show({ ...base, profile, game: season })
-    expect(markedCard(render())).toBeNull()
+    const current = render()
+    expect(markedCard(current)).toBeNull()
+    const currentIds = testIds(current)
+    expect(currentIds).toContain('resume-continue')
+    expect(currentIds.indexOf('resume-continue')).toBeLessThan(currentIds.indexOf('daily-card'))
     show({ ...base, profile, game: null, parked: { season } })
     expect(markedCard(render())).toBeNull()
     show({ ...base, profile, game: null, parked: {} })

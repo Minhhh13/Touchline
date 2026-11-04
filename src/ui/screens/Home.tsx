@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Dices, Flame, Globe, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Flame, Globe, Timer, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { dailyLoaded, dailyPlan, dailySettings } from '@game/logic/setup'
@@ -21,13 +21,12 @@ import { useOnline } from '../../online/state'
 import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel, formationName } from '../format'
 import { TeamBadge, Tip } from '../components/bits'
-import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
-import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
 import { withViewTransition } from '../motion'
 import { translator } from '../i18n'
 import { home } from '../i18n/en/home'
 import { modeText } from '../i18n/modeText'
+import './Home.css'
 
 const t = translator(home)
 /** The next-badge line reads the trophies' catalogue: its own chunk, out of the first download. */
@@ -70,15 +69,6 @@ function compact(n: number): string {
   return n >= 10_000 ? t('thousands', { n: Math.floor(n / 1000) }) : n.toLocaleString()
 }
 
-/** The card's picture is our own drawing (components/Art.tsx). It used to carry the mode's icon on its edge too: one picture is enough. */
-function ModeArt({ kind }: { kind: ModeArtKind }) {
-  return (
-    <span className="mode-art">
-      <ModeScene kind={kind} />
-    </span>
-  )
-}
-
 function TimeTag({ children }: { children: ReactNode }) {
   return (
     <span className="time-tag">
@@ -88,10 +78,10 @@ function TimeTag({ children }: { children: ReactNode }) {
   )
 }
 
-/** The card is the button; this only shows where to tap, lined up with the Daily card's own button. Hidden on a phone, where cards are rows. */
+/** A small directional cue at the end of each game-format row. */
 function GoLabel() {
   return (
-    <span className="mode-go" aria-hidden>
+    <span className="programme-go" aria-hidden>
       {t('start')}
       <ArrowRight size={16} />
     </span>
@@ -100,11 +90,11 @@ function GoLabel() {
 
 function Tile({ icon: Icon, title, meta, onClick, testId, disabled, next }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string; disabled?: boolean; next?: boolean }) {
   return (
-    <button type="button" className={`home-tile${next ? ' next-up' : ''}`} onClick={onClick} data-testid={testId} disabled={disabled}>
-      <span className="tile-icon">
+    <button type="button" className={`programme-tile${next ? ' next-up' : ''}`} onClick={onClick} data-testid={testId} disabled={disabled}>
+      <span className="programme-tile-icon">
         <Icon size={20} />
       </span>
-      <span className="tile-text">
+      <span className="programme-tile-text">
         <b>{title}</b>
         {/* The meta line can be cut short on a narrow tile: the whole line is its tooltip */}
         <span title={meta}>{meta}</span>
@@ -136,34 +126,26 @@ function useDocked(): boolean {
   return useSyncExternalStore(subscribeDock, dockedNow, () => false)
 }
 
-const STEP_ICON: Record<(typeof FIRST_RUN_STEPS)[number]['id'], LucideIcon> = { spin: Dices, draft: UserPlus, play: Trophy }
-
-/** The first-run panel in the hero: the game in three steps and one button into a Quick Draft on Setup's defaults. */
+/** A short introduction and one button into a Quick Draft on Setup's defaults. */
 function FirstRun({ ready, onPlay, onHowTo }: { ready: boolean; onPlay: () => void; onHowTo: () => void }) {
   return (
-    <div className="first-run" data-testid="first-run">
-      <ol className="first-steps">
-        {FIRST_RUN_STEPS.map((step, i) => {
-          const Icon = STEP_ICON[step.id]
-          return (
+    <div className="programme-first" data-testid="first-run">
+      <ol className="programme-steps">
+        {FIRST_RUN_STEPS.map((step, i) => (
             <li key={step.id}>
-              <span className="first-step-icon" aria-hidden="true">
-                <Icon size={18} />
-              </span>
               <span>
                 <b>{t('stepTitle', { n: i + 1, title: t(`step_${step.id}_title`) })}</b>
                 <span>{t(`step_${step.id}_line`)}</span>
               </span>
             </li>
-          )
-        })}
+        ))}
       </ol>
-      <div className="first-go">
+      <div className="programme-first-go">
         <button type="button" className="btn primary big" disabled={!ready} onClick={onPlay} data-testid="first-draft">
           {t(ready ? 'playFirst' : 'loading')}
           {ready && <ArrowRight size={18} aria-hidden="true" />}
         </button>
-        <span className="first-note">
+        <span className="programme-first-note">
           <Clock size={13} aria-hidden="true" /> {t('firstNote')}{' '}
           <button type="button" className="linklike" onClick={onHowTo}>
             {t('howItWorks')}
@@ -261,86 +243,22 @@ export function Home() {
     const settings = u && dailyReady ? firstDraftSettings(u, randomSeed(), name) : null
     if (settings) withViewTransition(() => startGame({ ...settings, shortName: teamShortName(name) }))
   }
-  // A returning manager's own figures in the hero (the database's when there are none yet) and the reasons to come back
+  // A returning manager's own figures (the database's when there are none yet) and the reasons to come back
   const bests = personalBests(profile, profile.dailyStreak > 0 ? 2 : 3)
+  const hasRecord = profile.dailyStreak > 0 || bests.length > 0
   const nudge = dailyNudge(profile, todaysDailySeed(), dailySeedOf(new Date(Date.now() - 86400000)))
   const bestStat = (b: Best) => (b.id === 'record' ? recordLabel(b.won, b.drawn, b.lost) : String(b.n))
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? (streak ? t('streakDone', { done, n: streak }) : done) : streak ? t('streakFallback', { n: streak, fallback }) : fallback)
   return (
-    <div className="page home">
-      <section className="hero">
-        <div className="hero-photo">
-          <HeroArt />
+    <div className="page home home-programme">
+      <header className="programme-masthead">
+        <div>
+          <p className="eyebrow">{t('clubhouse')}</p>
+          <h1>{t('headline')}</h1>
         </div>
-        <div className="hero-content">
-          <h1>
-            <Lockup height={104} animate="load" />
-          </h1>
-          <p className="tag">{t('tagline')}</p>
-          {newcomer ? (
-            <FirstRun ready={dailyReady} onPlay={playFirstDraft} onHowTo={() => go('howto')} />
-          ) : (
-          <>
-          <dl className="hero-stats" aria-live="polite">
-            {profile.dailyStreak > 0 || bests.length ? (
-              <>
-                {profile.dailyStreak > 0 && (
-                  <div data-testid="home-best-streak">
-                    <dt>{t('best_streak')}</dt>
-                    <dd>{profile.dailyStreak}</dd>
-                  </div>
-                )}
-                {bests.map((b) => (
-                  <div key={b.id} data-testid={`home-best-${b.id}`}>
-                    <dt>{t(`best_${b.id}`)}</dt>
-                    <dd>{bestStat(b)}</dd>
-                  </div>
-                ))}
-              </>
-            ) : u ? (
-              <>
-                <div>
-                  <dt>{t('playerSeasons')}</dt>
-                  <dd>{compact(playerSeasons)}</dd>
-                </div>
-                <div>
-                  <dt>{t('leagues')}</dt>
-                  <dd>{u.available.length}</dd>
-                </div>
-                <div>
-                  <dt>{t('seasons')}</dt>
-                  <dd>
-                    {seasonLabel(u.firstSeason).slice(0, 4)}–{seasonLabel(u.lastSeason).slice(-2)}
-                  </dd>
-                </div>
-              </>
-            ) : (
-              <div>
-                <dt>{t('database')}</dt>
-                <dd>{t('loading')}</dd>
-              </div>
-            )}
-          </dl>
-          {/* Why come back today: the Daily (a streak that ends tonight first) and the badge nearest its next tier */}
-          <div className="home-nudges" data-testid="home-nudges">
-            {/* While the Daily card carries Try next, a fresh Daily's nudge would point at it a second time */}
-            {!(nudge.kind === 'fresh' && nextUp === 'daily') && (
-              <span className={`home-nudge${nudge.kind === 'atRisk' ? ' hot' : ''}`} data-testid="daily-nudge" data-kind={nudge.kind}>
-                <Flame size={14} aria-hidden="true" />
-                {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
-              </span>
-            )}
-            <Suspense fallback={null}>
-              <HomeBadgeNudge onOpen={() => go('profile')} />
-            </Suspense>
-          </div>
-          </>
-          )}
-        </div>
-      </section>
-
+        <p className="programme-brand">{t('tagline')}</p>
+      </header>
       <ConflictCards />
-
       {(stripGame || Object.keys(parked).length > 0) && (
         <div className="resume-list" data-testid="resume-list" data-count={(stripGame ? 1 : 0) + Object.keys(parked).length}>
           {stripGame && game && (
@@ -395,24 +313,79 @@ export function Home() {
         </div>
       )}
 
-      {docked && !newcomer && <Tip id="dock-first">{t('dockTip')}</Tip>}
 
-      <div className="modes">
-        <button className="mode-card" onClick={() => go('setup', 'quick')}>
-          <ModeArt kind="quick" />
-          <span className="mode-text">
-            <h3>{t('quickTitle')}</h3>
-            <p>{t('quickLine')}</p>
-            <span className="foot">
-              <TimeTag>{t('minutes', { n: 5 })}</TimeTag>
-            </span>
-            <GoLabel />
-          </span>
-        </button>
-        <div className={`mode-card daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
-          <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
-            <ModeArt kind="daily" />
-            <span className="mode-text">
+      <div className="programme-feature">
+        <section className="programme-intro" aria-label={t(newcomer ? 'firstDraftTitle' : hasRecord ? 'yourRecord' : 'playerPool')}>
+          {newcomer ? (
+            <>
+              <h2>{t('firstDraftTitle')}</h2>
+              <FirstRun ready={dailyReady} onPlay={playFirstDraft} onHowTo={() => go('howto')} />
+            </>
+          ) : (
+            <>
+              <div className="programme-intro-heading">
+                <h2>{t(hasRecord ? 'yourRecord' : 'playerPool')}</h2>
+                <button type="button" className="linklike" onClick={() => go('profile')}>{t('viewProfile')} <ArrowRight size={14} aria-hidden="true" /></button>
+              </div>
+          <dl className="programme-stats" aria-live="polite">
+            {hasRecord ? (
+              <>
+                {profile.dailyStreak > 0 && (
+                  <div data-testid="home-best-streak">
+                    <dt>{t('best_streak')}</dt>
+                    <dd>{profile.dailyStreak}</dd>
+                  </div>
+                )}
+                {bests.map((b) => (
+                  <div key={b.id} data-testid={`home-best-${b.id}`}>
+                    <dt>{t(`best_${b.id}`)}</dt>
+                    <dd>{bestStat(b)}</dd>
+                  </div>
+                ))}
+              </>
+            ) : u ? (
+              <>
+                <div>
+                  <dt>{t('playerSeasons')}</dt>
+                  <dd>{compact(playerSeasons)}</dd>
+                </div>
+                <div>
+                  <dt>{t('leagues')}</dt>
+                  <dd>{u.available.length}</dd>
+                </div>
+                <div>
+                  <dt>{t('seasons')}</dt>
+                  <dd>
+                    {seasonLabel(u.firstSeason).slice(0, 4)}–{seasonLabel(u.lastSeason).slice(-2)}
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <div>
+                <dt>{t('database')}</dt>
+                <dd>{t('loading')}</dd>
+              </div>
+            )}
+          </dl>
+          <div className="programme-nudges" data-testid="home-nudges">
+            {/* While the Daily card carries Try next, a fresh Daily's nudge would point at it a second time */}
+            {!(nudge.kind === 'fresh' && nextUp === 'daily') && (
+              <span className={`home-nudge${nudge.kind === 'atRisk' ? ' hot' : ''}`} data-testid="daily-nudge" data-kind={nudge.kind}>
+                <Flame size={14} aria-hidden="true" />
+                {nudge.kind === 'played' ? t('nudgePlayed', { points: nudge.points, n: nudge.streak }) : nudge.kind === 'atRisk' ? t('nudgeAtRisk', { n: nudge.streak }) : t('nudgeFresh')}
+              </span>
+            )}
+            <Suspense fallback={null}>
+              <HomeBadgeNudge onOpen={() => go('profile')} />
+            </Suspense>
+          </div>
+            </>
+          )}
+        </section>
+        <div className={`programme-daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
+          <button type="button" className="programme-daily-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
+            <span className="programme-daily-text">
+              <span className="eyebrow programme-daily-date">{t('todayDate', { date: today })}</span>
               <h3>{t('dailyTitle')}</h3>
               {nextUp === 'daily' && <NextUpChip />}
               <p>{t('dailyLine')}</p>
@@ -467,37 +440,59 @@ export function Home() {
             </button>
           )}
         </div>
-        <button className={`mode-card${nextUp === 'season' ? ' next-up' : ''}`} onClick={() => go('setup', 'season')} data-testid="season-card">
-          <ModeArt kind="season" />
-          <span className="mode-text">
-            <h3>{t('seasonTitle')}</h3>
-            {nextUp === 'season' && <NextUpChip />}
-            <p>{t('seasonLine')}</p>
-            <span className="foot">
-              <TimeTag>{t('minutes', { n: 45 })}</TimeTag>
-            </span>
-            <GoLabel />
-          </span>
-        </button>
-        <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
-          <ModeArt kind="dynasty" />
-          <span className="mode-text">
-            <h3>{t('dynastyTitle')}</h3>
-            <p>{t('dynastyLine')}</p>
-            <span className="foot">
-              <TimeTag>{t('career')}</TimeTag>
-            </span>
-            <GoLabel />
-          </span>
-        </button>
-      </div>
 
-      {/* The casual modes: one sitting each, beside the four ways to play above. A newcomer's Home keeps to the first
-          draft and the four modes; the five more come in with the first result */}
+      </div>
+      {docked && !newcomer && <Tip id="dock-first">{t('dockTip')}</Tip>}
+      <section className="programme-modes" aria-labelledby="home-modes">
+        <div className="programme-section-heading">
+          <h2 className="programme-section-title" id="home-modes">{t('chooseGame')}</h2>
+          <span className="muted small">{t('modeNote')}</span>
+        </div>
+        <div className="programme-mode-list">
+          <button className="programme-mode" onClick={() => go('setup', 'quick')} data-testid="quick-card">
+            <span className="programme-mode-number" aria-hidden="true">01</span>
+            <span className="programme-mode-copy">
+              <h3>{t('quickTitle')}</h3>
+              <p>{t('quickLine')}</p>
+            </span>
+            <TimeTag>{t('minutes', { n: 5 })}</TimeTag>
+            <GoLabel />
+          </button>
+          <button className={'programme-mode' + (nextUp === 'season' ? ' next-up' : '')} onClick={() => go('setup', 'season')} data-testid="season-card">
+            <span className="programme-mode-number" aria-hidden="true">02</span>
+            <span className="programme-mode-copy">
+              <h3>{t('seasonTitle')}</h3>
+              <p>{t('seasonLine')}</p>
+              {nextUp === 'season' && <NextUpChip />}
+            </span>
+            <TimeTag>{t('minutes', { n: 45 })}</TimeTag>
+            <GoLabel />
+          </button>
+          <button className="programme-mode" onClick={() => go('setup', 'dynasty')} data-testid="dynasty-card">
+            <span className="programme-mode-number" aria-hidden="true">03</span>
+            <span className="programme-mode-copy">
+              <h3>{t('dynastyTitle')}</h3>
+              <p>{t('dynastyLine')}</p>
+            </span>
+            <TimeTag>{t('career')}</TimeTag>
+            <GoLabel />
+          </button>
+          <button className="programme-mode" onClick={() => go('h2h')} data-testid="h2h-card">
+            <span className="programme-mode-number" aria-hidden="true">04</span>
+            <span className="programme-mode-copy">
+              <h3>{t('h2hTitle')}</h3>
+              <p>{t('h2hLine')}</p>
+            </span>
+            <TimeTag>{t('twoPlayers')}</TimeTag>
+            <GoLabel />
+          </button>
+        </div>
+      </section>
+      {/* The five more formats come in with the first result, as before. */}
       {!newcomer && (
       <>
-      <h2 className="home-more eyebrow" id="home-more">{t('moreModes')}</h2>
-      <div className="home-tiles casual" data-testid="casual-row" role="group" aria-labelledby="home-more">
+      <h2 className="programme-section-title" id="home-more">{t('moreModes')}</h2>
+      <div className="programme-tiles casual" data-testid="casual-row" role="group" aria-labelledby="home-more">
         <Tile icon={Zap} testId="arena-daily-card" title={t('arenaDaily')} meta={streakMeta(arenaDone ? t('playedLabel', { label: arenaDone.label }) : null, profile.arenaDaily?.streak, u ? t(arenaToday.format === 'gauntlet' ? 'arenaDayGauntlet' : 'arenaDayCup', { size: arenaToday.size ?? 16, wheel: u.available.find((l) => l.id === arenaToday.leagueId)?.name ?? arenaToday.leagueId }) : t('sameDraw'))} onClick={playArenaDaily} disabled={!dailyReady} />
         <Tile icon={CalendarRange} testId="weekly-card" title={t('weeklyTitle')} meta={streakMeta(weekDone ? t('playedPoints', { n: weekDone.points }) : null, profile.weekly?.streak, weekPlan ? t('weekEnds', { theme: weeklyThemeName(weekPlan.theme) || t('thisWeek') }) : t('weeklyFallback'))} onClick={playWeekly} disabled={!u} />
         <Tile icon={Award} testId="arena-cup-card" title={t('cupTitle')} meta={t('cupMeta')} onClick={() => openArenaSetup('cup')} />
@@ -509,16 +504,15 @@ export function Home() {
 
       {/* The other screens live in the nav; the World board shows here only while it is an early player's next step */}
       {onlineAvailable() && nextUp === 'boards' && (
-        <div className="home-tiles">
+        <div className="programme-tiles">
           <Tile icon={Globe} title={t('worldTitle')} meta={t('worldNext')} onClick={() => go('world')} testId="world-card" next />
         </div>
       )}
-      <p className="muted small" style={{ marginTop: 16, textAlign: 'center' }}>
-        {t('footer')}{' '}
-        <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="privacy-link">
-          {t('privacy')}
-        </button>
-      </p>
+
+      <footer className="programme-footer">
+        <span>{t('footer')}</span>
+        <button className="linklike" onClick={() => go('privacy')} data-testid="privacy-link">{t('privacy')}</button>
+      </footer>
     </div>
   )
 }

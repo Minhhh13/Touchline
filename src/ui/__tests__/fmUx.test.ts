@@ -73,6 +73,18 @@ describe('the Dugout keyboard', () => {
     expect(isControlTarget(el('DIV', 'radio'))).toBe(true)
     expect(isControlTarget(el('DIV', null, true))).toBe(true)
   })
+  it('leaves Space to a focused roster region instead of starting the matchweek', () => {
+    const region = (tabIndex: string | null) => ({ tagName: 'DIV', getAttribute: (n: string) => n === 'role' ? 'region' : n === 'tabindex' ? tabIndex : null })
+    for (const tabIndex of ['0', '-1']) {
+      const onControl = isControlTarget(region(tabIndex))
+      expect(onControl).toBe(true)
+      for (const key of [' ', 'Spacebar']) expect(dugoutKey(key, ctx({ onControl }))).toBeNull()
+    }
+    // A non-focusable landmark does not consume the page's shortcuts.
+    const onControl = isControlTarget(region(null))
+    expect(onControl).toBe(false)
+    expect(dugoutKey(' ', ctx({ onControl }))).toEqual({ kind: 'play' })
+  })
 })
 
 describe('highlight levels', () => {

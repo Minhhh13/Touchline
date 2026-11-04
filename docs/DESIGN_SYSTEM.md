@@ -21,11 +21,23 @@ Where it lives:
 | Motion: tokens, View Transitions, count-ups, the celebration | `--dur-*`, `--ease-*`, `--stagger` in `styles.css` (the motion section); `src/ui/motion.ts`; `CountUp` in `bits.tsx`; `components/Celebrate.tsx`; section 12 |
 | Accessibility: activation keys, results as words, focus after a reel, tab keys, the focus rescue, keyboard reach for scroll boxes | `src/ui/a11y.ts`, `src/ui/focusRescue.ts`, `src/ui/scrollFocus.ts`; section 15; what is supported and how to test in [ACCESSIBILITY.md](ACCESSIBILITY.md) |
 
-The rule for everyone building screens: **use the tokens and the components below; no raw colours, no new one-off styles.** If a screen needs something this document does not cover, add it here and to `styles.css` first.
+The rule for everyone building screens: **use the tokens and shared components below; no raw colours in screen styles.** Shared changes belong in `styles.css`; screen-specific layouts live beside their screen and are documented here.
+
+## November 2026 visual refresh
+
+The owner asked for a more intentional design, with less generic decoration. Keep the existing TouchLine mark and Sora typeface. Use clear type, alignment and real football information instead of repeated illustrated cards, purple gradients and large empty panels.
+
+- **Home** (`screens/Home.tsx`, `Home.css`): compact masthead, saved games first, a featured Daily, direct first-draft action and numbered format rows. The rendered brand/domain line and every mode remain available.
+- **Setup** (`screens/Setup.tsx`, `Setup.css`): team name first, a small selected formation with all eight choices on demand, and optional Quick Draft rules behind a disclosure. Rule defaults remain unchanged.
+- **Draft** (`screens/Draft.tsx`, `Draft.css`): the waiting panel shows a real team sheet with signed players and open positions. The landed club stays the main decision; the draft log is expandable, and phone offers scroll within a bounded list.
+- **Dugout** (`screens/Dugout.tsx`, `Dugout.css`): one scrollable tab row, a compact pre-season checklist with its completion count, and a bounded phone roster. Blocking lineup problems remain outside the collapsed checklist. Audio controls stay available.
+- **Shared controls**: 8px panel corners, 6px controls, a solid blue primary action, thin dividers and plain page surfaces. Touch targets, focus, larger text and both themes remain supported. Trophy and rarity effects remain where they communicate a game event.
+
+These rules supersede earlier decorative hero and neon-primary descriptions below. Art and logo geometry are unchanged; those specifications still describe the assets used elsewhere.
 
 ## 1. Principles
 
-1. **Night football, calm, confident.** Deep night-navy surfaces, one cyan (a deep blue in Daylight) for actions, selection and focus, and a cyan-to-violet glow on the one primary button. Magenta lives only in the art. Neon is an accent, never a fill for whole panels. Status colours (good, warn, bad, gold) only ever mean status.
+1. **Football first, calm and direct.** Warm neutral paper in Daylight, charcoal navy in Floodlit, one blue for actions and focus. Primary buttons are flat, panels use thin rules and modest corners, and the page has no decorative glow. Colour in pitches, club badges, rarity and results carries football information. Status colours still mean status.
 2. **Less text, more picture.** Badges, flags, league marks, pitch diagrams and numbers carry the information. Explanations sit behind an info icon, not in paragraphs under controls.
 3. **One primary action per region.** Each panel, bar or modal has at most one `.btn.primary`. Everything else is secondary or ghost.
 4. **Mixed case.** Titles and buttons are written as sentences. Capitals are kept for small labels and codes only.
@@ -118,41 +130,41 @@ The profile's theme setting is Auto, Light or Dark (Profile screen). `App.tsx` a
 
 | Token | Floodlit | Daylight | Use |
 |---|---|---|---|
-| `--bg` | `#07102e` | `#eceff8` (soft cool grey-lavender) | Page background (with the `--glow` cyan and `--glow-2` magenta floodlights at the top) |
-| `--bg-2` | `#0a1538` | `#e2e6f3` | Sunken: segmented track, toggles |
-| `--bg-3` | `#182a64` | `#d9def0` | Chips, bar tracks, position tags, ghost hover |
-| `--panel` | `#0c1a46` | `#fbfcff` (off-white, a faint blue tint) | Panels, modals, bottom bars |
-| `--panel-2` | `#112152` | `#f2f4fc` | Cards, rows and tiles inside a panel |
-| `--raised` | `#172a62` | `#ffffff` | Secondary buttons, hovered rows |
-| `--line` | `#1f3270` | `#cdd3ea` | Default border and dividers (`--border`) |
-| `--line-2` | `#2d4386` | `#b3bcdf` | Stronger border: banners, buttons, sheets (`--border-strong`) |
-| `--field-bg` | `#08133a` | `#ffffff` | Inputs and selects |
-| `--field-border` | `#6075b8` | `#6c77a6` | Input and select borders (3:1 against the panel) |
-| `--scrim` | navy 66 % | navy 42 % | Behind modals |
-| `--float-bg`, `--float-text`, `--float-line` | `#1a2d6a`, `#f1f4ff`, `#2d4386` | `#0a1b51`, `#ffffff`, `#0a1b51` | Tooltips and toasts |
-| `--text` | `#f1f4ff` | `#0a1b51` | Body text, titles (`--text-1` is an alias) |
-| `--text-2` | `#c3cdf0` | `#313e78` | Secondary text, labels, inactive controls |
-| `--text-3` | `#93a3d6` | `#4c588c` | Captions, meta, placeholders |
+| `--bg` | `#101923` | `#f5f5f0` | Plain page surface |
+| `--bg-2` | `#121d29` | `#eceee9` | Sunken: segmented track, toggles |
+| `--bg-3` | `#263647` | `#e3e8eb` | Chips, bar tracks, position tags, ghost hover |
+| `--panel` | `#162330` | `#ffffff` | Panels, modals, bottom bars |
+| `--panel-2` | `#1c2b3b` | `#f4f6f5` | Cards, rows and tiles inside a panel |
+| `--raised` | `#233446` | `#ffffff` | Secondary buttons, hovered rows |
+| `--line` | `#304253` | `#d6dce1` | Default border and dividers (`--border`) |
+| `--line-2` | `#4a6075` | `#9ba9b7` | Stronger border: banners, buttons, sheets (`--border-strong`) |
+| `--field-bg` | `#121e2e` | `#ffffff` | Inputs and selects |
+| `--field-border` | `#73869e` | `#7c8996` | Input and select borders (3:1 against the panel) |
+| `--scrim` | `rgba(3, 7, 26, 0.66)` | `rgba(10, 27, 81, 0.42)` | Behind modals |
+| `--float-bg`, `--float-text`, `--float-line` | `#243648`, `#edf2f7`, `#4a6075` | `#14283f`, `#ffffff`, `#14283f` | Tooltips and toasts |
+| `--text` | `#edf2f7` | `#14283f` | Body text, titles (`--text-1` is an alias) |
+| `--text-2` | `#c0ccd8` | `#35485b` | Secondary text, labels, inactive controls |
+| `--text-3` | `#9eafbf` | `#53616f` | Captions, meta, placeholders |
 
 ### Brand
 
 | Token | Floodlit | Daylight | Use |
 |---|---|---|---|
-| `--primary` | `#38d9f5` (cyan) | `#2a44e6` (deep blue) | Selection borders, the active tab underline, bars, the mode icon badge, small primary buttons (`.btn.primary.sm`, flat so a list of them does not glow) |
-| `--primary-hover` | `#6be5fa` | `#2035c4` | Small primary hover |
-| `--primary-active` | `#1fbfdd` | `#1a2ba0` | Any primary button pressed |
-| `--primary-grad`, `--primary-grad-hover` | cyan `#38d9f5` · `#7fa6ff` · violet `#cf7dff` | blue `#2a44f0` · `#4a3af2` · violet `#8433ec` (more saturated) | The fill of `.btn.primary` (100°) at the default and big sizes and the spin button |
-| `--primary-glow` | a cyan and a violet soft shadow | a blue and a violet shadow with a thin inner highlight | The glow under `.btn.primary`; off when pressed or disabled |
-| `--on-primary` | `#07102e` (navy) | `#ffffff` | Text and icons on `--primary` and on the gradient |
-| `--primary-soft` | primary 16 % | primary 14 % | Selected fill (rows, segments, formations, the table's own row, `.chip.info`) |
-| `--accent` | `#5ee3fb` | `#223bc8` | Text-safe highlight: links, "Line" in the wordmark, info chips, chart series |
-| `--focus` | `#5ee3fb` | `#2a44e6` | The focus ring (2 px, offset 2 px; global `:focus-visible`) |
+| `--primary` | `#82b5ff` | `#1d4ed8` | Selection borders, the active tab underline, bars, the mode icon badge, small primary buttons (`.btn.primary.sm`, flat so a list of them does not glow) |
+| `--primary-hover` | `#a5ccff` | `#193fac` | Small primary hover |
+| `--primary-active` | `#6ba5f7` | `#17378f` | Any primary button pressed |
+| `--primary-grad`, `--primary-grad-hover` | `var(--primary)`, `var(--primary-hover)` | same aliases | Legacy names, now solid fills |
+| `--primary-glow` | `none` | `none` | No glow on primary controls |
+| `--on-primary` | `#101923` | `#ffffff` | Text and icons on `--primary` and on the gradient |
+| `--primary-soft` | `color-mix(in srgb, var(--primary) 16%, transparent)` | `color-mix(in srgb, var(--primary) 8%, transparent)` | Selected fill (rows, segments, formations, the table's own row, `.chip.info`) |
+| `--accent` | `#9ac3ff` | `#1d4ed8` | Text-safe highlight: links, "Line" in the wordmark, info chips, chart series |
+| `--focus` | `#9ac3ff` | `#1d4ed8` | The focus ring (2 px, offset 2 px; global `:focus-visible`) |
 | `--cyan`, `--magenta` | `#38d9f5`, `#e070ff` | `#0890b4`, `#b84ae0` | The neon pair, for the art and thin decorative lines only, never for meaning. Magenta is never a UI colour: it sits too close to the pink rarity tier |
 | `--neon-blur`, `--neon-strength` | 6 px, 0.9 | 4 px, 0.55 | How strongly the art's neon glows; Daylight is the softer version |
 | `--art-sky-1`, `--art-sky-2`, `--art-ink`, `--art-body`, `--art-body-2`, `--art-light`, `--art-grass`, `--art-grass-2`, `--art-paper` | night navy sky, near-black ink, navy bodies, teal-navy grass | lavender sky (`#d8dffa` to `#ebe7fb`), navy ink, pale blue bodies, pale aqua grass | The fills of the cartoon art (section 7) |
 | `--navy`, `--navy-2` | `#081544`, `#13266b` | same | Fixed dark surfaces that never follow the theme: the reel window, the wheel hub, the share card |
 | `--reel-ink` | `#93a3d6` | same | Quiet ink on the always-navy reel windows (the idle case and manager reels) |
-| `--glow`, `--glow-2` | cyan 11 %, magenta 9 % | cyan 12 %, magenta 8 % | The two floodlight radials at the top of the page; `--glow` also lights the tier banner and the scoreboard |
+| `--glow`, `--glow-2` | cyan 11%, magenta 9% | cyan 12%, magenta 8% | Game-event artwork only, never page decoration |
 
 ### Status
 
@@ -163,7 +175,7 @@ The profile's theme setting is Auto, Light or Dark (Profile screen). `App.tsx` a
 | `--bad` | `#f87171` | `#b91c1c` | Problems and destruction: defeats, injuries, suspensions, missed objectives, release and delete. `--danger` is the same colour under the older name |
 | `--gold` | `#f5c542` | `#f5c542` | Trophies, records, the captain, golden twists, the reel marker and the wheel pointer: fills, rings and icons |
 | `--gold-text` | `#f5c542` | `#805a00` | Gold as text (bright gold fails on white and on the lavender `--bg-3`) |
-| `--draw` | `--gold` (`#f5c542`) | `--gold-text` (`#805a00`) | Draws, always amber (wins `--good`, losses `--bad`, the owner's rule): the D in records, form squares, result badges, tallies and the share card (`BRAND_COLOURS.draw`); in screens through `outcomeClass()` in `format.ts` and `.res-w` / `.res-d` / `.res-l` (text, and soft chips with `.chip`) |
+| `--draw` | `var(--gold)` | `var(--gold-text)` | Draws, always amber (wins `--good`, losses `--bad`, the owner's rule): the D in records, form squares, result badges, tallies and the share card (`BRAND_COLOURS.draw`); in screens through `outcomeClass()` in `format.ts` and `.res-w` / `.res-d` / `.res-l` (text, and soft chips with `.chip`) |
 | `--info` | `= --accent` | `= --accent` | Info notices |
 | `--on-status` | `#07102e` | `#ffffff` | Letters on W/D/L squares |
 | `--good-soft`, `--warn-soft`, `--bad-soft`, `--gold-soft`, `--info-soft` | 14 % | 10 % (gold 24 %) | Chip and notice backgrounds |
@@ -179,10 +191,10 @@ Status colours never decorate, and the primary blue never means "good".
 | `--rating-80`, `--rating-75`, `--rating-70`, `--rating-base` | `#3b82f6`, `#93c5fd`, `#a5b4cb`, `#94a3b8` | same | Rating badges 80+, 75+, 70+, below 70 |
 | `--rating-ink` | `#0a1120` | same | The number on a rating badge |
 | `--meter-sharpness` | `#c4b5fd` | `#7c3aed` | The sharpness bar (condition uses `conditionColour()`, morale `--info`) |
-| `--meter-mid` | `= --gold` | `#a16207` | The middle band of a bar: condition 70 to 84, board confidence 31 to 60, familiarity, attributes 65 to 79, the best season in Explore. Bright gold is 1.3:1 on the Daylight bar track, so bars never use `--gold` |
+| `--meter-mid` | `var(--gold)` | `#a16207` | The middle band of a bar: condition 70 to 84, board confidence 31 to 60, familiarity, attributes 65 to 79, the best season in Explore. Bright gold is 1.3:1 on the Daylight bar track, so bars never use `--gold` |
 | `--medal-bronze`, `--medal-silver`, `--medal-gold` | `#cd8a4a`, `#a9b6bd`, `= --gold` | `#a8692e`, `#6f7c86`, `= --gold-text` | The Trophy Room's tier rings; 3:1 on the ring's fill in both themes (the Floodlit hex values were 2.0 to 2.8:1 in Daylight) |
-| `--btn-hairline` | (unset) | a 1 px navy shadow | Under a Daylight secondary button |
-| `--line-casing` | white 60 % | navy 60 % | The edge under a chart line whose kit is under 2:1 against the chart panel (`lineTone()` in `src/ui/match/charts.ts` marks it `pale` or `deep`; `.line-casing` shows it only in the theme that needs it), as the momentum bars carry an outline |
+| `--btn-hairline` | (unset) | `none` | Secondary controls use a border without a shadow |
+| `--line-casing` | `rgba(241, 244, 255, 0.6)` | `rgba(10, 27, 81, 0.6)` | The edge under a chart line whose kit is under 2:1 against the chart panel (`lineTone()` in `src/ui/match/charts.ts` marks it `pale` or `deep`; `.line-casing` shows it only in the theme that needs it), as the momentum bars carry an outline |
 
 ### The pitch
 
@@ -287,14 +299,14 @@ No other spacing values in new CSS; 1 px borders and component sizes (a 44 px di
 
 | Token | Value | Use |
 |---|---|---|
-| `--radius-xs` | 6 px | Rating badges, position tags |
-| `--radius-s` | 8 px | Small buttons, ticker rows, fixtures, tooltips, segments |
-| `--radius-m` | 12 px | Buttons, inputs, cards, player rows, the segmented track, the pitch |
-| `--radius` | 16 px | Panels, modals and sheets, mode cards, the tier banner, the scoreboard |
-| `--radius-pill` | 999 px | Chips, top bar nav |
+| `--radius-xs` | 4 px | Rating badges, position tags |
+| `--radius-s` | 4 px | Small buttons, ticker rows, fixtures, tooltips, segments |
+| `--radius-m` | 6 px | Buttons, inputs, cards, player rows, the segmented track, the pitch |
+| `--radius` | 8 px | Panels, modals and sheets, mode cards, the tier banner, the scoreboard |
+| `--radius-pill` | 999 px | Chips and compact tags; top-bar nav uses `--radius-s` |
 | `--border` / `--border-strong` | 1 px `--line` / `--line-2` | Default / emphasised borders |
 | `--shadow` | one level | Floating layers only: modals and sheets, toasts, tooltips, fixed bottom bars, the hovered mode card. |
-| `--panel-shadow` | Daylight only | A soft resting shadow on panels, mode cards and Home tiles so off-white panels lift off the grey page. Floodlit leaves it unset, so panels there are flat. Daylight secondary buttons also carry a 1 px hairline shadow. |
+| `--panel-shadow` | Daylight `none`; unset in Floodlit | Panels are flat in both themes; thin borders separate them from the page. |
 | `--control-h`, `--control-h-sm`, `--control-h-lg` | 40, 30, 52 px | Minimum heights of buttons, inputs, toggles |
 
 Motion is short and happens once: every screen fades in and rises 8 px over `--dur-3` when it opens (`.page`, `page-in`; a page with a fixed bottom bar, `.page.has-bottom-bar`, only fades, because a transform on the page would move the bar); on Home the hero text and the cards rise 12 px into place (`@keyframes rise`, 0.5 to 0.6 s, staggered); the hero art fades in and settles from 104 % (`hero-in`); a short light travels along two of the hero's neon curves (`neon-run`, 7 s, the only looping motion; on a touch screen it makes three runs and rests, because a dash offset repaints the filtered hero every frame); cards and tiles lift 2 to 3 px on hover and a mode card's neon brightens (`--neon-boost`). Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`. Under `prefers-reduced-motion: reduce` all of it is off, the travelling light included. Nothing that the smokes wait for is hidden behind an animation. The motion tokens (`--dur-1` to `--dur-4`, `--ease-out`, `--ease-in-out`, `--ease-spring`, `--stagger`) and the rules for everything else are in section 12.

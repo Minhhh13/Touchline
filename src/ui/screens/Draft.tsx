@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Dices, Ghost, Package, Swords, Trophy } from 'lucide-react'
+import { ChevronDown, Ghost, Package, Swords, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
@@ -58,6 +58,7 @@ import { askConfirm } from '../confirm'
 import { pickBand } from '../sound/cues'
 import { prefersReducedMotion } from '../motion'
 import { modeCardLine, modeCardTitle, ruleTagText } from '../i18n/engineText'
+import './Draft.css'
 
 const t = translator(draft)
 
@@ -305,7 +306,7 @@ export function Draft() {
     { track: '360px', ids: ['pitch', 'bench'] },
   ])
   return (
-    <div className="page">
+    <div className="page draft-page">
       <div className="screen-head">
         <div className="screen-title">
           <h1>{isDynastySummer ? t('summerDraft', { year: game.year }) : gauntletBonus ? t('gauntletBonus', { n: game.arena!.step }) : t(game.settings.mode === 'runin' ? 'reinforcements' : 'theDraft')}</h1>
@@ -507,10 +508,12 @@ export function Draft() {
             </div>
           )}
           {(d.history.length > 0 || puLog.length > 0) && boxes.on('log') && (
-            <div className="panel tight">
-              <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
+            <details className="panel tight draft-history" data-testid="draft-history">
+              <summary>
                 {t('draftLog')}
-              </div>
+                <span className="small muted">{t('picksMade', { n: picksMade(d) })}</span>
+                <ChevronDown size={16} aria-hidden="true" />
+              </summary>
               {puLog.length > 0 && (
                 <div className="col pu-log" data-testid="power-up-log" style={{ gap: 2 }}>
                   {puLog.map((l) => (
@@ -564,7 +567,7 @@ export function Draft() {
                 })}
               </ol>
               </HoverTips>
-            </div>
+            </details>
           )}
         </div>
 
@@ -588,10 +591,7 @@ export function Draft() {
           {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
           {!current && !managerChoice.length && complete && recap && <DraftRecap recap={recap} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} />}
           {!current && !managerChoice.length && !complete && (
-            <div className="empty-state">
-              <span className="empty-icon" aria-hidden="true">
-                <Dices size={26} />
-              </span>
+            <div className="empty-state draft-waiting">
               <h3>
                 {isDynastySummer ? t('summerSpins', { n: total - made }) : t('spinForClub')}{' '}
                 <Info label={t('wheelInfoLabel')}>
@@ -599,6 +599,23 @@ export function Draft() {
                 </Info>
               </h3>
               <p className="muted small">{t('thenPick')}</p>
+              <div className="draft-sheet-head">
+                <span className="eyebrow">{t('teamSheet')}</span>
+                <span className="small muted">{t('starters', { n: Object.keys(runInXI ?? d.lineup).length })}</span>
+              </div>
+              <ol className="draft-build-list" tabIndex={0} aria-label={t('teamSheet')} data-testid="draft-team-sheet">
+                {d.formation.slots.map((slot) => {
+                  const id = (runInXI ?? d.lineup)[slot.id]
+                  const player = id ? get(id) : undefined
+                  return (
+                    <li key={slot.id} className={player ? 'filled' : undefined}>
+                      <Pos p={slot.position} />
+                      <span>{player?.name ?? t('openPlace')}</span>
+                      {player && <Rating value={player.overall} hidden={hideSquad} />}
+                    </li>
+                  )
+                })}
+              </ol>
             </div>
           )}
           {current && spinning && !revealed && (
