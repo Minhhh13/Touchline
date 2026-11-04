@@ -56,11 +56,15 @@ describe('full World leaderboard display rows', () => {
     }
   })
 
-  it('varies names and board order without repeating an obvious surname block', () => {
+  it('uses mostly playful football nicknames, with a smaller mix of ordinary names', () => {
     const daily = fillRankedBoard([], 'daily', null)
     const weekly = fillRankedBoard([], 'weekly', null)
     const alltime = fillAlltimeBoard([], 'points', null)
-    expect(new Set(daily.slice(0, 12).map((row) => row.name.split(' ').at(-1))).size).toBeGreaterThan(8)
+    const nickname = / (?:Merchant|Wizard|Gremlin|Gaffer|Guru|Bandit|Enthusiast|Specialist)$/
+    expect(daily.filter((row) => nickname.test(row.name))).toHaveLength(160)
+    expect(daily.filter((row) => !nickname.test(row.name))).toHaveLength(40)
+    expect(daily.map((row) => row.name)).toContain('Nutmeg Merchant')
+    expect(daily.map((row) => row.name)).toContain('Gegenpress Gremlin')
     expect(daily.slice(0, 20).map((row) => row.name)).not.toEqual(weekly.slice(0, 20).map((row) => row.name))
     expect(daily.slice(0, 20).map((row) => row.name)).not.toEqual(alltime.slice(0, 20).map((row) => row.name))
   })
