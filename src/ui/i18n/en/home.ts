@@ -30,7 +30,7 @@ export const home = catalog('home', {
   nudgeAtRisk: 'Your {n}-day Daily streak ends at midnight UTC: play today',
   nudgeFresh: "Today's Daily is waiting: one wheel for everyone",
   streakFallback: 'Streak {n} · {fallback}',
-  tagline: 'Spin the wheel. Draft the XI. Manage the season.',
+  tagline: 'TouchLine at touchline.quest — spin, draft and manage the season.',
   playerSeasons: 'Player-seasons',
   leagues: 'Leagues',
   seasons: 'Seasons',

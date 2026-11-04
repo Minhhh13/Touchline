@@ -182,7 +182,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 
 ## Conventions
 
-- Keep the public homepage URL in `index.html`, `public/robots.txt` and `public/sitemap.xml` aligned with `https://touchline.quest/`. Only public, indexable page URLs belong in the sitemap.
+- Keep the public homepage URL in `index.html`, `public/robots.txt` and `public/sitemap.xml` aligned with `https://touchline.quest/`. The primary brand is `TouchLine`; its WebSite structured-data aliases are `Touchline`, `touchline.quest` and `Touchline Quest`, and the rendered Home copy keeps the brand paired with its domain. Preserve the Search Console verification tag. Only public, indexable page URLs belong in the sitemap.
 
 - Style: 2 spaces, LF, no semicolons, single quotes, long single-line JSX is normal. Do not reflow existing lines (it creates huge conflicts).
 - Hooks above early returns in every component (Dugout, Summary and Explore are fixed; keep it that way).
