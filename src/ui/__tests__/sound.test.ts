@@ -27,14 +27,14 @@ const LAYOUTS: Array<[number, number]> = [[68, 258], [68, 328], [84, 392], [84, 
 const JITTERS = [-1, -0.5, 0, 0.5, 1].map((f) => f * REEL_JITTER)
 
 describe('reel timing and curve', () => {
-  it('runs a CS-length opening: a short season, about 5.8 s of strip, a hold, and a quick mode of about 2 s', () => {
-    expect(SPIN_MS).toBeGreaterThanOrEqual(5500)
-    expect(SPIN_MS).toBeLessThanOrEqual(6000)
-    expect(FULL_TIMING.season).toBeLessThanOrEqual(1000)
-    expect(FULL_TIMING.hold).toBe(400)
+  it('runs a brisk case opening: a short season, 3 s of strip, a brief hold, and a quick mode near 1.6 s', () => {
+    expect(SPIN_MS).toBe(3000)
+    expect(FULL_TIMING.season).toBe(650)
+    expect(FULL_TIMING.hold).toBe(150)
     expect(SETTLE_MS).toBe(FULL_TIMING.season + FULL_TIMING.spin + FULL_TIMING.hold)
-    expect(QUICK_TIMING.spin).toBe(2000)
-    expect(QUICK_TIMING.season + QUICK_TIMING.spin + QUICK_TIMING.hold).toBeLessThan(3000)
+    expect(SETTLE_MS).toBe(3800)
+    expect(QUICK_TIMING.spin).toBe(1200)
+    expect(QUICK_TIMING.season + QUICK_TIMING.spin + QUICK_TIMING.hold).toBe(1620)
     expect(QUICK_TIMING.drum).toBeLessThan(QUICK_TIMING.season)
     expect(FULL_TIMING.drum).toBeLessThan(FULL_TIMING.season)
   })
@@ -60,9 +60,9 @@ describe('reel timing and curve', () => {
         const main = FULL_TIMING.spin - FULL_TIMING.bounce
         expect(pos(0)).toBe(0)
         expect(pos(FULL_TIMING.spin)).toBe(s.distance)
-        // The first quarter second covers over ten cards; the last 1.5 s creeps over two or three
-        expect(pos(250) / s.pitch).toBeGreaterThan(10)
-        const last = (s.distance + s.overshoot - pos(FULL_TIMING.spin - 1500)) / s.pitch
+        // The opening burst crosses ten cards; the short tail still gives the landing room to read.
+        expect(pos(200) / s.pitch).toBeGreaterThan(10)
+        const last = (s.distance + s.overshoot - pos(FULL_TIMING.spin - 800)) / s.pitch
         expect(last).toBeGreaterThan(1.8)
         expect(last).toBeLessThan(3)
         // Sampled every millisecond once: forward until the peak, back after it, never a jump

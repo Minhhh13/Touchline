@@ -1,6 +1,6 @@
 ---
 name: TouchLine Floodlight Scorebox
-description: A compact browser-football world built from a floodlit stadium, pixel scoreboards and match-control clarity.
+description: A compact browser-football world built from an open pixel training ground, scoreboards and match-control clarity.
 colors:
   floodlit-ground: "#050b18"
   floodlit-panel: "#0b1629"
@@ -49,7 +49,7 @@ components:
 
 # Overview
 
-TouchLine is a football game, not a SaaS dashboard. The interface is a compact playable football world: the Home screen opens inside a floodlit ground, shared controls read like a scoreboard and the dense management surfaces remain quick to scan. The same system covers Home, setup, draft, the Dugout, matchday, summaries and utility screens in Floodlit and Daylight themes.
+TouchLine is a football game, not a SaaS dashboard. The interface is a compact playable football world: the Home screen opens inside a bright pixel training ground, shared controls read like a scoreboard and the dense management surfaces remain quick to scan. The same system covers Home, setup, draft, the Dugout, matchday, summaries and utility screens in Floodlit and Daylight themes.
 
 # Creative North Star
 
@@ -57,7 +57,7 @@ TouchLine is a football game, not a SaaS dashboard. The interface is a compact p
 
 # Colors
 
-Floodlit uses midnight stadium navy rather than black; Daylight uses pale sky and off-white rather than warm beige. Cyan is the action wire and coral is the flag/event accent. Red, amber and green remain literal football or system state. Home stays in its fixed night-world palette in either theme so text never falls across a low-contrast scene transition.
+Floodlit uses midnight stadium navy rather than black; Daylight uses pale sky and off-white rather than warm beige. Cyan is the action wire and coral is the flag/event accent. Red, amber and green remain literal football or system state. Home stays in its fixed cyan-sky training-ground palette in either theme so its art direction and contrast do not jump with a theme switch.
 
 Rules:
 
@@ -72,7 +72,7 @@ Pixelify Sans is the display system for the wordmark, headings, navigation and a
 
 # Layout
 
-Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Home is a floodlit stadium scene with a large season line, an original corner-flag mascot and compact HUD modules; newcomers and returning players both fit the complete Home board without page scrolling at 1280×720 and 1440×900. Short desktop windows remove secondary descriptions before removing actions. The first-run action remains visible in the opening phone viewport, where necessary vertical scrolling is kept. Setup is a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. At phone widths these structures reflow as whole units in document order with 44 px targets, safe-area support and no horizontal page scroll.
+Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Home is the exception: a full-viewport training-ground scene with the wordmark, one short line, one Play button and an original moving corner-flag mascot. Play reveals the five main formats in a bottom scorebox; returning-player challenges, saved runs and utility links are one further choice away. Home has no top bar, gutter or document scroll at 1280×720, 1440×900 or 390×844. Setup is a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. At phone widths these structures reflow as whole units in document order with 44 px targets, safe-area support and no horizontal page scroll.
 
 # Elevation & Depth
 
