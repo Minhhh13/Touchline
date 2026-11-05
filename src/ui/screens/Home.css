@@ -3,7 +3,7 @@
 .page.home.home-programme {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
   overflow-y: auto;
 }
 .programme-masthead {
@@ -11,39 +11,37 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-5);
-  padding-block: var(--space-2) var(--space-4);
-  border-bottom: 2px solid var(--text);
-}
-.programme-masthead .eyebrow {
-  margin: 0 0 var(--space-2);
-  color: var(--primary);
+  padding: var(--space-4) 0 var(--space-5) var(--space-5);
+  border-left: 2px solid var(--primary);
+  border-bottom: var(--border-strong);
 }
 .programme-masthead h1 {
   margin: 0;
-  font-size: clamp(var(--fs-h1), 3vw, var(--fs-hero));
-  line-height: 1.1;
-  letter-spacing: -0.055em;
+  max-width: 11ch;
+  font-size: clamp(2.75rem, 5.5vw, var(--fs-hero));
+  line-height: 0.98;
+  letter-spacing: -0.04em;
 }
 .programme-brand {
-  max-width: 30ch;
+  max-width: 34ch;
   margin: 0;
   color: var(--text-2);
-  font-size: var(--fs-sm);
-  line-height: 1.6;
+  font-size: var(--fs-base);
+  line-height: 1.55;
 }
 .programme-feature {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  gap: var(--space-6);
   align-items: stretch;
 }
 .programme-intro {
   min-width: 0;
-  padding: var(--space-3) 0;
+  padding: var(--space-4) 0;
 }
 .programme-intro h2 {
-  margin: 0 0 var(--space-3);
-  font-size: var(--fs-h3);
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-h2);
 }
 .programme-intro-heading,
 .programme-section-heading {
@@ -62,20 +60,22 @@
 .programme-steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: var(--space-5);
   padding: 0;
   margin: 0 0 var(--space-4);
   list-style: none;
 }
 .programme-steps li {
   min-width: 0;
+  padding-top: var(--space-3);
+  border-top: var(--border-strong);
 }
 .programme-steps li > span:last-child {
   display: grid;
   gap: var(--space-1);
 }
 .programme-steps b {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
 }
 .programme-steps li > span:last-child > span {
   color: var(--text-2);
@@ -85,7 +85,7 @@
 .programme-first-go {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 .programme-first-go .btn {
   flex-shrink: 0;
@@ -93,7 +93,7 @@
 .programme-first-note {
   max-width: 30ch;
   color: var(--text-2);
-  font-size: var(--fs-meta);
+  font-size: var(--fs-sm);
   line-height: 1.6;
 }
 .programme-first-note > svg {
@@ -141,11 +141,12 @@
   justify-content: space-between;
   gap: var(--space-4);
   min-width: 0;
-  padding: var(--space-4) var(--space-5);
-  border: var(--border);
-  border-left: 3px solid var(--primary);
-  border-radius: var(--radius-s);
-  background: var(--panel);
+  padding: var(--space-5);
+  border: 0;
+  border-top: 2px solid var(--brand-line);
+  border-radius: var(--radius-m);
+  background: var(--brand-field);
+  color: var(--on-brand);
 }
 .programme-daily-body {
   display: block;
@@ -161,9 +162,7 @@
   display: block;
 }
 .programme-daily-date {
-  display: block;
-  margin-bottom: var(--space-2);
-  color: var(--primary);
+  color: var(--brand-accent);
   font-variant-numeric: tabular-nums;
 }
 .programme-daily h3 {
@@ -171,10 +170,11 @@
   margin: 0 var(--space-2) var(--space-1) 0;
   font-size: var(--fs-h2);
   letter-spacing: -0.035em;
+  color: var(--on-brand);
 }
 .programme-daily p {
   margin: 0 0 var(--space-3);
-  color: var(--text-2);
+  color: var(--on-brand-2);
   font-size: var(--fs-sm);
 }
 .programme-daily .foot {
@@ -182,10 +182,17 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+  color: var(--on-brand-2);
   font-size: var(--fs-meta);
+}
+.programme-daily .daily-today {
+  color: var(--on-brand-2);
 }
 .programme-daily > .btn {
   margin: 0;
+  border-color: var(--on-brand);
+  background: var(--on-brand);
+  color: var(--brand-field-2);
 }
 .programme-daily .daily-actions {
   padding: 0;
@@ -203,14 +210,14 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: var(--space-5);
-  border-top: var(--border);
+  border-top: var(--border-strong);
 }
 .programme-mode {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-4) var(--space-2);
+  padding: var(--space-4) var(--space-2) var(--space-4) var(--space-3);
   border: 0;
   border-bottom: var(--border);
   border-radius: 0;
@@ -219,9 +226,14 @@
   text-align: left;
   cursor: pointer;
 }
-.programme-mode:hover,
-.programme-tile:hover {
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .programme-mode:hover,
+  .programme-tile:hover {
+    background: color-mix(in srgb, var(--primary) 7%, transparent);
+  }
+  .programme-mode:hover .programme-go {
+    transform: translateX(2px);
+  }
 }
 .programme-mode:focus-visible,
 .programme-daily-body:focus-visible,
@@ -229,19 +241,13 @@
   outline: 2px solid var(--primary);
   outline-offset: 3px;
 }
-.programme-mode-number {
-  flex: 0 0 2ch;
-  color: var(--text-2);
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-}
 .programme-mode-copy {
   flex: 1;
   min-width: 0;
 }
 .programme-mode h3 {
   margin: 0 0 var(--space-1);
-  font-size: var(--fs-h3);
+  font-size: calc(var(--fs-h3) + 0.125rem);
   letter-spacing: -0.03em;
 }
 .programme-mode p {
@@ -260,6 +266,7 @@
   color: var(--primary);
   font-size: var(--fs-sm);
   font-weight: 600;
+  transition: transform var(--dur-1) var(--ease-out);
 }
 .programme-mode .next-up-chip {
   margin-top: var(--space-1);
@@ -267,16 +274,17 @@
 .programme-tiles {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-5);
+  border-top: var(--border-strong);
 }
 .programme-tile {
   display: flex;
   gap: var(--space-2);
   align-items: flex-start;
   min-width: 0;
-  padding: var(--space-2) 0;
+  padding: var(--space-3) 0;
   border: 0;
-  border-radius: var(--radius-xs);
+  border-radius: 0;
   background: none;
   color: var(--text);
   text-align: left;
@@ -309,7 +317,8 @@
   justify-content: space-between;
   gap: var(--space-3);
   margin-top: auto;
-  padding-block: var(--space-2);
+  padding-block: var(--space-4) var(--space-2);
+  border-top: var(--border);
   color: var(--text-2);
   font-size: var(--fs-meta);
 }
@@ -319,7 +328,7 @@
 }
 .app.shell .page.home.home-programme .resume-card,
 .page.home.home-programme .resume-card {
-  border-left: 3px solid var(--primary);
+  border-top: 2px solid var(--primary);
   background: var(--panel);
   box-shadow: none;
 }

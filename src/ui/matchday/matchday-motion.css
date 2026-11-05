@@ -23,12 +23,12 @@
   animation: none;
 }
 .matchday .scoreboard.flash::after {
-  animation: md-board-ring calc(var(--dur-2) * 5) var(--ease-out);
+  animation: md-board-ring calc(var(--dur-3) * 3) var(--ease-out);
 }
 @keyframes md-board-ring {
   0% {
     opacity: 0;
-    transform: scale(1.08);
+    transform: scale(1.04);
   }
   25% {
     opacity: 1;
@@ -40,14 +40,14 @@
 }
 .matchday .scoreboard .sb-num {
   display: inline-block;
-  animation: md-digit var(--dur-4) var(--ease-spring) backwards;
+  animation: md-digit var(--dur-3) var(--ease-out) backwards;
 }
 @keyframes md-digit {
   0% {
-    transform: translateY(-60%) scale(1.4);
+    transform: translateY(-30%) scale(1.08);
     opacity: 0;
   }
-  60% {
+  45% {
     opacity: 1;
   }
 }
@@ -59,36 +59,36 @@
 }
 .live-flash.yellow,
 .live-flash.red {
-  animation: md-card-pop var(--dur-4) var(--ease-spring) backwards;
+  animation: md-card-pop var(--dur-3) var(--ease-out) backwards;
 }
 @keyframes md-card-pop {
   0% {
-    transform: translateY(3px) scale(0.2) rotate(-25deg);
+    transform: translateY(3px) scale(0.92) rotate(-6deg);
     opacity: 0;
   }
-  60% {
-    transform: translateY(-1px) scale(1.25) rotate(6deg);
+  70% {
+    transform: translateY(-1px) scale(1.05) rotate(2deg);
     opacity: 1;
   }
 }
 .live-flash.substitution,
 .live-flash.injury {
-  animation: md-flash-rise var(--dur-4) var(--ease-spring) backwards;
+  animation: md-flash-rise var(--dur-3) var(--ease-out) backwards;
 }
 @keyframes md-flash-rise {
   from {
-    transform: translateY(3px) scale(0.5);
+    transform: translateY(3px) scale(0.94);
     opacity: 0;
   }
 }
 .live-dot .dot-card {
   transform-box: fill-box;
   transform-origin: center;
-  animation: md-booked var(--dur-3) var(--ease-spring) backwards;
+  animation: md-booked var(--dur-3) var(--ease-out) backwards;
 }
 @keyframes md-booked {
   from {
-    transform: translateY(-4px) scale(0.3);
+    transform: translateY(-4px) scale(0.92);
     opacity: 0;
   }
 }
@@ -103,16 +103,16 @@
   }
 }
 .matchday .decision-sheet {
-  animation: md-sheet-up var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 1.5) backwards;
+  animation: md-sheet-up var(--dur-4) var(--ease-out) calc(var(--dur-4) * 1.5) backwards;
 }
 @keyframes md-sheet-up {
   from {
-    transform: translateY(36px) scale(0.97);
+    transform: translateY(28px);
     opacity: 0;
   }
 }
 .matchday .decisions-pill {
-  animation: md-pill-in var(--dur-3) var(--ease-spring) backwards;
+  animation: md-pill-in var(--dur-3) var(--ease-out) backwards;
 }
 @keyframes md-pill-in {
   from {
@@ -139,7 +139,7 @@
   align-items: center;
   gap: 4px;
   padding: 10px 22px 12px;
-  border-radius: var(--radius-s);
+  border-radius: var(--radius-m);
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   border: 1px solid var(--line-2);
   box-shadow: var(--shadow);
@@ -150,11 +150,11 @@
 }
 @keyframes md-period {
   0% {
-    transform: translateY(-18px) scale(0.9);
+    transform: translateY(-18px) scale(0.96);
     opacity: 0;
   }
   10% {
-    transform: translateY(0) scale(1.03);
+    transform: translateY(0) scale(1.01);
     opacity: 1;
   }
   16% {

@@ -3,7 +3,6 @@ import { catalog } from '../index'
 /** Home (screens/Home.tsx). */
 export const home = catalog('home', {
   thousands: '{n}k',
-  clubhouse: 'The clubhouse',
   headline: 'Your XI. Your season.',
   firstDraftTitle: 'Start with a draft',
   yourRecord: 'Your record',

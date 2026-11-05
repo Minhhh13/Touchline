@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-05T00:00:00Z",
+  "title": "TouchLine Matchday Ledger",
+  "description": "A football working interface built from fixture-sheet rhythm, score columns and a structural touchline rule.",
+  "source": {
+    "kind": "code-led",
+    "primaryTarget": "src/ui/App.tsx",
+    "relatedTargets": [
+      "src/ui/styles.css",
+      "src/ui/screens/Home.css",
+      "src/ui/screens/Setup.css",
+      "src/ui/screens/Draft.css",
+      "src/ui/screens/Dugout.css",
+      "src/ui/matchday/matchday.css"
+    ]
+  },
+  "tokens": {
+    "colors": {
+      "floodlitGround": "#071724",
+      "floodlitPanel": "#0d2132",
+      "floodlitRaised": "#18334b",
+      "floodlitRule": "#284259",
+      "floodlitRuleStrong": "#5a7389",
+      "floodlitInk": "#f4f7fb",
+      "floodlitInkSecondary": "#c7d3de",
+      "floodlitAction": "#85b7ff",
+      "daylightGround": "#eef0f3",
+      "daylightPanel": "#ffffff",
+      "daylightRule": "#cbd4de",
+      "daylightRuleStrong": "#7f91a2",
+      "daylightInk": "#0b1a2b",
+      "daylightInkSecondary": "#34495d",
+      "daylightAction": "#1f2de6",
+      "programmeField": "#123d82",
+      "programmeInk": "#ffffff"
+    },
+    "fontFamilies": {
+      "product": "Sora, Segoe UI, system-ui, -apple-system, Roboto, sans-serif",
+      "code": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    },
+    "fontSizes": {
+      "metadata": "0.75rem",
+      "small": "0.8125rem",
+      "body": "0.875rem",
+      "panelTitle": "1.1875rem",
+      "sectionTitle": "1.5rem",
+      "screenTitle": "2.25rem",
+      "hero": "4.5rem"
+    },
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "12px",
+      "lg": "16px",
+      "xl": "24px",
+      "2xl": "32px"
+    },
+    "radii": {
+      "detail": "2px",
+      "small": "3px",
+      "control": "4px",
+      "panel": "6px",
+      "statusPill": "999px"
+    },
+    "motion": {
+      "press": "140ms",
+      "quick": "190ms",
+      "base": "260ms",
+      "slow": "360ms",
+      "easeOut": "cubic-bezier(0.23, 1, 0.32, 1)",
+      "easeInOut": "cubic-bezier(0.77, 0, 0.175, 1)",
+      "easeSpring": "cubic-bezier(0.22, 0.9, 0.32, 1.08)"
+    }
+  },
+  "extensions": {
+    "colorMeta": {
+      "floodlitAction": {
+        "role": "primary action and focus",
+        "ramp": ["#071724", "#102a40", "#1f4667", "#37698f", "#568bb9", "#85b7ff", "#afd0ff", "#e7f1ff"]
+      },
+      "daylightAction": {
+        "role": "primary action and focus",
+        "ramp": ["#080d52", "#121a95", "#1823bd", "#1f2de6", "#5662ee", "#8991f5", "#c2c6fa", "#f0f1ff"]
+      },
+      "programmeField": {
+        "role": "single dominant programme feature",
+        "ramp": ["#061433", "#0b255c", "#0d2f68", "#102f72", "#123d82", "#315fa8", "#6f92cb", "#dbe7ff"]
+      }
+    },
+    "typographyMeta": {
+      "figures": "Use font-variant-numeric: tabular-nums for scores, clocks, tables, ratings and records.",
+      "case": "Use sentence case. Capitals are reserved for codes, metadata labels, table headers and match states.",
+      "measure": "Keep explanatory text to a readable narrow measure even when the game workspace is wide."
+    },
+    "shadows": {
+      "overlayDark": "0 16px 36px rgba(1, 8, 18, 0.28)",
+      "overlayLight": "0 16px 34px -12px rgba(11, 26, 43, 0.24)",
+      "restingPanel": "none"
+    },
+    "breakpoints": {
+      "compactPhone": "520px",
+      "phone": "720px",
+      "layoutStack": "1000px",
+      "desktopShell": "1100px"
+    }
+  },
+  "components": [
+    {
+      "id": "primary-button",
+      "name": "Primary button",
+      "description": "The one forward action in a region.",
+      "html": "<button class=\"ds-primary\">Start draft</button>",
+      "css": ".ds-primary{min-height:40px;padding:0 16px;border:1px solid #85b7ff;border-radius:4px;background:#85b7ff;color:#071724;font:600 .875rem/1 Sora,sans-serif;transition:background 140ms cubic-bezier(.23,1,.32,1),transform 140ms cubic-bezier(.23,1,.32,1)}.ds-primary:hover{background:#afd0ff}.ds-primary:active{background:#6ea6f7;transform:translateY(1px) scale(.985)}.ds-primary:focus-visible{outline:2px solid #a2c7ff;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "id": "secondary-button",
+      "name": "Secondary button",
+      "description": "An alternative action without competing with the next step.",
+      "html": "<button class=\"ds-secondary\">View rules</button>",
+      "css": ".ds-secondary{min-height:40px;padding:0 16px;border:1px solid #5a7389;border-radius:4px;background:#0d2132;color:#f4f7fb;font:600 .875rem/1 Sora,sans-serif;transition:background 140ms cubic-bezier(.23,1,.32,1),transform 140ms cubic-bezier(.23,1,.32,1)}.ds-secondary:hover{background:#18334b}.ds-secondary:active{transform:translateY(1px)}.ds-secondary:focus-visible{outline:2px solid #a2c7ff;outline-offset:2px}"
+    },
+    {
+      "id": "ledger-panel",
+      "name": "Ledger panel",
+      "description": "A true content group separated by a hairline rather than decorative elevation.",
+      "html": "<section class=\"ds-panel\"><h2>Starting XI</h2><p>Eleven selected players</p></section>",
+      "css": ".ds-panel{padding:16px;border:1px solid #284259;border-radius:6px;background:#0d2132;color:#f4f7fb;box-shadow:none}.ds-panel h2{margin:0 0 8px;font:700 1.5rem/1.1 Sora,sans-serif}.ds-panel p{margin:0;color:#c7d3de;font:400 .875rem/1.45 Sora,sans-serif}"
+    },
+    {
+      "id": "screen-heading",
+      "name": "Screen heading",
+      "description": "A score-led title anchored by the structural touchline rule.",
+      "html": "<header class=\"ds-heading\"><h1>The draft</h1><p>Pick 7 of 11</p></header>",
+      "css": ".ds-heading{padding:8px 0 16px 24px;border-left:3px solid #85b7ff;border-bottom:1px solid #5a7389;color:#f4f7fb}.ds-heading h1{margin:0;font:700 2.25rem/1.1 Sora,sans-serif;letter-spacing:-.025em}.ds-heading p{margin:6px 0 0;color:#c7d3de;font:600 .75rem/1.45 Sora,sans-serif;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "id": "format-row",
+      "name": "Format row",
+      "description": "A stable, scan-first mode choice without an ornamental card.",
+      "html": "<button class=\"ds-format\"><span><b>Quick Draft</b><small>Build an XI and play a season</small></span><em>5 min</em><strong>Play →</strong></button>",
+      "css": ".ds-format{display:flex;align-items:center;gap:12px;width:100%;padding:16px 8px 16px 12px;border:0;border-bottom:1px solid #284259;border-radius:0;background:transparent;color:#f4f7fb;text-align:left;font-family:Sora,sans-serif}.ds-format span{display:grid;gap:4px;flex:1}.ds-format b{font-size:1.1875rem}.ds-format small,.ds-format em{color:#c7d3de;font-size:.8125rem;font-style:normal}.ds-format strong{color:#85b7ff;font-size:.8125rem}.ds-format:hover{background:color-mix(in srgb,#85b7ff 7%,transparent)}.ds-format:focus-visible{outline:2px solid #a2c7ff;outline-offset:2px}"
+    },
+    {
+      "id": "field",
+      "name": "Text field",
+      "description": "A clear game input with a quiet edge and explicit focus.",
+      "html": "<label class=\"ds-field\"><span>Team name</span><input value=\"Ashvale United\"></label>",
+      "css": ".ds-field{display:grid;gap:6px;color:#c7d3de;font:600 .8125rem/1.45 Sora,sans-serif}.ds-field input{min-height:40px;padding:0 12px;border:1px solid #7791a8;border-radius:4px;background:#0a1c2b;color:#f4f7fb;font:400 .875rem/1.45 Sora,sans-serif}.ds-field input:focus{outline:2px solid #a2c7ff;outline-offset:2px;border-color:#a2c7ff}"
+    }
+  ],
+  "narrative": {
+    "overview": "TouchLine is a football game, not a SaaS dashboard. The interface is a modern matchday working document: calm enough to make decisions in, quick enough to scan during a match, and dramatic only when football supplies the event. The same system covers Home, setup, draft, the Dugout, matchday, summaries and utility screens in Floodlit and Daylight themes.",
+    "creativeNorthStar": "The Matchday Ledger. Every screen should feel like one page of the same football run: choose, draft, prepare, play, review. Fixture-sheet rhythm, aligned figures and one structural touchline rule create hierarchy without interchangeable rounded cards. Cover the logo and the interface should still read as TouchLine.",
+    "keyCharacteristics": [
+      "Cool match paper by day and stadium blue by night",
+      "Score-led Sora typography with tabular figures",
+      "Hairline rules and restrained surfaces instead of a card cloud",
+      "One structural touchline rule across navigation, headings and chronology",
+      "Quiet routine motion with expressive football events"
+    ],
+    "rules": [
+      "Normal content is flat; depth belongs to overlays.",
+      "Pills are reserved for filters and true status.",
+      "Pages and lists do not run generic entrance cascades.",
+      "Hover movement is gated to fine pointers.",
+      "Visual work never changes deterministic engine behaviour or save compatibility."
+    ],
+    "dos": [
+      "Lead with the next football decision, current score or competition state.",
+      "Let real data, badges, pitch diagrams and aligned figures carry the screen.",
+      "Use rules, whitespace and type before adding another container.",
+      "Reserve expressive motion for reveals, goals, results and trophies."
+    ],
+    "donts": [
+      "Build a cloud of equal rounded cards.",
+      "Add decorative mode numbers, eyebrow copy above every heading or invented proof.",
+      "Use gradients, glows, glass or continuous motion on ordinary controls.",
+      "Hide a phone action behind an overlay or let sticky hover follow a touch."
+    ]
+  },
+  "assets": []
+}

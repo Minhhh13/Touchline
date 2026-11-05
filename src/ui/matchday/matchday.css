@@ -71,7 +71,8 @@
   padding: 6px 10px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius-s);
+  border-top: 2px solid var(--primary);
+  border-radius: var(--radius-m);
 }
 .matchday .md-tools {
   display: flex;
@@ -92,7 +93,7 @@
   align-items: center;
   gap: 10px;
   padding: 4px 12px;
-  border-radius: var(--radius-s);
+  border-radius: var(--radius-xs);
   background: var(--panel-2);
   border: 1px solid var(--line-2);
 }
@@ -197,7 +198,7 @@
   min-height: 0;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius-s);
+  border-radius: var(--radius-xs);
   overflow: hidden;
 }
 .matchday .md-panel-head {
@@ -207,7 +208,7 @@
   min-height: 28px;
   padding: 3px 8px;
   border-bottom: 1px solid var(--line);
-  background: var(--panel-2);
+  background: transparent;
   font-size: var(--fs-meta);
   white-space: nowrap;
 }
@@ -219,7 +220,7 @@
   width: 100%;
   max-width: 100%;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--line-2);
   background: var(--panel);
   color: var(--text);
@@ -432,7 +433,7 @@
   font-weight: 700;
   font-size: calc(var(--fs-base) + 1px);
   letter-spacing: 0.04em;
-  border-bottom: 3px solid;
+  border-bottom: 2px solid;
   padding-bottom: 2px;
 }
 .matchday .md-flank.away .md-flank-head,
@@ -526,20 +527,20 @@
   padding: 6px 12px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--line-2);
+  border-top: 2px solid var(--line-2);
   border-radius: var(--radius-s);
   overflow: hidden;
 }
 .matchday .md-banner.goal {
-  border-left-color: var(--accent);
+  border-top-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--panel));
 }
 .matchday .md-banner.card {
-  border-left-color: var(--gold);
+  border-top-color: var(--gold);
 }
 /* The assistant's line: an --accent edge and a small tag, so it never reads as commentary */
 .matchday .md-banner.assistant {
-  border-left-color: var(--accent);
+  border-top-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 6%, var(--panel));
 }
 .matchday .md-assistant-tag {
