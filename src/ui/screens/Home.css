@@ -1,7 +1,7 @@
 /* Home is one playable scene. The game catalogue stays behind Play. */
 .app.home-stage {
   padding-top: 0;
-  background: #58cde2;
+  background: #a7dfe3;
 }
 .app.home-stage::before,
 .app.home-stage > .topbar,
@@ -27,7 +27,7 @@
   padding: 0;
   overflow: hidden;
   color: #f5f1df;
-  background: #58cde2 url('/art/touchline-training-ground-v2.png') center / cover no-repeat;
+  background: #a7dfe3;
 }
 
 .home-landing {
@@ -37,6 +37,8 @@
 }
 
 .home-menu-trigger,
+.home-motion-toggle,
+.home-theme-toggle,
 .home-panel-close,
 .home-panel-back {
   display: inline-grid;
@@ -51,11 +53,15 @@
   cursor: pointer;
   transition: transform var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
-.home-menu-trigger {
+.home-tools {
   position: absolute;
   top: calc(var(--safe-top) + var(--space-4));
   right: calc(var(--safe-right) + var(--space-4));
   z-index: 3;
+  display: flex;
+  gap: var(--space-2);
+}
+.home-menu-trigger {
   grid-template-columns: auto auto;
   gap: var(--space-2);
   padding-inline: var(--space-3);
@@ -64,12 +70,16 @@
   letter-spacing: 0.02em;
 }
 .home-menu-trigger:active,
+.home-motion-toggle:active,
+.home-theme-toggle:active,
 .home-panel-close:active,
 .home-panel-back:active {
   transform: scale(0.96);
 }
 @media (hover: hover) and (pointer: fine) {
   .home-menu-trigger:hover,
+  .home-motion-toggle:hover,
+  .home-theme-toggle:hover,
   .home-panel-close:hover,
   .home-panel-back:hover {
     background: #fffdf2;
@@ -79,7 +89,7 @@
 
 .home-hero {
   position: absolute;
-  top: 39%;
+  top: 34%;
   left: 50%;
   z-index: 2;
   display: grid;
@@ -90,18 +100,21 @@
   transform: translate(-50%, -50%);
 }
 .home-lockup {
+  --dur-wordmark-drift: 12s;
   --text: #071526;
   --primary: #ff426d;
   margin: 0;
   line-height: 1;
+  animation: home-wordmark-drift var(--dur-wordmark-drift) var(--ease-in-out) infinite;
 }
 .home-lockup .tl-lockup {
-  --h: clamp(62px, 8.2vw, 104px);
+  --h: clamp(48px, 5.4vw, 72px);
 }
 .home-lockup .tl-name {
-  font-size: calc(var(--h) * 0.68);
+  font-size: calc(var(--h) * 0.88);
+  font-weight: 400;
   letter-spacing: 0.035em;
-  text-shadow: 0 2px 0 rgba(245, 241, 223, 0.45);
+  text-shadow: none;
 }
 .home-lockup .tl-touch {
   color: #071526;
@@ -113,11 +126,38 @@
   margin: var(--space-4) 0 0;
   color: rgba(7, 21, 38, 0.78);
   font-family: var(--font-body);
-  font-size: clamp(0.9rem, 1.4vw, 1.05rem);
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: 400;
   letter-spacing: 0.025em;
   line-height: 1.45;
   text-wrap: balance;
+}
+.home-simulation-ticker {
+  font-variant-numeric: tabular-nums;
+  min-height: 1.45em;
+}
+@keyframes home-wordmark-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -4px, 0); }
+}
+.home-scene[data-motion-paused='true'] .home-lockup {
+  animation-play-state: paused;
+}
+:root[data-theme='dark'] .home-lockup .tl-touch,
+:root[data-theme='dark'] .home-hero > p,
+:root[data-theme='dark'] .home-continue {
+  color: #dbe9e9;
+}
+:root[data-theme='dark'] .home-menu-trigger,
+:root[data-theme='dark'] .home-motion-toggle,
+:root[data-theme='dark'] .home-theme-toggle {
+  border-color: #5b7891;
+  background: #11273c;
+  color: #dbe9e9;
+}
+:root[data-theme='dark'] .home-play {
+  border-color: #9ac9d5;
+  background: #10263c;
 }
 .home-actions {
   display: grid;
@@ -139,9 +179,9 @@
   background: #071526;
   color: #f5f1df;
   font-family: var(--font-display);
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: 0.035em;
+  font-size: var(--fs-h2);
+  font-weight: 400;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: transform var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
@@ -176,61 +216,14 @@
   }
 }
 
-.home-mascot-stage {
-  position: absolute;
-  left: clamp(24px, 9vw, 168px);
-  bottom: clamp(58px, 9vh, 118px);
-  z-index: 2;
-  width: clamp(88px, 10vw, 132px);
-  pointer-events: none;
-}
-.home-mascot-stage::after {
-  content: '';
-  position: absolute;
-  left: 14%;
-  right: 10%;
-  bottom: -3px;
-  height: 9px;
-  border-radius: 50%;
-  background: rgba(5, 11, 24, 0.24);
-  transform: scaleX(1);
-  animation: mascot-shadow 3.6s var(--ease-in-out) infinite;
-}
-.home-mascot-stage img {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  height: auto;
-  image-rendering: pixelated;
-  filter: drop-shadow(3px 5px 0 rgba(5, 11, 24, 0.24));
-  transform-origin: 48% 92%;
-  animation: mascot-touch 3.6s var(--ease-in-out) infinite;
-}
-@keyframes mascot-touch {
-  0%, 38%, 72%, 100% { transform: translate3d(0, 0, 0) rotate(0); }
-  46% { transform: translate3d(0, -4px, 0) rotate(-1.2deg); }
-  53% { transform: translate3d(5px, -1px, 0) rotate(1.4deg); }
-  61% { transform: translate3d(1px, 0, 0) rotate(-0.4deg); }
-}
-@keyframes mascot-shadow {
-  0%, 38%, 72%, 100% { opacity: 0.24; transform: scaleX(1); }
-  46% { opacity: 0.15; transform: scaleX(0.86); }
-  53% { opacity: 0.2; transform: translateX(4px) scaleX(0.93); }
-}
-.home-scene:not([data-panel='closed']) .home-mascot-stage img,
-.home-scene:not([data-panel='closed']) .home-mascot-stage::after {
-  animation-play-state: paused;
-}
-
 .home-minimal-footer {
   position: absolute;
   left: 50%;
   bottom: calc(var(--safe-bottom) + var(--space-3));
   z-index: 2;
   color: rgba(245, 241, 223, 0.78);
-  font-size: var(--fs-meta);
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: 400;
   letter-spacing: 0.03em;
   text-shadow: 0 1px 2px rgba(5, 11, 24, 0.5);
   transform: translateX(-50%);
@@ -245,10 +238,10 @@
   align-items: end;
   justify-items: center;
   padding: max(72px, 10vh) var(--space-5) max(var(--space-5), var(--safe-bottom));
-  background: rgba(5, 11, 24, 0);
+  background: rgba(5, 11, 24, 0.38);
   opacity: 0;
   pointer-events: none;
-  transition: background var(--dur-3) var(--ease-out), opacity var(--dur-2) var(--ease-out);
+  transition: opacity var(--dur-2) var(--ease-out);
 }
 .home-panel {
   display: grid;
@@ -263,11 +256,10 @@
   color: #f5f1df;
   box-shadow: 0 24px 70px rgba(5, 11, 24, 0.42);
   opacity: 0;
-  transform: translate3d(0, 32px, 0);
-  transition: transform var(--dur-3) cubic-bezier(0.16, 1, 0.3, 1), opacity var(--dur-2) var(--ease-out);
+  transform: translate3d(0, 16px, 0);
+  transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-1) var(--ease-out);
 }
 .home-scene:not([data-panel='closed']) .home-panel-layer {
-  background: rgba(5, 11, 24, 0.46);
   opacity: 1;
   pointer-events: auto;
 }
@@ -292,7 +284,8 @@
 .home-panel-heading h2 {
   margin: 0;
   color: #f5f1df;
-  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  font-size: var(--fs-h1);
+  font-weight: 400;
   letter-spacing: 0.02em;
   line-height: 1;
   text-wrap: balance;
@@ -324,6 +317,9 @@
 .home-choice-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  opacity: 1;
+  transition: opacity var(--dur-1) var(--ease-out);
+  @starting-style { opacity: 0; }
 }
 .home-choice {
   display: grid;
@@ -367,17 +363,18 @@
 .home-choice-copy strong {
   color: currentColor;
   font-family: var(--font-display);
-  font-size: 1.25rem;
-  line-height: 1.05;
+  font-size: var(--fs-h3);
+  font-weight: 400;
+  line-height: 1.1;
   letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
 }
 .home-choice-copy > span:not(.next-up-chip) {
-  overflow: hidden;
   color: #a9c1cc;
   font-size: var(--fs-sm);
   line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .home-choice-meta {
   color: #ff7b98;
@@ -386,6 +383,9 @@
 }
 .home-choice .time-tag {
   color: inherit;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 .home-choice-arrow {
   color: #5ee7f7;
@@ -437,6 +437,8 @@
 }
 
 .home-menu-trigger:focus-visible,
+.home-motion-toggle:focus-visible,
+.home-theme-toggle:focus-visible,
 .home-play:focus-visible,
 .home-continue:focus-visible,
 .home-panel-close:focus-visible,
@@ -450,11 +452,12 @@
   .app.shell .page.home.home-scene,
   .page.home.home-scene {
     min-height: 100dvh;
-    background-position: 57% center;
   }
-  .home-menu-trigger {
+  .home-tools {
     top: calc(var(--safe-top) + var(--space-3));
     right: calc(var(--safe-right) + var(--space-3));
+  }
+  .home-menu-trigger {
     width: 44px;
     padding: 0;
   }
@@ -466,11 +469,11 @@
     clip: rect(0 0 0 0);
   }
   .home-hero {
-    top: 38%;
+    top: 32%;
     width: calc(100% - 32px);
   }
   .home-lockup .tl-lockup {
-    --h: clamp(52px, 16vw, 72px);
+    --h: clamp(40px, 12vw, 50px);
   }
   .home-lockup .tl-name {
     letter-spacing: 0.025em;
@@ -485,14 +488,9 @@
   .home-play {
     min-height: 54px;
   }
-  .home-mascot-stage {
-    left: calc(var(--safe-left) + var(--space-4));
-    bottom: calc(var(--safe-bottom) + 58px);
-    width: clamp(78px, 24vw, 102px);
-  }
   .home-minimal-footer {
     bottom: calc(var(--safe-bottom) + var(--space-3));
-    font-size: 0.68rem;
+    font-size: var(--fs-sm);
   }
   .home-panel-layer {
     align-items: end;
@@ -526,7 +524,7 @@
     height: 40px;
   }
   .home-choice-copy strong {
-    font-size: 1.15rem;
+    font-size: var(--fs-h3);
   }
   .home-resume-list .resume-card {
     align-items: flex-start;
@@ -558,11 +556,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-mascot-stage img,
-  .home-mascot-stage::after {
-    animation: none;
+  .home-motion-toggle {
+    display: none;
   }
+  .home-lockup { animation: none; }
   .home-menu-trigger,
+  .home-motion-toggle,
+  .home-theme-toggle,
   .home-panel-close,
   .home-panel-back,
   .home-play,
@@ -570,7 +570,31 @@
   .home-panel-layer,
   .home-panel,
   .home-choice,
+  .home-choice-list,
   .home-choice-arrow {
     transition: none;
+  }
+}
+
+/* A phone on its side keeps the controls above the roofline instead of over the dark stand. */
+@media (max-height: 500px) and (min-width: 500px) {
+  .home-hero {
+    top: 35%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-6);
+    width: min(calc(100% - 64px), 680px);
+  }
+  .home-lockup { grid-column: 1; grid-row: 1; }
+  .home-lockup .tl-lockup { --h: 44px; }
+  .home-hero > p {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: var(--space-2);
+    font-size: var(--fs-meta);
+  }
+  .home-actions {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    margin-top: 0;
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: TouchLine Floodlight Scorebox
-description: A compact browser-football world built from an open pixel training ground, scoreboards and match-control clarity.
+description: A living day-and-night football ground with a quiet wordmark, readable pixel type and clear game decisions.
 colors:
   floodlit-ground: "#050b18"
   floodlit-panel: "#0b1629"
@@ -16,15 +16,15 @@ colors:
   daylight-ink: "#071526"
   daylight-action: "#08677a"
 typography:
-  brand: "700 Pixelify Sans, Segoe UI, system-ui, sans-serif"
-  display: "700 Pixelify Sans, Segoe UI, system-ui, sans-serif"
-  family: "Sora, Segoe UI, system-ui, -apple-system, Roboto, sans-serif"
-  hero: "700 clamp(3.2rem, 7vw, 6.5rem)/0.82 Pixelify Sans"
-  screen-title: "700 2.25rem/1.1 Pixelify Sans"
-  section-title: "700 1.5rem/1.1 Pixelify Sans"
-  body: "400 0.875rem/1.45 Sora"
-  metadata: "600 0.75rem/1.45 Sora"
-  figures: "Sora with tabular-nums"
+  brand: "400 VT323, ui-monospace, monospace"
+  display: "400 VT323, ui-monospace, monospace"
+  family: "VT323, ui-monospace, monospace"
+  hero: "400 5.5rem/1 VT323"
+  screen-title: "400 2.75rem/1.1 VT323"
+  section-title: "400 1.875rem/1.1 VT323"
+  body: "400 1.375rem/1.25 VT323"
+  metadata: "400 1.125rem/1.4 VT323"
+  figures: "VT323 with tabular-nums"
 radii:
   detail: 0
   small: 1px
@@ -42,7 +42,7 @@ components:
   primary-button: "Solid cyan action, square scorebox edge, 40 px minimum height and a restrained one-pixel press."
   secondary-button: "Panel-coloured control with a strong hairline and no resting shadow."
   ledger-panel: "Midnight scorebox panel with a cyan top wire; filled surfaces hold real groups or actions."
-  screen-heading: "Pixel display title with concise Sora context and one structural touchline wire."
+  screen-heading: "Readable VT323 title with concise context and one structural touchline wire."
   format-row: "Full-width ruled row with title, one-line explanation, duration and directional action."
   status-chip: "Compact pill used only for a true fact, filter or state."
 ---
@@ -57,7 +57,7 @@ TouchLine is a football game, not a SaaS dashboard. The interface is a compact p
 
 # Colors
 
-Floodlit uses midnight stadium navy rather than black; Daylight uses pale sky and off-white rather than warm beige. Cyan is the action wire and coral is the flag/event accent. Red, amber and green remain literal football or system state. Home stays in its fixed cyan-sky training-ground palette in either theme so its art direction and contrast do not jump with a theme switch.
+Floodlit uses midnight stadium navy; Daylight uses pale sky and off-white. Cyan is the action wire and coral is the flag/event accent. Red, amber and green remain literal football or system state. Home has two aligned original environments: the daylight ground with a pale sky and the floodlit ground with deep blue air, warm windows and lamp light. The existing theme preference controls both the world and the working UI.
 
 Rules:
 
@@ -68,11 +68,11 @@ Rules:
 
 # Typography
 
-Pixelify Sans is the display system for the wordmark, headings, navigation and action labels. Sora remains the reading face for body copy and figures, keeping long management screens clear. Headlines are compact and score-led, body copy is direct, and metadata is short. The canonical accessible name remains `TouchLine`; the visual wordmark is styled in capitals like stadium signage.
+VT323 is the single product face, verified against the owner's reference site. It ships locally in regular 400 with its OFL licence; do not synthesize bold pixels. The smaller cap height needs larger roles: 22 px body, 20 px secondary copy, 18 px metadata and 16 px small labels. Fixed geometry such as pitch labels retains its measured size. Headlines stay compact, copy stays short and figures align. The canonical accessible name remains `TouchLine`; the visual wordmark is styled in capitals like stadium signage.
 
 # Layout
 
-Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Home is the exception: a full-viewport training-ground scene with the wordmark, one short line, one Play button and an original moving corner-flag mascot. Play reveals the five main formats in a bottom scorebox; returning-player challenges, saved runs and utility links are one further choice away. Home has no top bar, gutter or document scroll at 1280×720, 1440×900 or 390×844. Setup is a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. At phone widths these structures reflow as whole units in document order with 44 px targets, safe-area support and no horizontal page scroll.
+Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Home is the exception: the detailed full-viewport ground leads, with a smaller drifting lockup, one approximate simulation tally and one fixed Play button. The tally starts from the owner's verified 300,000, adds one estimated game a minute, uses ≈ and explicitly identifies the estimate in its title. It never represents live activity. Play reveals the five main formats in a bottom scorebox; challenges, saved runs and utility links are one further choice away. Home has no top bar, gutter or document scroll at 1280×720, 1440×900 or 390×844. Setup is a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. Phone reel landings announce the club without scrolling the reel away. At phone widths structures reflow in document order with 44 px targets and safe areas.
 
 # Elevation & Depth
 
@@ -91,6 +91,7 @@ Corners are square and mechanical. Panels use a cyan top wire or an ordinary bor
 - Inputs use a clear 1 px edge, a 2 px focus outline and a 40 px minimum control height.
 - Navigation uses an underline and colour change, not a floating pill.
 - Routine motion uses the 140, 190 and 260 ms tokens; 360 ms is for a meaningful landing. No generic page cascade, ambient shimmer or travelling CTA shine.
+- Home's clouds, trees, two training players, ball, flags and occasional night-lamp dimming move in small independent transform/opacity layers. The wordmark floats 4 px; Play and the camera stay fixed. Pause stops the scene and tally; hidden tabs pause; reduced motion shows a finished still. Keep the ground image itself static.
 
 # Do / Don't
 

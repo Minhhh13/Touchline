@@ -16,7 +16,7 @@ Where it lives:
 | The theme: Auto, Light, Dark | `src/ui/theme.ts` (`resolveTheme`, `toggledTheme`, `useResolvedTheme`), applied in `App.tsx`, painted early by the script in `index.html` |
 | Icons | `lucide-react` (pinned), section 7; the per-meaning maps (`NEWS_ICON`, `TWIST_ICON`, `ACHIEVEMENT_ICON`, `AWARD_ICON`, `BriefingIcon`, `RedCard`, `YellowCard`) in `src/ui/components/icons.tsx` |
 | Short labels in place of sentences | `src/ui/screenText.ts` (`modeLabel`, `versusReal`, `shownGames`), tested in `src/ui/__tests__/screenText.test.ts` |
-| Home world art and other illustrations | `public/art/touchline-training-ground-v2.png`, `public/art/touchline-flag-mascot.png`; `src/ui/components/Art.tsx` for the retained reel/result art, coloured by the `--art-*`, `--cyan` and `--magenta` tokens (section 7) |
+| Home world art and other illustrations | `components/HomeWorld.tsx` and its CSS; `public/art/touchline-ground-{day,night}.webp`, `touchline-oak.webp`, `touchline-player-run.webp`, `touchline-clouds.svg`; [HOME_ART.md](HOME_ART.md); `components/Art.tsx` for retained reel/result art |
 | The trophy moments' styles (the cabinet's shelf, the title's beams and rings, the arena's trophy), loaded with the lazy screens only | `src/ui/visuals.css`, imported by `TrophyShelf`, `Celebrate` and `ArenaSummary` (the first-download stylesheet stays under its budget) |
 | Motion: tokens, View Transitions, count-ups, the celebration | `--dur-*`, `--ease-*`, `--stagger` in `styles.css` (the motion section); `src/ui/motion.ts`; `CountUp` in `bits.tsx`; `components/Celebrate.tsx`; section 12 |
 | Canonical visual brief and structured handoff | `DESIGN.md` and `.impeccable/design.json` |
@@ -26,15 +26,15 @@ The rule for everyone building screens: **use the tokens and shared components b
 
 ## November 2026 Floodlight Scorebox redesign (current)
 
-The current interface turns the Matchday Ledger foundation into a more playful browser-football world. The reference direction was the confidence and immediacy of scene-first web games, researched from the official Krillion site; no Krillion image, logo, mascot, copy or other asset is used. TouchLine's implementation is original football art and keeps the working density its management screens need.
+The current interface turns the Matchday Ledger foundation into a more playful browser-football world. The reference direction was the confidence and immediacy of scene-first games, researched from the official Krillion site. Its open-licensed VT323 typeface is also used here at the owner's request; no Krillion image, logo, mascot or copy is used. TouchLine's football art is original and keeps the working density its management screens need.
 
-- **Home** (`screens/Home.tsx`, `Home.css`): an original full-viewport 16-bit training ground with a clean cyan sky, the TouchLine lockup, one short football line, one Play button and the corner-flag mascot. The normal top bar and phone dock stand down on Home; a compact Menu sheet keeps Profile, Explore, How it works, World and Privacy available. Play lifts one bottom scorebox with Quick Draft, Daily, Season, Dynasty and Head-to-head; after the first result, More modes opens Daily Arena, Weekly, Cup, Gauntlet and Run-in. Waiting runs appear as one quiet Continue link and their own sheet. There are no Home card clouds, player-pool figures or streak paragraphs. The scene exactly fills 1280×720, 1440×900 and 390×844 with no white gutter or document scroll; only a long sheet may scroll inside itself.
+- **Home** (`screens/Home.tsx`, `Home.css`, `components/HomeWorld.tsx`): two aligned, detailed day/night football grounds, a smaller gently drifting lockup, one approximate simulation tally and a fixed Play button. The theme switch reuses the existing preference. Menu, formats, advanced modes and waiting runs stay in progressive sheets. The scene exactly fills laptop, phone and landscape viewports without a white gutter or document scroll; only a long sheet scrolls inside itself. The tally's owner-verified starting total is 300,000; subsequent minute increments are explicitly estimated, with ≈ and an explanatory title, never live usage data.
 - **Identity** (`brand.ts`, `components/Logo.tsx`, `shareCard.ts`): a square midnight scoreboard tile, cyan keyline, stepped coral flag, white touchline and block football. The same geometry reaches the favicon, install icons and generated share cards.
-- **Typography**: Pixelify Sans 700 is the display and brand face; Sora remains body copy and figures. This creates character in headings and controls without sacrificing long-form readability.
+- **Typography**: local VT323 regular 400 is the single product face, matching the verified reference. The role scale is enlarged for its smaller cap height, and synthetic bold is disabled.
 - **System** (`styles.css`): midnight navy, off-white, electric cyan and coral; square two-pixel corners, block shadows, static faint scanlines and crisp control states. The palette and display type apply across the entire UI, while pitches, ratings and status colours retain their gameplay meaning.
-- **Motion**: routine feedback is 140–260 ms and uses colour/translate/scale only on controls that benefit. Home's mascot has one slow football-specific idle/tap loop (transform only) and its shadow breathes with it; the loop pauses while a sheet is open. There is no scene parallax, text crawl, travelling CTA shine or generic page cascade. Reduced motion stops the mascot and removes the optional transforms.
+- **Motion**: routine feedback is 140–260 ms. Home's clouds, edge trees, flags, two training players and ball use independent transform layers; night lamps gently dim occasionally through opacity. The wordmark drifts only 4 px and Play stays fixed. Scenery continues behind sheets, pauses from its device-local control or a hidden tab, and becomes a finished still with reduced motion. Pause and reduced motion also stop automatic tally updates. Sheets settle 16 px over 190 ms; mode views and route changes crossfade without a page cascade.
 
-The image files `public/art/touchline-training-ground-v2.png`, `public/art/touchline-stadium-pixel.png` and `public/art/touchline-flag-mascot.png` were generated from original TouchLine briefs and contain no text, real badge, sponsor, player likeness or copied reference art. The current Home uses the training ground and mascot; the older stadium remains only as release history.
+The current WebP environment, tree and generic player assets were generated from original TouchLine briefs and contain no text, real badge, sponsor or player likeness. [HOME_ART.md](HOME_ART.md) records the briefs and compressed asset paths. Earlier generated PNGs remain as release history and are no longer rendered by Home.
 
 ## November 2026 Matchday Ledger foundation
 
@@ -61,7 +61,7 @@ The current Floodlight Scorebox section supersedes this foundation where colour,
 
 **The name is TouchLine**: one word, capital T and capital L, in prose, metadata and accessible names (`APP_NAME` in `brand.ts`). Never "Touch Line". The visual wordmark uses CSS uppercase stadium-signage styling while its real text remains `TouchLine`. Lower-case `touchline` stays where it is a slug: the npm package, repository, `localStorage` keys (`touchline-save-v1`), download names and service-worker cache. Engine strings are unchanged: `shareText` keeps its `'Touchline'` default, and the UI passes `APP_NAME`.
 
-**Current identity (November 2026).** The mark is a midnight pixel-scoreboard tile (`#081427`) with a cyan inner keyline, a stepped coral corner flag, a white touchline and one block football. It is constructed from hard-edged rectangles and one stepped path, reads at 16 px and works as an app icon. The wordmark is real text in Pixelify Sans 700, visually uppercase and deliberately spaced; `LINE` takes cyan. Sora remains the reading face. The full lockup is present immediately; on a fine pointer the tile may lift 1 px and its pressed state settles 1 px, both removed under reduced motion. The same mark and wordmark appear in the top bar, loader, favicon, installed-app icons and generated share cards.
+**Current identity (November 2026).** The mark is a midnight tile (`#081427`) with a cyan keyline, stepped coral flag, cream touchline and black-and-white pixel football. It reads at 16 px and is shared by the favicon, install icons and canvas cards. The wordmark is real VT323 400 text, uppercase and lightly spaced. Home has a smaller lockup (48–72 px on desktop, 40–50 px on phone) with a 4 px drift; its action target stays fixed. The favicon links carry a version query to replace the old tab icon. The canonical accessible name remains TouchLine.
 
 Current rules: keep the midnight tile, cyan wire and coral pennant fixed; preserve at least one quarter-mark clear space; never add a crest, shield, glow, gradient, extra football or looping animation to the mark. The Home mascot is a separate decorative world-building character and never replaces the product mark. Keep `TouchLine` as the underlying real text even when styled in capitals. `LogoMark` is decorative beside the wordmark and named when it stands alone. After changing `MARK`, run `node scripts/brand/icons.mjs`; `PLAYWRIGHT_MODULE` and `PLAYWRIGHT_EXECUTABLE` are supported when using the managed Playwright package and an installed Chromium browser.
 
@@ -280,26 +280,25 @@ A new colour pair is only added after it is checked against both themes.
 
 ## 4. Typography
 
-Two complementary families ship from one Google Fonts stylesheet. **Pixelify Sans** (400–700, SIL Open Font License) is `--font-brand` and `--font-display` for the wordmark, headings, navigation and action labels. **Sora** (400, 600, 700, 800, SIL Open Font License) is `--font-body` for reading, dense data and figures. The fallbacks are `'Segoe UI', system-ui, -apple-system, Roboto, sans-serif`. Figures (minutes, ratings, scores, stats, the match clock) remain Sora: `--mono` names `--font-body`, and every rule that sets it turns on tabular figures. `--code` keeps a true monospace for seed fields, room codes, links and share text (`.input.mono`, `pre.mono`, `.chip.mono`, `.btn.mono`, `kbd`). Share cards wait up to 2 seconds for both faces before drawing; `public/sw.js` caches the Google Fonts stylesheet and files cache-first, so the type survives offline after one visit.
+**VT323** regular 400 (SIL Open Font License) is `--font-brand`, `--font-display` and `--font-body`. It is the actual face used by the owner's reference site, verified from computed browser styles. Latin, Latin Extended and Vietnamese subsets ship locally in `public/fonts/` via `fonts.css`, with the licence beside them. `index.html` preloads Latin; the service worker precaches all subsets and the world art. Fallbacks are `ui-monospace, monospace`. `font-synthesis: none` prevents false bold pixels. Figures keep `tabular-nums`; `--code` remains a system monospace for typed/copied codes. Canvas cards explicitly use regular 400 and wait up to two seconds for the local font.
 
 | Token | Size | Phone | Face | Use |
 |---|---|---|---|---|
-| `--fs-hero` | 72 px | 44 px | display 700 | The Home masthead's upper bound |
-| `--fs-h1` | 36 px | 34 px | display 700 | Page title, one per screen (`h1`) |
-| `--fs-h2` | 24 px | 22 px | display 700 | Section and modal titles, club names (`h2`) |
-| `--fs-h3` | 19 px | 19 px | display 700 | Panel titles (`h3`) |
-| (h4) | 16 px | 16 px | display 700 | A group inside a panel |
-| `--fs-base` | 14 px | 14 px | body 400 | Body text, buttons (600) |
-| `--fs-sm` | 13 px | 13 px | body | Captions (`.help`), field labels (600), secondary lines, small buttons |
-| `--fs-meta` | 12 px | 12 px | body 600 | Chips, list meta lines |
-| `--fs-xs` | 11 px | 11 px | body 600 | Capital labels: `.eyebrow`, `.stat .label`, table headers, position codes |
+| `--fs-hero` | 88 px | 88 px | VT323 400 | Large result type; Home has a smaller scoped lockup |
+| `--fs-h1` | 44 px | 44 px | VT323 400 | Page title, one per screen (`h1`) |
+| `--fs-h2` | 30 px | 30 px | VT323 400 | Section/modal titles and club names |
+| `--fs-h3` | 24 px | 24 px | VT323 400 | Panel titles and mode names |
+| `--fs-base` | 22 px | 22 px | VT323 400 | Body text and buttons |
+| `--fs-sm` | 20 px | 20 px | VT323 400 | Captions, field labels and secondary lines |
+| `--fs-meta` | 18 px | 18 px | VT323 400 | Chips, list metadata and dock labels |
+| `--fs-xs` | 16 px | 16 px | VT323 400 | Small table/position labels |
 
 Rules:
 
 - **Mixed case everywhere.** `h1` to `h4`, panel titles, buttons (the big ones too), the scoreboard and the tier banner are written in sentence case with no `text-transform`. Capitals are only for `.eyebrow`, `.stat .label`, table headers, position and club codes, chips that hold a code, and the scoreboard clock ("HALF TIME").
 - **Tier names** come from the engine in capitals. Display them with `tierName(tier)` ("Title race", "38-0: The perfect season"). The share card already does; the tier banner, the leaderboard and head-to-head move to it in the screen pass.
 - **Numbers that matter are big and bold**: scores, points, prices, ratings, stat values (`.stat .value` is 24 px display, no wrap). Scores, stat values, the record line, the hero stats and table `.num` cells use `font-variant-numeric: tabular-nums` so figures line up. Other display sizes set for the wider face: the big button 17 px, the tier banner 44 px, the record 30 px, the scoreboard 46 px (team codes 19 px), the reel's club 19 px and codes 20 px.
-- Line height 1.45 for body text, 1.1 for titles, 1 for big numbers.
+- Line height 1.25 for body text, 1.1 for titles, 1 for big numbers; secondary descriptions may use 1.4. The larger-screen breakpoint increases this scale too, never shrinks it.
 - On phones, inputs are 16 px so iOS does not zoom (already global).
 - **Sizes are tokens, never fixed px** (rem, so they follow iOS Dynamic Type, and the tokens step up about a fifth from 2200x1200, section 13). A size between the steps is the nearest token plus or minus a pixel or two (`calc(var(--fs-base) + 1px)` for 15 px, `calc(var(--fs-xs) - 1px)` for 10 px), and a display size a multiple of a token (`calc(var(--fs-h1) * 1.25)` for 40 px), so it is the same at 100 % and grows with the scale. Only text drawn to a fixed geometry keeps px, each with a `/* px: ... */` note: the pitch discs, their labels and the mini pitches, the live pitch's caption and REPLAY pill, the reel and the item reels' cards, the rating badge boxes, the form boxes, the game-by-game and monogram badges, the Trophy Room rings, the recap grade disc, the slot sheet's disc, the Upgrader dial, the player card's SVG chart text, the match-day formation and substitution pitches, the 16 px phone inputs (iOS zoom), and the fluid `clamp()` sizes of the goal burst. (2026-10-26: about 270 px sizes moved; `font-size: Npx` without a note is a bug, and since 2026-10-27 `src/ui/__tests__/cssGuards.test.ts` fails CI on one; it also keeps an inline `fontSize` literal in a component to a badge box, so an inline size is a token too: `calc(var(--fs-base) + 2px)`, not `16`.)
 
@@ -729,8 +728,8 @@ The owner asked for "some site animation" and "some nice touchup". Motion here i
 
 | Where | What | How |
 |---|---|---|
-| Route change | The old root fades briefly where View Transitions exist; the new screen is already present and does not rise or cascade | `withViewTransition()` in `motion.ts`, `::view-transition-old(root)` |
-| Home | The programme is static at rest. A format row gets a quiet hover wash and its arrow moves 2 px; the lockup keeps its own established brand motion | `Home.css`, section 2 |
+| Route change | 140 ms old-root fade and 190 ms new-root fade; no rise or cascade | `withViewTransition()` in `motion.ts`, root View Transition styles |
+| Home | Continuous clouds, tree sway, small training players/ball, flags and subtle night lamps; 4 px wordmark drift; pause, hidden-tab and reduced-motion stills | `HomeWorld.css`, `Home.css`; local viewer preference |
 | Buttons, navigation, format rows and tiles | A small press-down or arrow nudge while held/hovered, gated to the relevant pointer capability | `:active` transforms and `(hover: hover) and (pointer: fine)` |
 | The Trophy cabinet | The four drawn trophies rise 8 px onto their shelf one after another (`shelf-in`, `--dur-4`, `--stagger`) | `.shelf-item`, `src/ui/visuals.css` |
 | The theme switch | The sun or moon spins in when it changes; the whole page crossfades between themes | `@keyframes switch-in`, `withViewTransition` |
@@ -768,7 +767,7 @@ The owner's rule is that the app should feel like one coherent football workspac
 
 | Screen | On a desktop |
 |---|---|
-| Home | A full-viewport training ground holds the lockup, one line, one Play action and the mascot; Play lifts a bounded scorebox of ruled format rows, with advanced modes, saves and Menu one choice deeper |
+| Home | Aligned day/night grounds lead; a smaller floating lockup, approximate tally and fixed Play sit above. Play opens a bounded scorebox, with advanced modes, saves and Menu one further choice away |
 | Draft (and the Head-to-head draft) | One desk with three ruled zones: reel and pick, live team sheet, XI pitch and bench. Each bounded list scrolls inside its zone, and the pitch is never taller than the workspace |
 | Dugout | The club strip, next-match call and tabs stay; the active workspace uses separators and internal scrolling rather than an outer card around every subsection. On the Squad tab the list and pitch column scroll separately. Other tab-specific layouts retain the same content and controls |
 | Summary (and the Head-to-head result) | The result box on the left (tier, record, numbers, blocks, chips, actions), everything else in a box beside it (`.summary-body`) that scrolls inside itself |

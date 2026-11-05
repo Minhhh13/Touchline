@@ -78,15 +78,17 @@ describe('the wordmark lockup', () => {
     expect(decorative).toContain('aria-hidden="true"')
   })
 
-  it('uses the pixel display face while keeping Sora for body copy', () => {
+  it('uses the local VT323 face for readable lettering and refreshes the browser tab icon', () => {
     const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
     const html = readFileSync(new URL('../../../index.html', import.meta.url), 'utf8')
-    expect(css).toContain("--font-brand: 'Pixelify Sans'")
-    expect(css).toContain("--font-display: 'Pixelify Sans'")
-    expect(css).toContain("--font-body: 'Sora'")
+    expect(css).toContain("--font-brand: 'VT323'")
+    expect(css).toContain("--font-display: 'VT323'")
+    expect(css).toContain("--font-body: 'VT323'")
     expect(css).toContain('font-family: var(--font-brand);')
     expect(css).toContain('.brand:active .tl-hover .logo-mark')
-    expect(html).toContain('family=Pixelify+Sans:wght@400..700')
+    expect(html).toContain('fonts/vt323-latin.woff2')
+    expect(html).toContain('favicon.svg?v=20261105')
+    expect(html).not.toContain('fonts.googleapis.com')
     expect(renderToStaticMarkup(createElement(Wordmark))).toContain('Touch<span class="wordmark-line">Line</span>')
   })
 })

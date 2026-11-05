@@ -68,9 +68,14 @@ function ratingColour(v: number): string {
 }
 
 /** The site's one family (--font-display and --font-body in styles.css). */
-const DISPLAY = "'Sora', 'Segoe UI', system-ui, sans-serif"
+const DISPLAY = "'VT323', monospace"
 const BODY = DISPLAY
-const BRAND = "'Pixelify Sans', 'Segoe UI', sans-serif"
+const BRAND = DISPLAY
+
+/** VT323 has one weight; avoid the browser inventing bold pixels on the canvas. */
+function cardFont(size: number, _weight = 400, family = DISPLAY): string {
+  return `400 ${size}px ${family}`
+}
 
 /**
  * A canvas draws with whatever is loaded when it draws, so wait for the faces
@@ -78,10 +83,7 @@ const BRAND = "'Pixelify Sans', 'Segoe UI', sans-serif"
  */
 async function cardFontsReady(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return
-  const load = Promise.all([
-    ...[400, 600, 700].map((w) => document.fonts.load(`${w} 40px 'Sora'`)),
-    document.fonts.load("700 40px 'Pixelify Sans'"),
-  ]).then(() => undefined, () => undefined)
+  const load = document.fonts.load("400 40px 'VT323'").then(() => undefined, () => undefined)
   await Promise.race([load, new Promise<void>((done) => setTimeout(done, 2000))])
 }
 
@@ -114,7 +116,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
   // A title (gold) stands in a fan of soft beams, like the summary's celebration
   if (tierColour === C.gold) drawRays(ctx, W / 2, 205 + pill, 300)
 
-  const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
+  const font = cardFont
   if (input.mode) drawPill(ctx, W / 2, 66, input.mode.toUpperCase(), font(20, 700))
   ctx.textAlign = 'center'
   ctx.fillStyle = C.text
@@ -366,7 +368,7 @@ function drawInvite(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
 function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
   const u = h / MARK.grid
   const fontSize = h * 0.76
-  ctx.font = `700 ${fontSize}px ${BRAND}`
+  ctx.font = `400 ${fontSize}px ${BRAND}`
   const [touch, line] = WORDMARK.map((word) => word.toUpperCase())
   const wTouch = ctx.measureText(touch).width
   const wLine = ctx.measureText(line).width
@@ -388,13 +390,14 @@ function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: nu
   ctx.fillRect(14, 10, 4, 42)
   ctx.fillRect(8, 50, 48, 3)
   ctx.fill(new Path2D('M36 34H46V37H50V49H46V53H36V50H32V38H36Z'))
-  ctx.fillStyle = MARK.keyline
+  ctx.fillStyle = MARK.panel
   ctx.fillRect(39, 39, 7, 7)
+  ctx.fill(new Path2D('M36 34H42V37H36ZM46 46H50V49H46ZM32 44H36V50H32Z'))
   ctx.restore()
 
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.font = `700 ${fontSize}px ${BRAND}`
+  ctx.font = `400 ${fontSize}px ${BRAND}`
   const baseline = h / 2 + h * 0.01
   ctx.fillStyle = C.text
   ctx.fillText(touch, h + gap, baseline)
@@ -534,7 +537,7 @@ export async function renderMatchCard(input: MatchCardInput): Promise<string> {
   glow.addColorStop(1, 'rgba(37, 99, 235, 0)')
   ctx.fillStyle = glow
   ctx.fillRect(0, 0, W, H)
-  const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
+  const font = cardFont
   const body = BODY
 
   ctx.textAlign = 'center'
@@ -696,7 +699,7 @@ export function renderManagerCard(input: ManagerCardInput): string {
   ctx.beginPath()
   ctx.arc(W / 2, -220, 700, 0, Math.PI * 2)
   ctx.fill()
-  const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
+  const font = cardFont
   const body = BODY
 
   ctx.textAlign = 'center'

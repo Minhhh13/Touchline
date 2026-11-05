@@ -581,13 +581,14 @@ export function markSvgInner(id: string, o: MarkSvgOptions): string {
   }
   const ink = variant === 'colour' ? '#f5f1df' : variant === 'inverse' ? MARK.tile : 'currentColor'
   const flag = variant === 'mono' ? ink : MARK.red
-  const ballInk = variant === 'colour' ? MARK.keyline : ink
+  const ballInk = variant === 'colour' ? MARK.panel : ink
   const glyph =
     `<path d="M18 12H34V16H42V20H38V24H30V28H18Z" fill="${flag}"/>` +
     `<rect x="14" y="10" width="4" height="42" fill="${ink}"/>` +
     `<rect x="8" y="50" width="48" height="3" fill="${ink}"/>` +
     `<path d="M36 34H46V37H50V49H46V53H36V50H32V38H36Z" fill="${ink}"/>` +
-    `<rect x="39" y="39" width="7" height="7" fill="${ballInk}"/>`
+    `<rect x="39" y="39" width="7" height="7" fill="${ballInk}"/>` +
+    `<path d="M36 34H40V38H36ZM46 37H50V41H46ZM32 46H36V50H32Z" fill="${ballInk}"/>`
   const s = o.scale ?? 1
   const t = r2((g / 2) * (1 - s))
   return `${tile}${s === 1 ? glyph : `<g transform="translate(${t} ${t}) scale(${s})">${glyph}</g>`}`

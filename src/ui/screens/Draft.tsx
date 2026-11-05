@@ -166,15 +166,7 @@ export function Draft() {
     speedrunPick()
   }, [clock, speedrun, paused, speedrunPick])
 
-  // On a phone the columns stack, so the landed squad would sit under the wheel: bring it on screen when it is revealed
-  const squadRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!revealed || typeof window === 'undefined' || !window.matchMedia?.('(max-width: 720px)').matches) return
-    // The club's head at the top of the screen (under the top bar, `scroll-margin-top`), so the best players are in view;
-    // a frame later, so the focus moved to the club's name below (an instant scroll of its own) does not cut it short
-    const frame = requestAnimationFrame(() => squadRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' }))
-    return () => cancelAnimationFrame(frame)
-  }, [revealed])
+  // A landing never takes a phone away from the reel. The user controls the page's scroll position.
   // "Where does he play?" sits above the squad list: a player tapped further down brings it into view, so the slot
   // choice is never off screen (on a phone the page scrolls, on a desktop the squad box)
   const slotChoicesRef = useRef<HTMLDivElement>(null)
@@ -188,7 +180,7 @@ export function Draft() {
   }, [selectedPlayer])
   // The landing moves the focus to the club's name (the Spin button under it is disabled), so the squad is the next Tab
   const clubHeadRef = useRef<HTMLHeadingElement>(null)
-  useFocusOnLanding(revealed, clubHeadRef)
+  useFocusOnLanding(revealed, clubHeadRef, { preventScroll: true })
   // After a pick the row that was pressed has gone: the focus goes to the next thing to press, Spin, or the finish button
   // once the squad is complete
   const spinRef = useRef<HTMLButtonElement>(null)
@@ -415,7 +407,6 @@ export function Draft() {
             ) : (
               <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} scope={isDynastySummer ? `${game.id}:${game.year}` : game.id} onSettled={() => setSettled(d.current)} />
             )}
-            {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
             {ghost && challenge && revealed && (
               <div className="chip info ghost-chip" data-testid="ghost-chip" title={t('ghostTitle', { name: challenge.name, n: d.spins })}>
                 <Ghost size={14} aria-hidden="true" />
@@ -486,6 +477,8 @@ export function Draft() {
                 </div>
               </>
             )}
+            {/* Keep the reel and its action together on phones; the odds remain directly below the controls. */}
+            {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
             {complete && (
               <button ref={finishRef} className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined} data-testid="finish-draft-go">
                 {finishing.busy ? t('gettingReady') : finishDraftText(game)}
@@ -573,7 +566,7 @@ export function Draft() {
 
         {/* Squad list column */}
         {/* The power-ups sit over the landed squad, so the reel's column stays one box high on a desktop */}
-        <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
+        <div className="panel col draft-squad" data-testid="draft-squad">
           <LockerBar game={game} busy={spinning} />
           {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hideSquad} busy={spinning} onRerolled={() => setSelectedPlayer(null)} onRolling={setDialRolling} />}
           {!powerUpsOn(d) && upgraderOn(d.rules) && d.upgradeRng && (

@@ -94,7 +94,7 @@ export function resultsLabel(results: ReadonlyArray<'W' | 'D' | 'L'>, lead = t('
  * result's first action, so a keyboard or VoiceOver user lands where the choice is. Leaves the focus alone when it is
  * still on something (a viewer who tabbed elsewhere while it ran).
  */
-export function useFocusOnLanding(landed: boolean, target: RefObject<HTMLElement | null>): void {
+export function useFocusOnLanding(landed: boolean, target: RefObject<HTMLElement | null>, { preventScroll = false }: FocusOptions = {}): void {
   useEffect(() => {
     if (!landed || typeof document === 'undefined') return
     let live = true
@@ -106,10 +106,10 @@ export function useFocusOnLanding(landed: boolean, target: RefObject<HTMLElement
       // nor a place the focus rescue put it after its control went (focusRescue.ts)
       const active = document.activeElement as (HTMLElement & { disabled?: boolean }) | null
       if (!focusHasFallen(active, document.body, rescuedElement())) return
-      target.current?.focus()
+      target.current?.focus({ preventScroll })
     })
     return () => {
       live = false
     }
-  }, [landed, target])
+  }, [landed, target, preventScroll])
 }

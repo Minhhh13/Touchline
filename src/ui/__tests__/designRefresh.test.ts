@@ -77,11 +77,9 @@ describe('the Matchday Ledger UI contract', () => {
     expect(timings).toEqual(Object.values(DURATION))
   })
 
-  it('uses one full-screen football world with progressive mode disclosure and one authored mascot loop', () => {
-    expect(homeCss).toContain("url('/art/touchline-training-ground-v2.png')")
+  it('keeps the scene full-screen and the motion optional without a page cascade', () => {
     expect(homeCss).toContain('min-height: 100dvh')
     expect(homeCss).toContain(".home-scene:not([data-panel='closed']) .home-panel")
-    expect(homeCss).toContain('animation: mascot-touch 3.6s')
     expect(homeCss).toContain('@media (prefers-reduced-motion: reduce)')
     expect(draftCss).toContain('border-block: var(--border-strong)')
     expect(css).not.toContain('animation: page-in')

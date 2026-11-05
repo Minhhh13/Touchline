@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, Clock, Dices, Globe, Menu, Search, Shield, Sparkles, Swords, Timer, Trophy, X, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, Clock, Dices, Globe, Menu, Moon, Pause, Play, Search, Shield, Sparkles, Sun, Swords, Timer, Trophy, X, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { resumeStatus } from '@game/logic/resume'
@@ -11,6 +11,10 @@ import { startingTeam, startingTeamName, teamShortName } from '../teamName'
 import { ConflictCards } from '../online/ConflictCard'
 import { TeamBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
+import { HomeWorld } from '../components/HomeWorld'
+import { SimulationTicker } from '../components/SimulationTicker'
+import { homeMotionPref, usePref } from '../viewerPrefs'
+import { toggledTheme, useResolvedTheme } from '../theme'
 import { withViewTransition } from '../motion'
 import { translator } from '../i18n'
 import { home } from '../i18n/en/home'
@@ -59,7 +63,17 @@ function NextUpChip() {
 type HomePanel = 'closed' | 'play' | 'challenges' | 'resume' | 'menu'
 
 export function Home() {
-  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStorePick('universe', 'game', 'go', 'abandonGame', 'profile', 'parked', 'resumeGame', 'discardParked', 'loadedLeagues', 'startGame', 'openArenaSetup')
+  const [sceneMotion, setSceneMotion] = usePref(homeMotionPref)
+  const [visible, setVisible] = useState(true)
+  useEffect(() => {
+    const update = () => setVisible(!document.hidden)
+    update()
+    document.addEventListener('visibilitychange', update)
+    return () => document.removeEventListener('visibilitychange', update)
+  }, [])
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, setTheme, openArenaSetup: openArenaNow } = useStorePick('universe', 'game', 'go', 'abandonGame', 'profile', 'parked', 'resumeGame', 'discardParked', 'loadedLeagues', 'startGame', 'setTheme', 'openArenaSetup')
+  const theme = useResolvedTheme(profile.theme)
+  const scenePaused = !sceneMotion || !visible
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
   const openArenaSetup = (format: 'cup' | 'gauntlet') => withViewTransition(() => openArenaNow(format))
@@ -167,16 +181,25 @@ export function Home() {
   }, [panel])
   const runCount = (stripGame ? 1 : 0) + Object.keys(parked).length
   return (
-    <div className="page home home-scene" data-panel={panel}>
+    <div className="page home home-scene" data-panel={panel} data-motion-paused={scenePaused}>
+      <HomeWorld paused={scenePaused} />
       <div className="home-landing" inert={panel !== 'closed'}>
-        <button type="button" className="home-menu-trigger" onClick={() => openPanel('menu')} aria-label={t('menu')} data-testid="home-menu">
-          <Menu size={20} aria-hidden="true" />
-          <span>{t('menu')}</span>
-        </button>
+        <div className="home-tools">
+          <button type="button" className="home-theme-toggle" onClick={() => withViewTransition(() => setTheme(toggledTheme(theme)))} aria-label={t(theme === 'dark' ? 'dayPitch' : 'nightPitch')} title={t(theme === 'dark' ? 'dayPitch' : 'nightPitch')} data-testid="home-theme-toggle">
+            {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
+          <button type="button" className="home-motion-toggle" onClick={() => setSceneMotion(!sceneMotion)} aria-label={t(sceneMotion ? 'pauseScenery' : 'resumeScenery')} title={t(sceneMotion ? 'pauseScenery' : 'resumeScenery')} aria-pressed={!sceneMotion} data-testid="home-motion-toggle">
+            {sceneMotion ? <Pause size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
+          </button>
+          <button type="button" className="home-menu-trigger" onClick={() => openPanel('menu')} aria-label={t('menu')} data-testid="home-menu">
+            <Menu size={20} aria-hidden="true" />
+            <span>{t('menu')}</span>
+          </button>
+        </div>
 
-        <main className="home-hero" aria-labelledby="home-title">
-          <h1 id="home-title" className="home-lockup"><Lockup height={96} /></h1>
-          <p>{t('tagline')}</p>
+        <div className="home-hero" aria-labelledby="home-title">
+          <h1 id="home-title" className="home-lockup"><Lockup height={64} /></h1>
+          <SimulationTicker paused={scenePaused} />
           <div className="home-actions">
             <button ref={playButton} type="button" className="home-play" onClick={() => openPanel('play')} aria-expanded={panel === 'play'} aria-controls="home-panel" data-testid="home-play">
               {t('play')}
@@ -188,10 +211,6 @@ export function Home() {
               </button>
             )}
           </div>
-        </main>
-
-        <div className="home-mascot-stage" aria-hidden="true">
-          <img src="/art/touchline-flag-mascot.png" alt="" />
         </div>
         <footer className="home-minimal-footer">{t('footer')}</footer>
       </div>
