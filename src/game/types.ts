@@ -986,6 +986,8 @@ export interface Cabinet {
   continental: number
   doubles: number
   trebles: number
+  /** Country/league attribution of the existing trophy totals. Older unattributed wins stay in the aggregate. */
+  leagueShelves?: Record<string, LeagueTrophies>
   /** Perfect seasons (every league match won). */
   perfect: number
   /** Unbeaten champions, perfect seasons included. */
@@ -1027,6 +1029,14 @@ export interface Cabinet {
    * (absent on cabinets before them); read through `featsOf`, backfilled once from the leaderboard (`featsFromBoard`).
    */
   feats?: CabinetFeats
+}
+
+export interface LeagueTrophies {
+  league: number
+  cup: number
+  continental: number
+  doubles: number
+  trebles: number
 }
 
 /** Counts the r8 milestones read; every list holds distinct keys, so a replay never counts twice. */

@@ -1,0 +1,55 @@
+/* Alternative Dark colours; Light keeps its existing palette. Slate lives in styles.css. */
+:root:not([data-theme='light'])[data-palette='midnight'] {
+  --bg: #111b29;
+  --bg-2: #152233;
+  --bg-3: #27384c;
+  --panel: #1a293b;
+  --panel-2: #223249;
+  --raised: #2c4059;
+  --line: #40546e;
+  --line-2: #7f9dbb;
+  --field-bg: #152233;
+  --field-border: #7f9dbb;
+  --float-bg: #223249;
+  --float-line: #7f9dbb;
+  --text-2: #c4d2df;
+  --text-3: #a0b5c9;
+  --primary: #aecce7;
+  --primary-hover: #c5ddf1;
+  --primary-active: #91b5d4;
+  --on-primary: #152436;
+  --accent: #e3b2bd;
+  --focus: #aecce7;
+  --brand-field: #152233;
+  --brand-field-2: #111b29;
+  --brand-line: #7f9dbb;
+  --brand-accent: #e3b2bd;
+  --on-brand-2: #c4d2df;
+}
+:root:not([data-theme='light'])[data-palette='warm'] {
+  --bg: #211e1b;
+  --bg-2: #27231f;
+  --bg-3: #39322a;
+  --panel: #2c2722;
+  --panel-2: #342e27;
+  --raised: #42392f;
+  --line: #574b3e;
+  --line-2: #a29177;
+  --field-bg: #27231f;
+  --field-border: #a29177;
+  --float-bg: #342e27;
+  --float-line: #a29177;
+  --text-2: #d6ccbc;
+  --text-3: #bcaf99;
+  --primary: #d9c39b;
+  --primary-hover: #ead8b7;
+  --primary-active: #c3aa7e;
+  --on-primary: #2b2318;
+  --accent: #e1b0a4;
+  --focus: #d9c39b;
+  --brand-field: #27231f;
+  --brand-field-2: #211e1b;
+  --brand-line: #a29177;
+  --brand-accent: #e1b0a4;
+  --on-brand-2: #d6ccbc;
+}

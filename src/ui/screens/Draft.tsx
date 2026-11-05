@@ -758,10 +758,12 @@ export function Draft() {
           )}
           {benchBox && boxes.on('bench') && (
             <div className="panel" data-testid="draft-bench">
-              <div className="panel-head">
+              <details className="draft-bench-details">
+              <summary className="panel-head">
                 <h3>{t('bench')}</h3>
                 <span className="chip">{places ? `${d.bench.length}/${places}` : d.bench.length}</span>
-              </div>
+                <ChevronDown size={14} aria-hidden="true" />
+              </summary>
               <div className="plist lined">
                 {d.bench.map((id) => {
                   const p = get(id)
@@ -776,6 +778,7 @@ export function Draft() {
                       t('benchFollows')
                     )}</div>}
               </div>
+              </details>
             </div>
           )}
         </div>

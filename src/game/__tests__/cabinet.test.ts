@@ -236,6 +236,7 @@ describe('the store', () => {
     useStore.getState().recordResult()
     const p = useStore.getState().profile
     expect(p.cabinet!.league).toBe(1)
+    expect(p.cabinet!.leagueShelves?.england?.league).toBe(1)
     expect(p.cabinet!.byMode).toEqual({ quick: 1 })
     expect(p.cabinet!.hostsTitled).toEqual(['burnley'])
     expect(p.trophies).toEqual({ league: 1, cup: 0, continental: 0, doubles: 0, trebles: 0 })

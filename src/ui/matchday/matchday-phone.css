@@ -62,7 +62,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   scroll-snap-type: x proximity;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .matchday .md-tabs button {
   flex: 0 0 auto;

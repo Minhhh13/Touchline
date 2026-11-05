@@ -108,7 +108,7 @@
   animation: home-wordmark-drift var(--dur-wordmark-drift) var(--ease-in-out) infinite;
 }
 .home-lockup .tl-lockup {
-  --h: clamp(44px, 5vw, 64px);
+  --h: clamp(50px, 5vw, 72px);
   color: #071526;
 }
 .home-lockup .tl-name {
@@ -124,7 +124,7 @@
   color: #ff426d;
 }
 .home-hero > p {
-  margin: var(--space-4) 0 0;
+  margin: var(--space-3) 0 0;
   color: rgba(7, 21, 38, 0.78);
   font-family: var(--font-body);
   font-size: var(--fs-base);
@@ -165,8 +165,8 @@
   display: grid;
   justify-items: center;
   gap: var(--space-2);
-  width: min(100%, 320px);
-  margin-top: var(--space-5);
+  width: min(100%, 232px);
+  margin-top: var(--space-4);
 }
 .home-play {
   display: inline-flex;
@@ -174,14 +174,14 @@
   justify-content: center;
   gap: var(--space-3);
   width: 100%;
-  min-height: 56px;
+  min-height: 48px;
   padding: 0 var(--space-5);
   border: 2px solid #071526;
   border-radius: 2px;
   background: #071526;
   color: #f5f1df;
   font-family: var(--font-brand);
-  font-size: calc(var(--fs-h2) * 1.2);
+  font-size: var(--fs-h2);
   font-weight: 400;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -484,11 +484,11 @@
     margin-top: var(--space-3);
   }
   .home-actions {
-    width: min(100%, 286px);
+    width: min(100%, 224px);
     margin-top: var(--space-4);
   }
   .home-play {
-    min-height: 54px;
+    min-height: 48px;
   }
   .home-minimal-footer {
     bottom: calc(var(--safe-bottom) + var(--space-3));

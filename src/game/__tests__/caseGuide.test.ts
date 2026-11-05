@@ -22,4 +22,13 @@ describe("the case screen's guide", () => {
     for (const r of caseGuide({})) if (r.item !== 'icon') expect(r.held).toBe(0)
     expect(caseGuide({ inventory: { peek: -3, swap: 1.5 } as never }).filter((r) => r.held).length).toBe(0)
   })
+
+  it('conceals only the newly saved reward until its reveal, without changing the inventory', () => {
+    const profile = { inventory: { peek: 4, swap: 2 } }
+    expect(caseGuide(profile, 'peek').find((r) => r.item === 'peek')?.held).toBe(3)
+    expect(caseGuide(profile, 'peek').find((r) => r.item === 'swap')?.held).toBe(2)
+    expect(caseGuide(profile).find((r) => r.item === 'peek')?.held).toBe(4)
+    expect(profile.inventory).toEqual({ peek: 4, swap: 2 })
+    expect(caseGuide({}, 'peek').find((r) => r.item === 'peek')?.held).toBe(0)
+  })
 })

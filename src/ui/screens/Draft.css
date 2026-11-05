@@ -5,7 +5,7 @@
 }
 .draft-page .screen-head {
   padding-bottom: var(--space-3);
-  border-bottom: var(--border-strong);
+  border-bottom: 0;
 }
 .draft-page .screen-meta {
   gap: 4px var(--space-3);
@@ -207,7 +207,7 @@
   }
   .draft-page .grid.draft {
     gap: 0;
-    border-block: var(--border-strong);
+    border-top: var(--border);
   }
   .draft-page .grid.draft > .col:first-child {
     padding: var(--space-4) var(--space-4) var(--space-4) 0;
@@ -224,7 +224,7 @@
     overflow: hidden;
   }
   .draft-page .draft-pitch > .panel {
-    padding-inline: 0;
+    padding: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -253,7 +253,7 @@
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
-    min-height: 0;
+    min-height: 200px;
     container-type: size;
   }
   .draft-page .draft-pitch .panel-head {
@@ -266,11 +266,26 @@
     margin: 0 auto;
   }
   .draft-page .draft-pitch > .panel + .panel {
-    flex: none;
+    flex: 0 1 auto;
     padding-block: var(--space-2) 0;
     gap: var(--space-2);
   }
+  /* A full seven-player bench must never take the formation's space. */
+  .draft-page .draft-pitch:has(.pitch-wrap) > [data-testid='draft-bench'] {
+    display: flex;
+    flex-direction: column;
+    min-height: 44px;
+    max-height: 32%;
+    overflow-y: auto;
+  }
+  .draft-page .draft-pitch:has(.pitch-wrap) .draft-bench-details > .plist {
+    min-height: 0;
+  }
 }
+.draft-bench-details > summary { list-style: none; cursor: pointer; min-height: 36px; }
+.draft-bench-details > summary::-webkit-details-marker { display: none; }
+.draft-bench-details > summary > .chip { margin-left: auto; }
+.draft-bench-details[open] > summary > svg { transform: rotate(180deg); }
 
 @media (max-width: 720px) {
   .draft-page .draft-squad > .draft-waiting {

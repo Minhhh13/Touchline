@@ -140,55 +140,68 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
     : []
   return (
     <div className="panel col squad-complete" data-testid="squad-complete">
-      <div className="sc-head">
-        <span className="sc-kicker">{t('beforeBall')}</span>
-        <h2>{t('punditsPrediction')}</h2>
-      </div>
-      <div className="sc-grid">
-        <div className="col" style={{ gap: 10 }}>
-          <div className="sc-big">
-            <div className="sc-big-box" data-testid="odds-finish">
-              <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? t('ordinal', { n: odds.projectedFinish }) : '…'}</span>
-              <span className="tally-label">{t('projectedFinish')}</span>
-            </div>
-            <div className="sc-big-box" data-testid="odds-points">
-              <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? odds.expectedPoints : '…'}</span>
-              <span className="tally-label">{t('expectedPoints')}</span>
-            </div>
-          </div>
-          {odds ? (
-            <div className="sc-chances" data-testid="odds-chances">
-              {chances.map((c) => (
-                <div key={c.key} className={`sc-chance ${c.bad ? 'bad' : ''}`} data-testid={`odds-${c.key}`}>
-                  <span>{c.label}</span>
-                  <div className="bar">
-                    <span style={{ width: `${Math.round(c.value * 100)}%` }} />
-                  </div>
-                  <b>{chanceLabel(c.value)}</b>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="sc-working small muted" data-testid="odds-working" aria-live="polite">
-              {t('playingOut', { n: trialSeasons(), pct: Math.round(progress * 100) })}
-            </div>
-          )}
+      <div className="sc-body">
+        <div className="sc-head">
+          <h2>{t('punditsPrediction')}</h2>
         </div>
-        <div className="sc-units" data-testid="squad-breakdown">
-          {units.map((x) => (
-            <div key={x.key} className={`sc-unit ${x.key === 'overall' ? 'overall' : ''}`} data-testid={`unit-${x.key}`}>
-              <span>{x.label}</span>
-              <div className={`bar ${x.key === 'overall' ? 'thick' : ''}`}>
-                <span style={{ width: `${Math.round(barFill(x.value) * 100)}%` }} />
+        <div className="sc-grid">
+          <div className="col" style={{ gap: 10 }}>
+            <div className="sc-big">
+              <div className="sc-big-box" data-testid="odds-finish">
+                <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? t('ordinal', { n: odds.projectedFinish }) : '…'}</span>
+                <span className="tally-label">{t('projectedFinish')}</span>
               </div>
-              <b>{hideRatings ? '' : Math.round(x.value)}</b>
+              <div className="sc-big-box" data-testid="odds-points">
+                <span key={odds ? 'odds' : 'wait'} className={`sc-big-num${odds ? ' ready' : ''}`}>{odds ? odds.expectedPoints : '…'}</span>
+                <span className="tally-label">{t('expectedPoints')}</span>
+              </div>
             </div>
-          ))}
+            {odds ? (
+              <div className="sc-chances" data-testid="odds-chances">
+                {chances.slice(0, 4).map((c) => (
+                  <div key={c.key} className={`sc-chance ${c.bad ? 'bad' : ''}`} data-testid={`odds-${c.key}`}>
+                    <span>{c.label}</span>
+                    <div className="bar">
+                      <span style={{ width: `${Math.round(c.value * 100)}%` }} />
+                    </div>
+                    <b>{chanceLabel(c.value)}</b>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="sc-working small muted" data-testid="odds-working" aria-live="polite">
+                {t('playingOut', { n: trialSeasons(), pct: Math.round(progress * 100) })}
+              </div>
+            )}
+          </div>
         </div>
+        <details className="sc-details">
+          <summary>{t('predictionDetails')}</summary>
+          <div className="sc-chances">
+            {chances.slice(4).map((c) => (
+              <div key={c.key} className={`sc-chance ${c.bad ? 'bad' : ''}`} data-testid={`odds-${c.key}`}>
+                <span>{c.label}</span>
+                <div className="bar"><span style={{ width: `${Math.round(c.value * 100)}%` }} /></div>
+                <b>{chanceLabel(c.value)}</b>
+              </div>
+            ))}
+          </div>
+          <div className="sc-units" data-testid="squad-breakdown">
+            {units.map((x) => (
+              <div key={x.key} className={`sc-unit ${x.key === 'overall' ? 'overall' : ''}`} data-testid={`unit-${x.key}`}>
+                <span>{x.label}</span>
+                <div className={`bar ${x.key === 'overall' ? 'thick' : ''}`}>
+                  <span style={{ width: `${Math.round(barFill(x.value) * 100)}%` }} />
+                </div>
+                <b>{hideRatings ? '' : Math.round(x.value)}</b>
+              </div>
+            ))}
+          </div>
+        <p className="help" style={{ margin: 0 }}>
+          {t('punditsCall', { n: trialSeasons(), against: superLeague ? t('againstSuper', { line: logicLine(SUPER_LEAGUE_LINE).toLowerCase() }) : game.settings.mode === 'quick' ? t('againstThis') : t('againstSeason', { season: seasonLabel(game.settings.leagueSeason) }) })}
+        </p>
+        </details>
       </div>
-      <p className="help" style={{ margin: 0 }}>
-        {t('punditsCall', { n: trialSeasons(), against: superLeague ? t('againstSuper', { line: logicLine(SUPER_LEAGUE_LINE).toLowerCase() }) : game.settings.mode === 'quick' ? t('againstThis') : t('againstSeason', { season: seasonLabel(game.settings.leagueSeason) }) })}
-      </p>
       {children}
     </div>
   )

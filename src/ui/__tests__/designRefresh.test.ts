@@ -11,9 +11,11 @@ const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
 const dark = css.slice(css.indexOf(':root {'), css.indexOf(":root[data-theme='light']"))
 const light = css.slice(css.indexOf(":root[data-theme='light']"), css.indexOf('/* ------------------------------------------------------------------ reset'))
 const palette = (block: string) => Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[\da-f]{6});/gi)].map((m) => [m[1], m[2]]))
+const variants = readFileSync(new URL('../palette.css', import.meta.url), 'utf8')
+const themes: Array<[string, string]> = [['Slate', dark], ['Light', light], ...[...variants.matchAll(/\[data-palette='([^']+)'\]\s*\{([^}]+)\}/g)].map((m): [string, string] => [m[1], dark + m[2]])]
 
 describe('the refreshed shared palette remains readable', () => {
-  for (const [name, block] of [['dark', dark], ['light', light]]) {
+  for (const [name, block] of themes) {
     it(`${name}: body, secondary and muted text meet AA on each main surface`, () => {
       const colours = palette(block)
       for (const text of ['text', 'text-2', 'text-3']) {
@@ -27,7 +29,7 @@ describe('the refreshed shared palette remains readable', () => {
         }
       }
     })
-    it(`${name}: blue controls and input boundaries stay legible`, () => {
+    it(`${name}: controls and input boundaries stay legible`, () => {
       const colours = palette(block)
       for (const fill of ['primary', 'primary-hover', 'primary-active']) {
         expect(contrastRatio(colours['on-primary'], colours[fill]), fill).toBeGreaterThanOrEqual(4.5)
@@ -81,7 +83,8 @@ describe('the Matchday Ledger UI contract', () => {
     expect(homeCss).toContain('min-height: 100dvh')
     expect(homeCss).toContain(".home-scene:not([data-panel='closed']) .home-panel")
     expect(homeCss).toContain('@media (prefers-reduced-motion: reduce)')
-    expect(draftCss).toContain('border-block: var(--border-strong)')
+    expect(draftCss).toContain('border-top: var(--border)')
+    expect(draftCss).not.toContain('border-block: var(--border-strong)')
     expect(css).not.toContain('animation: page-in')
     expect(css).not.toContain('@keyframes page-in')
   })

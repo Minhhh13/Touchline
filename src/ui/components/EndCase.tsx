@@ -44,6 +44,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   // The case's reel, kept per device once it lands: a reload after the landing shows the reel landed (`reelLanded.ts`)
   const mark = itemReelMark(game.id, 'end-case', c.drop.kind === 'icon' ? c.drop.id : c.drop.powerUp)
   const [seen] = useState(() => !!c.opened && landedSeen(mark))
+  const [openedBeforeView] = useState(!!c.opened)
   // 0: not opened in this view; 1: the reel is running or has landed
   const [run, setRun] = useState(seen ? 1 : 0)
   const [landed, setLanded] = useState(seen)
@@ -51,7 +52,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   useEffect(armAudio, [])
   const deal = useMemo<ItemDeal | null>(() => (run ? dealItems(caseDropCard(c.drop), caseFillers(), Math.random) : null), [run, c.drop])
   // Opened before this view (a reload): the result shows at once
-  const revealed = (c.opened && run === 0) || landed
+  const revealed = (openedBeforeView && run === 0) || landed
   const spinning = run > 0 && !landed
   useEffect(() => {
     if (spinning && skipReels) setSkip((n) => n + 1)
@@ -68,7 +69,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   // The Icon is still on offer; the starter making way is in the squad
   const hide = ratingHidden(game.settings.rules, 'offer')
   const card = caseDropCard(c.drop)
-  const guide = caseGuide(profile)
+  // The reward is already saved safely by openCase; keep its inventory increment private until the reel lands.
+  const guide = caseGuide(profile, c.opened && !revealed && c.drop.kind === 'powerup' ? c.drop.powerUp : undefined)
   // Landed: the focus goes to the result's first action (the Skip that held it is gone)
   const action = useRef<HTMLButtonElement>(null)
   useFocusOnLanding(landed, action)
