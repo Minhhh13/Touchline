@@ -148,7 +148,7 @@ export function SeasonPlayback() {
     { track: benchShown ? 'minmax(0, 1.25fr)' : 'minmax(0, 1fr)', ids: janOpen ? [] : ['chart', 'bench'] },
   ])
   return (
-    <div className={`page fit pb-page ${race ? `racing ${race.kind}` : ''}`} data-testid="season-playback">
+    <div className={`page fit pb-page playback-comfort ${race ? `racing ${race.kind}` : ''}`} data-testid="season-playback">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{t(j && pb.done ? 'january' : 'theSeason')}</h1>

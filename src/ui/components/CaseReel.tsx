@@ -23,7 +23,7 @@ const t = translator(draft)
 /**
  * The timing lives in src/ui/reelCurve.ts: the season drum (DRUM_MS), the strip's start (SEASON_MS), its
  * slide with the overshoot and ease back (SPIN_MS, on STRIP_CURVE) and the reveal (SETTLE_MS, after a short
- * hold at rest). Quick spin and every re-spin run QUICK_TIMING. Change the curve and the measurements in
+ * hold at rest). Only the viewer's explicit Quick spin preference uses QUICK_TIMING. Change the curve and the measurements in
  * docs/GAME_DESIGN.md together.
  */
 export { DRUM_MS, SEASON_MS, SPIN_MS, SETTLE_MS } from '../reelCurve'
@@ -121,16 +121,10 @@ export function CaseReel(props: CaseReelProps) {
   const announce = useCallback((text: string) => setSaid((s) => (s.run === runKey && s.text === text ? s : { run: runKey, text })), [runKey])
   // The Spin click (or key) is the gesture that creates the audio context, so listen before it lands
   useEffect(armAudio, [])
-  // A re-spin replaces one drawn club-season with another, with no idle reel between: it runs quick, as does every run with Quick spin on
+  // Every draw gets the same full deceleration. Only the viewer's explicit Quick spin choice shortens it.
   const [quickSpin] = usePref(quickSpinPref)
   const [autoSkip] = usePref(skipReelsPref)
-  const lastRun = useRef('')
-  const respin = useRef({ run: '', quick: false })
-  if (runKey && respin.current.run !== runKey) respin.current = { run: runKey, quick: lastRun.current !== '' }
-  useEffect(() => {
-    lastRun.current = runKey
-  }, [runKey])
-  const timing = quickSpin || (runKey && respin.current.quick) ? QUICK_TIMING : FULL_TIMING
+  const timing = quickSpin ? QUICK_TIMING : FULL_TIMING
   return (
     <div className="wheel-wrap reel-wrap" data-testid="case-reel">
       <SoundToggle />

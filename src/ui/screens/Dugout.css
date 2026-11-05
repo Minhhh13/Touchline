@@ -23,7 +23,7 @@
 .dugout-page .tabs-row > .tabs {
   flex-wrap: nowrap;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   scrollbar-color: var(--line-2) transparent;
 }
 .dugout-page .tabs-row > .tabs > button {

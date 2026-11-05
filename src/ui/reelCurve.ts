@@ -22,7 +22,7 @@ export interface ReelTiming {
 
 /** The full case opening: about 3.8 s from the click to the reveal. */
 export const FULL_TIMING: ReelTiming = { drum: 560, season: 650, spin: 3000, bounce: 160, hold: 150 }
-/** Quick spin (the viewer's setting) and every re-spin: about 1.6 s to the reveal. */
+/** Quick spin (only the viewer's explicit setting): about 1.6 s to the reveal. */
 export const QUICK_TIMING: ReelTiming = { drum: 300, season: 340, spin: 1200, bounce: 100, hold: 80 }
 
 export const DRUM_MS = FULL_TIMING.drum

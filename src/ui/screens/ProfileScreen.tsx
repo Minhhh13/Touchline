@@ -19,6 +19,7 @@ import { arenaClubName, groupRunsByLadder } from '@game/logic/arena'
 import { arenaTierText } from '../arenaText'
 import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, honourDetail, honourLabel, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
+import { earlierTrophies, emptyLeagueTrophies, TROPHY_COUNTS, withLeagueShelves } from '@game/logic/trophyShelves'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
 import { RunInsTable } from '../components/RunInsTable'
 import { ClubBadge, Flag, Info, Segmented, Stat, TeamBadge } from '../components/bits'
@@ -41,6 +42,7 @@ import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoun
 import { playSound } from '../sound/synth'
 import { useBadgeSound } from '../sound/useBadgeSound'
 import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
+import { useDarkPalette } from '../palette'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
 import { askConfirm } from '../confirm'
@@ -88,6 +90,7 @@ export function ProfileScreen() {
   const [volume, setVolume] = useSoundVolume()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   const [skipReels, setSkipReels] = usePref(skipReelsPref)
+  const [palette, setPalette] = useDarkPalette()
   const language = useLanguage()
   const [reportsOn, setReportsOn] = useState(errorReportsOn)
   const setReports = (on: boolean) => {
@@ -110,7 +113,11 @@ export function ProfileScreen() {
   const fileRef = useRef<HTMLInputElement>(null)
   const persist = usePersistState()
   // Trophy Room: leagues won in come from the titled hosts' leagues, the loaded clubs first, then the packs' club lists
-  const cabinet = normaliseCabinet(profile.cabinet ?? {})
+  const cabinet = withLeagueShelves(normaliseCabinet(profile.cabinet ?? {}), profile.leaderboard)
+  const [shelfLeague, setShelfLeague] = useState('all')
+  const earlier = earlierTrophies(cabinet)
+  const hasEarlier = TROPHY_COUNTS.some((k) => earlier[k] > 0)
+  const shelfCounts = shelfLeague === 'all' ? cabinet : shelfLeague === 'earlier' ? earlier : cabinet.leagueShelves?.[shelfLeague] ?? emptyLeagueTrophies()
   const [clubLeagues, setClubLeagues] = useState<Record<string, { leagueId: string; name: string }> | null>(null)
   const won = leaguesWon(cabinet, profile.leaderboard, (id) => u?.clubById[id]?.leagueId ?? clubLeagues?.[id]?.leagueId)
   const needsClubLeagues = won.unresolved.length > 0 && !clubLeagues
@@ -143,7 +150,7 @@ export function ProfileScreen() {
   const achievements = orderAchievements(ACHIEVEMENTS, profile.achievements, achView)
   // The honours board shows the latest few; the rest open on a tap
   const [allHonours, setAllHonours] = useState(false)
-  const honours = cabinet.honours ?? []
+  const honours = (cabinet.honours ?? []).filter((h) => shelfLeague === 'all' || (h.superLeague ? 'super' : h.leagueId) === shelfLeague)
   const HONOURS_SHOWN = 5
   const [filter, setFilterState] = useState<BoardFilter>(readFilter)
   const setFilter = (f: BoardFilter) => {
@@ -221,10 +228,10 @@ export function ProfileScreen() {
   // The cabinet's season shelf, then the arena's and the run-in's own (never counted as league titles or cups)
   // The four big ones stand drawn on the shelf; every other count is a plaque beneath it
   const shelf: ShelfTrophy[] = [
-    { kind: 'league', label: t('shelfLeague'), n: cabinet.league },
-    { kind: 'cup', label: t('shelfCups'), n: cabinet.cup },
-    { kind: 'continental', label: t('shelfContinental'), n: cabinet.continental },
-    { kind: 'treble', label: t('shelfTrebles'), n: cabinet.trebles },
+    { kind: 'league', label: t('shelfLeague'), n: shelfCounts.league },
+    { kind: 'cup', label: t('shelfCups'), n: shelfCounts.cup },
+    { kind: 'continental', label: t('shelfContinental'), n: shelfCounts.continental },
+    { kind: 'treble', label: t('shelfTrebles'), n: shelfCounts.trebles },
   ]
   const trophies: Array<[ReactNode, string, number]> = [
     [<><Trophy size={22} /><Trophy size={22} /></>, t('doubles'), cabinet.doubles],
@@ -332,9 +339,18 @@ export function ProfileScreen() {
           )}
           {on('cabinet') && (
           <div className="panel" data-testid="trophy-cabinet">
-            <h3>{t('cabinet')}</h3>
+            <div className="row between wrap cabinet-heading">
+              <h3>{t('cabinet')}</h3>
+              <select className="input" aria-label={t('trophyShelf')} value={shelfLeague} onChange={(e) => setShelfLeague(e.target.value)} data-testid="trophy-shelf-select">
+                <option value="all">{t('allHonours')}</option>
+                {(u?.available ?? []).map((l) => <option key={l.id} value={l.id}>{l.shortName} · {l.name}</option>)}
+                {cabinet.leagueShelves?.super && <option value="super">{SUPER_LEAGUE_NAME}</option>}
+                {hasEarlier && <option value="earlier">{t('earlierHonours')}</option>}
+              </select>
+            </div>
+            {shelfLeague === 'earlier' && <p className="small muted">{t('earlierHonoursHelp')}</p>}
             <TrophyShelf items={shelf} />
-            <div className="cabinet plaques">
+            {shelfLeague === 'all' && <div className="cabinet plaques">
               {trophies.map(([icon, label, n]) => (
                 <div key={label} className={`cabinet-slot ${n ? '' : 'empty'}`}>
                   <span className="cabinet-icon">{icon}</span>
@@ -342,7 +358,7 @@ export function ProfileScreen() {
                   <span className="small muted">{label}</span>
                 </div>
               ))}
-            </div>
+            </div>}
             {/* The honours board: every Treble and Double season, newest first */}
             <div className="honours" data-testid="honours-board">
               <h4 className="honours-head">
@@ -546,6 +562,11 @@ export function ProfileScreen() {
                 {t('theme')} <Info label={t('themeAbout')}>{t('themeInfo')}</Info>
               </span>
               <Segmented label={t('theme')} value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: t('auto'), hint: t('themeHint') }, { value: 'light', label: t('light') }, { value: 'dark', label: t('dark') }]} />
+            </div>
+            <div className="field" data-testid="dark-palette">
+              <span>{t('darkColours')}</span>
+              <Segmented label={t('darkColours')} value={palette} onChange={setPalette} options={[{ value: 'slate', label: t('paletteSlate') }, { value: 'midnight', label: t('paletteMidnight') }, { value: 'warm', label: t('paletteWarm') }]} />
+              <span className="small muted">{t('darkColoursHelp')}</span>
             </div>
             <div className="field">
               <span>

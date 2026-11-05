@@ -285,6 +285,7 @@ describe('the post-season cups of a Quick Draft', { timeout: 120_000 }, () => {
       const after = useStore.getState()
       const run = after.game!.quickResult!.cup!
       expect(after.profile.trophies!.cup).toBe(run.reached === 'W' ? 1 : 0)
+      expect(after.profile.cabinet?.leagueShelves?.england?.cup ?? 0).toBe(run.reached === 'W' ? 1 : 0)
       expect(!!after.profile.achievements.cup).toBe(run.reached === 'W')
       // A second go is refused with a toast and changes nothing
       expect(await useStore.getState().playCup('cup')).toBe(false)

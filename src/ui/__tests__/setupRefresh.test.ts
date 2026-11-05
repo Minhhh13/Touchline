@@ -33,10 +33,23 @@ describe('the compact setup team sheet', () => {
     disk.set('touchline-setup-advanced', '1')
     const html = renderSetup('quick')
     expect(html).toContain('role="group" aria-label="Setup sections"')
-    expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*>Your team<\/button>/)
-    expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*>Rules<\/button>/)
+    expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*>[\s\S]*?Your team<\/button>/)
+    expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*>[\s\S]*?Rules<\/button>/)
     expect(html).toMatch(/aria-haspopup="dialog" aria-expanded="false"[^>]*data-testid="more-options-toggle"/)
     expect(html).not.toContain('data-testid="setup-options-dialog"')
+    expect(markupProblems(html)).toEqual([])
+  })
+  it('pairs the team/rules controls and major headings with decorative icons while keeping their labels', () => {
+    const html = renderSetup('quick')
+    const sections = html.match(/<div class="setup-sections"[\s\S]*?<\/div>/)?.[0] ?? ''
+    expect(sections.match(/<svg/g)).toHaveLength(2)
+    expect(sections.match(/aria-hidden="true"/g)).toHaveLength(2)
+    const heads = html.match(/<h3 class="step-head"[\s\S]*?<\/h3>/g) ?? []
+    expect(heads.length).toBe(5)
+    for (const head of heads) {
+      expect(head).toContain('<svg')
+      expect(head).toContain('class="sr-only"')
+    }
     expect(markupProblems(html)).toEqual([])
   })
   it('puts the team name first and keeps every formation available behind a closed native chooser', () => {

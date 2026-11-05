@@ -1,4 +1,5 @@
 @import './fonts.css';
+@import './palette.css';
 
 /* ------------------------------------------------------------------ tokens */
 /*
@@ -11,45 +12,45 @@
  */
 :root {
   color-scheme: dark;
-  /* Floodlit: a compact retro scorebox, not a generic dark dashboard. */
-  --bg: #050b18;
-  --bg-2: #081427;
-  --bg-3: #0d1b31;
-  --panel: #0b1629;
-  --panel-2: #0f1c33;
-  --raised: #13233d;
-  --line: #243752;
-  --line-2: #5ee7f7;
-  --field-bg: #081427;
-  --field-border: #5b7891;
+  /* Slate: charcoal surfaces and sage controls; the other Dark palettes override these tokens. */
+  --bg: #171c20;
+  --bg-2: #1b2227;
+  --bg-3: #2c363b;
+  --panel: #20282d;
+  --panel-2: #273137;
+  --raised: #303c42;
+  --line: #424f55;
+  --line-2: #829c96;
+  --field-bg: #1b2227;
+  --field-border: #829c96;
   --scrim: rgba(3, 7, 26, 0.66);
-  --float-bg: #0d1b31;
-  --float-text: #f5f1df;
-  --float-line: #5ee7f7;
+  --float-bg: #273137;
+  --float-text: #efeee7;
+  --float-line: #829c96;
   /* Text */
-  --text: #f5f1df;
+  --text: #efeee7;
   --text-1: var(--text);
-  --text-2: #c4d6df;
-  --text-3: #94aab7;
-  /* Cyan is the action wire; coral is reserved for moments and the flag. */
-  --primary: #5ee7f7;
-  --primary-hover: #8ff1ff;
-  --primary-active: #32c5d9;
-  --on-primary: #061224;
+  --text-2: #c9d2ce;
+  --text-3: #a6b5b0;
+  /* Sage is the action colour; rose marks moments. The Home flag retains its own coral. */
+  --primary: #b0cdbf;
+  --primary-hover: #c8dfd3;
+  --primary-active: #99bbaa;
+  --on-primary: #17241e;
   --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
   --primary-grad: var(--primary);
   --primary-grad-hover: var(--primary-hover);
   --primary-glow: none;
-  --accent: #ff6b8b;
-  --focus: #5ee7f7;
+  --accent: #dfacb6;
+  --focus: #b0cdbf;
   --navy: #061224;
   --navy-2: #12233e;
-  --brand-field: #081427;
-  --brand-field-2: #050b18;
-  --brand-line: #5ee7f7;
-  --brand-accent: #ff6b8b;
-  --on-brand: #f5f1df;
-  --on-brand-2: #c4d6df;
+  --brand-field: #1b2227;
+  --brand-field-2: #171c20;
+  --brand-line: #829c96;
+  --brand-accent: #dfacb6;
+  --on-brand: #efeee7;
+  --on-brand-2: #c9d2ce;
   /* Quiet ink on the always-navy reel windows, the same in both themes (the idle case and manager reels) */
   --reel-ink: #93a3d6;
   --glow: color-mix(in srgb, var(--primary) 11%, transparent);
@@ -95,7 +96,7 @@
   /* Status */
   --good: #34d399;
   --warn: #fb923c;
-  --bad: #f87171;
+  --bad: #f8a3a3;
   --danger: var(--bad);
   --info: var(--accent);
   --gold: #f5c542;
@@ -345,6 +346,15 @@ a {
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+/* Keep wheel, touch and keyboard scrolling without the native scrollbar chrome. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 /* A box focused only so the next Tab starts inside it (the skip link and the focus rescue give the screen's page or a
    panel tabindex -1) is not a control and draws no ring; every control keeps the one above */
@@ -3228,24 +3238,6 @@ table.tbl.contracts .btn.sm {
 .tabs button {
   transition: color var(--dur-1) var(--ease-out);
 }
-/* Once Tabs has measured the active tab, one 2px ink bar slides between tabs (a 1px bar moved and stretched: transform only) and replaces the per-tab underline */
-.tabs.has-ink button.active {
-  box-shadow: none;
-}
-.tabs-ink {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 1px;
-  height: 2px;
-  background: var(--primary);
-  border-radius: 1px;
-  transform-origin: 0 0;
-  pointer-events: none;
-}
-.tabs-ink.ready {
-  transition: transform var(--dur-3) var(--ease-out);
-}
 .tabs button .dot {
   width: 8px;
   height: 8px;
@@ -3647,7 +3639,6 @@ table.tbl.contracts .btn.sm {
   .btn,
   .topbar nav button,
   .theme-switch,
-  .tabs-ink.ready,
   .bar > span,
   .event-more svg,
   .pitch-replay {
@@ -11565,14 +11556,14 @@ table.tbl.board-table tr.chase-perfect td:first-child {
   border-radius: var(--radius-pill);
   border: var(--border-strong);
   background: transparent;
-  color: var(--text);
+  color: var(--on-brand);
   font: inherit;
   font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
 }
 .account-chip.signed-in:hover {
-  background: var(--bg-3);
+  background: var(--brand-field);
 }
 .account-chip-name {
   min-width: 0;

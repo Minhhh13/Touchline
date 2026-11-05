@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { runAfterPaint } from '../afterPaint'
 import { focusHasFallen, rescuedElement } from '../focusRescue'
-import { Armchair, Ban, Calendar, ChevronDown, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
+import { Armchair, ArrowRight, Ban, Calendar, ChevronDown, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, LayoutTemplate, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, SlidersHorizontal, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { leagueGate } from '@game/logic/leagueLoad'
@@ -464,8 +464,8 @@ export function Setup() {
         </div>
 
         <div className="setup-sections" role="group" aria-label={t('setupSections')}>
-          <button type="button" aria-pressed={setupStep === 'team'} onClick={() => selectStep('team')}>{t('teamSection')}</button>
-          <button type="button" aria-pressed={setupStep === 'rules'} onClick={() => selectStep('rules')}>{t('rulesSection')}</button>
+          <button type="button" aria-pressed={setupStep === 'team'} onClick={() => selectStep('team')}><Users size={16} aria-hidden="true" /> {t('teamSection')}</button>
+          <button type="button" aria-pressed={setupStep === 'rules'} onClick={() => selectStep('rules')}><SlidersHorizontal size={16} aria-hidden="true" /> {t('rulesSection')}</button>
         </div>
 
         {/* The Daily's league rotates (engine 7's `DAILY_EPOCHS`): said once, on a day whose league tomorrow differs, above the steps so a phone sees it before Start */}
@@ -945,12 +945,13 @@ export function Setup() {
   )
 }
 
-/** A step's numbered badge and short title. */
+/** A small category icon; the step number stays in the accessible reading order. */
 function StepHead({ n, title }: { n: number; title: string }) {
+  const Icon = [Users, LayoutTemplate, Globe, SlidersHorizontal, ArrowRight][n - 1]
   return (
     <h3 className="step-head">
       <span className="step-num" aria-hidden="true">
-        {n}
+        {Icon ? <Icon size={16} /> : n}
       </span>
       <span className="sr-only">{t('stepN', { n })}</span>
       {title}

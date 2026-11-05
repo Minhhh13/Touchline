@@ -2287,3 +2287,97 @@ details.opposition {
     height: 44px;
   }
 }
+
+/* The forecast keeps the decision in view; the full statistical sheet opens on request. */
+.cabinet-heading { gap: var(--space-3); margin-bottom: var(--space-3); }
+.cabinet-heading > .input { width: auto; max-width: 100%; }
+.kickoff-comfort .sc-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.kickoff-comfort .sc-head { margin-bottom: var(--space-4); }
+.kickoff-comfort .sc-head h2 { font-size: var(--fs-h3); }
+.kickoff-comfort .sc-big-box { padding-block: var(--space-2); }
+.kickoff-comfort .sc-big-num { font-size: var(--fs-h1); }
+.kickoff-comfort .sc-details { margin-top: var(--space-3); }
+.kickoff-comfort .sc-details > summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  list-style: none;
+}
+.kickoff-comfort .sc-details > summary::-webkit-details-marker { display: none; }
+.kickoff-comfort .sc-details > summary::after { content: '+'; }
+.kickoff-comfort .sc-details[open] > summary::after { content: '−'; }
+.kickoff-comfort .sc-details .sc-units { margin-block: var(--space-4); }
+@media (min-width: 1100px) and (min-height: 480px) {
+  .app.shell > .page.kickoff-comfort,
+  .app.shell > .page.playback-comfort {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .app.shell > .page.kickoff-comfort > .fit-grid,
+  .app.shell > .page.playback-comfort > .fit-grid {
+    flex: 1;
+    min-height: 0;
+  }
+  .kickoff-comfort .fit-grid.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kickoff-comfort .fit-cell { min-height: 0; overflow-y: auto; }
+  .kickoff-comfort .fit-cell:first-child { overflow: hidden; }
+  .kickoff-comfort .squad-complete {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    gap: var(--space-3);
+  }
+  .kickoff-comfort .sc-body { flex: 1; }
+  .kickoff-comfort .sc-grid { grid-template-columns: minmax(0, 1fr); }
+  .page.kickoff-comfort .squad-complete > .sc-foot {
+    position: static;
+    flex: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .page.kickoff-comfort .squad-complete > .sc-foot::before { display: none; }
+  .kickoff-comfort .sc-foot > .help { font-size: var(--fs-meta); }
+  .kickoff-comfort .pitch-fit { flex: 1; min-height: 200px; container-type: size; }
+  .kickoff-comfort .pitch-fit > .pitch-wrap { max-width: min(100%, 75cqh); margin-inline: auto; }
+  .kickoff-comfort [data-testid='kickoff-bench'] { flex: 0 1 auto; max-height: 30%; min-height: 0; }
+  .kickoff-comfort [data-testid='kickoff-bench'] > .plist { overflow-y: auto; min-height: 0; }
+  .playback-comfort .fit-cell[data-pane='table'] { min-height: 0; overflow-y: auto; container-type: size; }
+  .playback-comfort .pb-grid > [data-pane='table'] .live-table {
+    /* Fit all twenty clubs without shrinking readable text on larger type settings. */
+    --lt-row: clamp(1.25rem, calc((100cqh - 64px) / var(--lt-n)), 26px);
+  }
+  .playback-comfort .fit-cell[data-pane='table'] > .panel-head { margin-bottom: var(--space-2); }
+}
+@media (pointer: coarse) {
+  .kickoff-comfort .sc-details > summary { min-height: 44px; }
+}
+@media (min-width: 1100px) and (min-height: 480px) and (max-height: 599px) {
+  .playback-comfort .fit-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
+    gap: var(--space-3);
+  }
+  .playback-comfort .chase { width: auto; min-width: 0; padding: var(--space-2); }
+  .playback-comfort .chase b { font-size: var(--fs-base); }
+  .playback-comfort .fit-head-side { width: auto; }
+  .playback-comfort .pb-head-row { gap: var(--space-2); }
+  .playback-comfort .pb-tally-row > .tally { display: flex; align-items: center; gap: var(--space-3); }
+  .playback-comfort .tally-boxes { flex: 1; }
+  .playback-comfort .pb-tally-row .tally-box { display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
+  .playback-comfort .pb-tally-row .tally-num { font-size: var(--fs-h3); }
+  .playback-comfort .tally-goals { font-size: var(--fs-meta); }
+  .playback-comfort .pb-tabs { margin-top: var(--space-2); }
+  .playback-comfort .fit-grid { margin-top: var(--space-2); }
+}

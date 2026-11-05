@@ -296,10 +296,8 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
 
 /** Tab strip; `alert` draws a dot, `badge` a count (which takes the dot's place when both are set). */
 export function Tabs<T extends string>({ tabs, value, onChange, className = '', testId }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number; /** `aria-keyshortcuts`, for a strip with keys (the Dugout's). */ keys?: string; title?: string }>; value: T; onChange: (t: T) => void; /** Extra classes on the strip. */ className?: string; /** Each tab gets `data-testid="<testId>-<id>"`. */ testId?: string }) {
-  const ink = useTabInk(value, tabs.length)
   return (
-    <div className={`tabs ${ink.style ? 'has-ink' : ''} ${className}`} role="tablist" ref={ink.ref} onKeyDown={onTabListKey}>
-      {ink.style && <span className={`tabs-ink ${ink.ready ? 'ready' : ''}`} style={ink.style} aria-hidden="true" />}
+    <div className={`tabs ${className}`} role="tablist" onKeyDown={onTabListKey}>
       {tabs.map((t) => (
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} className={t.id === value ? 'active' : ''} aria-keyshortcuts={t.keys} title={t.title} onClick={() => { if (t.id !== value) playSound({ id: 'tab' }); onChange(t.id) }} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
@@ -314,42 +312,6 @@ export function Tabs<T extends string>({ tabs, value, onChange, className = '', 
       ))}
     </div>
   )
-}
-
-/**
- * The tab strip's sliding underline: measures the active tab (again whenever a
- * tab changes size, as a badge appears or the fonts load) and places a 1px bar
- * under it with translate and scaleX. It only animates after the first
- * placement, so a strip never sweeps in from the left edge when it mounts.
- */
-function useTabInk(value: string, count: number) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [box, setBox] = useState<{ x: number; y: number; w: number } | null>(null)
-  const [ready, setReady] = useState(false)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const measure = () => {
-      const b = el.querySelector<HTMLElement>('button[aria-selected="true"]')
-      if (!b) return setBox(null)
-      const next = { x: b.offsetLeft, y: b.offsetTop + b.offsetHeight - 2, w: b.offsetWidth }
-      setBox((prev) => (prev && prev.x === next.x && prev.y === next.y && prev.w === next.w ? prev : next))
-    }
-    if (typeof ResizeObserver === 'undefined') return measure()
-    // No measure here: the observer's first report comes after the frame's own layout, where reading the boxes is free;
-    // read inside the commit they forced the new screen's layout there (about 90 ms of the Dugout's mount at 4x)
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    el.querySelectorAll('button').forEach((b) => ro.observe(b))
-    return () => ro.disconnect()
-  }, [value, count])
-  useEffect(() => {
-    if (!box || ready) return
-    const id = requestAnimationFrame(() => setReady(true))
-    return () => cancelAnimationFrame(id)
-  }, [box, ready])
-  const style = box ? { transform: `translate(${box.x}px, ${box.y}px) scaleX(${box.w})` } : undefined
-  return { ref, style, ready }
 }
 
 /** The coach marks on screen now (mounted, seen or not), so only one shows at a time (`tipInTurn`). */

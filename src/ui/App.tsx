@@ -19,6 +19,7 @@ import { developmentLists } from './screenText'
 import { DIGEST_MOOD_WORDINGS, digestMood, digestWinRun, digestWording } from './seasonDrama'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
+import { useDarkPalette } from './palette'
 import { withViewTransition } from './motion'
 import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
@@ -96,6 +97,8 @@ export function App() {
   // A language change remounts the screen below (its key), so every string on it is read again
   const { locale } = useLanguage()
   const theme = useResolvedTheme(profile.theme)
+  const [palette] = useDarkPalette()
+  useLayoutEffect(() => { document.documentElement.setAttribute('data-palette', palette) }, [palette])
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
   const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
   // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back

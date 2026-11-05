@@ -217,6 +217,10 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 
 ## Adding a feature end to end
 
+Presentation conventions (UI comfort pass): `src/ui/palette.ts` keeps Slate/Midnight/Warm Dark colours under device-local `touchline-dark-palette`; `palette.css` changes Dark only, with the early attribute in `index.html`. Light stays separate. Tabs draw the underline on the selected button. Hidden scrollbar chrome must retain wheel/touch scrolling and keyboard reach through `scrollFocus.ts`.
+
+Country trophy shelves: `src/game/logic/trophyShelves.ts` mirrors existing trophy increments into optional `Cabinet.leagueShelves`. `creditTrophyShelf` runs in the store after the unchanged `creditGame`/`creditCupRun` actions, mirroring only their aggregate deltas; save merge backfills only league-attributed leaderboard/honours evidence, deduplicated by result id. Unknown older trophies stay in All/Earlier honours. Super League is separate; Arena and Run-in retain their counters. Never infer a country for an unrecorded win or change game draws for this display.
+
 1. **Engine** (`src/engine`): pure function over plain data plus an `Rng`. New persisted fields optional. Bump `ENGINE_VERSION` if draws change.
 2. **Game logic** (`src/game/logic/*.ts`): `fn(game, u, ...)` mutating `game` in place, RNG rehydrated and written back. Weekly behaviour hooks into `afterMatchweek` in `week.ts`; check both the live path and `playMatchweek(..., true)`.
 3. **Store action** (`src/game/store.ts`): declare it on the `Store` interface, implement as `mutate((g, u) => { logicFn(g, u, args) })`. If it can end a season, call `unlockFromGame()` and `recordResult()` after, as `playWeek` does.
