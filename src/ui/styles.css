@@ -142,6 +142,7 @@
   --line-casing: rgba(241, 244, 255, 0.6);
   --pitch-cover: #f5c542;
   /* Type */
+  --font-brand: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
   --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   /* Figures (minutes, ratings, scores, stats): Sora, and every rule that names it sets tabular figures so columns line up */
@@ -462,9 +463,9 @@ pre.mono,
   flex: none;
 }
 .wordmark {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-family: var(--font-brand);
+  font-weight: 800;
+  letter-spacing: -0.025em;
   line-height: 1;
   color: var(--text);
   white-space: nowrap;
@@ -472,254 +473,69 @@ pre.mono,
 .wordmark-line {
   color: var(--accent);
 }
-.topbar .tl-shine {
-  display: none;
+/* Flat lockup: dedicated football-signage face, no ambient logo motion. */
+.tl-lockup {
+  --h: var(--tl-h, 64px);
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--h) * 0.16);
+  width: auto;
+  height: var(--h);
+  padding: 0;
+  line-height: 1;
 }
-:root[data-theme] .topbar :where(.tl-lockup) {
-  --tl-ink: var(--on-brand);
-  --tl-ball-ring: transparent;
+.tl-lockup .logo-mark {
+  width: var(--h);
+  height: var(--h);
+  transform: none;
+  transition: transform var(--dur-1) var(--ease-out);
 }
-:root[data-theme] .topbar .tl-touch,
-:root[data-theme] .topbar .tl-name .wordmark-line {
+.tl-lockup .tl-name {
+  display: inline-flex;
+  align-items: baseline;
+  margin: 0;
+  font-family: var(--font-brand);
+  font-size: calc(var(--h) * 0.76);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.032em;
+  color: var(--text);
+  white-space: nowrap;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.tl-lockup .tl-touch {
+  color: var(--text);
   background: none;
   -webkit-text-fill-color: currentColor;
 }
-:root[data-theme] .topbar :where(.tl-touch) {
+.tl-lockup .wordmark-line {
+  margin-left: 0.015em;
+  color: var(--primary);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+:root[data-theme] .topbar .tl-lockup .tl-touch {
   color: var(--on-brand);
 }
-:root[data-theme] .topbar .tl-name .wordmark-line {
+:root[data-theme] .topbar .tl-lockup .wordmark-line {
   color: var(--brand-line);
 }
-/*
- * The open lockup (components/Lockup in Logo.tsx): the flag and the ball on a
- * short touchline at the left, the name standing on the same ground. Lengths are in u = height / 64 and match
- * LOCKUP in brand.ts; keep the two in step. A context resizes it with --h.
- */
-.tl-lockup {
-  --h: var(--tl-h, 64px);
-  --u: calc(var(--h) / 64);
-  --tl-ink: #ffffff;
-  --tl-ball-ring: transparent;
-  --tl-glint-edge: rgba(165, 243, 252, 0.95);
-  --tl-glint-core: #ffffff;
-  --tl-dim: rgba(0, 0, 0, 0.68);
-  /* The name's top-lit "Touch" and the deeper blue of "Line" (each end clears 4.5:1 on the page) */
-  --tl-touch-top: #ffffff;
-  --tl-touch-bottom: #c9d5e8;
-  --tl-line-top: #9ccaff;
-  --tl-line-bottom: #4b8df8;
-  --tl-dur: 1.2s;
-  --tl-delay: 0s;
-  /* One easing for the shine, the line and the ball, so they move as one */
-  --tl-ease: cubic-bezier(0.25, 0.65, 0.3, 1);
-  /* The glint crosses at an even pace, so it is seen over both halves of the name */
-  --tl-shine-ease: cubic-bezier(0.45, 0.05, 0.4, 1);
-  position: relative;
-  display: inline-block;
-  vertical-align: middle;
-  box-sizing: border-box;
-  height: var(--h);
-  padding: 0 0 0 calc(57 * var(--u));
-  line-height: 0;
-  text-align: left;
-}
-:root[data-theme='light'] .tl-lockup {
-  --tl-ink: var(--text);
-  --tl-ball-ring: var(--text);
-  --tl-touch-top: #2d3d6e;
-  --tl-touch-bottom: #0a1b51;
-  --tl-line-top: #2747e0;
-  --tl-line-bottom: #1e2f8a;
-  --tl-glint-edge: #c7d2fe;
-  --tl-glint-core: #ffffff;
-}
-/* The short touchline under the flag and the ball; its top edge is the name's baseline */
-.tl-rule {
-  position: absolute;
-  left: calc(7.5 * var(--u));
-  width: calc(37 * var(--u));
-  top: calc(51 * var(--u));
-  height: calc(2 * var(--u));
-  border-radius: calc(1 * var(--u));
-  background: var(--tl-ink);
-  transform-origin: left center;
-}
-.tl-ball {
-  position: absolute;
-  left: calc(16.5 * var(--u));
-  top: calc(27 * var(--u));
-  width: calc(24 * var(--u));
-  height: calc(24 * var(--u));
-  overflow: visible;
-}
-.tl-flag {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: calc(46 * var(--u));
-  height: var(--h);
-  overflow: visible;
-}
-.tl-name {
-  position: relative;
-  display: block;
-  margin-top: calc(10.7 * var(--u));
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: calc(48 * var(--u));
-  line-height: 1;
-  letter-spacing: 0.012em;
-  font-kerning: normal;
-  white-space: nowrap;
-  color: var(--text);
-  /* The wipe: letters behind the glint at full strength, ahead of it a little dimmer; at rest all full */
-  -webkit-mask-image: linear-gradient(110deg, #000 0 51%, var(--tl-dim) 56% 100%);
-  mask-image: linear-gradient(110deg, #000 0 51%, var(--tl-dim) 56% 100%);
-  -webkit-mask-size: 250% 100%;
-  mask-size: 250% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: 0 0;
-  mask-position: 0 0;
-}
-/* Each half of the name carries its own top-lit gradient, clipped to the letters */
-.tl-touch,
-.tl-name .wordmark-line {
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.tl-touch {
-  color: var(--text);
-  background-image: linear-gradient(180deg, var(--tl-touch-top) 22%, var(--tl-touch-bottom) 92%);
-}
-.tl-name .wordmark-line {
-  color: var(--accent);
-  margin-left: 0.01em;
-  background-image: linear-gradient(180deg, var(--tl-line-top) 22%, var(--tl-line-bottom) 92%);
-}
-@media (forced-colors: active) {
-  .tl-touch,
-  .tl-name .wordmark-line {
-    -webkit-text-fill-color: currentColor;
-    background: none;
+@media (hover: hover) and (pointer: fine) {
+  .brand:hover .tl-hover .logo-mark {
+    transform: translateY(-1px);
   }
 }
-/* The glint: the name again, clipped to the letters, carrying a narrow diagonal band that is off the text at rest */
-.tl-shine {
-  position: absolute;
-  inset: 0;
-  color: transparent;
-  pointer-events: none;
-  user-select: none;
-  background: linear-gradient(110deg, transparent 0 45%, var(--tl-glint-edge) 48%, var(--tl-glint-core) 49.2% 50.8%, var(--tl-glint-edge) 52%, transparent 55% 100%) no-repeat 0 0 / 250% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-.tl-shine::before {
-  content: attr(data-text);
-}
-.tl-play .tl-name,
-.tl-play .tl-shine,
-.tl-play .tl-rule,
-.tl-play .tl-ball {
-  animation-duration: var(--tl-dur);
-  animation-delay: var(--tl-delay);
-  animation-timing-function: var(--tl-ease);
-  animation-fill-mode: both;
-}
-.tl-play .tl-name {
-  animation-name: tl-wipe;
-}
-.tl-play .tl-shine {
-  animation-name: tl-shine;
-  animation-timing-function: var(--tl-shine-ease);
-}
-.tl-play .tl-rule {
-  animation-name: tl-draw;
-}
-.tl-play .tl-ball {
-  animation-name: tl-roll;
-}
-/* The top-bar lockup plays on hover or keyboard focus */
-@media (hover: hover) {
-  .brand:hover .tl-hover .tl-name,
-  .brand:hover .tl-hover .tl-shine,
-  .brand:hover .tl-hover .tl-rule,
-  .brand:hover .tl-hover .tl-ball {
-    animation: var(--tl-dur) var(--tl-ease) both;
-  }
-  .brand:hover .tl-hover .tl-name {
-    animation-name: tl-wipe;
-  }
-  .brand:hover .tl-hover .tl-shine {
-    animation-name: tl-shine;
-    animation-timing-function: var(--tl-shine-ease);
-  }
-  .brand:hover .tl-hover .tl-rule {
-    animation-name: tl-draw;
-  }
-  .brand:hover .tl-hover .tl-ball {
-    animation-name: tl-roll;
-  }
-}
-.brand:focus-visible .tl-hover .tl-name {
-  animation: tl-wipe var(--tl-dur) var(--tl-ease) both;
-}
-.brand:focus-visible .tl-hover .tl-shine {
-  animation: tl-shine var(--tl-dur) var(--tl-shine-ease) both;
-}
-.brand:focus-visible .tl-hover .tl-rule {
-  animation: tl-draw var(--tl-dur) var(--tl-ease) both;
-}
-.brand:focus-visible .tl-hover .tl-ball {
-  animation: tl-roll var(--tl-dur) var(--tl-ease) both;
-}
-@keyframes tl-shine {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
-}
-@keyframes tl-wipe {
-  from {
-    -webkit-mask-position: 100% 0;
-    mask-position: 100% 0;
-  }
-  to {
-    -webkit-mask-position: 0 0;
-    mask-position: 0 0;
-  }
-}
-@keyframes tl-draw {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-/* The ball fades in clear of the pole and rolls 5u along the line to its spot: rotation = distance / radius (5 / 12 rad) */
-@keyframes tl-roll {
-  from {
-    transform: translateX(calc(-5 * var(--u))) rotate(-23.9deg);
-    opacity: 0;
-  }
-  35% {
-    opacity: 1;
-  }
-  to {
-    transform: none;
-  }
+.brand:active .tl-hover .logo-mark {
+  transform: translateY(1px) scale(0.98);
 }
 @media (prefers-reduced-motion: reduce) {
-  .tl-lockup .tl-name,
-  .tl-lockup .tl-shine,
-  .tl-lockup .tl-rule,
-  .tl-lockup .tl-ball {
-    animation: none !important;
+  .tl-lockup .logo-mark {
+    transition: none;
+  }
+  .brand:hover .tl-hover .logo-mark,
+  .brand:active .tl-hover .logo-mark {
+    transform: none;
   }
 }
 .topbar nav {

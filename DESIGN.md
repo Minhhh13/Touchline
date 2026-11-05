@@ -20,6 +20,7 @@ colors:
   programme-field: "#123d82"
   programme-ink: "#ffffff"
 typography:
+  brand: "800 Barlow Condensed, Arial Narrow, sans-serif"
   family: "Sora, Segoe UI, system-ui, -apple-system, Roboto, sans-serif"
   hero: "700 4.5rem/0.98 Sora"
   screen-title: "700 2.25rem/1.1 Sora"
@@ -70,7 +71,7 @@ Rules:
 
 # Typography
 
-Sora is the single product family. Weight, size and tabular alignment establish authority; a second display face is unnecessary. Headlines are compact and score-led, body copy is direct, and metadata is short. Sentence case is the default. Capitals are for codes, small labels, table headers and match states only.
+Sora remains the product family for screens, controls, copy and figures. The TouchLine wordmark alone uses Barlow Condensed 800: a compact football-signage face that makes the identity recognisable without turning every heading into branding. Headlines are compact and score-led, body copy is direct, and metadata is short. Sentence case is the default. Capitals are for codes, small labels, table headers and match states only.
 
 # Layout
 

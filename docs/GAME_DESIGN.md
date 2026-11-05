@@ -1405,7 +1405,7 @@ The **Privacy and fair play** screen (`privacy`, `src/ui/screens/Privacy.tsx`, l
 
 ### Offline
 
-The site is hosted as a Render static site (build `npm ci && npm run build`, publish `dist`, auto-deployed from the repository); the GitHub Pages workflow was retired when the repository went private, and none came back when it went public again on 2026-10-27. `public/sw.js` is registered on production builds relative to the deploy path. The shell (`index.html`, the manifest) is served network-first and cached as a fallback; hashed assets, icons and league packs are cached on first use and served cache-first, and so are the Google Fonts stylesheet and font files (the one typeface, Sora), so the type still loads offline after one visit. A new build changes the asset names, so it is picked up on the next online visit; stale assets stay in the single cache until its version string is bumped.
+The site is hosted as a Render static site (build `npm ci && npm run build`, publish `dist`, auto-deployed from the repository); the GitHub Pages workflow was retired when the repository went private, and none came back when it went public again on 2026-10-27. `public/sw.js` is registered on production builds relative to the deploy path. The shell (`index.html`, the manifest) is served network-first and cached as a fallback; hashed assets, icons and league packs are cached on first use and served cache-first, and so are the Google Fonts stylesheet and font files (Sora for the product and Barlow Condensed for the wordmark), so the type still loads offline after one visit. A new build changes the asset names, so it is picked up on the next online visit; stale assets stay in the single cache until its version string is bumped.
 
 ### Main-screen visual hierarchy
 

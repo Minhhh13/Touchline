@@ -71,9 +71,9 @@ const TINY_LINE = { x1: 8, x2: 60, y: 50, w: 4 }
 export const MARK = {
   grid: 64,
   /** Corner radius of the rounded tile. */
-  tileRadius: 15,
-  /** The tile's gradient, top left to bottom right; its midpoint is the primary blue. */
-  gradient: ['#3b82f6', '#1d4ed8'] as const,
+  tileRadius: 12,
+  /** One flat cobalt: recognisable at favicon size and consistent with the action colour. */
+  tile: '#1f2de6',
   /** Rendered size in px at which each tier starts. */
   tierFrom: { full: 64, mid: 22 },
   /** The pennant: flat red on the straight tier; cloth (folds, shade, a lit upper edge) on the waving ones (`pennantCloth`). */
@@ -568,43 +568,29 @@ export interface MarkSvgOptions {
 
 /** The mark's inner SVG (defs and shapes) on the 64 grid. Every id starts with `id`. */
 export function markSvgInner(id: string, o: MarkSvgOptions): string {
+  void id
   const T = MARK.tiers[o.tier]
   const variant = o.variant ?? 'colour'
   const g = MARK.grid
-  const gradId = `${id}-tile`
-  const penId = `${id}-pen`
-  let defs = ''
   let tile = ''
   if (variant !== 'mono') {
-    defs += `<linearGradient id="${gradId}" x1="0" y1="0" x2="${g}" y2="${g}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${MARK.gradient[0]}"/><stop offset="1" stop-color="${MARK.gradient[1]}"/></linearGradient>`
-    const fill = variant === 'colour' ? `url(#${gradId})` : '#ffffff'
+    const fill = variant === 'colour' ? MARK.tile : '#ffffff'
     tile = o.tile === 'square' ? `<rect width="${g}" height="${g}" fill="${fill}"/>` : `<rect width="${g}" height="${g}" rx="${MARK.tileRadius}" fill="${fill}"/>`
   }
-  const ink = variant === 'colour' ? '#ffffff' : variant === 'inverse' ? `url(#${gradId})` : 'currentColor'
-  let pennant = `<path d="${pennantPath(T.pennant)}" fill="${ink}"/>`
-  if (variant !== 'mono') {
-    const cloth = pennantCloth(penId, T.pennant, { strength: o.tier === 'tiny' ? 0 : MARK.cloth.strength[o.tier] })
-    defs += cloth.defs
-    pennant = cloth.body
-  }
-  // The rounded post and its finial on the full tier; a plain stroke below it
-  const finial = o.tier === 'full' ? MARK.tiers.full.finial : undefined
-  let pole = `<line x1="${T.pole.x}" y1="${T.pole.y1}" x2="${T.pole.x}" y2="${T.pole.y2}" stroke="${ink}" stroke-width="${T.pole.w}" stroke-linecap="${T.caps}"/>`
-  if (o.tier === 'full' && variant !== 'mono') {
-    const ps = poleSvg(`${id}-p`, T.pole, ink, T.caps, finial)
-    defs += ps.defs
-    pole = ps.body
-  } else if (finial) pole += `<circle cx="${T.pole.x}" cy="${finial.cy}" r="${finial.r}" fill="${ink}"/>`
-  const b = ballSvg(`${id}-b`, { ...T.ball, tier: o.tier, style: variant === 'colour' ? 'colour' : variant === 'mono' ? 'knockout' : 'outline', ink })
-  defs += b.defs
+  const ink = variant === 'colour' ? '#ffffff' : variant === 'inverse' ? MARK.tile : 'currentColor'
+  const flag = variant === 'mono' ? ink : MARK.red
+  const patch = tinyPatch(T.ball.cx, T.ball.cy, T.ball.r)
+  const ball = variant === 'colour'
+    ? `<circle cx="${T.ball.cx}" cy="${T.ball.cy}" r="${T.ball.r}" fill="#ffffff"/><path d="${patch}" fill="${MARK.tile}"/>`
+    : `<circle cx="${T.ball.cx}" cy="${T.ball.cy}" r="${r2(T.ball.r - T.line.w / 2)}" fill="none" stroke="${ink}" stroke-width="${T.line.w}"/><path d="${patch}" fill="${ink}"/>`
   const glyph =
-    pennant +
-    pole +
+    `<path d="${pennantPath(T.pennant)}" fill="${flag}"/>` +
+    `<line x1="${T.pole.x}" y1="${T.pole.y1}" x2="${T.pole.x}" y2="${T.pole.y2}" stroke="${ink}" stroke-width="${T.pole.w}" stroke-linecap="${T.caps}"/>` +
     `<line x1="${T.line.x1}" y1="${T.line.y}" x2="${T.line.x2}" y2="${T.line.y}" stroke="${ink}" stroke-width="${T.line.w}" stroke-linecap="${T.caps}"/>` +
-    b.body
+    ball
   const s = o.scale ?? 1
   const t = r2((g / 2) * (1 - s))
-  return `<defs>${defs}</defs>${tile}${s === 1 ? glyph : `<g transform="translate(${t} ${t}) scale(${s})">${glyph}</g>`}`
+  return `${tile}${s === 1 ? glyph : `<g transform="translate(${t} ${t}) scale(${s})">${glyph}</g>`}`
 }
 
 /** The mark as a standalone SVG document, `px` square. */
