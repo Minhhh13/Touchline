@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { contrastRatio } from '../format'
 import { BriefingList } from '../screens/Dugout'
+import { DURATION } from '../motion'
 import type { BriefingItem } from '@game/logic/briefing'
 
 const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
@@ -61,5 +62,30 @@ describe('the compact pre-season checklist', () => {
     const match = renderToStaticMarkup(createElement(BriefingList, { items: [items[1]], onAction: () => undefined }))
     expect(match).toContain('data-brief="captain"')
     expect(match).not.toContain('<details')
+  })
+})
+
+describe('the Matchday Ledger UI contract', () => {
+  const setupCss = readFileSync(new URL('../screens/Setup.css', import.meta.url), 'utf8')
+  const draftCss = readFileSync(new URL('../screens/Draft.css', import.meta.url), 'utf8')
+  const homeCss = readFileSync(new URL('../screens/Home.css', import.meta.url), 'utf8')
+
+  it('keeps CSS and TypeScript motion timings in lockstep', () => {
+    const timings = [...css.matchAll(/--dur-(\d):\s*(\d+)ms;/g)]
+      .sort((a, b) => Number(a[1]) - Number(b[1]))
+      .map((m) => Number(m[2]))
+    expect(timings).toEqual(Object.values(DURATION))
+  })
+
+  it('uses ruled working surfaces instead of a generic card entrance', () => {
+    expect(homeCss).toContain('border-bottom: var(--border-strong)')
+    expect(draftCss).toContain('border-block: var(--border-strong)')
+    expect(css).not.toContain('animation: page-in')
+    expect(css).not.toContain('@keyframes page-in')
+  })
+
+  it('keeps the phone setup action in reading order rather than over the form', () => {
+    expect(setupCss).toMatch(/@media \(max-width: 720px\)[\s\S]*\.setup-start\.bottom-bar[\s\S]*position: static/)
+    expect(setupCss).toMatch(/\.setup-start \.step-head[\s\S]*display: flex/)
   })
 })

@@ -253,7 +253,6 @@ export function Home() {
     <div className="page home home-programme">
       <header className="programme-masthead">
         <div>
-          <p className="eyebrow">{t('clubhouse')}</p>
           <h1>{t('headline')}</h1>
         </div>
         <p className="programme-brand">{t('tagline')}</p>
@@ -385,11 +384,11 @@ export function Home() {
         <div className={`programme-daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
           <button type="button" className="programme-daily-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
             <span className="programme-daily-text">
-              <span className="eyebrow programme-daily-date">{t('todayDate', { date: today })}</span>
               <h3>{t('dailyTitle')}</h3>
               {nextUp === 'daily' && <NextUpChip />}
               <p>{t('dailyLine')}</p>
               <span className="foot">
+                <span className="programme-daily-date">{t('todayDate', { date: today })}</span>
                 <TimeTag>{t('minutes', { n: 5 })}</TimeTag>
                 {/* Played today: the result takes the puzzle's place on the line */}
                 {daily && u && !dailyResult && (
@@ -450,7 +449,6 @@ export function Home() {
         </div>
         <div className="programme-mode-list">
           <button className="programme-mode" onClick={() => go('setup', 'quick')} data-testid="quick-card">
-            <span className="programme-mode-number" aria-hidden="true">01</span>
             <span className="programme-mode-copy">
               <h3>{t('quickTitle')}</h3>
               <p>{t('quickLine')}</p>
@@ -459,7 +457,6 @@ export function Home() {
             <GoLabel />
           </button>
           <button className={'programme-mode' + (nextUp === 'season' ? ' next-up' : '')} onClick={() => go('setup', 'season')} data-testid="season-card">
-            <span className="programme-mode-number" aria-hidden="true">02</span>
             <span className="programme-mode-copy">
               <h3>{t('seasonTitle')}</h3>
               <p>{t('seasonLine')}</p>
@@ -469,7 +466,6 @@ export function Home() {
             <GoLabel />
           </button>
           <button className="programme-mode" onClick={() => go('setup', 'dynasty')} data-testid="dynasty-card">
-            <span className="programme-mode-number" aria-hidden="true">03</span>
             <span className="programme-mode-copy">
               <h3>{t('dynastyTitle')}</h3>
               <p>{t('dynastyLine')}</p>
@@ -478,7 +474,6 @@ export function Home() {
             <GoLabel />
           </button>
           <button className="programme-mode" onClick={() => go('h2h')} data-testid="h2h-card">
-            <span className="programme-mode-number" aria-hidden="true">04</span>
             <span className="programme-mode-copy">
               <h3>{t('h2hTitle')}</h3>
               <p>{t('h2hLine')}</p>

@@ -9,7 +9,7 @@ import type { SeasonTier } from '@engine/types'
  */
 
 /** Durations in ms, mirrored by --dur-1 to --dur-4 in styles.css. */
-export const DURATION = { press: 150, quick: 220, base: 320, slow: 400 } as const
+export const DURATION = { press: 140, quick: 190, base: 260, slow: 360 } as const
 
 const REDUCE_QUERY = '(prefers-reduced-motion: reduce)'
 
@@ -21,9 +21,8 @@ export function prefersReducedMotion(): boolean {
 /**
  * Runs a screen change (or the theme flip) inside a View Transition where the
  * browser has one: the old screen fades out over the new one and the active
- * nav pill slides to its new place. The new screen's own entrance is the CSS
- * `.page` animation, so browsers without the API (and reduced motion) get
- * the same fade and rise, just without the outgoing fade.
+ * nav marker moves to its new place. Frequent screens do not replay their own
+ * entrance animation; without the API or under reduced motion the change is immediate.
  */
 export function withViewTransition(update: () => void): void {
   const doc = typeof document !== 'undefined' ? document : null

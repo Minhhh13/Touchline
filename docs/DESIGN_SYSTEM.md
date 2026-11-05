@@ -19,25 +19,27 @@ Where it lives:
 | Illustrations and neon art | `src/ui/components/Art.tsx` (`HeroArt`, `ModeArt`, `NeonFlow`, `ResultArt`), coloured by the `--art-*`, `--cyan` and `--magenta` tokens (section 7) |
 | The trophy moments' styles (the cabinet's shelf, the title's beams and rings, the arena's trophy), loaded with the lazy screens only | `src/ui/visuals.css`, imported by `TrophyShelf`, `Celebrate` and `ArenaSummary` (the first-download stylesheet stays under its budget) |
 | Motion: tokens, View Transitions, count-ups, the celebration | `--dur-*`, `--ease-*`, `--stagger` in `styles.css` (the motion section); `src/ui/motion.ts`; `CountUp` in `bits.tsx`; `components/Celebrate.tsx`; section 12 |
+| Canonical visual brief and structured handoff | `DESIGN.md` and `.impeccable/design.json` |
 | Accessibility: activation keys, results as words, focus after a reel, tab keys, the focus rescue, keyboard reach for scroll boxes | `src/ui/a11y.ts`, `src/ui/focusRescue.ts`, `src/ui/scrollFocus.ts`; section 15; what is supported and how to test in [ACCESSIBILITY.md](ACCESSIBILITY.md) |
 
 The rule for everyone building screens: **use the tokens and shared components below; no raw colours in screen styles.** Shared changes belong in `styles.css`; screen-specific layouts live beside their screen and are documented here.
 
-## November 2026 visual refresh
+## November 2026 Matchday Ledger redesign
 
-The owner asked for a more intentional design, with less generic decoration. Keep the existing TouchLine mark and Sora typeface. Use clear type, alignment and real football information instead of repeated illustrated cards, purple gradients and large empty panels.
+The owner authorized a complete interface redesign with one constraint: it must feel deliberately made for TouchLine, not assembled from generic AI-dashboard patterns. Keep the existing TouchLine mark and Sora typeface. The visual world is the **Matchday Ledger**: a modern football working document built from fixture-sheet rhythm, score columns and a structural touchline rule. Use real football information, type and alignment instead of repeated cards, decorative gradients, generic entrance cascades or large empty panels.
 
-- **Home** (`screens/Home.tsx`, `Home.css`): compact masthead, saved games first, a featured Daily, direct first-draft action and numbered format rows. The rendered brand/domain line and every mode remain available.
-- **Setup** (`screens/Setup.tsx`, `Setup.css`): team name first, a small selected formation with all eight choices on demand, and optional Quick Draft rules behind a disclosure. Rule defaults remain unchanged.
-- **Draft** (`screens/Draft.tsx`, `Draft.css`): the waiting panel shows a real team sheet with signed players and open positions. The landed club stays the main decision; the draft log is expandable, and phone offers scroll within a bounded list.
-- **Dugout** (`screens/Dugout.tsx`, `Dugout.css`): one scrollable tab row, a compact pre-season checklist with its completion count, and a bounded phone roster. Blocking lineup problems remain outside the collapsed checklist. Audio controls stay available.
-- **Shared controls**: 8px panel corners, 6px controls, a solid blue primary action, thin dividers and plain page surfaces. Touch targets, focus, larger text and both themes remain supported. Trophy and rarity effects remain where they communicate a game event.
+- **Home** (`screens/Home.tsx`, `Home.css`): a programme masthead, one cobalt Daily feature, saved games before discovery and ruled format rows without decorative numbering. The rendered brand/domain line and every mode remain available.
+- **Setup** (`screens/Setup.tsx`, `Setup.css`): one open five-step sheet in two columns, joined by rules rather than nested panels. At phone widths the steps remain in document order and Start is step 5, never an overlay on the rules. Rule defaults remain unchanged.
+- **Draft** (`screens/Draft.tsx`, `Draft.css`): one working desk across the reel, the live team sheet and the pitch. The landed club stays the main decision; the draft log is expandable, and phone offers scroll within a bounded list.
+- **Dugout** (`screens/Dugout.tsx`, `Dugout.css`): a club ledger with a strong next-match call, one scrollable tab row, a compact pre-season checklist and a bounded phone roster. Blocking lineup problems remain outside the collapsed checklist. Audio controls stay available.
+- **Matchday** (`matchday/*.css`): the existing information density remains, but the shell, controls, pitch frame and event cards share the ledger's rules, tight corners and physical motion.
+- **Shared controls**: 6px panels, 4px primary controls, a solid cobalt primary action, hairline dividers and plain page surfaces. Elevation belongs to overlays. Touch targets, focus, larger text and both themes remain supported. Trophy, rarity and goal effects remain where they communicate a game event.
 
 These rules supersede earlier decorative hero and neon-primary descriptions below. Art and logo geometry are unchanged; those specifications still describe the assets used elsewhere.
 
 ## 1. Principles
 
-1. **Football first, calm and direct.** Warm neutral paper in Daylight, charcoal navy in Floodlit, one blue for actions and focus. Primary buttons are flat, panels use thin rules and modest corners, and the page has no decorative glow. Colour in pitches, club badges, rarity and results carries football information. Status colours still mean status.
+1. **Football first, calm and direct.** Cool grey match paper in Daylight, floodlit stadium navy in Floodlit, one cobalt for actions and focus. Primary buttons are flat, panels use hairline rules and tight corners, and the page has no decorative glow. Colour in pitches, club badges, rarity and results carries football information. Status colours still mean status.
 2. **Less text, more picture.** Badges, flags, league marks, pitch diagrams and numbers carry the information. Explanations sit behind an info icon, not in paragraphs under controls.
 3. **One primary action per region.** Each panel, bar or modal has at most one `.btn.primary`. Everything else is secondary or ghost.
 4. **Mixed case.** Titles and buttons are written as sentences. Capitals are kept for small labels and codes only.
@@ -130,35 +132,36 @@ The profile's theme setting is Auto, Light or Dark (Profile screen). `App.tsx` a
 
 | Token | Floodlit | Daylight | Use |
 |---|---|---|---|
-| `--bg` | `#101923` | `#f5f5f0` | Plain page surface |
-| `--bg-2` | `#121d29` | `#eceee9` | Sunken: segmented track, toggles |
-| `--bg-3` | `#263647` | `#e3e8eb` | Chips, bar tracks, position tags, ghost hover |
-| `--panel` | `#162330` | `#ffffff` | Panels, modals, bottom bars |
-| `--panel-2` | `#1c2b3b` | `#f4f6f5` | Cards, rows and tiles inside a panel |
-| `--raised` | `#233446` | `#ffffff` | Secondary buttons, hovered rows |
-| `--line` | `#304253` | `#d6dce1` | Default border and dividers (`--border`) |
-| `--line-2` | `#4a6075` | `#9ba9b7` | Stronger border: banners, buttons, sheets (`--border-strong`) |
-| `--field-bg` | `#121e2e` | `#ffffff` | Inputs and selects |
-| `--field-border` | `#73869e` | `#7c8996` | Input and select borders (3:1 against the panel) |
+| `--bg` | `#071724` | `#eef0f3` | Plain page surface |
+| `--bg-2` | `#0a1c2b` | `#e2e5ea` | Sunken: segmented track, toggles |
+| `--bg-3` | `#173149` | `#d8dee6` | Chips, bar tracks, position tags, ghost hover |
+| `--panel` | `#0d2132` | `#ffffff` | Panels, modals, bottom bars |
+| `--panel-2` | `#12283a` | `#f7f8fa` | Rows and groups inside a panel |
+| `--raised` | `#18334b` | `#ffffff` | Secondary buttons, hovered rows |
+| `--line` | `#284259` | `#cbd4de` | Default border and dividers (`--border`) |
+| `--line-2` | `#5a7389` | `#7f91a2` | Stronger border: banners, buttons, sheets (`--border-strong`) |
+| `--field-bg` | `#0a1c2b` | `#ffffff` | Inputs and selects |
+| `--field-border` | `#7791a8` | `#667b8f` | Input and select borders (3:1 against the panel) |
 | `--scrim` | `rgba(3, 7, 26, 0.66)` | `rgba(10, 27, 81, 0.42)` | Behind modals |
-| `--float-bg`, `--float-text`, `--float-line` | `#243648`, `#edf2f7`, `#4a6075` | `#14283f`, `#ffffff`, `#14283f` | Tooltips and toasts |
-| `--text` | `#edf2f7` | `#14283f` | Body text, titles (`--text-1` is an alias) |
-| `--text-2` | `#c0ccd8` | `#35485b` | Secondary text, labels, inactive controls |
-| `--text-3` | `#9eafbf` | `#53616f` | Captions, meta, placeholders |
+| `--float-bg`, `--float-text`, `--float-line` | `#173149`, `#f4f7fb`, `#5a7389` | `#14283f`, `#ffffff`, `#14283f` | Tooltips and toasts |
+| `--text` | `#f4f7fb` | `#0b1a2b` | Body text, titles (`--text-1` is an alias) |
+| `--text-2` | `#c7d3de` | `#34495d` | Secondary text, labels, inactive controls |
+| `--text-3` | `#a6b8c7` | `#52677b` | Captions, meta, placeholders |
 
 ### Brand
 
 | Token | Floodlit | Daylight | Use |
 |---|---|---|---|
-| `--primary` | `#82b5ff` | `#1d4ed8` | Selection borders, the active tab underline, bars, the mode icon badge, small primary buttons (`.btn.primary.sm`, flat so a list of them does not glow) |
-| `--primary-hover` | `#a5ccff` | `#193fac` | Small primary hover |
-| `--primary-active` | `#6ba5f7` | `#17378f` | Any primary button pressed |
+| `--primary` | `#85b7ff` | `#1f2de6` | Selection borders, the active tab underline, bars and primary buttons |
+| `--primary-hover` | `#afd0ff` | `#1823bd` | Primary hover |
+| `--primary-active` | `#6ea6f7` | `#121a95` | Any primary button pressed |
 | `--primary-grad`, `--primary-grad-hover` | `var(--primary)`, `var(--primary-hover)` | same aliases | Legacy names, now solid fills |
 | `--primary-glow` | `none` | `none` | No glow on primary controls |
-| `--on-primary` | `#101923` | `#ffffff` | Text and icons on `--primary` and on the gradient |
+| `--on-primary` | `#071724` | `#ffffff` | Text and icons on `--primary` |
 | `--primary-soft` | `color-mix(in srgb, var(--primary) 16%, transparent)` | `color-mix(in srgb, var(--primary) 8%, transparent)` | Selected fill (rows, segments, formations, the table's own row, `.chip.info`) |
-| `--accent` | `#9ac3ff` | `#1d4ed8` | Text-safe highlight: links, "Line" in the wordmark, info chips, chart series |
-| `--focus` | `#9ac3ff` | `#1d4ed8` | The focus ring (2 px, offset 2 px; global `:focus-visible`) |
+| `--accent` | `#a2c7ff` | `#1f2de6` | Text-safe highlight: links, "Line" in the wordmark, info chips, chart series |
+| `--focus` | `#a2c7ff` | `#1f2de6` | The focus ring (2 px, offset 2 px; global `:focus-visible`) |
+| `--brand-field`, `--brand-field-2` | `#123d82`, `#0d2f68` | `#102f72`, `#0b255c` | The programme feature and other fixed brand fields |
 | `--cyan`, `--magenta` | `#38d9f5`, `#e070ff` | `#0890b4`, `#b84ae0` | The neon pair, for the art and thin decorative lines only, never for meaning. Magenta is never a UI colour: it sits too close to the pink rarity tier |
 | `--neon-blur`, `--neon-strength` | 6 px, 0.9 | 4 px, 0.55 | How strongly the art's neon glows; Daylight is the softer version |
 | `--art-sky-1`, `--art-sky-2`, `--art-ink`, `--art-body`, `--art-body-2`, `--art-light`, `--art-grass`, `--art-grass-2`, `--art-paper` | night navy sky, near-black ink, navy bodies, teal-navy grass | lavender sky (`#d8dffa` to `#ebe7fb`), navy ink, pale blue bodies, pale aqua grass | The fills of the cartoon art (section 7) |
@@ -263,8 +266,8 @@ One family: **Sora** (Google Fonts, SIL Open Font License; 400, 600, 700, 800 fr
 
 | Token | Size | Phone | Face | Use |
 |---|---|---|---|---|
-| `--fs-hero` | 64 px | 46 px | display 700 | The home hero (the lockup there sets its own size: 104 px high, 60 on a phone) |
-| `--fs-h1` | 32 px | 30 px | display 700 | Page title, one per screen (`h1`) |
+| `--fs-hero` | 72 px | 44 px | display 700 | The Home masthead's upper bound |
+| `--fs-h1` | 36 px | 34 px | display 700 | Page title, one per screen (`h1`) |
 | `--fs-h2` | 24 px | 22 px | display 700 | Section and modal titles, club names (`h2`) |
 | `--fs-h3` | 19 px | 19 px | display 700 | Panel titles (`h3`) |
 | (h4) | 16 px | 16 px | display 700 | A group inside a panel |
@@ -299,17 +302,17 @@ No other spacing values in new CSS; 1 px borders and component sizes (a 44 px di
 
 | Token | Value | Use |
 |---|---|---|
-| `--radius-xs` | 4 px | Rating badges, position tags |
-| `--radius-s` | 4 px | Small buttons, ticker rows, fixtures, tooltips, segments |
-| `--radius-m` | 6 px | Buttons, inputs, cards, player rows, the segmented track, the pitch |
-| `--radius` | 8 px | Panels, modals and sheets, mode cards, the tier banner, the scoreboard |
-| `--radius-pill` | 999 px | Chips and compact tags; top-bar nav uses `--radius-s` |
+| `--radius-xs` | 2 px | Rating badges, position tags |
+| `--radius-s` | 3 px | Small buttons, ticker rows, fixtures, tooltips, segments |
+| `--radius-m` | 4 px | Buttons, inputs, cards, player rows, the segmented track, the pitch |
+| `--radius` | 6 px | Panels, modals and sheets, the tier banner and scoreboard |
+| `--radius-pill` | 999 px | Chips and compact tags only; navigation is not pill-shaped |
 | `--border` / `--border-strong` | 1 px `--line` / `--line-2` | Default / emphasised borders |
 | `--shadow` | one level | Floating layers only: modals and sheets, toasts, tooltips, fixed bottom bars, the hovered mode card. |
 | `--panel-shadow` | Daylight `none`; unset in Floodlit | Panels are flat in both themes; thin borders separate them from the page. |
 | `--control-h`, `--control-h-sm`, `--control-h-lg` | 40, 30, 52 px | Minimum heights of buttons, inputs, toggles |
 
-Motion is short and happens once: every screen fades in and rises 8 px over `--dur-3` when it opens (`.page`, `page-in`; a page with a fixed bottom bar, `.page.has-bottom-bar`, only fades, because a transform on the page would move the bar); on Home the hero text and the cards rise 12 px into place (`@keyframes rise`, 0.5 to 0.6 s, staggered); the hero art fades in and settles from 104 % (`hero-in`); a short light travels along two of the hero's neon curves (`neon-run`, 7 s, the only looping motion; on a touch screen it makes three runs and rests, because a dash offset repaints the filtered hero every frame); cards and tiles lift 2 to 3 px on hover and a mode card's neon brightens (`--neon-boost`). Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`. Under `prefers-reduced-motion: reduce` all of it is off, the travelling light included. Nothing that the smokes wait for is hidden behind an animation. The motion tokens (`--dur-1` to `--dur-4`, `--ease-out`, `--ease-in-out`, `--ease-spring`, `--stagger`) and the rules for everything else are in section 12.
+Motion is feedback, not a reveal layer. Pages and rows are present immediately: there is no generic page rise, card cascade, ambient skeleton shimmer or CTA shine. Controls respond over 140–260 ms with transform, opacity or colour; 360 ms is reserved for a meaningful state landing. Goals, results, trophies and reel mechanics keep expressive motion because the event supplies the meaning. Under `prefers-reduced-motion: reduce`, feedback lands immediately and decorative event motion is removed. The tokens (`--dur-1` to `--dur-4`, `--ease-out`, `--ease-in-out`, `--ease-spring`, `--stagger`) and the rules for everything else are in section 12.
 
 ## 6. Components
 
@@ -683,22 +686,22 @@ The owner asked for "some site animation" and "some nice touchup". Motion here i
 
 | Token | Value | Use |
 |---|---|---|
-| `--dur-1` | 150 ms | Hover colours, the press-down (60 ms while held), the outgoing screen |
-| `--dur-2` | 220 ms | Toasts leaving, modals and the scrim on a desktop, the old screen in a View Transition |
-| `--dur-3` | 320 ms | The screen entrance, the tab ink, a phone sheet sliding up, a toast arriving, the theme icon |
-| `--dur-4` | 400 ms | Rises on Home, bars growing, the tier pop |
-| `--ease-out` | `cubic-bezier(0.2, 0.7, 0.2, 1)` | Everything that arrives or moves |
-| `--ease-in-out` | `cubic-bezier(0.4, 0, 0.2, 1)` | Things that leave, the loading sweep |
-| `--ease-spring` | `cubic-bezier(0.2, 0.9, 0.3, 1.25)` | A small overshoot for something worth noticing: the toast, the tier, the theme icon |
-| `--stagger` | 60 ms | The step between items entering one after another |
+| `--dur-1` | 140 ms | Press feedback and small colour changes |
+| `--dur-2` | 190 ms | Drawers, toasts leaving, the old root in a View Transition |
+| `--dur-3` | 260 ms | Tab ink, sheets, toasts and ordinary state landings |
+| `--dur-4` | 360 ms | A result, tier or other meaningful state landing |
+| `--ease-out` | `cubic-bezier(0.23, 1, 0.32, 1)` | Everything that arrives or responds |
+| `--ease-in-out` | `cubic-bezier(0.77, 0, 0.175, 1)` | Things that leave or change direction |
+| `--ease-spring` | `cubic-bezier(0.22, 0.9, 0.32, 1.08)` | Restrained overshoot for a result worth noticing |
+| `--stagger` | 48 ms | The rare step between event items; not for page furniture |
 
 `DURATION` in `src/ui/motion.ts` mirrors the four durations for the JavaScript side (the count-up runs for `DURATION.slow`).
 
 ### Rules
 
-1. **150 to 400 ms**, on the tokens. The exceptions are named: the reel and the wheel (their timing is part of the draft: about 7.2 s to the reveal, 2.7 s on a quick spin or a re-spin, `src/ui/reelCurve.ts`; see CLAUDE.md), the live match pitch, the hero art's settle (`hero-in`) and the travelling neon light (`neon-run`, 7 s, the only loop; ambient, nothing waits on them), the lockup's own load and hover animation (section 2), the loading sweep (a 1.4 s loop, only while the packs load), the account chip's sync spinner (a 1.2 s turn while a sync runs), the January deadline ticker (a 30 s marquee; reduced motion shows it still, ellipsed) and the celebration (0.9 s, once per result). A flash or pop that must last longer than 400 ms is written as a multiple of a token (`calc(var(--dur-4) * 3)` for the 38-0 chase breaking, `calc(var(--dur-2) * 5)` for the scoreboard flash), and curves are `--ease-*`, never `ease` or a hand-written `cubic-bezier` (only the named exceptions keep their own). A cup night's reveal is pacing, not an animation: each tie's landing runs on the tokens, and the wait between ties is `CUP_REVEAL` in `src/ui/cupReveal.ts` (Skip ends it).
+1. **140 to 360 ms**, on the tokens. The exceptions are named: the reel and the wheel (their timing is part of the draft: about 7.2 s to the reveal, 2.7 s on a quick spin or a re-spin, `src/ui/reelCurve.ts`; see CLAUDE.md), the live match pitch, the lockup's own load and hover animation (section 2), active sync/loading indicators, the January deadline ticker and result celebrations. A flash or pop that must last longer than 360 ms is written as a multiple of a token, and curves are `--ease-*`, never `ease` or a hand-written `cubic-bezier` (only named mechanics keep their own). A cup night's reveal is pacing, not an animation: each tie's landing runs on the tokens, and the wait between ties is `CUP_REVEAL` in `src/ui/cupReveal.ts` (Skip ends it).
 2. **Transform and opacity only.** No animated width, height, top or left, so nothing reflows. Bars grow with `scaleX`, the tab ink moves with `translate` and `scaleX`, the toast keeps its centring `translate` in every frame. The one width transition left is a bar's value changing in place (an old rule, on one small element). Something placed in per cent of a box (the match day's formation men) is placed by a transform in container units: the box is a size container and the man's `translate(calc(var(--x) * 1cqw - 50%), …)` moves, not his `left` and `top` (`cssGuards.test.ts` fails on a `left` or `top` transition).
-3. **Once.** Entrances run when something mounts and never loop. Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`.
+3. **State, not furniture.** Pages, panels and lists do not run a generic mount animation or cascade. Motion belongs to a control response, a changed result or a football event. Event entrances run once and never loop.
 4. **Never block.** Nothing the player or a smoke script waits for is hidden behind an animation; buttons work while things are still rising. Count-ups mark themselves with `data-counting` while they climb.
 5. **Reduced motion turns it all off.** Under `prefers-reduced-motion: reduce` the motion section's last block stops every entrance, transition, hover lift and press; `withViewTransition` and `useCountUp` land at once; the celebration is not drawn; the eligible-slot pulse on the pitch stops. Add every new animated selector to that block.
 6. **No dependency.** CSS first; the few helpers in `motion.ts` are plain React. No animation library.
@@ -708,22 +711,21 @@ The owner asked for "some site animation" and "some nice touchup". Motion here i
 
 | Where | What | How |
 |---|---|---|
-| Every screen | Fades in and rises 8 px; a screen with a fixed bottom bar (`.page.has-bottom-bar`: Setup, the Dugout before the season ends) only fades, because a transform on `.page` would carry the bar | `.page`, `@keyframes page-in` / `page-fade`, `--dur-3` |
-| The top bar, the Home cards and tiles, the theme switch | A View Transition where the browser has one: the old screen fades out over the new one (which runs its own entrance), and on a desktop the active nav pill slides to its new place. Browsers without the API get the entrance alone. | `withViewTransition()` in `motion.ts` (`startViewTransition` + `flushSync`, the `vt` class on `<html>` while it runs), `::view-transition-old(root)`, `view-transition-name: nav-active` |
-| Home | The hero text, then the four cards, then the five casual tiles rise 12 px one after another; cards and tiles lift 2 to 3 px with the shadow on hover and a mode card's neon brightens; the lockup animates once per page load (section 2) | `@keyframes rise`, `--stagger` |
-| Buttons, nav pills, mode cards, tiles | Press-down while held: a button 1 px lower at 97 %, a nav pill 96 %, a mode card 98.5 %, a tile 98 % | `:active` transforms |
+| Route change | The old root fades briefly where View Transitions exist; the new screen is already present and does not rise or cascade | `withViewTransition()` in `motion.ts`, `::view-transition-old(root)` |
+| Home | The programme is static at rest. A format row gets a quiet hover wash and its arrow moves 2 px; the lockup keeps its own established brand motion | `Home.css`, section 2 |
+| Buttons, navigation, format rows and tiles | A small press-down or arrow nudge while held/hovered, gated to the relevant pointer capability | `:active` transforms and `(hover: hover) and (pointer: fine)` |
 | The Trophy cabinet | The four drawn trophies rise 8 px onto their shelf one after another (`shelf-in`, `--dur-4`, `--stagger`) | `.shelf-item`, `src/ui/visuals.css` |
 | The theme switch | The sun or moon spins in when it changes; the whole page crossfades between themes | `@keyframes switch-in`, `withViewTransition` |
 | Tabs | One ink bar slides between tabs | `.tabs-ink`, `useTabInk` in `bits.tsx` |
 | Bars (`Bar`) | Grow from zero when they first appear | `@keyframes bar-grow` |
 | Toasts | Slide up with a small spring, slide away before they clear | `@keyframes toast-in` / `toast-out` |
 | Modals and sheets | Desktop: rise and fade; phone: the sheet slides up; the scrim fades on its own layer | `@keyframes modal-in`, `sheet-up`, `scrim-in` |
-| The big CTAs (`.btn.primary.big`, `.spin-btn`) | A soft band of light passes across once as the pointer arrives (`::after`, translateX over `--dur-4` × 2); at rest it is off the button and it snaps back unseen. Not on touch screens, not on a disabled button | `.btn.primary.big::after`, `.btn.primary.spin-btn::after`, `@media (hover: hover)` |
+| The big CTAs (`.btn.primary.big`, `.spin-btn`) | Solid at rest and on hover; no travelling shine. The pressed transform and colour state supply feedback | shared button rules |
 | The Spin button while a spin is out | Not an animation: a calm waiting state (the panel colour, a dashed border, `--text-2`), where a faded CTA was unreadable in Daylight | `.spin-btn.waiting:disabled` |
-| A pick landing (every pick) | His disc pops onto the pitch (scale from 0.4, `--dur-4`, `--ease-spring`) with a ring opening out from it (scale 1 to 1.9 and a fade, `--dur-4` × 2); his row drops into the draft log (`--dur-3`); the pick counter ticks over and the track's segment fills from the left (`scaleX`, `--dur-3`). A blind pick's rating flip below takes the disc's place | `Pitch landedId`, `.disc.landed`, `.draft-log li.fresh`, `.draft-count b.count-tick`, `.pick-track span.done`, `@keyframes disc-land`, `land-ring`, `log-in`, `count-tick`, `track-fill` |
+| A pick landing (every pick) | His disc settles from 0.92 scale with a restrained ring; his row joins the draft log, the count changes and the track fills from the left. A blind pick's rating flip below takes the disc's place | `Pitch landedId`, `.disc.landed`, `.draft-log li.fresh`, `.draft-count b.count-tick`, `.pick-track span.done` |
 | The squad completing | Squad ready pops in (scale from 0.92, `--dur-4`, `--ease-spring`) and the finish button rises under it a `--stagger` later; on Squad complete the three boxes rise one after another and the pundits' figures and lines rise in when the odds arrive | `.draft-ready`, `.draft-ready ~ .spin-btn`, `.page.kickoff .fit-grid > *`, `.sc-big-num.ready`, `.sc-chances > *`, `@keyframes ready-in` |
 | A blind pick landing | His rating, hidden while choosing, flips in once on his pitch disc and his draft-log row (rotateY from 90° and a fade, `--dur-4`, `--ease-spring`); only when it was hidden (`revealsOnPick`) | `.rating.reveal`, `.disc.reveal`, `@keyframes rating-reveal`, `Rating reveal`, `Pitch revealId` |
-| The league-pack load | A skeleton of the page (a hero block and four cards) with a light sweep, the logo and the caption in the hero block | `.loading-screen`, `.skeleton`, `@keyframes shimmer` |
+| The league-pack load | Static skeleton geometry with the logo and caption; no ambient shimmer | `.loading-screen`, `.skeleton` |
 | The Upgrader (Gamble mode's sheet, the January Upgrader) | The win arc grows or shrinks with the preset (0.35 s); on Spin the needle turns five times with a long ease-out onto the logic's roll (5.2 s, 2.2 s with Quick spin), the arc pulsing; a win glows green and shakes the dial, a loss greys and dims it. Reduced motion: no turns, the needle is at its stop after 0.5 s, no shake or pulse | `UpgradeDial` in `Upgrader.tsx`, `needleAngle`/`landingAngle` in `src/ui/upgradeDial.ts` (`DIAL_CURVE`), `.udial`, `@keyframes udial-shake`, `udial-glow`, `udial-pulse` |
 | The January spin | The item reel of the manager spin and the case, landing on a player card in his tier | `ItemReel`, `JanuaryWindow.tsx` |
 | The season summary | The W, D and L and the points count up from zero (`CountUp`); the tier pops in after a replay; a title (Champions, Invincible) gets a gold flare behind the name and sixteen gold beams that turn 36° and fade (`cel-rays`, 1.8 s, wedges, never a star), the perfect season the flare, the beams, two neon rings opening out (cyan, then magenta 260 ms later; `cel-ring`, 1.1 s) and 28 pieces of confetti in gold and the two blues, clipped to the banner. An arena run won gets the same title flourish over its trophy, which rises in (`arena-lift`, `--dur-4`, `--ease-spring`). It plays the first time a result is shown in a visit and on every replay, not on a revisit. | `useCountUp`, `countUpValue`, `Celebrate`, `celebrationFor`, `confettiPieces`, `useFirstReveal` |
@@ -742,15 +744,15 @@ The pure parts (`easeOutCubic`, `countUpValue`, `celebrationFor`, `confettiPiece
 
 ## 13. One screen: the app shell and the top bar
 
-The owner's rule: "the app and game should work in one screen, one panel", in boxed panels side by side, never a page that scrolls.
+The owner's rule is that the app should feel like one coherent football workspace. On a desktop, major work areas fit the window and scroll inside only where the content genuinely needs it; hairline rules, not a wall of boxes, establish the layout.
 
-**The shell.** On a desktop (1100 px and up) the shell screens are a `100dvh` grid: the top bar, then the screen, which never scrolls the document. App.tsx marks them with `.app.shell`: Home, every game phase but the match (the Draft, Squad complete, the season playback and January, the Dugout, the Summary, the arena hub), Head-to-head (setup, draft and result) and its online rooms, Explore database, Profile, How it works, Privacy and fair play, World and Account. The match day has no exemption: the live dashboard and the replay size themselves to the window (`--md-fit`, from 1200 px), and the post-match report is a one-screen page of its own (`.page.report-page`, which gives the app the same `100dvh` grid through `.app:has(> .page.report-page)`). Setup keeps its own layout (Start in a fixed bar on a phone); phones (below 1100 px) scroll the page as before, the boxes stacking.
+**The shell.** On a desktop (1100 px and up) the shell screens are a `100dvh` grid: the top bar, then the screen. App.tsx marks them with `.app.shell`: Home, every game phase but the match (the Draft, Squad complete, the season playback and January, the Dugout, the Summary, the arena hub), Head-to-head (setup, draft and result) and its online rooms, Explore database, Profile, How it works, Privacy and fair play, World and Account. The match day has no exemption: the live dashboard and replay size themselves to the window (`--md-fit`, from 1200 px), and the post-match report is a one-screen page of its own. Setup keeps its own open two-column sheet. Phones (below 1100 px) scroll the page; Setup's Start action remains in the document as step 5 instead of becoming a covering fixed bar.
 
 | Screen | On a desktop |
 |---|---|
-| Home | The hero gives up height first (down to 170 px), the mode pictures shorten with the window, the four cards and the tiles stay whole |
-| Draft (and the Head-to-head draft) | Three boxes: the reel and pick, the landed squad, the XI pitch and bench; each scrolls inside itself, the squad's list takes its box's height, the pitch is never taller than its box |
-| Dugout | The header strip, the briefing and the tab bar stay; the tab's content is one box (`.tab-body`) that scrolls inside itself, and on the Squad tab the list and the pitch column scroll separately. The opposition report sits open on the Next match tab (folded on a window under 900 px high wherever else it appears); the Table tab is two boxes side by side, the table and the season-so-far chart; the Dressing room, Planner, Club, Stats and the closed-window Market tabs are three boxes side by side (`.grid.three.fill.squad-views`), each scrolling inside itself, and the open-window Market keeps the listings beside a column of Recruitment, reports, approaches, shortlist, offers and log |
+| Home | A programme masthead and a two-column feature lead into ruled mode rows; the Daily is the only filled brand field in the first viewport |
+| Draft (and the Head-to-head draft) | One desk with three ruled zones: reel and pick, live team sheet, XI pitch and bench. Each bounded list scrolls inside its zone, and the pitch is never taller than the workspace |
+| Dugout | The club strip, next-match call and tabs stay; the active workspace uses separators and internal scrolling rather than an outer card around every subsection. On the Squad tab the list and pitch column scroll separately. Other tab-specific layouts retain the same content and controls |
 | Summary (and the Head-to-head result) | The result box on the left (tier, record, numbers, blocks, chips, actions), everything else in a box beside it (`.summary-body`) that scrolls inside itself |
 | Head-to-head setup, How it works, Privacy and fair play | The boxes scroll together inside the body (`.screen-body.scroll-whole`), the head fixed; Privacy's panels flow into up to three columns (`.privacy-grid`) |
 | Explore database, Profile | The head and the filters stay; the two boxes side by side scroll inside themselves |

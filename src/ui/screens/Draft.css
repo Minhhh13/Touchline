@@ -1,7 +1,7 @@
 /* A draft desk: the current club is the decision, the team sheet records what is built. */
 .draft-page .screen-head {
   padding-bottom: var(--space-3);
-  border-bottom: 2px solid var(--text);
+  border-bottom: var(--border-strong);
 }
 .draft-page .screen-meta {
   gap: 4px var(--space-3);
@@ -25,7 +25,7 @@
   gap: var(--space-2);
   margin-top: var(--space-5);
   padding-block: var(--space-2);
-  border-bottom: 2px solid var(--text);
+  border-bottom: var(--border-strong);
 }
 .draft-build-list {
   list-style: none;
@@ -79,6 +79,42 @@
 .draft-history[open] > summary > svg {
   transform: rotate(180deg);
 }
+
+/* The desktop draft is one working desk, divided into reel, team sheet and pitch. */
+@media (min-width: 1051px) {
+  .draft-page .grid.draft {
+    gap: 0;
+    border-block: var(--border-strong);
+  }
+  .draft-page .grid.draft > .col:first-child {
+    padding: var(--space-4) var(--space-4) var(--space-4) 0;
+  }
+  .draft-page .draft-squad {
+    padding: var(--space-4) var(--space-5);
+    border-block: 0;
+    border-radius: 0;
+    border-color: var(--line);
+    background: transparent;
+  }
+  .draft-page .draft-pitch {
+    padding: var(--space-4) 0 var(--space-4) var(--space-4);
+  }
+  .draft-page .draft-pitch > .panel {
+    padding-inline: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .draft-page .draft-pitch > .panel + .panel {
+    padding-top: var(--space-4);
+    border-top: var(--border);
+  }
+  .draft-page .draft-squad .panel-head,
+  .draft-page .draft-pitch .panel-head {
+    padding-inline: 0;
+  }
+}
+
 @media (max-width: 720px) {
   .draft-page .draft-squad > .draft-waiting {
     padding: 0;
