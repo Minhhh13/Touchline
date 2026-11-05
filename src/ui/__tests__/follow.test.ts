@@ -7,6 +7,7 @@ import { onPitchAt } from '../match/pitchGeometry'
 import { ballAt } from '../match/possession'
 import { resultFeed } from './feeds'
 import { REPLAY_RAMP, replayEase } from '../match/keyMoments'
+import { PITCH_MS } from '../match/timing'
 
 const run = (start: Follow, tx: number, ty: number, frames: number, dt = 16) => {
   const out = [start]
@@ -62,9 +63,9 @@ describe('the dots’ follow', () => {
       let fol: Follow = { x: p.x, y: p.y, vx: 0, vy: 0 }
       let vOld = 0
       let vNew = 0
-      // 1x: 4500 ms a match minute, 60 frames a second, minutes 5 to 15
-      for (let ms = 5 * 4500; ms < 15 * 4500; ms += 16) {
-        const T = ms / 4500
+      // 1x at 60 frames a second, minutes 5 to 15
+      for (let ms = 5 * PITCH_MS; ms < 15 * PITCH_MS; ms += 16) {
+        const T = ms / PITCH_MS
         const t = dotPosition(p, mpath.path, ballAt(mpath.path, T), T, swayPhase(p.psId))
         const o = { x: approach(old.x, t.x, 16, FOLLOW.smooth), y: approach(old.y, t.y, 16, FOLLOW.smooth) }
         const n = follow(fol, t.x, t.y, 16, FOLLOW.smooth, followCap(1))

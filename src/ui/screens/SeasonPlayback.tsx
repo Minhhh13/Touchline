@@ -52,7 +52,7 @@ const t = translator(season)
  */
 /** How long a live-table row takes to slide to its new place; faster playback than this jumps instead, so rows never overlap. */
 const SLIDE_MS = 400
-/** The step from which the playback is calm enough for its heavier motion (1x is 1500 ms, a race's stretched step counts). */
+/** The step from which the playback is calm enough for its heavier motion (1x is 1800 ms, a race's stretched step counts). */
 const CALM_STEP_MS = 1000
 
 export function SeasonPlayback() {

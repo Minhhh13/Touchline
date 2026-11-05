@@ -81,7 +81,9 @@ describe('build-up on the live pitch', () => {
     expect(passes[Math.floor(passes.length / 2)]).toBeGreaterThan(1.4)
     expect(passes[Math.floor(passes.length * 0.1)]).toBeGreaterThan(0.9)
     expect(touches[Math.floor(touches.length / 2)]).toBeGreaterThan(0.3)
-    expect(SECOND).toBeCloseTo(1000 / PITCH_MS)
+    // The calmer viewer clock may stretch the proven choreography, but never compress it.
+    expect(SECOND * PITCH_MS).toBeGreaterThanOrEqual(1000)
+    expect(SECOND * PITCH_MS).toBeLessThan(1500)
   })
 
   it('lets a side keep the ball: spells of possession run for several touches, and the switches, crosses and turnovers all happen', () => {

@@ -96,7 +96,7 @@ export interface SeasonPlayback extends SeasonReplay {
 
 /**
  * The season playback after kick-off: it starts on its own from game `from` and reveals one game every
- * `PLAYBACK_STEP_MS / speed` ms (3000, 1500, 750 or 375) up to `stopAt` (the January pause, or the last game). Pause, speed
+ * `PLAYBACK_STEP_MS / speed` ms (3600, 1800, 900 or 450) up to `stopAt` (the January pause, or the last game). Pause, speed
  * and skip are UI state only: the season itself was simulated before the first game is shown.
  */
 export function useSeasonPlayback(total: number, from: number, stopAt = total, /** The wait before the game after `revealed`, from the step at this speed (the title race's last weeks slow down, seasonDrama.ts). */ paceOf?: (revealed: number, baseMs: number) => number, /** Start paused on game `from` (a reload resuming a paused playback). */ paused = false): SeasonPlayback {

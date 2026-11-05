@@ -11,6 +11,7 @@ import { metres, onPitchAt } from '../match/pitchGeometry'
 import { shapePoint, sceneAt } from '../match/shape'
 import { resultFeed } from './feeds'
 import { LITE, liteMode } from '../components/LivePitch'
+import { PITCH_MS } from '../match/timing'
 
 const feeds = Array.from({ length: 6 }, (_, i) => resultFeed(i))
 const paths = feeds.map((f) => matchPath(f))
@@ -233,8 +234,8 @@ describe('key moments', () => {
     expect(end.T).toBe(h.t)
     expect(end.flight).toBe(1)
     expect(end.cut).toBeCloseTo(1, 9)
-    // Slower than 1x: the window takes longer on screen than it did live (4.5 s a minute at 1x)
-    expect(REPLAY.ms - REPLAY.flight - REPLAY.rest).toBeGreaterThan(REPLAY.window * 4500)
+    // Slower than 1x: the window takes longer on screen than it did live
+    expect(REPLAY.ms - REPLAY.flight - REPLAY.rest).toBeGreaterThan(REPLAY.window * PITCH_MS)
     const mid = replayFrame(h, celebrationMs(h) + REPLAY.ms / 2, h.t)!
     expect(mid.cut).toBe(0)
     // A penalty's shorter replay plays a shorter window at the same slow motion
@@ -246,14 +247,14 @@ describe('key moments', () => {
   })
 
   it('skips the rest of a hold and carries on from the kick-off', () => {
-    const s: LiveClockState = { clock: 30, speed: 1, running: true, period: 4500, at: 30, since: 0, spent: Infinity, stopAt: 45, end: 46, holds: [h], revealed: 0, celebrating: -1, done: false }
-    const inReplay = (0.6 * 4500) + celebrationMs(h) + 500
+    const s: LiveClockState = { clock: 30, speed: 1, running: true, period: PITCH_MS, at: 30, since: 0, spent: Infinity, stopAt: 45, end: 46, holds: [h], revealed: 0, celebrating: -1, done: false }
+    const inReplay = (0.6 * PITCH_MS) + celebrationMs(h) + 500
     expect(timeline(s, inReplay).hold).not.toBeNull()
     const next = skipHold(s, inReplay)!
     const after = { ...s, ...next }
     expect(timeline(after, inReplay).hold).toBeNull()
     expect(timeline(after, inReplay).t).toBeCloseTo(h.t, 9)
-    expect(timeline(after, inReplay + 450).t).toBeCloseTo(h.t + 0.1, 6)
+    expect(timeline(after, inReplay + PITCH_MS * 0.1).t).toBeCloseTo(h.t + 0.1, 6)
     expect(skipHold(s, 100)).toBeNull()
   })
 
