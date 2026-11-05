@@ -8,7 +8,7 @@ import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/type
 import type { SeasonTier } from '@engine/types'
 import type { BadgeState, BadgeTier } from '@engine/badges'
 import type { Cabinet } from '@game/types'
-import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, clothStops, pennantPath } from './brand'
+import { BRAND_COLOURS as C, MARK, WORDMARK, pennantPath, pentagonPath } from './brand'
 import { tierName } from './format'
 import { exportDataUrl } from './exportFile'
 import type { CardVersus, Invite } from '@game/logic/shareInvite'
@@ -70,6 +70,7 @@ function ratingColour(v: number): string {
 /** The site's one family (--font-display and --font-body in styles.css). */
 const DISPLAY = "'Sora', 'Segoe UI', system-ui, sans-serif"
 const BODY = DISPLAY
+const BRAND = "'Barlow Condensed', 'Arial Narrow', sans-serif"
 
 /**
  * A canvas draws with whatever is loaded when it draws, so wait for the faces
@@ -77,7 +78,10 @@ const BODY = DISPLAY
  */
 async function cardFontsReady(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return
-  const load = Promise.all([400, 600, 700].map((w) => document.fonts.load(`${w} 40px 'Sora'`))).then(() => undefined, () => undefined)
+  const load = Promise.all([
+    ...[400, 600, 700].map((w) => document.fonts.load(`${w} 40px 'Sora'`)),
+    document.fonts.load("800 40px 'Barlow Condensed'"),
+  ]).then(() => undefined, () => undefined)
   await Promise.race([load, new Promise<void>((done) => setTimeout(done, 2000))])
 }
 
@@ -358,71 +362,55 @@ function drawInvite(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
   ctx.restore()
 }
 
-/**
- * The open lockup of brand.ts (LOCKUP), `h` px tall and centred on (cx, cy):
- * the corner flag standing on a short touchline, the flat ball resting on it,
- * and the two-tone name standing on the same ground (no line under the name).
- */
+/** The flat mark and dedicated wordmark face, centred as the on-screen lockup is. */
 function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
-  const u = h / LOCKUP.grid
-  ctx.font = `700 ${LOCKUP.name.size * u}px ${DISPLAY}`
+  const u = h / MARK.grid
+  const fontSize = h * 0.76
+  ctx.font = `800 ${fontSize}px ${BRAND}`
   const [touch, line] = WORDMARK
   const wTouch = ctx.measureText(touch).width
   const wLine = ctx.measureText(line).width
-  const width = LOCKUP.name.left * u + wTouch + wLine
+  const gap = h * 0.16
+  const width = h + gap + wTouch + wLine
   ctx.save()
   ctx.translate(cx - width / 2, cy - h / 2)
-  // The short touchline, from the pole's left edge to a little past the ball
-  const rule = LOCKUP.rule
-  ctx.fillStyle = '#ffffff'
-  roundRect(ctx, rule.left * u, rule.y * u, rule.length * u, rule.w * u, (rule.w / 2) * u)
+  ctx.fillStyle = MARK.tile
+  roundRect(ctx, 0, 0, h, h, MARK.tileRadius * u)
   ctx.fill()
-  // The ball (the flat tier: a white disc with a soft grey edge and the black panels)
-  const b = LOCKUP.ball
-  const bx = b.cx * u
-  const by = (rule.y - b.r) * u
-  const br = b.r * u
-  const shade = ctx.createRadialGradient(bx - br * 0.3, by - br * 0.35, 0, bx - br * 0.3, by - br * 0.35, br * 1.45)
-  shade.addColorStop(0.55, '#ffffff')
-  shade.addColorStop(1, BALL_EDGE.dark)
-  ctx.fillStyle = shade
-  ctx.beginPath()
-  ctx.arc(bx, by, br, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.save()
-  ctx.clip()
-  ctx.fillStyle = MARK.panel
-  for (const p of ballPanels(bx, by, br)) if (p.type === 'pent') ctx.fill(new Path2D(p.d))
-  ctx.restore()
-  // The flag: the pennant with its folds (at rest), then the pole standing on the line and its finial
+
+  const T = MARK.tiers.full
   ctx.save()
   ctx.scale(u, u)
-  const P = LOCKUP.pennant
-  const fold = ctx.createLinearGradient(P.x, P.top, P.tipX, P.tipY + (P.tipX - P.x) * 0.3)
-  for (const [o, c] of clothStops(P, 0, MARK.cloth.strength.lockup)) fold.addColorStop(o, c)
-  ctx.fillStyle = fold
-  ctx.fill(new Path2D(pennantPath(P)))
-  const pole = LOCKUP.pole
+  ctx.fillStyle = MARK.red
+  ctx.fill(new Path2D(pennantPath(T.pennant)))
   ctx.strokeStyle = '#ffffff'
-  ctx.lineWidth = pole.w
+  ctx.lineWidth = T.pole.w
   ctx.lineCap = 'round'
   ctx.beginPath()
-  ctx.moveTo(pole.x, pole.y1)
-  ctx.lineTo(pole.x, pole.y2)
+  ctx.moveTo(T.pole.x, T.pole.y1)
+  ctx.lineTo(T.pole.x, T.pole.y2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.lineWidth = T.line.w
+  ctx.moveTo(T.line.x1, T.line.y)
+  ctx.lineTo(T.line.x2, T.line.y)
   ctx.stroke()
   ctx.fillStyle = '#ffffff'
   ctx.beginPath()
-  ctx.arc(pole.x, LOCKUP.finial.cy, LOCKUP.finial.r, 0, Math.PI * 2)
+  ctx.arc(T.ball.cx, T.ball.cy, T.ball.r, 0, Math.PI * 2)
   ctx.fill()
+  ctx.fillStyle = MARK.tile
+  ctx.fill(new Path2D(pentagonPath(T.ball.cx - T.ball.r * 0.14, T.ball.cy - T.ball.r * 0.2, T.ball.r * 0.52)))
   ctx.restore()
-  // The name, its baseline where the stylesheet puts it
+
   ctx.textAlign = 'left'
-  ctx.textBaseline = 'alphabetic'
-  const baseline = LOCKUP.name.baseline * u
+  ctx.textBaseline = 'middle'
+  ctx.font = `800 ${fontSize}px ${BRAND}`
+  const baseline = h / 2 + h * 0.01
   ctx.fillStyle = C.text
-  ctx.fillText(touch, LOCKUP.name.left * u, baseline)
+  ctx.fillText(touch, h + gap, baseline)
   ctx.fillStyle = C.accent
-  ctx.fillText(line, LOCKUP.name.left * u + wTouch, baseline)
+  ctx.fillText(line, h + gap + wTouch, baseline)
   ctx.restore()
 }
 

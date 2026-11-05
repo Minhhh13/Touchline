@@ -7,7 +7,8 @@
 // apple-touch-icon.png (the full tier) with Playwright (an SVG in a page,
 // screenshotted at the exact size). Needs Node 22.18+ (it imports brand.ts
 // directly) and Playwright with Chromium; set PLAYWRIGHT_MODULE to its entry
-// file if it is not installed in this project.
+// file if it is not installed in this project, and PLAYWRIGHT_EXECUTABLE to an
+// installed Chromium browser when Playwright's own browser is unavailable.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -30,7 +31,7 @@ const entry = process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIG
 const pw = await import(entry)
 // A CommonJS entry file comes in as the default export
 const { chromium } = pw.chromium ? pw : pw.default
-const browser = await chromium.launch()
+const browser = await chromium.launch(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : undefined)
 const page = await browser.newPage({ deviceScaleFactor: 1 })
 for (const t of targets) {
   await page.setViewportSize({ width: t.px, height: t.px })

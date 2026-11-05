@@ -1,15 +1,9 @@
-import { useEffect, useId, useMemo, useState, useSyncExternalStore, type CSSProperties } from 'react'
-import { APP_NAME, LOCKUP, LOCKUP_FLAG_WIDTH, MARK, WORDMARK, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, type MarkVariant } from '../brand'
+import { useId, useMemo, type CSSProperties } from 'react'
+import { APP_NAME, MARK, WORDMARK, markSvgInner, markTier, type MarkVariant } from '../brand'
 
 /** Named sizes in CSS pixels; any number works too. */
 export const LOGO_SIZES = { sm: 24, md: 32, lg: 48, xl: 96 } as const
 export type LogoSize = keyof typeof LOGO_SIZES | number
-
-/**
- * colour: the blue tile, white pole and line, red pennant, black-and-white ball (the default, and the app icon).
- * mono: the glyph alone in the current text colour, no tile, the ball's panels knocked out (on a photo or a primary button).
- * inverse: a white tile with the glyph in the tile blue (on a blue or navy background).
- */
 export type LogoVariant = MarkVariant
 
 function toPx(size: LogoSize): number {
@@ -21,22 +15,16 @@ function useSvgId(prefix: string): string {
   return `${prefix}-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`
 }
 
-/**
- * The mark: a corner flag standing on the touchline, a classic ball resting on
- * it right of the pole and the thin line running on past both, on the blue tile. Geometry and the SVG live in brand.ts
- * so the share card and the generated icons draw the same shape; the detail
- * tier follows the rendered size. Decorative unless `title` is given.
- */
+/** The flat corner-flag mark. Decorative unless `title` is supplied. */
 export function LogoMark({ size = 'md', variant = 'colour', title }: { size?: LogoSize; variant?: LogoVariant; title?: string }) {
   const px = toPx(size)
   const id = useSvgId('tl')
   const tier = markTier(px)
   const html = useMemo(() => markSvgInner(id, { tier, variant }), [id, tier, variant])
-  const g = MARK.grid
-  return <svg className="logo-mark" width={px} height={px} viewBox={`0 0 ${g} ${g}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} focusable="false" dangerouslySetInnerHTML={{ __html: html }} />
+  return <svg className="logo-mark" width={px} height={px} viewBox={`0 0 ${MARK.grid} ${MARK.grid}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} focusable="false" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-/** "TouchLine" in the display face, "Line" in the accent blue. Real text, so it reads and copies as the name. */
+/** “TouchLine” in the dedicated brand face. Real text, so it reads and copies as the name. */
 export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={className ? `wordmark ${className}` : 'wordmark'}>
@@ -46,7 +34,7 @@ export function Wordmark({ className }: { className?: string }) {
   )
 }
 
-/** The compact lockup: the tile with the wordmark beside it, the type scaled to the mark. */
+/** The compact mark and wordmark used by the loader and tight headers. */
 export function Logo({ size = 'md', variant = 'colour', className }: { size?: LogoSize; variant?: LogoVariant; className?: string }) {
   const px = toPx(size)
   return (
@@ -57,92 +45,19 @@ export function Logo({ size = 'md', variant = 'colour', className }: { size?: Lo
   )
 }
 
-// The load animation plays on the first lockup that asks for it, once per page load
-let loadPlayed = false
-
-const REDUCED = '(prefers-reduced-motion: reduce)'
-const TOUCH = '(hover: none)'
-function subscribeTo(query: string) {
-  return (cb: () => void) => {
-    const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(query) : null
-    mq?.addEventListener('change', cb)
-    return () => mq?.removeEventListener('change', cb)
-  }
-}
-const subscribeReduced = subscribeTo(REDUCED)
-const subscribeTouch = subscribeTo(TOUCH)
-const matches = (query: string) => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches
-/** True when motion should stay off; also on the server, where nothing animates. */
-function useReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeReduced, () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? matches(REDUCED) : true), () => true)
-}
-/** True on a touch screen (no hover): a phone or a tablet. */
-function useTouchScreen(): boolean {
-  return useSyncExternalStore(subscribeTouch, () => matches(TOUCH), () => false)
-}
-
 /**
- * Loops of the pennant's flutter on a touch screen before it comes to rest. SMIL repaints the page on the main thread
- * every frame (on a 4x-throttled phone it took 80% of Home's main thread at rest, on every screen with the top bar),
- * so a phone shows it as the lockup appears and then lets the page sleep; a desktop keeps it for ever.
- */
-export const TOUCH_WAVE_LOOPS = 3
-
-/**
- * On a touch screen the flutter is counted once per page load, not per lockup: the top bar's lockup mounts again with
- * every screen that brings the bar back (the match day among them), and each mount used to flutter again for its three
- * loops, repainting the whole page every frame for the first 7.8 s of the screen. `from` is when the first lockup on
- * this page started; a lockup mounted after its loops are over rests.
- */
-export function touchWaveOn(now: number, from: number | null): boolean {
-  return from === null || now - from < Math.round(TOUCH_WAVE_LOOPS * LOCKUP.wave.dur * 1000)
-}
-let touchWaveFrom: number | null = null
-
-/**
- * The open lockup: the mark's drawing without the tile (the corner flag
- * standing on a short touchline, the ball resting on it), then "TouchLine"
- * standing on the same ground; no line under the name. `height` is in px (a
- * stylesheet may resize it through --h; the ball's detail follows `height`).
- * The pennant flutters in a light wind (SMIL, so the pole and the ball stay
- * still): always on a desktop, for TOUCH_WAVE_LOOPS loops on a touch screen. animate: 'load' plays the shine, the short line drawing itself
- * and the ball rolling in along it once per page load; 'hover' plays it on
- * hover or keyboard focus. The resting state is the finished logo, so
- * prefers-reduced-motion shows that, with the pennant still.
+ * The primary lockup. It deliberately has no entrance, shine, rolling ball or looping flag:
+ * the finished identity is present immediately. `hover` enables one restrained physical nudge
+ * on fine pointers; reduced-motion removes even that.
  */
 export function Lockup({ height = 64, animate = 'none', className }: { height?: number; animate?: 'none' | 'load' | 'hover'; className?: string }) {
-  const id = useSvgId('tll')
-  // Both StrictMode calls of the initialiser see the same flag; the effect sets it
-  const [play] = useState(() => animate === 'load' && !loadPlayed)
-  useEffect(() => {
-    if (play) loadPlayed = true
-  }, [play])
-  const tier = (height * 2 * LOCKUP.ball.r) / LOCKUP.grid >= LOCKUP.fullBallFrom ? 'full' : 'mid'
-  const touch = useTouchScreen()
-  // Decided once per mount: a lockup that rests stays at rest until it remounts
-  const [touchWave] = useState(() => {
-    if (!touch) return true
-    const now = typeof performance !== 'undefined' ? performance.now() : 0
-    const on = touchWaveOn(now, touchWaveFrom)
-    if (touchWaveFrom === null) touchWaveFrom = now
-    return on
-  })
-  const wave = !useReducedMotion() && (!touch || touchWave)
-  const loops = touch ? TOUCH_WAVE_LOOPS : undefined
-  const flag = useMemo(() => lockupFlagSvg(id, wave, loops), [id, wave, loops])
-  const ball = useMemo(() => lockupBallSvg(id, tier), [id, tier])
-  const d = 2 * LOCKUP.ball.r
-  const cls = ['tl-lockup', play && 'tl-play', animate === 'hover' && 'tl-hover', className].filter(Boolean).join(' ')
+  const cls = ['tl-lockup', animate === 'hover' && 'tl-hover', className].filter(Boolean).join(' ')
   return (
-    <span className={cls} style={{ '--tl-h': `${height}px` } as CSSProperties}>
-      <span className="tl-rule" aria-hidden="true" />
-      <svg className="tl-ball" viewBox={`0 0 ${d} ${d}`} aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: ball }} />
-      <svg className="tl-flag" viewBox={`0 0 ${LOCKUP_FLAG_WIDTH} ${LOCKUP.grid}`} aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: flag }} />
-      <span className="tl-name">
+    <span className={cls} style={{ '--tl-h': `${height}px` } as CSSProperties} role="img" aria-label={APP_NAME}>
+      <LogoMark size={height} />
+      <span className="tl-name" aria-hidden="true">
         <span className="tl-touch">{WORDMARK[0]}</span>
         <span className="wordmark-line">{WORDMARK[1]}</span>
-        {/* The glint's copy of the name is generated content, so the page text, find-in-page and copy see the name once */}
-        <span className="tl-shine" aria-hidden="true" data-text={APP_NAME} />
       </span>
     </span>
   )

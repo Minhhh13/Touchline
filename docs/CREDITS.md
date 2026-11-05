@@ -47,3 +47,5 @@ None to credit: every sound in TouchLine (the case reel's ticks, the season whoo
 ## Typeface
 
 [Sora](https://fonts.google.com/specimen/Sora) by Jonathan Barnbrook and Julián Moncada, under the [SIL Open Font License 1.1](https://openfontlicense.org). Served by Google Fonts (linked in `index.html`, the one third-party request the game makes when the online layer is off); the font files are not in the repository.
+
+[Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) by Jeremy Tribby, under the [SIL Open Font License 1.1](https://openfontlicense.org). It is used only for the TouchLine wordmark and is served in the same Google Fonts request as Sora.

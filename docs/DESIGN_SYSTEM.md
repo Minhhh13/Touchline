@@ -49,7 +49,13 @@ These rules supersede earlier decorative hero and neon-primary descriptions belo
 
 **The name is TouchLine**: one word, capital T and capital L, everywhere it is displayed (`APP_NAME` in `brand.ts`). Never "TOUCHLINE", "Touch Line" or "Touchline". Lower-case `touchline` stays only where it is a slug: the npm package, the repository, `localStorage` keys (`touchline-save-v1`), download file names and the service worker cache. Engine strings are unchanged: `shareText` keeps its `'Touchline'` default, and the UI passes `APP_NAME`.
 
-**The mark** is the owner's sketch: a football corner flag (a white pole standing on the touchline, its foot ending at the line's top edge with nothing below it, a red pennant flying right from its top), a classic black-and-white ball resting on the line to the right of the pole, and a thin white touchline running on past both, on the blue tile. It replaced the pitch-corner mark of the first redesign pass. Everything is drawn from `brand.ts`, on a 64-unit grid (y down):
+**Current identity (November 2026).** The mark is a flat cobalt tile (`#1f2de6`) with a white corner pole and touchline, a solid red pennant and one simplified white ball. It keeps the original football idea but removes the tile gradient, cloth shading, modelled ball, glint, roll and looping flag: the result reads at 16 px, works as an app icon and belongs beside the quieter Matchday Ledger interface. The wordmark is real text in Barlow Condensed 800, mixed case, tightly but deliberately spaced; `Line` takes the action blue (or the pale brand blue in the top bar). Sora remains every screen's product face. The full lockup is present immediately; on a fine pointer the tile may lift 1 px and its pressed state settles 1 px, both removed under reduced motion. The same flat mark and wordmark appear in the top bar, loader, favicon, installed-app icons and generated share cards.
+
+Current rules: keep the cobalt tile and red pennant fixed; preserve at least one quarter-mark clear space; never add a crest, shield, glow, gradient, mascot, extra football or looping animation; never set the name in capitals or with a space. `LogoMark` is decorative beside the wordmark and named when it stands alone. After changing `MARK`, run `node scripts/brand/icons.mjs`; `PLAYWRIGHT_MODULE` and `PLAYWRIGHT_EXECUTABLE` are supported when using the managed Playwright package and an installed Chromium browser.
+
+The detailed v3 geometry below is retained as design history only. It describes the retired dimensional mark and open animated lockup, not the current component.
+
+**Retired v3 mark.** The owner's sketch was a football corner flag (a white pole standing on the touchline, its foot ending at the line's top edge with nothing below it, a red pennant flying right from its top), a classic black-and-white ball resting on the line to the right of the pole, and a thin white touchline running on past both, on the blue tile. It replaced the pitch-corner mark of the first redesign pass. Everything was drawn from `brand.ts`, on a 64-unit grid (y down):
 
 | Part | Full tier (64 px and up) |
 |---|---|
@@ -67,7 +73,7 @@ Three detail tiers, picked from the rendered size by `markTier(px)`:
 | `mid` | 22 to 63 px (the top bar, the loading screen, 24 to 48 px icons) | Flat ball: a white disc with a soft grey edge (`#c3cddb`) and black pentagons only, no seams or shading; pole 4 (standing on the line, a plain stroke, no finial), line 2.4 (half the first logo's 4.8), ball r 12 at x 41; the wave drops to 1.1 and the cloth to strength 0.6, so at 32 px it still reads as a clean red pennant |
 | `tiny` | under 22 px (`favicon.svg`) | On the pixel grid (4 units are 1 px at 16 px): pole x 16 to 20 and y 8 to 48, standing on the line, which is one pixel (y 48 to 52, x 8 to 60), butt caps; a straight pennant 20 × 20 units (5 px) in flat red `#ef4444` (no folds or shade), ending clear of the ball; the colour ball (r 12 at 40, 36) carries real pentagon panels, clipped to the disc: the front one and those on the lower rim (`tinyPanels`), so the favicon still reads as a football when the browser draws it at 32 device px (one centred patch read as an eye there) while the top of the ball stays a clean white arc against the tile at 16 px (all the rim panels turned it into a grey check); the mono and inverse balls keep a single pentagon nudged up and left |
 
-**The cloth** (`pennantCloth` and `clothStops` in `brand.ts`, colours in `MARK.cloth`). On the waving tiers and the lockup the pennant is one shape (`<path id="…-pc">`, in `<defs>`, animated once) drawn three times with `<use>`:
+**Retired cloth system** (`pennantCloth` and `clothStops` in `brand.ts`, colours in `MARK.cloth`). On the old waving tiers and lockup the pennant was one shape (`<path id="…-pc">`, in `<defs>`, animated once) drawn three times with `<use>`:
 
 1. **Folds**: a linear gradient of 17 stops from the pole to the tip, slanted a little (its end 0.3 of the cloth's length below the tip) so the bands lean back from the upper edge. Each stop's light comes from the slope of the same wave the edges carry plus a ripple at twice its frequency travelling with it, so there are two or three soft light and dark bands; the red `#ef4444` is mixed toward `#ff8c7e` where the cloth faces the light and toward `#8c1212` where it turns away, with a soft knee so plain red stays between the crests, and the cloth by the pole is held flat.
 2. **Light and shade**: a vertical gradient on the shape's own box (so it follows the cloth as it waves): white at 34 % along the upper edge fading out by 16 %, nothing in the middle, and `#450a0a` rising to 42 % along the lower edge (times the strength).
@@ -75,7 +81,7 @@ Three detail tiers, picked from the rendered size by `markTier(px)`:
 
 Strength (`MARK.cloth.strength`) scales all three: 1.3 on the full tile, 0.6 on the mid tile, 1.1 on the lockup; the tiny tier is a single flat red path. The tip is rounded (`tip`, a five-point arc inside `tipX`), so it ends in a soft curve rather than a spike.
 
-**The lockup** (`Lockup`) is the open, tile-less version: the mark's drawing at the left (the corner flag standing on a short touchline, the ball resting on it right of the pole, the line ending a little past the ball), then "TouchLine" standing on the same ground: the name's baseline is the line's top edge. There is no line under the name. Lengths are in u = height / 64 (`LOCKUP` in `brand.ts`, mirrored in the `.tl-*` rules of `styles.css`; a test checks the two agree):
+**Retired open lockup.** The old `Lockup` was a tile-less drawing with the flag, ball and short touchline beside the name. The historical lengths below explain that version only:
 
 The mark is sized to the name (the owner's "balanced and well ratioed with the text"; a test holds the ratios):
 
@@ -89,7 +95,7 @@ The mark is sized to the name (the owner's "balanced and well ratioed with the t
 
 Colours: on Floodlit the pole and the line are white; on Daylight they, and a thin ring round the ball, take `--text` (`#0a1b51`), the same navy as the name. The pennant stays red on both. All of it follows the theme through CSS variables (`--tl-ink`, `--tl-ball-ring`).
 
-**Motion.** CSS keyframes only, no JavaScript; the resting state is the finished logo, so `prefers-reduced-motion` switches the animations off and shows it.
+**Retired motion.** The previous logo used the CSS/SMIL sequences below. The current logo intentionally does not run them.
 
 - **Shine:** an `aria-hidden` copy of the name lies over it (generated content, `::before { content: attr(data-text) }`, so the page text, find-in-page and copy see the name once), its text transparent, its background a narrow 110° band (pale blue edge `#93c5fd`, white core on Floodlit; `#bfdbfe` edge, white core on Daylight) clipped to the letters with `background-clip: text`; `background-position` sweeps it left to right once. Alongside it a `mask-image` wipe at the same angle and size holds the letters ahead of the band at 68 % and brings them up to full behind it, so the glint reads on white "Touch" as well as on blue "Line". The shine uses an even ease (`cubic-bezier(.45, .05, .4, 1)`) so it is seen over both halves.
 - **Line:** `transform: scaleX(0 → 1)` from the left, so the short touchline draws itself out from under the pole.
@@ -120,7 +126,7 @@ Rules:
 - The mark is decorative next to the wordmark (`aria-hidden`); give `LogoMark` a `title` when it stands alone. In the lockup only the name is read; the shine copy, the flag and the ball are hidden.
 - SVG ids are prefixed per instance (`useId`), so two logos on a screen never share a gradient or a clip.
 - After any change to `MARK`, run `node scripts/brand/icons.mjs` (Node 22.18+ and Playwright; set `PLAYWRIGHT_MODULE` to Playwright's entry file if it is not installed in the project). It writes `public/favicon.svg` (the tiny tier), `icons/icon-192.png` and `icon-512.png` (full tier, rounded tile, transparent corners), `icons/icon-maskable-512.png` (full bleed, glyph at 78 % inside the safe circle) and `icons/apple-touch-icon.png` (full bleed, opaque).
-- The share card (`shareCard.ts`) draws the open lockup (the short line, the resting pennant with its folds, the pole and its finial, no line under the name) with `Path2D` from `LOCKUP`, `pennantPath` and `ballPanels`, 76 px high, in the Floodlit colours of `BRAND_COLOURS`, whatever the viewer's theme.
+- The share card (`shareCard.ts`) draws the current flat tile and Barlow Condensed wordmark directly to canvas in the Floodlit colours, whatever the viewer's theme.
 
 ## 3. Colour
 
