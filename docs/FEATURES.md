@@ -68,8 +68,8 @@ The [public homepage](https://touchline.quest/) introduces the football draft an
 
 ## Visual design
 
-- A football programme style with warm neutral or charcoal navy surfaces, blue controls and compact navigation. Home prioritises saves and the Daily; setup starts with the team name and a compact formation chooser. Draft shows a team sheet between spins and an expandable pick log. The Dugout keeps preparation and phone rosters compact. Every mode, custom rule, save and audio setting remains available.
-- A flat, original TouchLine identity: cobalt corner-flag tile, red pennant, simplified ball and a Barlow Condensed wordmark. It stays still at rest, uses only a 1 px fine-pointer lift and pressed response, regenerates the favicon and installed-app icons from the same geometry, and is drawn into result share cards too.
+- A Floodlight Scorebox style with midnight navy, off-white, cyan action wires, coral event accents, square edges and compact navigation. Home opens inside an original 16-bit floodlit stadium with a corner-flag mascot, oversized season line, concise first-run steps and dark HUD modules; Setup, Draft, Dugout and Matchday retain the information-first Matchday Ledger layouts. Every mode, custom rule, save and audio setting remains available.
+- An original pixel-scoreboard identity: midnight tile, cyan keyline, stepped coral flag, white touchline and block football, paired with a Pixelify Sans wordmark and display system. It stays still at rest, uses only a 1 px fine-pointer lift and pressed response, regenerates the favicon and installed-app icons from the same geometry, and is drawn into result share cards too. Sora remains the reading and figures face.
 
 ## Management
 

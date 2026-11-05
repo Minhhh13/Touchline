@@ -1,38 +1,35 @@
 ---
-name: TouchLine Matchday Ledger
-description: A football working interface built from fixture-sheet rhythm, score columns and a structural touchline rule.
+name: TouchLine Floodlight Scorebox
+description: A compact browser-football world built from a floodlit stadium, pixel scoreboards and match-control clarity.
 colors:
-  floodlit-ground: "#071724"
-  floodlit-panel: "#0d2132"
-  floodlit-raised: "#18334b"
-  floodlit-rule: "#284259"
-  floodlit-rule-strong: "#5a7389"
-  floodlit-ink: "#f4f7fb"
-  floodlit-ink-secondary: "#c7d3de"
-  floodlit-action: "#85b7ff"
-  daylight-ground: "#eef0f3"
-  daylight-panel: "#ffffff"
-  daylight-rule: "#cbd4de"
-  daylight-rule-strong: "#7f91a2"
-  daylight-ink: "#0b1a2b"
-  daylight-ink-secondary: "#34495d"
-  daylight-action: "#1f2de6"
-  programme-field: "#123d82"
-  programme-ink: "#ffffff"
+  floodlit-ground: "#050b18"
+  floodlit-panel: "#0b1629"
+  floodlit-raised: "#13233d"
+  floodlit-rule: "#243752"
+  floodlit-wire: "#5ee7f7"
+  floodlit-ink: "#f5f1df"
+  floodlit-ink-secondary: "#c4d6df"
+  event-coral: "#ff5b7f"
+  daylight-ground: "#cfe9f2"
+  daylight-panel: "#f7fbf7"
+  daylight-rule: "#94b7c4"
+  daylight-ink: "#071526"
+  daylight-action: "#08677a"
 typography:
-  brand: "800 Barlow Condensed, Arial Narrow, sans-serif"
+  brand: "700 Pixelify Sans, Segoe UI, system-ui, sans-serif"
+  display: "700 Pixelify Sans, Segoe UI, system-ui, sans-serif"
   family: "Sora, Segoe UI, system-ui, -apple-system, Roboto, sans-serif"
-  hero: "700 4.5rem/0.98 Sora"
-  screen-title: "700 2.25rem/1.1 Sora"
-  section-title: "700 1.5rem/1.1 Sora"
+  hero: "700 clamp(3.2rem, 7vw, 6.5rem)/0.82 Pixelify Sans"
+  screen-title: "700 2.25rem/1.1 Pixelify Sans"
+  section-title: "700 1.5rem/1.1 Pixelify Sans"
   body: "400 0.875rem/1.45 Sora"
   metadata: "600 0.75rem/1.45 Sora"
   figures: "Sora with tabular-nums"
 radii:
-  detail: 2px
-  small: 3px
-  control: 4px
-  panel: 6px
+  detail: 0
+  small: 1px
+  control: 2px
+  panel: 2px
   status-pill: 999px
 spacing:
   xs: 4px
@@ -42,25 +39,25 @@ spacing:
   xl: 24px
   2xl: 32px
 components:
-  primary-button: "Solid action colour, rectangular 4 px corner, 40 px minimum height and a restrained press transform."
+  primary-button: "Solid cyan action, square scorebox edge, 40 px minimum height and a restrained one-pixel press."
   secondary-button: "Panel-coloured control with a strong hairline and no resting shadow."
-  ledger-panel: "Flat panel separated by a hairline; a filled surface appears only when it holds a true group or action."
-  screen-heading: "Score-led title with one structural touchline rule and concise supporting context."
+  ledger-panel: "Midnight scorebox panel with a cyan top wire; filled surfaces hold real groups or actions."
+  screen-heading: "Pixel display title with concise Sora context and one structural touchline wire."
   format-row: "Full-width ruled row with title, one-line explanation, duration and directional action."
   status-chip: "Compact pill used only for a true fact, filter or state."
 ---
 
 # Overview
 
-TouchLine is a football game, not a SaaS dashboard. The interface is a modern matchday working document: calm enough to make decisions in, quick enough to scan during a match, and dramatic only when football supplies the event. The same system covers Home, setup, draft, the Dugout, matchday, summaries and utility screens in Floodlit and Daylight themes.
+TouchLine is a football game, not a SaaS dashboard. The interface is a compact playable football world: the Home screen opens inside a floodlit ground, shared controls read like a scoreboard and the dense management surfaces remain quick to scan. The same system covers Home, setup, draft, the Dugout, matchday, summaries and utility screens in Floodlit and Daylight themes.
 
 # Creative North Star
 
-**The Matchday Ledger.** Every screen should feel like one page of the same football run: choose, draft, prepare, play, review. Fixture-sheet rhythm, aligned figures and one structural touchline rule create hierarchy without interchangeable rounded cards. Cover the logo and the interface should still read as TouchLine.
+**The Floodlight Scorebox.** Every screen should feel like part of the same football run: choose, draft, prepare, play, review. Pixel display type, cyan score wires, aligned figures and a scene-first Home create a game identity without turning working screens into decoration. Cover the logo and the interface should still read as TouchLine.
 
 # Colors
 
-Floodlit uses stadium blue rather than black; Daylight uses cool match paper rather than warm beige. Action blue is the only decorative UI colour. Red, amber and green remain literal football or system state. The programme field is a deliberate brand interruption used for one dominant feature, not a gradient recipe for every panel.
+Floodlit uses midnight stadium navy rather than black; Daylight uses pale sky and off-white rather than warm beige. Cyan is the action wire and coral is the flag/event accent. Red, amber and green remain literal football or system state. Home stays in its fixed night-world palette in either theme so text never falls across a low-contrast scene transition.
 
 Rules:
 
@@ -71,11 +68,11 @@ Rules:
 
 # Typography
 
-Sora remains the product family for screens, controls, copy and figures. The TouchLine wordmark alone uses Barlow Condensed 800: a compact football-signage face that makes the identity recognisable without turning every heading into branding. Headlines are compact and score-led, body copy is direct, and metadata is short. Sentence case is the default. Capitals are for codes, small labels, table headers and match states only.
+Pixelify Sans is the display system for the wordmark, headings, navigation and action labels. Sora remains the reading face for body copy and figures, keeping long management screens clear. Headlines are compact and score-led, body copy is direct, and metadata is short. The canonical accessible name remains `TouchLine`; the visual wordmark is styled in capitals like stadium signage.
 
 # Layout
 
-Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Hairline rules create sections; nested cards do not. Home is a programme: short copy, one crisp pitch diagram and a single Lucide football icon system make the game visible without decorative illustration. Setup is a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. At phone widths these structures reflow as whole units in document order with 44 px targets, safe-area support and no horizontal page scroll.
+Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Home is a floodlit stadium scene with a large season line, an original corner-flag mascot and compact HUD modules; newcomers and returning players both fit the complete Home board without page scrolling at 1280×720 and 1440×900. Short desktop windows remove secondary descriptions before removing actions. The first-run action remains visible in the opening phone viewport, where necessary vertical scrolling is kept. Setup is a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. At phone widths these structures reflow as whole units in document order with 44 px targets, safe-area support and no horizontal page scroll.
 
 # Elevation & Depth
 
@@ -83,7 +80,7 @@ Normal content is flat. Depth belongs to overlays: dialogs, sheets, toasts, tool
 
 # Shapes
 
-Corners are tight and mechanical. Panels use the panel radius, controls the control radius and dense details the smaller values. Pills are reserved for filters and true status. The touchline rule is structural: it may anchor a screen heading, chronology or selected state, but it must not become a decorative stripe on every card.
+Corners are square and mechanical. Panels use a cyan top wire or an ordinary border according to hierarchy; controls use the tiny control radius. Pills are reserved for filters and true status. Pixel edges are crisp rather than noisy, and scanlines are static and faint—never animated texture.
 
 # Components
 

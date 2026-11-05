@@ -1,6 +1,6 @@
 # TouchLine: design system
 
-The look of the game, written down so every screen is built the same way. The owner's brief: a proper logo, blue instead of green, a nicer design and a cleaner layout; on the Season setup screen "less text, more pictures", keeping the detail and the customisation; and the name written **TouchLine**, not in capitals. The goal is a product that looks finished and friendly on a phone and on a laptop.
+The look of the game, written down so every screen is built the same way. The owner's brief: a proper logo, a fun scene-first game identity, less copy, smooth purposeful motion and a clean layout while keeping the management depth. The canonical name remains **TouchLine** in text and accessibility; its visual wordmark may use capitals as stadium signage. The goal is a product that looks authored, finished and friendly on a phone and on a laptop.
 
 Where it lives:
 
@@ -24,9 +24,21 @@ Where it lives:
 
 The rule for everyone building screens: **use the tokens and shared components below; no raw colours in screen styles.** Shared changes belong in `styles.css`; screen-specific layouts live beside their screen and are documented here.
 
-## November 2026 Matchday Ledger redesign
+## November 2026 Floodlight Scorebox redesign (current)
 
-The owner authorized a complete interface redesign with one constraint: it must feel deliberately made for TouchLine, not assembled from generic AI-dashboard patterns. Keep the existing TouchLine mark and Sora typeface. The visual world is the **Matchday Ledger**: a modern football working document built from fixture-sheet rhythm, score columns and a structural touchline rule. Use real football information, type and alignment instead of repeated cards, decorative gradients, generic entrance cascades or large empty panels.
+The current interface turns the Matchday Ledger foundation into a more playful browser-football world. The reference direction was the confidence and immediacy of scene-first web games, researched from the official Krillion site; no Krillion image, logo, mascot, copy or other asset is used. TouchLine's implementation is original football art and keeps the working density its management screens need.
+
+- **Home** (`screens/Home.tsx`, `Home.css`): an original 16-bit floodlit ground, oversized season headline, one corner-flag mascot, three first-run steps and compact scorebox modules. The fixed night palette works in both themes; returning-player resume information replaces the first-run strip without moving the game choices. Height-aware desktop rules fit the complete newcomer and returning boards at 1280×720 and 1440×900 with no internal or page scroll; at short heights secondary descriptions collapse before any action does.
+- **Identity** (`brand.ts`, `components/Logo.tsx`, `shareCard.ts`): a square midnight scoreboard tile, cyan keyline, stepped coral flag, white touchline and block football. The same geometry reaches the favicon, install icons and generated share cards.
+- **Typography**: Pixelify Sans 700 is the display and brand face; Sora remains body copy and figures. This creates character in headings and controls without sacrificing long-form readability.
+- **System** (`styles.css`): midnight navy, off-white, electric cyan and coral; square two-pixel corners, block shadows, static faint scanlines and crisp control states. The palette and display type apply across the entire UI, while pitches, ratings and status colours retain their gameplay meaning.
+- **Motion**: routine feedback is 140–260 ms and uses colour/translate/scale only on controls that benefit. There is no ambient logo loop, scene parallax, text crawl or generic page cascade. Reduced motion removes the optional transforms.
+
+The image files `public/art/touchline-stadium-pixel.png` and `public/art/touchline-flag-mascot.png` were generated from original TouchLine briefs and contain no text, real badge, sponsor, player likeness or copied reference art.
+
+## November 2026 Matchday Ledger foundation
+
+The owner authorized a complete interface redesign with one constraint: it must feel deliberately made for TouchLine, not assembled from generic AI-dashboard patterns. This shipped the **Matchday Ledger** foundation: a modern football working document built from fixture-sheet rhythm, score columns and a structural touchline rule. Its information architecture remains under the current Floodlight Scorebox art direction.
 
 - **Home** (`screens/Home.tsx`, `Home.css`): a programme masthead, one cobalt Daily feature, saved games before discovery and ruled format rows without decorative numbering. The rendered brand/domain line and every mode remain available.
 - **Setup** (`screens/Setup.tsx`, `Setup.css`): one open five-step sheet in two columns, joined by rules rather than nested panels. At phone widths the steps remain in document order and Start is step 5, never an overlay on the rules. Rule defaults remain unchanged.
@@ -35,7 +47,7 @@ The owner authorized a complete interface redesign with one constraint: it must 
 - **Matchday** (`matchday/*.css`): the existing information density remains, but the shell, controls, pitch frame and event cards share the ledger's rules, tight corners and physical motion.
 - **Shared controls**: 6px panels, 4px primary controls, a solid cobalt primary action, hairline dividers and plain page surfaces. Elevation belongs to overlays. Touch targets, focus, larger text and both themes remain supported. Trophy, rarity and goal effects remain where they communicate a game event.
 
-These rules supersede earlier decorative hero and neon-primary descriptions below. Art and logo geometry are unchanged; those specifications still describe the assets used elsewhere.
+The current Floodlight Scorebox section supersedes this foundation where colour, type, Home art and identity differ. The ledger layouts and information hierarchy still apply.
 
 ## 1. Principles
 
@@ -47,11 +59,11 @@ These rules supersede earlier decorative hero and neon-primary descriptions belo
 
 ## 2. Name and logo
 
-**The name is TouchLine**: one word, capital T and capital L, everywhere it is displayed (`APP_NAME` in `brand.ts`). Never "TOUCHLINE", "Touch Line" or "Touchline". Lower-case `touchline` stays only where it is a slug: the npm package, the repository, `localStorage` keys (`touchline-save-v1`), download file names and the service worker cache. Engine strings are unchanged: `shareText` keeps its `'Touchline'` default, and the UI passes `APP_NAME`.
+**The name is TouchLine**: one word, capital T and capital L, in prose, metadata and accessible names (`APP_NAME` in `brand.ts`). Never "Touch Line". The visual wordmark uses CSS uppercase stadium-signage styling while its real text remains `TouchLine`. Lower-case `touchline` stays where it is a slug: the npm package, repository, `localStorage` keys (`touchline-save-v1`), download names and service-worker cache. Engine strings are unchanged: `shareText` keeps its `'Touchline'` default, and the UI passes `APP_NAME`.
 
-**Current identity (November 2026).** The mark is a flat cobalt tile (`#1f2de6`) with a white corner pole and touchline, a solid red pennant and one simplified white ball. It keeps the original football idea but removes the tile gradient, cloth shading, modelled ball, glint, roll and looping flag: the result reads at 16 px, works as an app icon and belongs beside the quieter Matchday Ledger interface. The wordmark is real text in Barlow Condensed 800, mixed case, tightly but deliberately spaced; `Line` takes the action blue (or the pale brand blue in the top bar). Sora remains every screen's product face. The full lockup is present immediately; on a fine pointer the tile may lift 1 px and its pressed state settles 1 px, both removed under reduced motion. The same flat mark and wordmark appear in the top bar, loader, favicon, installed-app icons and generated share cards.
+**Current identity (November 2026).** The mark is a midnight pixel-scoreboard tile (`#081427`) with a cyan inner keyline, a stepped coral corner flag, a white touchline and one block football. It is constructed from hard-edged rectangles and one stepped path, reads at 16 px and works as an app icon. The wordmark is real text in Pixelify Sans 700, visually uppercase and deliberately spaced; `LINE` takes cyan. Sora remains the reading face. The full lockup is present immediately; on a fine pointer the tile may lift 1 px and its pressed state settles 1 px, both removed under reduced motion. The same mark and wordmark appear in the top bar, loader, favicon, installed-app icons and generated share cards.
 
-Current rules: keep the cobalt tile and red pennant fixed; preserve at least one quarter-mark clear space; never add a crest, shield, glow, gradient, mascot, extra football or looping animation; never set the name in capitals or with a space. `LogoMark` is decorative beside the wordmark and named when it stands alone. After changing `MARK`, run `node scripts/brand/icons.mjs`; `PLAYWRIGHT_MODULE` and `PLAYWRIGHT_EXECUTABLE` are supported when using the managed Playwright package and an installed Chromium browser.
+Current rules: keep the midnight tile, cyan wire and coral pennant fixed; preserve at least one quarter-mark clear space; never add a crest, shield, glow, gradient, extra football or looping animation to the mark. The Home mascot is a separate decorative world-building character and never replaces the product mark. Keep `TouchLine` as the underlying real text even when styled in capitals. `LogoMark` is decorative beside the wordmark and named when it stands alone. After changing `MARK`, run `node scripts/brand/icons.mjs`; `PLAYWRIGHT_MODULE` and `PLAYWRIGHT_EXECUTABLE` are supported when using the managed Playwright package and an installed Chromium browser.
 
 The detailed v3 geometry below is retained as design history only. It describes the retired dimensional mark and open animated lockup, not the current component.
 
@@ -126,7 +138,7 @@ Rules:
 - The mark is decorative next to the wordmark (`aria-hidden`); give `LogoMark` a `title` when it stands alone. In the lockup only the name is read; the shine copy, the flag and the ball are hidden.
 - SVG ids are prefixed per instance (`useId`), so two logos on a screen never share a gradient or a clip.
 - After any change to `MARK`, run `node scripts/brand/icons.mjs` (Node 22.18+ and Playwright; set `PLAYWRIGHT_MODULE` to Playwright's entry file if it is not installed in the project). It writes `public/favicon.svg` (the tiny tier), `icons/icon-192.png` and `icon-512.png` (full tier, rounded tile, transparent corners), `icons/icon-maskable-512.png` (full bleed, glyph at 78 % inside the safe circle) and `icons/apple-touch-icon.png` (full bleed, opaque).
-- The share card (`shareCard.ts`) draws the current flat tile and Barlow Condensed wordmark directly to canvas in the Floodlit colours, whatever the viewer's theme.
+- The share card (`shareCard.ts`) draws the current pixel-scoreboard tile and Pixelify Sans wordmark directly to canvas in the Floodlit colours, whatever the viewer's theme.
 
 ## 3. Colour
 
@@ -268,7 +280,7 @@ A new colour pair is only added after it is checked against both themes.
 
 ## 4. Typography
 
-One family: **Sora** (Google Fonts, SIL Open Font License; 400, 600, 700, 800 from one stylesheet in `index.html`) for titles, big numbers, the call to action and body text alike: a wide geometric sans with flat, squared terminals, our free stand-in for the look of a European club-competition broadcast face (the real broadcast fonts are exclusive and are never used). `--font-display` and `--font-body` both name it, so a rule can still say which role it plays; the fallbacks are `'Segoe UI', system-ui, -apple-system, Roboto, sans-serif`. Figures (minutes, ratings, scores, stats, the match clock) are Sora too: `--mono` names `--font-body`, and every rule that sets it (and the `.mono` class) turns on tabular figures, so columns line up without a second face (2026-10-28: it was the system monospace, which outside a Mac drew DejaVu Sans Mono or Consolas beside Sora on the match day and the player card). `--code` keeps a true monospace for what a reader types or copies: seed fields, room codes, links and share text (`.input.mono`, `pre.mono`, `.chip.mono`, `.btn.mono`, `kbd`). Sora is about 45 % wider than the old condensed display face, so display sizes were cut where a box is fixed (below). The share cards draw in Sora too and wait (up to 2 s) for `document.fonts` before drawing; `public/sw.js` caches the Google Fonts stylesheet and files cache-first, so the type survives offline after one visit.
+Two complementary families ship from one Google Fonts stylesheet. **Pixelify Sans** (400–700, SIL Open Font License) is `--font-brand` and `--font-display` for the wordmark, headings, navigation and action labels. **Sora** (400, 600, 700, 800, SIL Open Font License) is `--font-body` for reading, dense data and figures. The fallbacks are `'Segoe UI', system-ui, -apple-system, Roboto, sans-serif`. Figures (minutes, ratings, scores, stats, the match clock) remain Sora: `--mono` names `--font-body`, and every rule that sets it turns on tabular figures. `--code` keeps a true monospace for seed fields, room codes, links and share text (`.input.mono`, `pre.mono`, `.chip.mono`, `.btn.mono`, `kbd`). Share cards wait up to 2 seconds for both faces before drawing; `public/sw.js` caches the Google Fonts stylesheet and files cache-first, so the type survives offline after one visit.
 
 | Token | Size | Phone | Face | Use |
 |---|---|---|---|---|

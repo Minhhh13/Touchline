@@ -9,54 +9,54 @@
  */
 :root {
   color-scheme: dark;
-  /* Floodlit: deep stadium blues, clear seams and no black voids. */
-  --bg: #071724;
-  --bg-2: #0a1c2b;
-  --bg-3: #173149;
-  --panel: #0d2132;
-  --panel-2: #12283a;
-  --raised: #18334b;
-  --line: #284259;
-  --line-2: #5a7389;
-  --field-bg: #0a1c2b;
-  --field-border: #7791a8;
+  /* Floodlit: a compact retro scorebox, not a generic dark dashboard. */
+  --bg: #050b18;
+  --bg-2: #081427;
+  --bg-3: #0d1b31;
+  --panel: #0b1629;
+  --panel-2: #0f1c33;
+  --raised: #13233d;
+  --line: #243752;
+  --line-2: #5ee7f7;
+  --field-bg: #081427;
+  --field-border: #5b7891;
   --scrim: rgba(3, 7, 26, 0.66);
-  --float-bg: #173149;
-  --float-text: #f4f7fb;
-  --float-line: #5a7389;
+  --float-bg: #0d1b31;
+  --float-text: #f5f1df;
+  --float-line: #5ee7f7;
   /* Text */
-  --text: #f4f7fb;
+  --text: #f5f1df;
   --text-1: var(--text);
-  --text-2: #c7d3de;
-  --text-3: #a6b8c7;
-  /* One blue for actions. The legacy fill tokens remain shared with the reel controls. */
-  --primary: #85b7ff;
-  --primary-hover: #afd0ff;
-  --primary-active: #6ea6f7;
-  --on-primary: #071724;
+  --text-2: #c4d6df;
+  --text-3: #94aab7;
+  /* Cyan is the action wire; coral is reserved for moments and the flag. */
+  --primary: #5ee7f7;
+  --primary-hover: #8ff1ff;
+  --primary-active: #32c5d9;
+  --on-primary: #061224;
   --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
   --primary-grad: var(--primary);
   --primary-grad-hover: var(--primary-hover);
   --primary-glow: none;
-  --accent: #a2c7ff;
-  --focus: #a2c7ff;
-  --navy: #06142b;
-  --navy-2: #102f68;
-  --brand-field: #123d82;
-  --brand-field-2: #0d2f68;
-  --brand-line: #8fc0ff;
-  --brand-accent: #a9ceff;
-  --on-brand: #ffffff;
-  --on-brand-2: #d9e7ff;
+  --accent: #ff6b8b;
+  --focus: #5ee7f7;
+  --navy: #061224;
+  --navy-2: #12233e;
+  --brand-field: #081427;
+  --brand-field-2: #050b18;
+  --brand-line: #5ee7f7;
+  --brand-accent: #ff6b8b;
+  --on-brand: #f5f1df;
+  --on-brand-2: #c4d6df;
   /* Quiet ink on the always-navy reel windows, the same in both themes (the idle case and manager reels) */
   --reel-ink: #93a3d6;
   --glow: color-mix(in srgb, var(--primary) 11%, transparent);
   --glow-2: color-mix(in srgb, var(--magenta) 9%, transparent);
   /* The neon pair, for the art (components/Art.tsx) and thin decorative lines only, never for meaning */
-  --cyan: #5cb7ff;
-  --magenta: #f07c8b;
-  --neon-blur: 3px;
-  --neon-strength: 0.55;
+  --cyan: #5ee7f7;
+  --magenta: #ff5b7f;
+  --neon-blur: 0;
+  --neon-strength: 0;
   /* The cartoon art: fills and ink that follow the theme */
   --art-sky-1: #0a1a52;
   --art-sky-2: #050c2a;
@@ -142,8 +142,8 @@
   --line-casing: rgba(241, 244, 255, 0.6);
   --pitch-cover: #f5c542;
   /* Type */
-  --font-brand: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
-  --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  --font-brand: 'Pixelify Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Pixelify Sans', 'Segoe UI', system-ui, sans-serif;
   --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   /* Figures (minutes, ratings, scores, stats): Sora, and every rule that names it sets tabular figures so columns line up */
   --mono: var(--font-body);
@@ -167,14 +167,14 @@
   --space-6: 32px;
   --gutter: 16px;
   --panel-pad: 16px;
-  --radius-xs: 2px;
-  --radius-s: 3px;
-  --radius-m: 4px;
-  --radius: 6px;
+  --radius-xs: 0;
+  --radius-s: 1px;
+  --radius-m: 2px;
+  --radius: 2px;
   --radius-pill: 999px;
   --border: 1px solid var(--line);
   --border-strong: 1px solid var(--line-2);
-  --shadow: 0 16px 36px rgba(1, 8, 18, 0.28);
+  --shadow: 8px 8px 0 rgba(1, 7, 17, 0.24);
   --control-h: 40px;
   --control-h-sm: 30px;
   --control-h-lg: 52px;
@@ -190,45 +190,45 @@
 }
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #eef0f3;
-  --bg-2: #e2e5ea;
-  --bg-3: #d8dee6;
-  --panel: #ffffff;
-  --panel-2: #f7f8fa;
+  --bg: #cfe9f2;
+  --bg-2: #bcdce8;
+  --bg-3: #a8cedc;
+  --panel: #f7fbf7;
+  --panel-2: #eaf4f3;
   --raised: #ffffff;
-  --line: #cbd4de;
-  --line-2: #7f91a2;
-  --field-bg: #ffffff;
-  --field-border: #667b8f;
+  --line: #94b7c4;
+  --line-2: #08677a;
+  --field-bg: #f7fbf7;
+  --field-border: #3d6675;
   --scrim: rgba(10, 27, 81, 0.42);
-  --float-bg: #14283f;
-  --float-text: #ffffff;
-  --float-line: #14283f;
-  --text: #0b1a2b;
-  --text-2: #34495d;
-  --text-3: #52677b;
-  --primary: #1f2de6;
-  --primary-hover: #1823bd;
-  --primary-active: #121a95;
+  --float-bg: #071526;
+  --float-text: #f7fbf7;
+  --float-line: #08677a;
+  --text: #071526;
+  --text-2: #294755;
+  --text-3: #496876;
+  --primary: #08677a;
+  --primary-hover: #064f5f;
+  --primary-active: #043b47;
   --on-primary: #ffffff;
   --primary-soft: color-mix(in srgb, var(--primary) 8%, transparent);
   --primary-grad: var(--primary);
   --primary-grad-hover: var(--primary-hover);
   --primary-glow: none;
-  --accent: #1f2de6;
-  --focus: #1f2de6;
-  --brand-field: #102f72;
-  --brand-field-2: #0b255c;
-  --brand-line: #8fc0ff;
-  --brand-accent: #a9ceff;
-  --on-brand: #ffffff;
-  --on-brand-2: #dbe7ff;
+  --accent: #a81f49;
+  --focus: #08677a;
+  --brand-field: #081427;
+  --brand-field-2: #050b18;
+  --brand-line: #5ee7f7;
+  --brand-accent: #ff6b8b;
+  --on-brand: #f5f1df;
+  --on-brand-2: #c4d6df;
   --glow: color-mix(in srgb, var(--cyan) 12%, transparent);
   --glow-2: color-mix(in srgb, var(--magenta) 8%, transparent);
-  --cyan: #126dba;
-  --magenta: #b73d53;
-  --neon-blur: 2px;
-  --neon-strength: 0.4;
+  --cyan: #08677a;
+  --magenta: #a81f49;
+  --neon-blur: 0;
+  --neon-strength: 0;
   --art-sky-1: #d8dffa;
   --art-sky-2: #ebe7fb;
   --art-ink: #0a1b51;
@@ -313,8 +313,9 @@ html {
 }
 body {
   margin: 0;
-  /* A quiet page keeps attention on the current match or draft. */
+  /* A static broadcast scanline gives every screen one shared game-world texture. */
   background-color: var(--bg);
+  background-image: repeating-linear-gradient(180deg, transparent 0 3px, color-mix(in srgb, var(--text) 2%, transparent) 3px 4px);
   color: var(--text);
   /* Native checkboxes, radios and sliders take the brand blue, not the browser's own */
   accent-color: var(--primary);
@@ -362,7 +363,7 @@ h3,
 h4 {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.025em;
+  letter-spacing: 0.015em;
   margin: 0;
   line-height: 1.1;
   color: var(--text);
@@ -434,7 +435,7 @@ pre.mono,
   align-items: center;
   gap: var(--space-4);
   padding: calc(10px + var(--safe-top)) calc(var(--gutter) + var(--safe-right)) 10px calc(var(--gutter) + var(--safe-left));
-  border-bottom: 1px solid color-mix(in srgb, var(--on-brand) 18%, transparent);
+  border-bottom: 2px solid var(--brand-line);
   background: var(--brand-field-2);
   color: var(--on-brand);
   position: sticky;
@@ -464,9 +465,10 @@ pre.mono,
 }
 .wordmark {
   font-family: var(--font-brand);
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-weight: 700;
+  letter-spacing: 0.075em;
   line-height: 1;
+  text-transform: uppercase;
   color: var(--text);
   white-space: nowrap;
 }
@@ -495,10 +497,11 @@ pre.mono,
   align-items: baseline;
   margin: 0;
   font-family: var(--font-brand);
-  font-size: calc(var(--h) * 0.76);
-  font-weight: 800;
+  font-size: calc(var(--h) * 0.68);
+  font-weight: 700;
   line-height: 0.9;
-  letter-spacing: -0.032em;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: var(--text);
   white-space: nowrap;
   mask-image: none;
@@ -554,10 +557,12 @@ pre.mono,
   min-height: 40px;
   border: 0;
   color: var(--on-brand-2);
+  font-family: var(--font-display);
   padding: 6px 12px;
   border-radius: 0;
   font-size: var(--fs-base);
   font-weight: 600;
+  letter-spacing: 0.025em;
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
@@ -843,6 +848,7 @@ pre.mono,
 .panel {
   background: var(--panel);
   border: var(--border);
+  border-top-color: var(--line-2);
   border-radius: var(--radius-m);
   padding: max(var(--panel-pad), var(--space-4));
 }
@@ -898,7 +904,9 @@ pre.mono,
   background: var(--raised);
   color: var(--text);
   cursor: pointer;
+  font-family: var(--font-display);
   font-weight: 600;
+  letter-spacing: 0.035em;
   transition: transform var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
   text-decoration: none;
   white-space: nowrap;
@@ -1130,7 +1138,7 @@ pre.mono,
 }
 .btn.primary {
   background: var(--primary-grad);
-  border-color: transparent;
+  border-color: var(--primary);
   color: var(--on-primary);
   box-shadow: var(--primary-glow);
 }
@@ -1187,7 +1195,7 @@ pre.mono,
   padding: 10px 24px;
   font-size: calc(var(--fs-h3) - 2px);
   font-family: var(--font-display);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.06em;
   border-radius: var(--radius-s);
 }
 .btn.sm {
