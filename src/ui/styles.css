@@ -145,21 +145,20 @@
   --pitch-cover: #f5c542;
   /* Type */
   --font-brand: 'VT323', ui-monospace, monospace;
-  --font-display: 'VT323', ui-monospace, monospace;
-  --font-body: 'VT323', ui-monospace, monospace;
-  /* VT323's figures are monospaced; explicit tabular figures keep fallbacks aligned too. */
+  --font-display: 'Barlow', system-ui, sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+  /* Reading text stays smooth; the pixel face belongs to the identity and game moments. */
   --mono: var(--font-body);
   /* Codes a reader types or copies (seeds, room codes, links, share text, keys): a true monospace */
   --code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* VT323 has a smaller cap height: raise the role sizes rather than squeezing pixel letters into 11px text. */
-  --fs-xs: 1rem;
-  --fs-meta: 1.125rem;
-  --fs-sm: 1.25rem;
-  --fs-base: 1.375rem;
-  --fs-h3: 1.5rem;
-  --fs-h2: 1.875rem;
-  --fs-h1: 2.75rem;
-  --fs-hero: 5.5rem;
+  --fs-xs: 0.75rem;
+  --fs-meta: 0.8125rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-h3: 1.125rem;
+  --fs-h2: 1.5rem;
+  --fs-h1: 2rem;
+  --fs-hero: 4.5rem;
   /* Space, shape, elevation */
   --space-1: 4px;
   --space-2: 8px;
@@ -315,16 +314,14 @@ html {
 }
 body {
   margin: 0;
-  /* A static broadcast scanline gives every screen one shared game-world texture. */
   background-color: var(--bg);
-  background-image: repeating-linear-gradient(180deg, transparent 0 3px, color-mix(in srgb, var(--text) 2%, transparent) 3px 4px);
   color: var(--text);
   /* Native checkboxes, radios and sliders take the brand blue, not the browser's own */
   accent-color: var(--primary);
   font-family: var(--font-body);
   font-size: var(--fs-base);
   font-synthesis: none;
-  line-height: 1.25;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -366,7 +363,7 @@ h3,
 h4 {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: 0.015em;
+  letter-spacing: -0.015em;
   margin: 0;
   line-height: 1.1;
   color: var(--text);
@@ -9464,164 +9461,6 @@ table.tbl.match-stats th {
   .app.shell.bar-hidden .grid.dugout .pitch-wrap {
     --shell-chrome: 410px;
   }
-  /*
-   * Home fits one screen at every desktop size. The hero's text scales with the window height (never clipped, so the
-   * lockup always shows) and the hero takes any spare height; the mode pictures have a height-aware size and are the
-   * one thing that gives way when space runs out (the cards shrink in a minmax(0, 1fr) row); the resume card is a slim
-   * strip and the tiles row stays compact.
-   */
-  .app.shell .page.home {
-    gap: clamp(8px, 1.4dvh, 16px);
-  }
-  .app.shell .page.home .hero {
-    flex: 1 0 auto;
-    min-height: 0;
-    margin: 0;
-  }
-  .app.shell .page.home .hero-content {
-    max-width: 720px;
-    padding: clamp(12px, 2.6dvh, 40px) 40px;
-  }
-  .app.shell .page.home .hero h1 .tl-lockup {
-    --h: clamp(48px, calc(10dvh - 14px), 104px);
-  }
-  .app.shell .page.home .hero .tag {
-    font-size: clamp(15px, 2.2dvh, 18px);
-    margin-top: clamp(2px, 0.8dvh, 8px);
-  }
-  .app.shell .page.home .hero-stats {
-    margin-top: clamp(6px, 2dvh, 24px);
-  }
-  .app.shell .page.home .hero-stats dd {
-    font-size: clamp(20px, 3dvh, 28px);
-  }
-  .app.shell .page.home .hero-flags {
-    margin-top: clamp(6px, 1.6dvh, 16px);
-  }
-  .app.shell .page.home .modes {
-    flex: 0 1 auto;
-    min-height: 0;
-    grid-template-rows: minmax(0, 1fr);
-  }
-  .app.shell .page.home .mode-card,
-  .app.shell .page.home .mode-card-body {
-    min-height: 0;
-  }
-  .app.shell .page.home .mode-card-body {
-    flex: 1 1 auto;
-  }
-  /* The picture takes any height the row has spare, so every card's text and button sit at its foot, in one line across the four (visual audit, QA round 8) */
-  .app.shell .page.home .mode-art {
-    flex: 1 1 clamp(64px, calc(100dvh - 600px), 200px);
-    min-height: 40px;
-    aspect-ratio: auto;
-    height: auto;
-  }
-  .app.shell .page.home .mode-art .mode-scene {
-    position: absolute;
-    inset: 0;
-  }
-  .app.shell .page.home .mode-text {
-    flex: none;
-  }
-  /* Every card's line keeps two lines' room, so a translation that wraps one card's line leaves its title in line with the other three (QA r13, R13-7) */
-  .app.shell .page.home .mode-text > p {
-    min-height: 2lh;
-  }
-  .app.shell .page.home .resume-list {
-    margin: 0;
-    gap: var(--space-2);
-  }
-  .app.shell .page.home .resume-card {
-    margin: 0;
-    padding: var(--space-2) var(--space-4);
-  }
-  .app.shell .page.home .resume-card .btn {
-    min-height: var(--control-h-sm);
-    padding-block: 0;
-  }
-  .app.shell .page.home .home-tiles {
-    margin-top: 0;
-  }
-  .app.shell .page.home .home-tile {
-    padding: var(--space-2) var(--space-3);
-  }
-  .app.shell .page.home .tile-icon {
-    width: 34px;
-    height: 34px;
-  }
-}
-@media (min-width: 1100px) and (max-height: 820px) {
-  .app.shell .page.home .mode-text {
-    padding: 24px var(--space-3) var(--space-3);
-  }
-  .app.shell .page.home .mode-card h3 {
-    font-size: calc(var(--fs-h3) + 1px);
-  }
-  .app.shell .page.home .mode-go,
-  .app.shell .page.home .mode-card.daily > .btn {
-    min-height: 36px;
-  }
-  /* The Daily's button sits outside its text, so it takes the text's tighter inset too: lined up with the other cards' Start */
-  .app.shell .page.home .mode-card.daily > .btn {
-    margin: 0 var(--space-3) var(--space-3);
-  }
-}
-/* A short window: the hero's figures and flags move beside the lockup and the line, so the hero is half as tall */
-@media (min-width: 1100px) and (max-height: 760px) {
-  .app.shell .page.home .hero-content {
-    max-width: none;
-    display: grid;
-    grid-template-columns: auto auto;
-    justify-content: start;
-    align-items: end;
-    column-gap: 56px;
-  }
-  .app.shell .page.home .hero h1 {
-    grid-area: 1 / 1;
-  }
-  .app.shell .page.home .hero .tag {
-    grid-area: 2 / 1;
-  }
-  .app.shell .page.home .hero-stats {
-    grid-area: 1 / 2;
-    margin-top: 0;
-  }
-  .app.shell .page.home .hero-flags {
-    grid-area: 2 / 2;
-    align-self: center;
-    margin-top: clamp(2px, 0.8dvh, 8px);
-  }
-}
-/*
- * A game to continue adds the resume strip above the mode cards, and their pictures were the one thing left to give
- * way (a 45 px sliver at 1280x720). With the strip shown, the hero takes the short window's side-by-side layout up to
- * 1000 px tall, so the pictures keep a real height.
- */
-@media (min-width: 1100px) and (max-height: 1000px) {
-  .app.shell .page.home:has(.resume-card) .hero-content {
-    max-width: none;
-    display: grid;
-    grid-template-columns: auto auto;
-    justify-content: start;
-    align-items: end;
-    column-gap: 56px;
-  }
-  .app.shell .page.home:has(.resume-card) .hero h1 {
-    grid-area: 1 / 1;
-  }
-  .app.shell .page.home:has(.resume-card) .hero .tag {
-    grid-area: 2 / 1;
-  }
-  .app.shell .page.home:has(.resume-card) .hero-stats {
-    grid-area: 1 / 2;
-    margin-top: 0;
-  }
-  .app.shell .page.home:has(.resume-card) .hero-flags {
-    grid-area: 2 / 2;
-    align-self: center;
-    margin-top: clamp(2px, 0.8dvh, 8px);
-  }
 }
 /* A short desktop window: the Dugout's header and briefing tighten so the tab's box keeps its height */
 @media (min-width: 1100px) and (max-height: 820px) {
@@ -13950,14 +13789,14 @@ table.tbl.tv-compact .tv-name {
 }
 @media (min-width: 2200px) and (min-height: 1200px) {
   :root {
-    --fs-xs: 1.25rem;
-    --fs-meta: 1.375rem;
-    --fs-sm: 1.5rem;
-    --fs-base: 1.625rem;
-    --fs-h3: 1.875rem;
-    --fs-h2: 2.25rem;
-    --fs-h1: 3.25rem;
-    --fs-hero: 6.5rem;
+    --fs-xs: 0.875rem;
+    --fs-meta: 1rem;
+    --fs-sm: 1.0625rem;
+    --fs-base: 1.1875rem;
+    --fs-h3: 1.375rem;
+    --fs-h2: 1.875rem;
+    --fs-h1: 2.5rem;
+    --fs-hero: 5.5rem;
     --space-1: 5px;
     --space-2: 10px;
     --space-3: 14px;

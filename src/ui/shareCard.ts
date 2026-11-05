@@ -67,14 +67,13 @@ function ratingColour(v: number): string {
   return C.ratingBase
 }
 
-/** The site's one family (--font-display and --font-body in styles.css). */
-const DISPLAY = "'VT323', monospace"
+/** The reading face follows the site; the identity keeps its dedicated pixel face. */
+const DISPLAY = "'Barlow', sans-serif"
 const BODY = DISPLAY
-const BRAND = DISPLAY
+const BRAND = "'VT323', monospace"
 
-/** VT323 has one weight; avoid the browser inventing bold pixels on the canvas. */
-function cardFont(size: number, _weight = 400, family = DISPLAY): string {
-  return `400 ${size}px ${family}`
+function cardFont(size: number, weight = 600, family = DISPLAY): string {
+  return `${family === BRAND ? 400 : weight} ${size}px ${family}`
 }
 
 /**
@@ -83,7 +82,7 @@ function cardFont(size: number, _weight = 400, family = DISPLAY): string {
  */
 async function cardFontsReady(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return
-  const load = document.fonts.load("400 40px 'VT323'").then(() => undefined, () => undefined)
+  const load = Promise.all([document.fonts.load("400 40px 'VT323'"), ...[400, 600, 700].map((weight) => document.fonts.load(`${weight} 40px 'Barlow'`))]).then(() => undefined, () => undefined)
   await Promise.race([load, new Promise<void>((done) => setTimeout(done, 2000))])
 }
 

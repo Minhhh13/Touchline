@@ -198,7 +198,7 @@ export function Home() {
         </div>
 
         <div className="home-hero" aria-labelledby="home-title">
-          <h1 id="home-title" className="home-lockup"><Lockup height={64} /></h1>
+          <h1 id="home-title" className="home-lockup"><Lockup height={64} open /></h1>
           <SimulationTicker paused={scenePaused} />
           <div className="home-actions">
             <button ref={playButton} type="button" className="home-play" onClick={() => openPanel('play')} aria-expanded={panel === 'play'} aria-controls="home-panel" data-testid="home-play">

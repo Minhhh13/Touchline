@@ -3,13 +3,17 @@
    offline whatever the first one loaded; the shell is refreshed in
    the background on every visit; hashed assets, icons, flags, art and local fonts are cache-first;
    league packs are served from the cache and refreshed behind the scenes, so
-   a rebuilt pack shows up on the next visit. The local VT323 font and Home art
+   a rebuilt pack shows up on the next visit. The local Barlow/VT323 fonts and Home art
    are precached, so the complete scene also works offline. VERSION is stamped per build, so
    a new deploy installs a fresh worker and drops the old cache. */
 const VERSION = 'touchline-__BUILD__'
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './fonts/vt323-latin.woff2', './fonts/vt323-latin-ext.woff2', './fonts/vt323-vietnamese.woff2',
+  './fonts/barlow-400-latin.woff2', './fonts/barlow-400-latin-ext.woff2', './fonts/barlow-400-vietnamese.woff2',
+  './fonts/barlow-500-latin.woff2', './fonts/barlow-500-latin-ext.woff2', './fonts/barlow-500-vietnamese.woff2',
+  './fonts/barlow-600-latin.woff2', './fonts/barlow-600-latin-ext.woff2', './fonts/barlow-600-vietnamese.woff2',
+  './fonts/barlow-700-latin.woff2', './fonts/barlow-700-latin-ext.woff2', './fonts/barlow-700-vietnamese.woff2',
   './art/touchline-clouds.svg', './art/touchline-ground-day.webp', './art/touchline-ground-night.webp',
   './art/touchline-player-run.webp', './art/touchline-oak.webp',
 ]

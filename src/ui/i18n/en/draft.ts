@@ -5,6 +5,11 @@ export const draft = catalog('draft', {
   // Draft.tsx
   oddsAnySlot: 'Next spin, any open slot',
   oddsNext: 'Next spin',
+  oddsDetails: 'Next spin odds',
+  lockerItems: '{n} items',
+  draftDetails: 'Rules & seed',
+  yourXI: 'Your XI',
+  draftHelp: 'Drafting help',
   oddsRespin: 'If you re-spin',
   gradeLine: 'Best pick: spin {spin}, {name} ({grade}) · {a} of {n} picks graded A',
   yourPlayer: 'your player',

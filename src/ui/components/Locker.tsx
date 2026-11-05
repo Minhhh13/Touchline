@@ -6,6 +6,7 @@ import { LOCKER_ICON, PowerUpIcon } from './icons'
 import { translator } from '../i18n'
 import { draft } from '../i18n/en/draft'
 import { powerUpLine, powerUpTitle } from '../i18n/engineText'
+import { ChevronDown } from 'lucide-react'
 
 const t = translator(draft)
 
@@ -21,17 +22,21 @@ export function LockerBar({ game, busy }: { game: Game; busy: boolean }) {
   const held = POWER_UPS.filter((k) => lockerCount(profile, k) > 0)
   if (!held.length) return null
   return (
-    <div className="panel tight locker" data-testid="locker">
-      <b className="small row" style={{ gap: 6 }}>
+    <details className="panel tight locker" data-testid="locker">
+      <summary className="locker-summary">
         <LOCKER_ICON size={14} aria-hidden="true" />
         {t('locker')}
-      </b>
+        <span className="small muted">{t('lockerItems', { n: held.reduce((n, k) => n + lockerCount(profile, k), 0) })}</span>
+        <ChevronDown size={14} aria-hidden="true" />
+      </summary>
+      <div className="locker-items">
       {held.map((k) => (
         <button key={k} type="button" className="btn sm locker-btn" disabled={busy || !canUnpackFromLocker(game, profile, k)} onClick={() => unpackPowerUp(k)} title={t('unpackTip', { line: powerUpLine(k) })} data-testid={`locker-${k}`}>
           <PowerUpIcon kind={k} size={14} /> {powerUpTitle(k)} <span className="n">×{lockerCount(profile, k)}</span>
         </button>
       ))}
       <span className="help">{t('lockerHelp')}</span>
-    </div>
+      </div>
+    </details>
   )
 }

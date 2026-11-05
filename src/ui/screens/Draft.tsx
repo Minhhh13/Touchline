@@ -23,7 +23,7 @@ import { SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
+import { ClubBadge, EstimatedChip, Info, Modal, Pos, Rating, Segmented, Tip } from '../components/bits'
 import { MODE_ICON, PowerUpIcon, TWIST_ICON } from '../components/icons'
 import { clubName, nationName, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
@@ -83,6 +83,7 @@ export function Draft() {
   // The Upgrader's dial is turning: the Speedrun clock waits for it as it waits for the reel
   const [dialRolling, setDialRolling] = useState(false)
   const [sort, setSort] = useState<'rating' | 'position'>('rating')
+  const [teamOpen, setTeamOpen] = useState(false)
   const d = game?.draft
   const get = useMemo(() => (game && u ? playerLookup(game, u) : () => undefined), [game, u])
 
@@ -302,6 +303,10 @@ export function Draft() {
       <div className="screen-head">
         <div className="screen-title">
           <h1>{isDynastySummer ? t('summerDraft', { year: game.year }) : gauntletBonus ? t('gauntletBonus', { n: game.arena!.step }) : t(game.settings.mode === 'runin' ? 'reinforcements' : 'theDraft')}</h1>
+          <div className="draft-identity small muted">{game.settings.teamName} · {formationName(game.settings.formationId)}</div>
+          <details className="draft-context">
+            <summary>{t('draftDetails')}</summary>
+            <div className="draft-context-body">
           <div className="screen-meta">
             {/* What this draft is for, where its title does not say: the Daily, the Weekly, an arena format */}
             {(game.settings.mode === 'daily' || game.settings.mode === 'weekly' || game.settings.mode === 'arena') && (
@@ -309,9 +314,6 @@ export function Draft() {
                 {modeText(game, 'short')}
               </span>
             )}
-            <span>
-              {game.settings.teamName} · {formationName(game.settings.formationId)}
-            </span>
             {challenge && (
               <span className="chip challenge-chip" data-testid="challenge-playing">
                 <Swords size={14} aria-hidden="true" />
@@ -352,6 +354,10 @@ export function Draft() {
               )}
             </div>
           )}
+              {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} every={hasMode(d.rules, 'crazy')} coming={d.current ? null : d.forcedTwist ?? null} />}
+              {revealed && fillingStarters && <Tip id="draft-first-reveal" summary={t('draftHelp')}>{t('firstRevealTip')}</Tip>}
+            </div>
+          </details>
         </div>
         <div className="draft-progress">
           <div className="row between" style={{ gap: 'var(--space-2)' }}>
@@ -379,7 +385,8 @@ export function Draft() {
               {game.bonusSpins > 0 && <span className="chip gold">{t('bonus', { n: game.bonusSpins })}</span>}
               <CapChip d={d} />
               <BoxesMenu groups={[boxes]} />
-              <button className="btn ghost sm" onClick={() => go('home')}>
+              <button type="button" className="btn ghost sm draft-team-toggle" aria-haspopup="dialog" onClick={() => setTeamOpen(true)}>{t('yourXI')}</button>
+              <button className="btn ghost sm draft-home-link" onClick={() => go('home')}>
                 {t('home')}
               </button>
             </span>
@@ -397,7 +404,6 @@ export function Draft() {
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
-            {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} every={hasMode(d.rules, 'crazy')} coming={d.current ? null : d.forcedTwist ?? null} />}
             {/* Once every pick is made the reel has nothing left to spin: a "Squad ready" line takes its place (U15) */}
             {complete && !d.current ? (
               <div className="draft-ready" data-testid="draft-ready">
@@ -448,7 +454,7 @@ export function Draft() {
                     {target ? t('filling', { pos: target.position }) : t('positionFirst')}
                   </div>
                 )}
-                <button ref={spinRef} className={`btn primary spin-btn display${d.current ? ' waiting' : ''}`} disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
+                <button ref={spinRef} className={`btn primary spin-btn display${d.current ? ' waiting' : ''}`} disabled={!!d.current || spinning} onClick={() => choosing && !target ? setTeamOpen(true) : spin()} aria-haspopup={choosing && !target ? 'dialog' : undefined}>
                   {d.current ? t(spinning ? 'spinning' : 'pickAPlayer') : choosing ? (target ? t('spinFor', { pos: target.position }) : t('chooseSlot')) : t(made === 0 || (isDynastySummer && !d.history.length) ? 'spinWheel' : places && !fillingStarters ? 'spinBench' : 'spinAgain')}
                 </button>
                 {firstDraft && made === 0 && !d.current && !spinning && !choosing && (
@@ -478,7 +484,12 @@ export function Draft() {
               </>
             )}
             {/* Keep the reel and its action together on phones; the odds remain directly below the controls. */}
-            {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
+            {oddsLabel && !complete && !dry && !spinning && (
+              <details className="draft-odds" data-testid="draft-odds">
+                <summary>{t('oddsDetails')} <ChevronDown size={14} aria-hidden="true" /></summary>
+                <SpinOdds odds={odds} label={oddsLabel} />
+              </details>
+            )}
             {complete && (
               <button ref={finishRef} className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined} data-testid="finish-draft-go">
                 {finishing.busy ? t('gettingReady') : finishDraftText(game)}
@@ -487,7 +498,7 @@ export function Draft() {
           </div>
           {/* Nothing left to need once the squad is complete ("Squad ready" says so above) */}
           {!complete && boxes.on('needs') && (
-            <div className="panel tight">
+            <div className="panel tight draft-needs">
               <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
                 {fillingStarters ? t('stillNeed') : signings ? t('signingsMore', { n: total - made }) : t('benchMore', { n: total - made, optional: places ? 'yes' : 'no' })}
               </div>
@@ -697,9 +708,6 @@ export function Draft() {
                   </div>
                 </div>
               )}
-              {revealed && fillingStarters && (
-                <Tip id="draft-first-reveal">{t('firstRevealTip')}</Tip>
-              )}
               {revealed && (
                 <div className="plist lined draft-list">
                   {sortedSquad.map((p) => {
@@ -773,6 +781,49 @@ export function Draft() {
         </div>
         )}
       </div>
+      <Modal open={teamOpen} onClose={() => setTeamOpen(false)} title={t('yourXI')} className="draft-team-modal" testId="draft-team-dialog" sheet>
+        <Pitch
+          formation={d.formation}
+          lineup={runInXI ?? d.lineup}
+          getPlayer={get}
+          onSlotClick={(slot) => {
+            onSlot(slot)
+            if ((choosing && choosable.includes(slot)) || selectedEligible.includes(slot)) setTeamOpen(false)
+          }}
+          eligibleSlots={choosing ? choosable : selectedEligible}
+          selectedSlot={target?.id ?? null}
+          hideRatings={hideSquad}
+          revealId={revealId}
+          landedId={landedId}
+        />
+        {d.bench.length > 0 && (
+          <div className="plist lined">
+            {d.bench.map((id) => {
+              const p = get(id)
+              return p ? <PlayerRow key={id} p={p} hideRatings={hideSquad} showClub /> : null
+            })}
+          </div>
+        )}
+        {d.history.length > 0 && (
+          <details className="draft-phone-history">
+            <summary>{t('draftLog')}</summary>
+            <ol>
+              {[...d.history].reverse().map((pick, i) => (
+                <li key={i}>
+                  {pick.pickedId ? get(pick.pickedId)?.name : t(pick.skipped ? 'skipped' : 'respun')}
+                  <span className="muted small"> · {seasonLabel(pick.season)}</span>
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
+        {oddsLabel && !complete && !dry && !spinning && (
+          <details className="draft-phone-odds">
+            <summary>{t('oddsDetails')}</summary>
+            <SpinOdds odds={odds} label={oddsLabel} />
+          </details>
+        )}
+      </Modal>
     </div>
   )
 }

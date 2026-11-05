@@ -1,10 +1,130 @@
 /* A draft desk: the current club is the decision, the team sheet records what is built. */
+.draft-page {
+  /* Landing content changes height; the browser must not choose the off-screen squad as its scroll anchor. */
+  overflow-anchor: none;
+}
 .draft-page .screen-head {
   padding-bottom: var(--space-3);
   border-bottom: var(--border-strong);
 }
 .draft-page .screen-meta {
   gap: 4px var(--space-3);
+}
+.draft-page .screen-meta .chip {
+  padding-block: 2px;
+  border-color: transparent;
+  background: transparent;
+}
+.draft-page .screen-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+}
+.draft-page .screen-title > h1 {
+  margin: 0;
+}
+.draft-identity {
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
+.draft-context {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+}
+.draft-context > summary {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  cursor: pointer;
+  font-size: var(--fs-meta);
+  color: var(--text-2);
+}
+.draft-context-body {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 12;
+  width: min(320px, 80vw);
+  max-height: 40dvh;
+  padding: var(--space-3);
+  overflow-y: auto;
+  background: var(--panel);
+  border: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+.draft-team-toggle {
+  display: none;
+}
+.draft-team-modal {
+  width: min(440px, 100%);
+}
+.draft-team-modal .pitch-wrap {
+  max-width: min(100%, max(180px, calc((100dvh - 210px) * 0.75)));
+  margin-inline: auto;
+}
+.draft-page .tip-compact {
+  display: block;
+  flex: none;
+  margin: 0;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border-color: var(--line);
+}
+.tip-compact > summary {
+  min-height: 32px;
+  padding-block: var(--space-1);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.tip-compact > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+}
+.draft-odds > summary,
+.locker-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.draft-odds > summary::-webkit-details-marker,
+.locker-summary::-webkit-details-marker {
+  display: none;
+}
+.draft-odds > summary > svg,
+.locker-summary > svg:last-child {
+  margin-left: auto;
+}
+.draft-odds[open] > summary > svg,
+.locker[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.draft-page .locker {
+  display: block;
+  flex: none;
+  padding: 0 var(--space-3);
+  border: var(--border);
+  background: transparent;
+}
+.locker-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-2) var(--space-3);
+}
+.locker-items > .help {
+  width: 100%;
+}
+.draft-odds .spin-odds {
+  margin-top: var(--space-1);
 }
 .draft-page .draft-squad > .draft-waiting {
   flex: 0 1 auto;
@@ -82,6 +202,9 @@
 
 /* The desktop draft is one working desk, divided into reel, team sheet and pitch. */
 @media (min-width: 1051px) {
+  .app.shell > .draft-page {
+    overflow: hidden;
+  }
   .draft-page .grid.draft {
     gap: 0;
     border-block: var(--border-strong);
@@ -98,6 +221,7 @@
   }
   .draft-page .draft-pitch {
     padding: var(--space-4) 0 var(--space-4) var(--space-4);
+    overflow: hidden;
   }
   .draft-page .draft-pitch > .panel {
     padding-inline: 0;
@@ -112,6 +236,39 @@
   .draft-page .draft-squad .panel-head,
   .draft-page .draft-pitch .panel-head {
     padding-inline: 0;
+  }
+  /* The pitch already shows every slot. Keep the text sheet as the fallback when that box is hidden. */
+  .draft-page:has(.draft-pitch .pitch-wrap) .draft-sheet-head,
+  .draft-page:has(.draft-pitch .pitch-wrap) .draft-build-list,
+  .draft-page:has(.draft-pitch .pitch-wrap) .draft-needs {
+    display: none;
+  }
+  .draft-page:has(.draft-pitch .pitch-wrap) .draft-waiting {
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  .draft-page .draft-pitch > .panel:has(.pitch-wrap) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    container-type: size;
+  }
+  .draft-page .draft-pitch .panel-head {
+    flex: none;
+    margin-bottom: var(--space-2);
+  }
+  .app.shell .draft-page .grid.draft .pitch-wrap {
+    width: 100%;
+    max-width: min(100%, max(150px, calc((100cqh - 52px) * 0.75)));
+    margin: 0 auto;
+  }
+  .draft-page .draft-pitch > .panel + .panel {
+    flex: none;
+    padding-block: var(--space-2) 0;
+    gap: var(--space-2);
   }
 }
 
@@ -130,5 +287,201 @@
     overflow-y: auto;
     overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
+  }
+}
+
+/* On phones the reel stays over the candidates. Picking a player never moves the page itself. */
+@media (max-width: 720px) and (min-height: 600px) {
+  .app:has(> .draft-page) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .page.draft-page {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    overflow: hidden;
+    padding-block: var(--space-2) calc(var(--space-2) + var(--dock-h));
+  }
+  .draft-page > .screen-head {
+    flex: none;
+    margin: 0;
+    padding-block: 0 var(--space-2);
+    gap: var(--space-2);
+  }
+  .draft-page .screen-head h1 {
+    font-size: var(--fs-h2);
+  }
+  .draft-page .screen-meta {
+    font-size: var(--fs-meta);
+    gap: 2px var(--space-2);
+  }
+  .draft-page .screen-title {
+    width: 100%;
+  }
+  .draft-page .draft-context > summary {
+    min-height: 24px;
+  }
+  .draft-page .draft-identity {
+    line-height: 1.2;
+  }
+  .draft-page .draft-progress .btn.sm {
+    min-height: 36px;
+    padding-inline: var(--space-2);
+    font-size: var(--fs-meta);
+  }
+  .app:not(.bar-hidden) .draft-page .draft-home-link {
+    display: none;
+  }
+  .draft-page .draft-progress {
+    gap: var(--space-1);
+  }
+  .draft-team-toggle {
+    display: inline-flex;
+  }
+  .draft-page .grid.draft {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-height: 0;
+    overflow: hidden;
+  }
+  .draft-page .grid.draft > .col:first-child {
+    flex: none;
+    max-height: 52%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .draft-page .grid.draft > .col:first-child > .panel:first-child {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+  .draft-page .grid.draft > .draft-squad {
+    flex: 1;
+    min-height: 150px;
+    padding: var(--space-2);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .draft-page .draft-squad > .draft-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+  .draft-page .draft-needs,
+  .draft-page .grid.draft > .col:first-child > .draft-history,
+  .draft-page .draft-pitch {
+    display: none;
+  }
+  .draft-page .draft-squad:has(> .draft-list) {
+    overflow: hidden;
+  }
+  .draft-page .draft-squad > .club-head,
+  .draft-page .draft-squad > .row,
+  .draft-page .draft-squad > .locker {
+    flex: none;
+  }
+  .draft-page .reel-result {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    margin: 0;
+  }
+  .draft-page .reel-result:has(.reel-skip) {
+    top: 0;
+    right: 40px;
+    width: auto;
+    height: 32px;
+    min-height: 32px;
+    overflow: visible;
+    clip-path: none;
+  }
+  .draft-page .reel-wrap:has(.reel-skip) .reel-season {
+    padding-right: 130px;
+  }
+  .draft-page .reel-skip {
+    min-height: 28px;
+    padding: var(--space-1) var(--space-2);
+  }
+  .draft-page .reel-season {
+    margin-bottom: var(--space-1);
+  }
+  .draft-page .reel-window {
+    height: 90px;
+  }
+  .draft-page .reel-card {
+    height: 72px;
+  }
+  .draft-page .spin-btn {
+    min-height: 44px;
+    font-size: var(--fs-h3);
+    padding-block: var(--space-2);
+  }
+  .draft-page .spin-btn.waiting {
+    display: none;
+  }
+  .draft-page .draft-squad > .row:has(.club-head) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+  .draft-page .draft-squad .club-head {
+    min-width: 0;
+    gap: var(--space-2);
+  }
+  .draft-page .draft-squad .club-head > div {
+    min-width: 0;
+  }
+  .draft-page .draft-squad .club-head h2 {
+    font-size: var(--fs-h3);
+  }
+  .draft-page .draft-squad .club-sub > :not(:first-child) {
+    display: none;
+  }
+  .draft-page .draft-squad .club-head + .segmented {
+    flex-wrap: nowrap;
+    max-width: 132px;
+  }
+  .draft-page .draft-squad .club-head + .segmented button {
+    padding-inline: var(--space-1);
+    font-size: var(--fs-xs);
+  }
+  .draft-page .draft-waiting .draft-sheet-head,
+  .draft-page .draft-waiting .draft-build-list {
+    display: none;
+  }
+  .draft-page .draft-squad:has(.tip-compact[open]) {
+    overflow-y: auto;
+  }
+  .draft-page .draft-squad:has(.tip-compact[open]) > .draft-list {
+    min-height: 150px;
+  }
+}
+@media (max-width: 720px) and (min-height: 600px) and (max-height: 740px) {
+  .draft-page .grid.draft .draft-odds {
+    display: none;
+  }
+  .draft-page .reel-window {
+    height: 72px;
+  }
+  .draft-page .reel-card {
+    height: 58px;
+  }
+  .draft-page .reel-season {
+    min-height: 28px;
+  }
+  .draft-page .draft-odds > summary {
+    min-height: 28px;
+  }
+  .draft-page .grid.draft > .col:first-child > .panel:first-child {
+    gap: var(--space-1);
   }
 }

@@ -379,7 +379,7 @@ const tipsOnScreen = {
  * One at a time: a second tip on screen waits until the first is dismissed or leaves; a feature tip waits for its
  * moment (`TIP_AFTER`: results finished). 'No more tips' dismisses them all at once (Profile's 'Show tips again' brings them back).
  */
-export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
+export function Tip({ id, children, summary }: { id: TipId; children: ReactNode; summary?: string }) {
   const mounted = useSyncExternalStore(tipsOnScreen.subscribe, tipsOnScreen.get, tipsOnScreen.get)
   const shown = useStore((s) => tipInTurn(s.profile, mounted, resultsFinished(s.profile)) === id)
   const dismiss = useStore((s) => s.dismissTip)
@@ -389,6 +389,18 @@ export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
     return () => tipsOnScreen.remove(id)
   }, [id])
   if (!shown) return null
+  if (summary) return (
+    <details className="tip tip-compact" data-testid={`tip-${id}`}>
+      <summary>{summary}</summary>
+      <div role="note">
+        <span className="tip-text">{children}</span>
+        <span className="tip-actions">
+          <button type="button" className="btn sm" onClick={() => dismiss(id)} data-testid="tip-got-it">{t('gotIt')}</button>
+          <button type="button" className="linklike small" onClick={() => dismissAll()} data-testid="tip-no-more">{t('noMoreTips')}</button>
+        </span>
+      </div>
+    </details>
+  )
   return (
     <div className="tip" role="note" data-testid={`tip-${id}`}>
       <span className="tip-text">{children}</span>

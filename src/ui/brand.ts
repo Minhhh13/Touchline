@@ -562,8 +562,8 @@ function poleSvg(id: string, pole: { x: number; y1: number; y2: number; w: numbe
 export interface MarkSvgOptions {
   tier: MarkTier
   variant?: MarkVariant
-  /** rounded: the tile with transparent corners. square: full bleed (maskable and iOS icons). */
-  tile?: 'rounded' | 'square'
+  /** rounded: the app tile. square: full bleed. none: an open glyph for the Home scene. */
+  tile?: 'rounded' | 'square' | 'none'
   /** The glyph's scale about the centre, to keep it inside a mask's safe zone. */
   scale?: number
 }
@@ -574,12 +574,12 @@ export function markSvgInner(id: string, o: MarkSvgOptions): string {
   const variant = o.variant ?? 'colour'
   const g = MARK.grid
   let tile = ''
-  if (variant !== 'mono') {
+  if (variant !== 'mono' && o.tile !== 'none') {
     const fill = variant === 'colour' ? MARK.tile : '#ffffff'
     const edge = variant === 'colour' ? MARK.keyline : MARK.tile
     tile = `${o.tile === 'square' ? `<rect width="${g}" height="${g}" fill="${fill}"/>` : `<rect width="${g}" height="${g}" rx="${MARK.tileRadius}" fill="${fill}"/>`}<rect x="2" y="2" width="60" height="60" rx="1" fill="none" stroke="${edge}" stroke-width="2"/>`
   }
-  const ink = variant === 'colour' ? '#f5f1df' : variant === 'inverse' ? MARK.tile : 'currentColor'
+  const ink = o.tile === 'none' ? 'currentColor' : variant === 'colour' ? '#f5f1df' : variant === 'inverse' ? MARK.tile : 'currentColor'
   const flag = variant === 'mono' ? ink : MARK.red
   const ballInk = variant === 'colour' ? MARK.panel : ink
   const glyph =

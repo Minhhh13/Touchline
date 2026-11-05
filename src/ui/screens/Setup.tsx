@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { runAfterPaint } from '../afterPaint'
 import { focusHasFallen, rescuedElement } from '../focusRescue'
 import { Armchair, Ban, Calendar, ChevronDown, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
@@ -26,7 +27,7 @@ import { dailyRotation } from '@game/logic/onboarding'
 import { poolClubSeasons } from '@engine/universe'
 import { classicFromFor, classicFromIndex, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
 import { formationName, seasonLabel, tierName, formatLocale } from '../format'
-import { ClubBadge, EstimatedChip, Segmented, Tip } from '../components/bits'
+import { ClubBadge, EstimatedChip, Modal, Segmented, Tip } from '../components/bits'
 import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_ID, SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
@@ -87,23 +88,6 @@ const RATINGS_MODE_OPTIONS = (): Array<ChoiceOption<RatingsMode>> => [
   { value: 'prime', icon: Mountain, title: t('prime'), line: t('primeLine') },
 ]
 
-/** Whether this viewer last left More options open; a private window or blocked storage reads as closed. */
-const ADVANCED_KEY = 'touchline-setup-advanced'
-function readAdvanced(): boolean {
-  try {
-    return localStorage.getItem(ADVANCED_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-function writeAdvanced(open: boolean): void {
-  try {
-    localStorage.setItem(ADVANCED_KEY, open ? '1' : '0')
-  } catch {
-    // Storage blocked: the fold still works for this visit
-  }
-}
-
 export function Setup() {
   const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, classicFailed, loadingLeagues, loadedLeagues, failedLeagues, pendingChallenge, profile } = useStorePick('universe', 'game', 'setupMode', 'startGame', 'go', 'ensureLeagues', 'ensureClassic', 'classicLoaded', 'classicFailed', 'loadingLeagues', 'loadedLeagues', 'failedLeagues', 'pendingChallenge', 'profile')
   const isDaily = mode === 'daily'
@@ -161,8 +145,14 @@ export function Setup() {
   const [opposition, setOpposition] = useState<'calibrated' | 'realistic'>(initial.opposition)
   const [seed, setSeed] = useState(() => randomSeed())
   const [squadSize, setSquadSize] = useState(initial.squadSize)
-  const [advanced, setAdvanced] = useState(readAdvanced)
-  const moreRef = useRef<HTMLDivElement>(null)
+  // Choices are remembered; an optional panel never opens itself over a fresh visit.
+  const [advanced, setAdvanced] = useState(false)
+  const [setupStep, setSetupStep] = useState<'team' | 'rules'>('team')
+  const gridRef = useRef<HTMLDivElement>(null)
+  const selectStep = (step: 'team' | 'rules') => {
+    gridRef.current?.scrollTo({ top: 0 })
+    setSetupStep(step)
+  }
   const hostRef = useRef<HTMLSelectElement>(null)
   // Defaults takes its own link off the line: the focus goes to the change link beside it (QA r11)
   const changeRef = useRef<HTMLButtonElement>(null)
@@ -318,7 +308,6 @@ export function Setup() {
   }
   const toggleAdvanced = (open: boolean) => {
     setAdvanced(open)
-    writeAdvanced(open)
   }
   // Season and Dynasty's "You replace: <club> · Change": open the fold and put the club select in view
   const openHost = () => {
@@ -331,7 +320,6 @@ export function Setup() {
   const leagueNameOf = (id: string) => u.available.find((l) => l.id === id)?.name ?? u.leagues.find((l) => l.id === id)?.name ?? id
   const openMore = () => {
     toggleAdvanced(true)
-    moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   // The daily puzzle, the Weekly and a challenge link fix everything but the team name and the picks: formation, league,
@@ -475,10 +463,15 @@ export function Setup() {
           </button>
         </div>
 
+        <div className="setup-sections" role="group" aria-label={t('setupSections')}>
+          <button type="button" aria-pressed={setupStep === 'team'} onClick={() => selectStep('team')}>{t('teamSection')}</button>
+          <button type="button" aria-pressed={setupStep === 'rules'} onClick={() => selectStep('rules')}>{t('rulesSection')}</button>
+        </div>
+
         {/* The Daily's league rotates (engine 7's `DAILY_EPOCHS`): said once, on a day whose league tomorrow differs, above the steps so a phone sees it before Start */}
         {fixed?.kind === 'daily' && rotation && <Tip id="daily-rotation">{t('dailyRotationTip', { today: `${leagueArticle(leagueNameOf(rotation.today))}${leagueNameOf(rotation.today)}`, tomorrow: `${leagueArticle(leagueNameOf(rotation.tomorrow))}${leagueNameOf(rotation.tomorrow)}` })}</Tip>}
         {/* Club identity and the selected shape first; alternative shapes and special rules open only when wanted. */}
-        <div className="setup-grid">
+        <div className="setup-grid" data-step={setupStep} data-fixed={!!fixed} ref={gridRef}>
           <div className="panel setup-box">
             <section className="setup-step setup-team">
               <StepHead n={1} title={t('nameTeam')} />
@@ -494,7 +487,7 @@ export function Setup() {
               )}
               {!fixed && !crazyOn ? (
                 <details className="setup-shapes" data-testid="formation-details">
-                  <summary className="setup-shape-summary" data-testid="formation-toggle">
+                  <summary className="setup-shape-summary" data-testid="formation-toggle" title={formationBlurb(shownFormation)}>
                     {formationSummary}
                     <span className="setup-shape-change">{t('changeFormation')} <ChevronDown size={14} aria-hidden="true" /></span>
                   </summary>
@@ -524,6 +517,10 @@ export function Setup() {
                   )}
                 </div>
                 <div className="field setup-league">
+                  <select className="input setup-league-select" value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={(e) => pickLeague(e.target.value)} aria-label={t('leagueChoice')}>
+                    {u.available.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    {mode === 'quick' && u.available.length >= 2 && <option value={SUPER_LEAGUE_ID}>{SUPER_LEAGUE_NAME}</option>}
+                  </select>
                   {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
                   <Segmented label={t('leagueChoice')} value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString(formatLocale()) }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: logicLine(SUPER_LEAGUE_LINE), testId: 'league-super' }] : [])]} />
                   {/* The season picked here is the one played; a new player took it for the wheel's seasons, which Era sets */}
@@ -607,68 +604,10 @@ export function Setup() {
             {!fixed && (
               <section className="setup-step">
                 <StepHead n={4} title={t('setRules')} />
-                {!isManage && (
-                  <details className="setup-modes setup-mode-fold" data-testid="modes-panel">
-                    <summary className="setup-mode-summary" data-testid="modes-toggle">
-                      <span>{t('specialRules')}</span>
-                      <span className="small muted">{t('modesOn', { n: cardsOn.length + [powerUps, endCase, capOn, chain].filter(Boolean).length })}</span>
-                    </summary>
-                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => t('modeInfoItem', { title: modeCardTitle(c), line: modeCardLine(c) })).join(' ') })} testId="modes" right={<span className="small muted" data-testid="modes-on">{t('modesOn', { n: cardsOn.length + [powerUps, endCase, capOn, chain].filter(Boolean).length })}</span>} />
-                    <HoverTips className="setup-modes-row" testId="mode-tip">
-                      <ModeCards cards={MODE_CARDS} on={cardsOn} info={modeCardInfo()} icons={MODE_ICON} onToggle={toggleMode} />
-                      <div className="pu-setup">
-                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => powerUpTitle(k)).join(', ') })}>
-                          <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
-                          <span className="micon" aria-hidden="true">
-                            <Package size="1em" />
-                          </span>
-                          <span className="ctitle">{t('powerUps')}</span>
-                          <span className="cline">{t(powerUps ? 'powerUpsOn' : 'powerUpsLine')}</span>
-                        </label>
-                        <InfoTip label={t('powerUps')} text={t('powerUpsInfo')} testId="power-ups-info" />
-                      </div>
-                      <div className="pu-setup">
-                        <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" data-tip={t('endCaseTip')}>
-                          <input type="checkbox" className="sr-only" checked={endCase} onChange={(e) => setEndCase(e.target.checked)} />
-                          <span className="micon" aria-hidden="true">
-                            <Gift size="1em" />
-                          </span>
-                          <span className="ctitle">{t('endCase')}</span>
-                          <span className="cline">{t(endCase ? 'endCaseOn' : 'endCaseLine')}</span>
-                        </label>
-                        <InfoTip label={t('endCase')} text={t('endCaseInfo')} testId="end-case-info" />
-                      </div>
-                      {/* The casual rules as two more cards: Moneyball's salary cap (its presets under Advanced) and the Teammate Chain */}
-                      <div className="pu-setup">
-                        <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" data-tip={t('moneyballTip')}>
-                          <input type="checkbox" className="sr-only" checked={capOn} onChange={(e) => setCapChoice({ ...cap, preset: e.target.checked ? 'moneyball' : 'off' })} />
-                          <span className="micon" aria-hidden="true"><PoundSterling size="1em" /></span>
-                          <span className="ctitle">{t('moneyball')}</span>
-                          <span className="cline">{capOn && capCard !== undefined ? t('moneyballCap', { cap: capTotal(capCard), preset: CAP_PRESETS.find((p) => p.value === cap.preset)?.label ?? '' }) : t('moneyballLine')}</span>
-                        </label>
-                        <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" data-tip={t('chainCardTip')}>
-                          <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
-                          <span className="micon" aria-hidden="true"><Link size="1em" /></span>
-                          <span className="ctitle"><span className="lbl-long">{t('chainLong')}</span><span className="lbl-short">{t('chainShort')}</span></span>
-                          <span className="cline">{t(chain ? 'chainOn' : 'chainLine')}</span>
-                        </label>
-                      </div>
-                    </HoverTips>
-                  </details>
-                )}
                 <div className="setup-rules">
                   <div className="setup-opt">
                     <h3>{t('difficulty')}</h3>
                     <ChoiceCards label={t('difficulty')} testId="difficulty" options={DIFFICULTY_OPTIONS()} value={draftDifficulty} onChange={setDraftDifficulty} />
-                  </div>
-                  <div className="setup-opt">
-                    <h3>{t('showRatings')}</h3>
-                    <ChoiceCards label={t('showRatings')} testId="show-ratings" options={RATINGS_SHOWN()} value={hard || !showRatings ? 'off' : 'on'} onChange={(v) => setShowRatings(v === 'on')} disabled={hard} />
-                    {hard && <span className="help setup-line">{t('hardHides')}</span>}
-                  </div>
-                  <div className="setup-opt">
-                    <h3>{t('draftMode')}</h3>
-                    <ChoiceCards label={t('draftMode')} testId="draft-mode" options={DRAFT_MODE_OPTIONS()} value={draftMode} onChange={setDraftMode} />
                   </div>
                   {!isManage && (
                     <div className="setup-opt">
@@ -698,58 +637,126 @@ export function Setup() {
                   <div className="setup-opt setup-wide-opt" data-testid="era">
                     <div className="setup-era-head">
                       <h3>{t('era')}</h3>
+                      <select className="input setup-era-select" aria-label={t('era')} value={eraPreset} onChange={(e) => setEraPreset(e.target.value as EraPreset)}>
+                        {ERA_PRESETS.map((p) => <option key={p.id} value={p.id}>{logicLine(p.label)}</option>)}
+                        {eraPreset === 'custom' && <option value="custom">{t('custom')}</option>}
+                      </select>
                       <Segmented label={t('era')} value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: logicLine(p.label) })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: t('custom') }] : [])]} />
-                      {classicFrom !== undefined && (
-                        <label className="toggle era-classic" title={t('classicTip')}>
-                          <input
-                            type="checkbox"
-                            checked={classic}
-                            data-testid="era-classic"
-                            onChange={(e) => {
-                              const on = e.target.checked
-                              setClassicOn(on)
-                              setEraPreset(on ? 'custom' : 'all')
-                              setCustomEra(on ? [classicFrom, u.firstSeason - 1] : null)
-                              // Its pack loads now (Start waits for it); one that cannot load switches the toggle back off
-                              if (on)
-                                void ensureClassic().then((ok) => {
-                                  if (ok) return
-                                  setClassicOn(false)
-                                  setEraPreset('all')
-                                  setCustomEra(null)
-                                })
+                      <button type="button" className="linklike small" onClick={openMore} title={eraLine && eraLine.n > 0 ? logicLine(eraLine.caption) : undefined} data-testid="era-count">{t('customSeasons')}</button>
+                    </div>
+                  </div>
+                  <div className="setup-opt setup-wide-opt setup-more" data-testid="more-options">
+                    <button type="button" className="fold-head" onClick={() => toggleAdvanced(true)} aria-haspopup="dialog" aria-expanded={advanced} data-testid="more-options-toggle">
+                      <h3>{t(isManage ? 'moreOptions' : 'advanced')}</h3>
+                      <ChevronDown size={16} aria-hidden="true" />
+                    </button>
+                    {advanced && createPortal(<Modal open onClose={() => toggleAdvanced(false)} title={t(isManage ? 'moreOptions' : 'advanced')} className="setup-options-modal" testId="setup-options-dialog" sheet>
+                      <div className="setup-options-body">
+                        {!isManage && (
+                          <details className="setup-modes setup-mode-fold" data-testid="modes-panel">
+                            <summary className="setup-mode-summary" data-testid="modes-toggle">
+                              <span>{t('specialRules')}</span>
+                              <span className="small muted">{t('modesOn', { n: cardsOn.length + [powerUps, endCase, capOn, chain].filter(Boolean).length })}</span>
+                            </summary>
+                            <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => t('modeInfoItem', { title: modeCardTitle(c), line: modeCardLine(c) })).join(' ') })} testId="modes" right={<span className="small muted" data-testid="modes-on">{t('modesOn', { n: cardsOn.length + [powerUps, endCase, capOn, chain].filter(Boolean).length })}</span>} />
+                            <HoverTips className="setup-modes-row" testId="mode-tip">
+                              <ModeCards cards={MODE_CARDS} on={cardsOn} info={modeCardInfo()} icons={MODE_ICON} onToggle={toggleMode} />
+                              <div className="pu-setup">
+                                <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => powerUpTitle(k)).join(', ') })}>
+                                  <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
+                                  <span className="micon" aria-hidden="true">
+                                    <Package size="1em" />
+                                  </span>
+                                  <span className="ctitle">{t('powerUps')}</span>
+                                  <span className="cline">{t(powerUps ? 'powerUpsOn' : 'powerUpsLine')}</span>
+                                </label>
+                                <InfoTip label={t('powerUps')} text={t('powerUpsInfo')} testId="power-ups-info" />
+                              </div>
+                              <div className="pu-setup">
+                                <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" data-tip={t('endCaseTip')}>
+                                  <input type="checkbox" className="sr-only" checked={endCase} onChange={(e) => setEndCase(e.target.checked)} />
+                                  <span className="micon" aria-hidden="true">
+                                    <Gift size="1em" />
+                                  </span>
+                                  <span className="ctitle">{t('endCase')}</span>
+                                  <span className="cline">{t(endCase ? 'endCaseOn' : 'endCaseLine')}</span>
+                                </label>
+                                <InfoTip label={t('endCase')} text={t('endCaseInfo')} testId="end-case-info" />
+                              </div>
+                              {/* The casual rules as two more cards: Moneyball's salary cap (its presets under Advanced) and the Teammate Chain */}
+                              <div className="pu-setup">
+                                <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" data-tip={t('moneyballTip')}>
+                                  <input type="checkbox" className="sr-only" checked={capOn} onChange={(e) => setCapChoice({ ...cap, preset: e.target.checked ? 'moneyball' : 'off' })} />
+                                  <span className="micon" aria-hidden="true"><PoundSterling size="1em" /></span>
+                                  <span className="ctitle">{t('moneyball')}</span>
+                                  <span className="cline">{capOn && capCard !== undefined ? t('moneyballCap', { cap: capTotal(capCard), preset: CAP_PRESETS.find((p) => p.value === cap.preset)?.label ?? '' }) : t('moneyballLine')}</span>
+                                </label>
+                                <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" data-tip={t('chainCardTip')}>
+                                  <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
+                                  <span className="micon" aria-hidden="true"><Link size="1em" /></span>
+                                  <span className="ctitle"><span className="lbl-long">{t('chainLong')}</span><span className="lbl-short">{t('chainShort')}</span></span>
+                                  <span className="cline">{t(chain ? 'chainOn' : 'chainLine')}</span>
+                                </label>
+                              </div>
+                            </HoverTips>
+                          </details>
+                        )}
+                        <div className="setup-options-grid">
+                        <div className="setup-opt">
+                          <h3>{t('showRatings')}</h3>
+                          <ChoiceCards label={t('showRatings')} testId="show-ratings" options={RATINGS_SHOWN()} value={hard || !showRatings ? 'off' : 'on'} onChange={(v) => setShowRatings(v === 'on')} disabled={hard} />
+                          {hard && <span className="help setup-line">{t('hardHides')}</span>}
+                        </div>
+                        <div className="setup-opt">
+                          <h3>{t('draftMode')}</h3>
+                          <ChoiceCards label={t('draftMode')} testId="draft-mode" options={DRAFT_MODE_OPTIONS()} value={draftMode} onChange={setDraftMode} />
+                        </div>
+                        <div className="setup-opt setup-wide-opt" data-testid="era-range">
+                          <div className="setup-era-head">
+                            <h3>{t('era')}</h3>
+                            <Segmented label={t('era')} value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: logicLine(p.label) })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: t('custom') }] : [])]} />
+                            {classicFrom !== undefined && (
+                              <label className="toggle era-classic" title={t('classicTip')}>
+                                <input
+                                  type="checkbox"
+                                  checked={classic}
+                                  data-testid="era-classic"
+                                  onChange={(e) => {
+                                    const on = e.target.checked
+                                    setClassicOn(on)
+                                    setEraPreset(on ? 'custom' : 'all')
+                                    setCustomEra(on ? [classicFrom, u.firstSeason - 1] : null)
+                                    // Its pack loads now (Start waits for it); one that cannot load switches the toggle back off
+                                    if (on)
+                                      void ensureClassic().then((ok) => {
+                                        if (ok) return
+                                        setClassicOn(false)
+                                        setEraPreset('all')
+                                        setCustomEra(null)
+                                      })
+                                  }}
+                                />
+                                {t('classicRange', { from: seasonLabel(classicFrom), to: seasonLabel(u.firstSeason - 1) })} <EstimatedChip compact />
+                              </label>
+                            )}
+                            <span className="chip" data-testid="era-range-count" title={eraLine && eraLine.n > 0 ? logicLine(eraLine.caption) : undefined}>
+                              {logicLine(eraLine?.label)}
+                            </span>
+                          </div>
+                          <SeasonRange
+                            seasons={eraStops}
+                            from={eraFrom}
+                            to={eraTo}
+                            onChange={(a, b) => {
+                              setCustomEra([a, b])
+                              setEraPreset('custom')
                             }}
                           />
-                          {t('classicRange', { from: seasonLabel(classicFrom), to: seasonLabel(u.firstSeason - 1) })} <EstimatedChip compact />
-                        </label>
-                      )}
-                      <span className="chip" data-testid="era-count" title={eraLine && eraLine.n > 0 ? logicLine(eraLine.caption) : undefined}>
-                        {logicLine(eraLine?.label)}
-                      </span>
-                    </div>
-                    <SeasonRange
-                      seasons={eraStops}
-                      from={eraFrom}
-                      to={eraTo}
-                      onChange={(a, b) => {
-                        setCustomEra([a, b])
-                        setEraPreset('custom')
-                      }}
-                    />
-                    <span className="help setup-line" data-testid="era-caption">
-                      {eraLine && eraLine.n > 0 ? t('wheelLands', { caption: eraLine.caption }) : t('noSeasons')}
-                    </span>
-                  </div>
-                  <div className="setup-opt setup-wide-opt setup-more" ref={moreRef} data-testid="more-options">
-                    <button type="button" className="fold-head" onClick={() => toggleAdvanced(!advanced)} aria-expanded={advanced} data-testid="more-options-toggle">
-                      <h3>{t(isManage ? 'moreOptions' : 'advanced')}</h3>
-                      <span className="small muted">{t(advanced ? 'hide' : 'show')}</span>
-                    </button>
-                    {!advanced && (
-                      <span className="help setup-more-help">{t(isManage ? 'moreHelpManage' : 'moreHelp')}</span>
-                    )}
-                    {advanced && (
-                      <>
+                          <span className="help setup-line" data-testid="era-caption">
+                            {eraLine && eraLine.n > 0 ? t('wheelLands', { caption: eraLine.caption }) : t('noSeasons')}
+                          </span>
+                        </div>
+                        </div>
                         <div className="toggle-grid">
                           {isManage && (
                             <div className="toggle-row">
@@ -897,13 +904,16 @@ export function Setup() {
                               : t('nationsDeep', { n: nations.length, cover: NATION_SLOT_COVER, extra: isManage ? t('nationsInAll', { n: squadSize + NATION_SQUAD_MARGIN }) : '' })}
                           </span>
                         </label>
-                      </>
-                    )}
+                      </div>
+                      <button type="button" className="btn primary setup-options-done" onClick={() => toggleAdvanced(false)}>{t('doneRules')}</button>
+                    </Modal>, document.body)}
                   </div>
                 </div>
               </section>
             )}
 
+          </div>
+        </div>
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={fixed ? 4 : 5} title={t('spin')} />
               <div className="small muted" data-testid="setup-summary" title={isQuickLine ? summary : undefined}>
@@ -930,8 +940,6 @@ export function Setup() {
                 {!ready ? gateText(gate) : emptyWheel ? t('emptyWheel') : isManage ? t('startSquad') : challenge ? t('takeOn', { name: challenge.name }) : t('startDraft')}
               </button>
             </section>
-          </div>
-        </div>
       </div>
     </div>
   )
