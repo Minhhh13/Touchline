@@ -1,11 +1,11 @@
 /* The camera and ground stay still. Small independent layers carry the breeze and training. */
 .home-world {
-  --dur-cloud-near: 100s;
-  --dur-cloud-far: 160s;
-  --dur-training-near: 30s;
-  --dur-training-far: 38s;
+  --dur-cloud-near: 48s;
+  --dur-cloud-far: 86s;
+  --dur-training-near: 22s;
+  --dur-training-far: 28s;
   --dur-player-stride: 640ms;
-  --dur-tree-sway: 9s;
+  --dur-tree-sway: 6s;
   --dur-lamp-flicker: 19s;
   --dur-flag-flutter: 2.6s;
   --dur-training-ball: 1.4s;
@@ -54,10 +54,10 @@
   animation-delay: -24s;
 }
 :root[data-theme='dark'] .home-cloud-bank {
-  opacity: 0.12;
+  opacity: 0.3;
 }
 :root[data-theme='dark'] .home-cloud-bank-far {
-  opacity: 0.06;
+  opacity: 0.16;
 }
 @keyframes home-cloud-drift {
   from { transform: translate3d(0, 0, 0); }
@@ -113,19 +113,20 @@
   left: 18%;
   right: 20%;
   bottom: 8%;
-  height: 60px;
+  height: 80px;
   overflow: hidden;
 }
 .home-player-route {
   position: absolute;
   display: block;
   width: 100%;
-  height: 72px;
+  height: 80px;
   animation: home-training-run var(--dur-training-near) linear infinite;
+  animation-delay: -5s;
 }
 .home-player {
   display: block;
-  width: 36px;
+  width: 40px;
   height: 100%;
   overflow: hidden;
 }
@@ -141,15 +142,15 @@
   bottom: 22%;
   left: 35%;
   right: 10%;
-  height: 46px;
+  height: 60px;
   transform: scaleX(-1);
 }
 .home-training-lane-far .home-player-route {
-  height: 50px;
+  height: 60px;
   animation-duration: var(--dur-training-far);
   animation-delay: -16s;
 }
-.home-training-lane-far .home-player { width: 25px; }
+.home-training-lane-far .home-player { width: 30px; }
 .home-training-lane-far .home-player img { animation-delay: -160ms; }
 @keyframes home-training-run {
   from { transform: translate3d(-60px, 0, 0); }
@@ -157,8 +158,8 @@
 }
 .home-training-ball {
   position: absolute;
-  left: 33px;
-  bottom: 14px;
+  left: 39px;
+  bottom: 8px;
   animation: home-training-ball-roll var(--dur-training-ball) linear infinite;
 }
 @keyframes home-training-ball-roll {
@@ -187,8 +188,8 @@
   filter: brightness(0.48) saturate(0.7);
 }
 @keyframes home-tree-sway {
-  0%, 100% { transform: rotate(-0.7deg); }
-  50% { transform: rotate(0.7deg); }
+  0%, 100% { transform: rotate(-1.8deg); }
+  50% { transform: rotate(1.8deg); }
 }
 .home-ground-flag {
   position: absolute;
@@ -225,6 +226,8 @@
 }
 @media (max-width: 720px) {
   .home-ground { transform: translateX(-67%); }
+  .home-training-lane-near { left: 52%; right: 8%; }
+  .home-training-lane-far { left: 50%; right: 10%; }
   .home-tree-left { left: -24%; }
   .home-tree-right { right: -26%; }
 }

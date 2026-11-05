@@ -1,5 +1,5 @@
 /**
- * The width of a line in the pitch's label face, measured on a canvas. This must match the site's VT323 face;
+ * The width of a line in the pitch's label face, measured on a canvas. This must match the site's Barlow face;
  * a conservative fallback keeps names inside their slots while the local font loads.
  * Presentation only: nothing here reaches the game.
  */
@@ -46,7 +46,7 @@ export function whenFontsReady(fonts: Fonts = typeof document === 'undefined' ? 
   return fontsWait
 }
 
-/** The width of `text` in px at `size` px in VT323's regular weight. */
+/** The width of `text` in px at `size` px in Barlow's semibold weight, as used by pitch labels. */
 export function textWidth(text: string, size: number): number {
   const key = `${size}|${text}`
   const hit = cache.get(key)
@@ -54,7 +54,7 @@ export function textWidth(text: string, size: number): number {
   const ctx = context()
   let w = (text.length * size * WIDE_CHAR) / 11
   if (ctx) {
-    ctx.font = `400 ${size}px VT323, monospace`
+    ctx.font = `600 ${size}px Barlow, sans-serif`
     const m = ctx.measureText(text).width
     if (m > 0) w = m
   }

@@ -100,7 +100,7 @@
   transform: translate(-50%, -50%);
 }
 .home-lockup {
-  --dur-wordmark-drift: 12s;
+  --dur-wordmark-drift: 8s;
   --text: #071526;
   --primary: #ff426d;
   margin: 0;
@@ -108,7 +108,8 @@
   animation: home-wordmark-drift var(--dur-wordmark-drift) var(--ease-in-out) infinite;
 }
 .home-lockup .tl-lockup {
-  --h: clamp(48px, 5.4vw, 72px);
+  --h: clamp(44px, 5vw, 64px);
+  color: #071526;
 }
 .home-lockup .tl-name {
   font-size: calc(var(--h) * 0.88);
@@ -143,6 +144,7 @@
 .home-scene[data-motion-paused='true'] .home-lockup {
   animation-play-state: paused;
 }
+:root[data-theme='dark'] .home-lockup .tl-lockup,
 :root[data-theme='dark'] .home-lockup .tl-touch,
 :root[data-theme='dark'] .home-hero > p,
 :root[data-theme='dark'] .home-continue {
@@ -178,8 +180,8 @@
   border-radius: 2px;
   background: #071526;
   color: #f5f1df;
-  font-family: var(--font-display);
-  font-size: var(--fs-h2);
+  font-family: var(--font-brand);
+  font-size: calc(var(--fs-h2) * 1.2);
   font-weight: 400;
   letter-spacing: 0.06em;
   cursor: pointer;

@@ -183,3 +183,5 @@ The first version of this section (October 2026) listed scouting ranges, youth i
 - 38-0-0: https://38-0-0.com.
 - Football Manager 26: Sports Interactive's published feature descriptions for FM26.
 - Dataset credits and licences: see `docs/DATA.md`.
+
+2026-11-05 readability and flow follow-up: applied [Vercel's web-design-guidelines skill](https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines) and its [primary interface checklist](https://github.com/vercel-labs/web-interface-guidelines), plus [Anthropic's frontend-design skill](https://github.com/anthropics/skills/tree/main/skills/frontend-design), alongside Taste, Emil and Impeccable. The useful guidance here was clear type roles, fewer simultaneous decisions, bounded optional panels, keyboard/focus continuity and transform/opacity motion. This informed Barlow reading text, progressive Setup choices, the compact phone draft and the open Home identity. External skill text was reviewed as guidance; no remote installer or third-party script was executed.

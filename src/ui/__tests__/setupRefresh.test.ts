@@ -29,6 +29,16 @@ function renderSetup(mode: Mode) {
 beforeEach(() => disk.clear())
 
 describe('the compact setup team sheet', () => {
+  it('opens with the team section and keeps optional rules closed even after an old expanded visit', () => {
+    disk.set('touchline-setup-advanced', '1')
+    const html = renderSetup('quick')
+    expect(html).toContain('role="group" aria-label="Setup sections"')
+    expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*>Your team<\/button>/)
+    expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*>Rules<\/button>/)
+    expect(html).toMatch(/aria-haspopup="dialog" aria-expanded="false"[^>]*data-testid="more-options-toggle"/)
+    expect(html).not.toContain('data-testid="setup-options-dialog"')
+    expect(markupProblems(html)).toEqual([])
+  })
   it('puts the team name first and keeps every formation available behind a closed native chooser', () => {
     for (const mode of ['quick', 'season', 'dynasty'] as const) {
       const html = renderSetup(mode)
@@ -48,11 +58,8 @@ describe('the compact setup team sheet', () => {
     const html = renderSetup('quick')
     const summary = html.match(/<summary[^>]*data-testid="formation-toggle"[\s\S]*?<\/summary>/)?.[0] ?? ''
     expect(summary).toContain('4-4-2')
-    const modes = html.match(/<details[^>]*data-testid="modes-panel"[^>]*>/)?.[0] ?? ''
-    expect(modes).not.toBe('')
-    expect(modes).not.toMatch(/\bopen(?:=|\s|>)/)
-    expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*data-testid="mode-legends"/)
-    expect(html).toMatch(/<summary[^>]*data-testid="modes-toggle"[\s\S]*?1 on[\s\S]*?<\/summary>/)
+    expect(html).not.toContain('data-testid="modes-panel"')
+    expect(html).toContain('Legends')
     expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*data-testid="formation-4-4-2"/)
   })
 

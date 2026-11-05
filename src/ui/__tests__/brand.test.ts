@@ -78,17 +78,25 @@ describe('the wordmark lockup', () => {
     expect(decorative).toContain('aria-hidden="true"')
   })
 
-  it('uses the local VT323 face for readable lettering and refreshes the browser tab icon', () => {
+  it('keeps a local pixel identity and a separate smooth reading face', () => {
     const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
     const html = readFileSync(new URL('../../../index.html', import.meta.url), 'utf8')
     expect(css).toContain("--font-brand: 'VT323'")
-    expect(css).toContain("--font-display: 'VT323'")
-    expect(css).toContain("--font-body: 'VT323'")
+    expect(css).toContain("--font-display: 'Barlow'")
+    expect(css).toContain("--font-body: 'Barlow'")
     expect(css).toContain('font-family: var(--font-brand);')
     expect(css).toContain('.brand:active .tl-hover .logo-mark')
     expect(html).toContain('fonts/vt323-latin.woff2')
     expect(html).toContain('favicon.svg?v=20261105')
     expect(html).not.toContain('fonts.googleapis.com')
     expect(renderToStaticMarkup(createElement(Wordmark))).toContain('Touch<span class="wordmark-line">Line</span>')
+  })
+  it('opens the Home mark into the scene while keeping the default app tile', () => {
+    const open = renderToStaticMarkup(createElement(LogoMark, { size: 64, open: true }))
+    const app = renderToStaticMarkup(createElement(LogoMark, { size: 64 }))
+    expect(open).toContain('fill="currentColor"')
+    expect(open).not.toContain('stroke-width="2"')
+    expect(app).toContain('stroke-width="2"')
+    expect(open).toContain('M18 12H34')
   })
 })

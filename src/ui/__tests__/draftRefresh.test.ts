@@ -58,6 +58,17 @@ function renderDraft(): string {
 beforeEach(() => disk.clear())
 
 describe('the refreshed draft team sheet and history', () => {
+  it('lets Position First open the slot picker without spending a spin or changing the seed', () => {
+    startDraft('quick', { draftMode: 'position' })
+    const before = JSON.stringify(state().game)
+    const html = renderDraft()
+    const button = html.match(/<button[^>]*class="[^"]*spin-btn[^"]*"[^>]*>/)?.[0] ?? ''
+    expect(button).toContain('aria-haspopup="dialog"')
+    expect(button).not.toContain('disabled')
+    expect(html).toContain('Choose a slot')
+    expect(JSON.stringify(state().game)).toBe(before)
+    expect(draftState().spins).toBe(0)
+  })
   it('keeps the reel and Spin together before the secondary odds in reading order', () => {
     startDraft()
     const html = renderDraft()
@@ -67,6 +78,9 @@ describe('the refreshed draft team sheet and history', () => {
     expect(reel).toBeGreaterThan(0)
     expect(spin).toBeGreaterThan(reel)
     expect(odds).toBeGreaterThan(spin)
+    const disclosure = html.match(/<details[^>]*data-testid="draft-odds"[^>]*>/)?.[0] ?? ''
+    expect(disclosure).not.toBe('')
+    expect(disclosure).not.toMatch(/\bopen(?:=|\s|>)/)
   })
 
   it('shows all eleven formation positions before the first spin in each draft mode', () => {

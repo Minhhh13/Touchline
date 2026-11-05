@@ -1,3 +1,5 @@
+@import './readingFonts.css';
+
 /* VT323 by Peter Hull. Self-hosted, SIL OFL 1.1: public/fonts/OFL-VT323.txt. */
 @font-face {
   font-family: 'VT323';

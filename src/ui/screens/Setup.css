@@ -1,6 +1,6 @@
 /* A compact team sheet: the selected shape is useful immediately; alternatives stay one action away. */
 .setup-page.setup-refresh .setup-box {
-  gap: var(--space-5);
+  gap: var(--space-3);
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -17,6 +17,92 @@
 .setup-refresh .setup-title {
   min-width: 0;
 }
+.setup-sections {
+  display: none;
+}
+.setup-league-select,
+.setup-era-select {
+  display: none;
+}
+.setup-options-modal .setup-mode-fold {
+  display: block;
+  border-block: var(--border);
+}
+.setup-options-modal .setup-mode-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+.setup-options-modal .setup-mode-summary::-webkit-details-marker {
+  display: none;
+}
+.setup-options-modal .setup-mode-summary::after {
+  content: '+';
+  color: var(--accent);
+}
+.setup-options-modal .setup-mode-fold[open] > .setup-mode-summary::after {
+  content: '−';
+}
+.setup-options-modal .setup-modes-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+.setup-options-modal .qmode-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+.setup-options-modal .qmode .ctitle {
+  font-size: var(--fs-sm);
+}
+.setup-options-modal {
+  animation-name: setup-options-in;
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom)));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow: hidden;
+}
+@keyframes setup-options-in {
+  from { transform: translateY(12px); }
+}
+.setup-options-modal > .panel-head {
+  flex: none;
+  margin: 0;
+}
+.setup-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.setup-options-body .field {
+  margin: 0;
+}
+.setup-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.setup-options-grid .setup-wide-opt {
+  grid-column: 1 / -1;
+}
+.setup-options-grid .choice-card .cicon {
+  display: none;
+}
+.setup-options-done {
+  flex: none;
+  align-self: end;
+  min-width: 120px;
+}
 .setup-refresh .setup-back {
   align-self: start;
 }
@@ -28,7 +114,7 @@
   width: 100%;
 }
 .setup-page.setup-refresh .setup-step + .setup-step {
-  padding-top: var(--space-5);
+  padding-top: var(--space-3);
 }
 .setup-page.setup-refresh .step-head {
   margin-bottom: 0;
@@ -156,37 +242,168 @@
 .setup-refresh .setup-mode-fold > .setup-head {
   margin-top: var(--space-2);
 }
-@media (min-width: 1000px) and (min-height: 600px) {
+@media (min-width: 1000px) and (min-height: 480px) {
   .app:has(> .setup-page.setup-refresh) {
-    height: auto;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
   }
   .page.setup-page.setup-refresh {
-    display: block;
-    min-height: auto;
-    padding-top: var(--space-6);
-    padding-bottom: 72px;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    padding-block: var(--space-3);
+    overflow: hidden;
   }
-  .setup-page.setup-refresh .setup-flow,
-  .setup-page.setup-refresh .setup-grid,
-  .setup-page.setup-refresh .setup-box,
-  .setup-page.setup-refresh .setup-formation,
-  .setup-page.setup-refresh .setup-formation-body {
-    min-height: auto;
-    overflow: visible;
+  .setup-page.setup-refresh .setup-flow {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    gap: var(--space-3);
   }
   .setup-page.setup-refresh .setup-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
+    overflow: hidden;
+    gap: var(--space-5);
+  }
+  .setup-page.setup-refresh .setup-box {
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: var(--space-2);
   }
   .setup-page.setup-refresh .setup-box:nth-child(2) {
-    padding-left: var(--space-6);
+    padding-left: var(--space-5);
     border-left: var(--border-strong);
   }
-  .setup-page.setup-refresh .setup-competition,
-  .setup-page.setup-refresh .setup-box > .setup-start {
-    margin-top: var(--space-5);
+  .setup-page.setup-refresh .setup-competition {
+    margin-top: 0;
+  }
+  .setup-page.setup-refresh .setup-start {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
+    align-items: center;
+    gap: var(--space-4);
+    flex: none;
+    padding-top: var(--space-3);
+    border-top: var(--border-strong);
+  }
+  .setup-page.setup-refresh .setup-start .step-head {
+    display: none;
+  }
+  .setup-page.setup-refresh .setup-start > .btn {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .setup-page.setup-refresh .setup-sub {
+    margin-block: var(--space-1) 0;
+  }
+  .setup-page.setup-refresh .setup-goal {
+    display: none;
+  }
+  .setup-page.setup-refresh .setup-rules {
+    gap: var(--space-2) var(--space-4);
+  }
+  .setup-page.setup-refresh .choice-card .cicon {
+    display: none;
+  }
+  .setup-page.setup-refresh .setup-opt > h3 {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--text-2);
+  }
+}
+@media (min-width: 1000px) and (min-height: 480px) and (max-height: 680px) {
+  .setup-page.setup-refresh .setup-sub {
+    display: none;
+  }
+  .setup-page.setup-refresh .setup-step {
+    gap: var(--space-2);
+  }
+  .setup-page.setup-refresh .setup-shape-thumb .fthumb {
+    width: 40px;
+    height: 52px;
+  }
+  .setup-refresh .setup-shape-summary {
+    min-height: 68px;
+    padding-block: var(--space-2);
+  }
+  .setup-refresh .setup-shape-copy > span,
+  .setup-refresh .setup-competition .setup-league > .help {
+    display: none;
   }
 }
 @media (max-width: 999px) {
+  .setup-page.setup-refresh .setup-league-select {
+    display: block;
+  }
+  .setup-page.setup-refresh .setup-era-select {
+    display: block;
+    width: 100%;
+  }
+  .setup-page.setup-refresh .setup-era-head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .setup-page.setup-refresh .setup-era-head > .segmented,
+  .setup-page.setup-refresh .setup-era-head > .linklike {
+    display: none;
+  }
+  .setup-page.setup-refresh .setup-era-head > h3 {
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+    font-weight: 500;
+  }
+  .setup-page.setup-refresh .setup-league > .segmented {
+    display: none;
+  }
+  .setup-page.setup-refresh .step-head-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+  .setup-page.setup-refresh .step-head-row .step-head {
+    font-size: var(--fs-base);
+  }
+  .setup-page.setup-refresh .step-head-row .season-pick {
+    width: 120px;
+    min-width: 100px;
+    margin: 0;
+  }
+  .setup-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: none;
+    border-bottom: var(--border);
+  }
+  .setup-sections button {
+    min-height: 44px;
+    padding: var(--space-2);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .setup-sections button[aria-pressed='true'] {
+    border-bottom-color: var(--primary);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .setup-refresh:has([data-fixed='true']) .setup-sections {
+    display: none;
+  }
+  .setup-refresh .setup-grid[data-fixed='false'][data-step='team'] > .setup-box:nth-child(2),
+  .setup-refresh .setup-grid[data-fixed='false'][data-step='rules'] > .setup-box:first-child {
+    display: none;
+  }
   .setup-page.setup-refresh .setup-title h1 {
     font-size: var(--fs-h2);
   }
@@ -195,14 +412,18 @@
   }
   .setup-page.setup-refresh .setup-box {
     gap: var(--space-3);
-    padding-bottom: var(--space-5);
-    border-bottom: var(--border-strong);
+    padding-bottom: 0;
+    border-bottom: 0;
   }
   .setup-page.setup-refresh .setup-step + .setup-step {
     padding-top: var(--space-3);
   }
   .setup-page.setup-refresh .setup-rules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
+  }
+  .setup-refresh .setup-rules .setup-wide-opt {
+    grid-column: 1 / -1;
   }
   .setup-page.setup-refresh .choice-card {
     gap: var(--space-1);
@@ -212,8 +433,41 @@
     display: none;
   }
   .setup-page.setup-refresh .choice-card .cline {
-    font-size: var(--fs-meta);
-    line-height: 1.35;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .setup-page.setup-refresh .choice-cards.n3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+  .setup-page.setup-refresh .choice-card {
+    min-width: 0;
+    min-height: 44px;
+    padding-inline: var(--space-1);
+  }
+  .setup-page.setup-refresh .choice-card .ctitle {
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+  .setup-page.setup-refresh .setup-opt > h3 {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--text-2);
+  }
+  .setup-page.setup-refresh .setup-rules [data-testid='bench-option'] .segmented {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .setup-page.setup-refresh .setup-rules [data-testid='bench-option'] .segmented button {
+    min-width: 0;
+    padding-inline: var(--space-1);
+  }
+  .setup-page.setup-refresh .setup-rules [data-testid='bench-option'] .setup-line {
+    display: none;
   }
 }
 @media (max-width: 720px) {
@@ -225,10 +479,80 @@
     box-shadow: none;
   }
   .setup-page.setup-refresh .setup-start .step-head {
-    display: flex;
+    display: none;
   }
   .setup-page.setup-refresh.has-bottom-bar {
-    padding-bottom: calc(80px + var(--safe-bottom));
+    padding-bottom: calc(var(--space-4) + var(--dock-h) + var(--safe-bottom));
+  }
+}
+/* Only the chosen set of controls scrolls, and only if larger text needs it. Start stays in the same place. */
+@media (max-width: 999px) and (min-height: 600px) {
+  .app:has(> .setup-page.setup-refresh) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .page.setup-page.setup-refresh {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+  }
+  .setup-page.setup-refresh .setup-flow {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
+  .setup-page.setup-refresh .setup-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    overflow-anchor: none;
+  }
+  .setup-page.setup-refresh .setup-top,
+  .setup-page.setup-refresh .setup-start {
+    flex: none;
+  }
+  .setup-page.setup-refresh .setup-goal {
+    display: none;
+  }
+  .setup-page.setup-refresh .setup-name .team-field > label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .setup-page.setup-refresh .setup-shape-copy > span {
+    display: none;
+  }
+  .setup-page.setup-refresh .setup-shape-summary {
+    min-height: 60px;
+    flex-wrap: nowrap;
+    padding-block: var(--space-1);
+  }
+  .setup-page.setup-refresh .setup-shape-thumb {
+    flex-basis: 36px;
+  }
+  .setup-page.setup-refresh .setup-shape-thumb .fthumb {
+    width: 36px;
+    height: 48px;
+  }
+  .setup-page.setup-refresh .setup-shape-copy {
+    flex: 1;
+  }
+  .setup-page.setup-refresh .setup-shape-change {
+    margin: 0;
+  }
+  .setup-page.setup-refresh .setup-competition .setup-league > .help {
+    display: none;
+  }
+}
+@media (max-width: 720px) and (min-height: 600px) and (max-height: 740px) {
+  .setup-page.setup-refresh .setup-sub,
+  .setup-page.setup-refresh .setup-start > [data-testid='setup-summary'] {
+    display: none;
   }
 }
 @media (max-width: 420px) {
