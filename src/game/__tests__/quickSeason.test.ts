@@ -446,13 +446,13 @@ describe('the playback helpers', () => {
     expect(playbackFrame(results, 2).totals).toMatchObject({ played: 2, points: 4, position: 3 })
   })
 
-  it('stops at the January pause and at the last game, at 3000, 1500, 750 or 375 ms a game', () => {
+  it('stops at the January pause and at the last game, at 3600, 1800, 900 or 450 ms a game', () => {
     expect(nextReveal(1, 4, 2)).toBe(2)
     expect(nextReveal(2, 4, 2)).toBe(2)
     expect(nextReveal(4, 4)).toBe(4)
     expect(playbackFrame(results, 2, 2).done).toBe(true)
-    expect(PLAYBACK_STEP_MS).toBe(1500)
-    expect([playbackDelay(0.5), playbackDelay(1), playbackDelay(2), playbackDelay(4)]).toEqual([3000, 1500, 750, 375])
+    expect(PLAYBACK_STEP_MS).toBe(1800)
+    expect([playbackDelay(0.5), playbackDelay(1), playbackDelay(2), playbackDelay(4)]).toEqual([3600, 1800, 900, 450])
     expect([parsePlaybackSpeed('0.5'), parsePlaybackSpeed('4'), parsePlaybackSpeed(null), parsePlaybackSpeed('3'), parsePlaybackSpeed('')]).toEqual([0.5, 4, 1, 1, 1])
   })
 

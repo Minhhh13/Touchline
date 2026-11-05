@@ -3,6 +3,7 @@ import { matchPath } from '../match/epochs'
 import { FAST_SPEED, MIX, MOOD, admit, bedLevel, createMix, crowdMood, ducked, type MixKind } from '../sound/mix'
 import { ballCues, ALWAYS } from '../sound/ball'
 import { resultFeed } from './feeds'
+import { PITCH_MS } from '../match/timing'
 
 const feeds = Array.from({ length: 6 }, (_, i) => resultFeed(i))
 const paths = feeds.map((f) => matchPath(f).path)
@@ -64,10 +65,10 @@ describe('the match day’s mix', () => {
       for (const path of paths) {
         const mix = createMix()
         const cues = ballCues(path)
-        // The cues played back at this speed against a real clock (4500 ms a minute at 1x)
+        // The cues played back at this speed against the real 1x clock
         const heard: number[] = []
         for (const c of cues) {
-          const now = (c.t * 4500) / speed
+          const now = (c.t * PITCH_MS) / speed
           const kind: MixKind = ALWAYS.has(c.touch) ? 'strike' : 'ball'
           if (admit(mix, kind, now, speed) && kind === 'ball') heard.push(now)
         }

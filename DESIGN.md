@@ -74,7 +74,7 @@ Sora is the single product family. Weight, size and tabular alignment establish 
 
 # Layout
 
-Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Hairline rules create sections; nested cards do not. Home is a programme, Setup a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. At phone widths these structures reflow as whole units in document order with 44 px targets, safe-area support and no horizontal page scroll.
+Desktop works inside a constrained game column and uses asymmetric composition where one decision is dominant. Hairline rules create sections; nested cards do not. Home is a programme: short copy, one crisp pitch diagram and a single Lucide football icon system make the game visible without decorative illustration. Setup is a five-step team sheet, Draft a three-zone working desk, Dugout a club ledger and Matchday a dense operational dashboard. At phone widths these structures reflow as whole units in document order with 44 px targets, safe-area support and no horizontal page scroll.
 
 # Elevation & Depth
 

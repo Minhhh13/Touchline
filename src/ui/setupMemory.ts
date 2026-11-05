@@ -66,7 +66,8 @@ export function defaultChoices(mode: MemoryMode | string): SetupChoices {
     january: true,
     opposition: 'calibrated',
     squadSize: 18,
-    jobSecurity: true,
+    // Normal managed games play the full season. The sack is an opt-in challenge under More options.
+    jobSecurity: false,
     playerPower: false,
     continental: false,
   }

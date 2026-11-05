@@ -3,6 +3,7 @@ import { matchPath } from '../match/epochs'
 import { strikeTimes, type BallKeyframe } from '../match/possession'
 import { ALWAYS, BALL_GAP_MS, ballCues, dueBallCues, dueGoals, dueSwells, speedScale, swellCues, DANGER_FROM } from '../sound/ball'
 import { resultFeed } from './feeds'
+import { PITCH_MS } from '../match/timing'
 
 const feeds = Array.from({ length: 8 }, (_, i) => resultFeed(i))
 const paths = feeds.map((f) => matchPath(f).path)
@@ -62,13 +63,13 @@ describe('the ball’s sounds', () => {
 
   it('thins a busy spell, keeps the strikes, goes quiet at speed, and never sounds through a hold, a skip or a step back', () => {
     const cues = ballCues(paths[0])
-    // One frame a 16 ms step at 1x, a minute every 4.5 s: count what sounds over the first half
+    // One frame a 16 ms step at 1x: count what sounds over the first half
     const last: { at?: number } = {}
     let heard = 0
     let real = 0
-    for (let t = 0; t < 45; t += 16 / 4500) {
+    for (let t = 0; t < 45; t += 16 / PITCH_MS) {
       real += 16
-      const due = dueBallCues(at(t), at(t + 16 / 4500), cues, 1, real, last)
+      const due = dueBallCues(at(t), at(t + 16 / PITCH_MS), cues, 1, real, last)
       heard += due.length
     }
     const inHalf = cues.filter((c) => c.t > 0 && c.t <= 45)

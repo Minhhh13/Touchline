@@ -15,16 +15,22 @@ import { hashString } from '@engine/rng'
 import { toShared } from './pitchGeometry'
 
 /**
- * Milliseconds per match minute at 1x on the live pitch. A minute lasts 4.5 s, so a 20-metre pass
+ * Milliseconds per match minute at 1x on the live pitch. A minute lasts 5.5 s, so a 20-metre pass
  * rolls for about two seconds, a man takes a touch and looks up before he passes, and a corner
- * stands for three seconds before it is swung in; a half takes about three and a half minutes.
+ * stands for three seconds before it is swung in; a half takes about four minutes.
  */
-export const PITCH_MS = 4500
-/** One second of the picture at 1x, in match minutes. */
-export const SECOND = 1000 / PITCH_MS
-/** A speed in metres per second at 1x as metres per match minute (the ball path's unit of time). */
+export const PITCH_MS = 5500
+/**
+ * The choreography stays on the proven 4.5-second scale while the clock plays it more calmly.
+ * Keeping this separate from `PITCH_MS` means a pacing preference cannot redraw the same decided
+ * match, change its commentary, or squeeze extra ball movement into a match minute.
+ */
+const MOTION_BASE_MS = 4500
+/** One choreography second, in match minutes. */
+export const SECOND = 1000 / MOTION_BASE_MS
+/** A choreography speed in metres per second as metres per match minute. */
 export function perMinute(mps: number): number {
-  return (mps * PITCH_MS) / 1000
+  return (mps * MOTION_BASE_MS) / 1000
 }
 
 /** Passes and build-ups stay within this distance (shared units), so the ball never teleports except for a kick-off or a fetch for a restart. */

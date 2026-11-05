@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { ArrowRight, Award, Sparkles, CalendarRange, ChevronsUp, Clock, Flame, Globe, Timer, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Award, CalendarDays, CalendarRange, ChevronsUp, Clock, Dices, Flame, Globe, Shield, Shirt, Sparkles, Swords, Timer, Trophy, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { dailyLoaded, dailyPlan, dailySettings } from '@game/logic/setup'
@@ -78,6 +78,32 @@ function TimeTag({ children }: { children: ReactNode }) {
   )
 }
 
+const FIRST_RUN_ICONS: Record<(typeof FIRST_RUN_STEPS)[number]['id'], LucideIcon> = {
+  spin: Dices,
+  draft: Shirt,
+  play: Trophy,
+}
+
+/** A crisp pitch diagram: football geometry, not decorative illustration. */
+function DailyPitch() {
+  return (
+    <svg className="programme-daily-pitch" viewBox="0 0 160 104" aria-hidden="true" focusable="false">
+      <rect x="1" y="1" width="158" height="102" rx="2" />
+      <path d="M80 1v102M1 29h24v46H1m158-46h-24v46h24M1 39h9v26H1m158-26h-9v26h9" />
+      <circle cx="80" cy="52" r="18" />
+      <circle cx="80" cy="52" r="2" className="programme-daily-spot" />
+    </svg>
+  )
+}
+
+function ModeIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <span className="programme-mode-icon" aria-hidden="true">
+      <Icon size={23} strokeWidth={1.8} />
+    </span>
+  )
+}
+
 /** A small directional cue at the end of each game-format row. */
 function GoLabel() {
   return (
@@ -131,14 +157,18 @@ function FirstRun({ ready, onPlay, onHowTo }: { ready: boolean; onPlay: () => vo
   return (
     <div className="programme-first" data-testid="first-run">
       <ol className="programme-steps">
-        {FIRST_RUN_STEPS.map((step, i) => (
+        {FIRST_RUN_STEPS.map((step, i) => {
+          const Icon = FIRST_RUN_ICONS[step.id]
+          return (
             <li key={step.id}>
-              <span>
+              <span className="programme-step-icon" aria-hidden="true"><Icon size={22} strokeWidth={1.8} /></span>
+              <span className="programme-step-copy">
                 <b>{t('stepTitle', { n: i + 1, title: t(`step_${step.id}_title`) })}</b>
                 <span>{t(`step_${step.id}_line`)}</span>
               </span>
             </li>
-        ))}
+          )
+        })}
       </ol>
       <div className="programme-first-go">
         <button type="button" className="btn primary big" disabled={!ready} onClick={onPlay} data-testid="first-draft">
@@ -382,6 +412,7 @@ export function Home() {
           )}
         </section>
         <div className={`programme-daily${nextUp === 'daily' ? ' next-up' : ''}`} data-testid="daily-card">
+          <DailyPitch />
           <button type="button" className="programme-daily-body" onClick={() => go('setup', 'daily')} title={t('dailyOpen')}>
             <span className="programme-daily-text">
               <h3>{t('dailyTitle')}</h3>
@@ -449,6 +480,7 @@ export function Home() {
         </div>
         <div className="programme-mode-list">
           <button className="programme-mode" onClick={() => go('setup', 'quick')} data-testid="quick-card">
+            <ModeIcon icon={Dices} />
             <span className="programme-mode-copy">
               <h3>{t('quickTitle')}</h3>
               <p>{t('quickLine')}</p>
@@ -457,6 +489,7 @@ export function Home() {
             <GoLabel />
           </button>
           <button className={'programme-mode' + (nextUp === 'season' ? ' next-up' : '')} onClick={() => go('setup', 'season')} data-testid="season-card">
+            <ModeIcon icon={CalendarDays} />
             <span className="programme-mode-copy">
               <h3>{t('seasonTitle')}</h3>
               <p>{t('seasonLine')}</p>
@@ -466,6 +499,7 @@ export function Home() {
             <GoLabel />
           </button>
           <button className="programme-mode" onClick={() => go('setup', 'dynasty')} data-testid="dynasty-card">
+            <ModeIcon icon={Shield} />
             <span className="programme-mode-copy">
               <h3>{t('dynastyTitle')}</h3>
               <p>{t('dynastyLine')}</p>
@@ -474,6 +508,7 @@ export function Home() {
             <GoLabel />
           </button>
           <button className="programme-mode" onClick={() => go('h2h')} data-testid="h2h-card">
+            <ModeIcon icon={Swords} />
             <span className="programme-mode-copy">
               <h3>{t('h2hTitle')}</h3>
               <p>{t('h2hLine')}</p>

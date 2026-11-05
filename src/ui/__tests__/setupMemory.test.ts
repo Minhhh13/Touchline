@@ -23,11 +23,12 @@ describe('setupMemory: the setup remembers this viewer’s last choices', () => 
     g.localStorage = before
   })
 
-  it('the defaults are the screen’s old defaults, per mode', () => {
+  it('the defaults are the screen’s normal rules, per mode', () => {
     const q = defaultChoices('quick')
-    expect(q).toMatchObject({ formationId: '4-3-3', leagueId: 'england', difficulty: QUICK_RULES.difficulty, showRatings: true, draftMode: 'squad', ratingsMode: 'prime', eraPreset: 'all', benchPicks: 1, modes: [], powerUps: false, managerChoice: 'spin', endCase: true, twistsChoice: null, chain: false, january: true, opposition: 'calibrated', squadSize: 18 })
+    expect(q).toMatchObject({ formationId: '4-3-3', leagueId: 'england', difficulty: QUICK_RULES.difficulty, showRatings: true, draftMode: 'squad', ratingsMode: 'prime', eraPreset: 'all', benchPicks: 1, modes: [], powerUps: false, managerChoice: 'spin', endCase: true, twistsChoice: null, chain: false, january: true, opposition: 'calibrated', squadSize: 18, jobSecurity: false })
     expect(q.cap).toEqual(DEFAULT_CAP_CHOICE)
-    expect(defaultChoices('season').difficulty).toBe(SEASON_RULES.difficulty)
+    expect(defaultChoices('season')).toMatchObject({ difficulty: SEASON_RULES.difficulty, jobSecurity: false })
+    expect(defaultChoices('dynasty').jobSecurity).toBe(false)
     expect(isDefault(q, 'quick')).toBe(true)
   })
 
