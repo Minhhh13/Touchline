@@ -3,6 +3,7 @@
  * (`./home`), never this file, or every screen's English would ride in the first download.
  */
 import { app } from './app'
+import { appearance } from './appearance'
 import { boxes } from './boxes'
 import { common } from './common'
 import { screenText } from './screenText'
@@ -32,4 +33,4 @@ import { history } from './history'
 import { logicText } from './logicText'
 import { commentaryText } from './commentaryText'
 
-export const CATALOGS = { app, boxes, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online, saving, shell, trophies, engineText, story, playerCard, office, history, logicText, commentaryText } as const
+export const CATALOGS = { app, appearance, boxes, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online, saving, shell, trophies, engineText, story, playerCard, office, history, logicText, commentaryText } as const

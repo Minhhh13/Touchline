@@ -1433,6 +1433,12 @@ Every normal spin, including a re-spin, retains the full 3.8-second opening and 
 
 The cabinet's optional `leagueShelves` mirrors its existing five season-trophy totals by league, with Super League separate. `withLeagueShelves` backfills only recorded league evidence, deduplicates leaderboard/honours result ids, and bounds attribution to aggregate totals. Unknown history stays in All/Earlier honours. `creditTrophyShelf` runs in the store after the unchanged credit actions and mirrors only existing increments, including later Double/Treble credit; the replay modules stay byte-for-byte unchanged. Arena and Run-in remain outside league-season counts. No new competitions, engine version, save key or persist version.
 
+### Logo and appearance follow-up (2026-11-06 AEDT)
+
+The palette button on Home and in the header opens the existing focus-trapped dialog with Auto/Light/Dark and Slate/Midnight/Warm Dark choices. Profile uses the same `AppearanceControls`; the theme and palette retain their existing storage and Light colours. Palette changes are immediate, with no extra route or scroll. The dialog closes with Escape or its close control and restores focus to its opener.
+
+Only live colour `LogoMark` outlines use `--brand-line`; standalone favicon/install exports retain their fixed keyline, and inverse/mono variants retain their inks. The open Home football uses cream leather separately from the scene-coloured pole, so its dark panels remain distinct in daylight. Home alone opts into nine staggered transform-only letter bounces (3.6 s, 4 px lift, 1 px settle, 90 ms stagger); the existing scene Pause and reduced-motion preference stop them, while game headers remain still. The desktop reel track adds back the full gutter over the shared 2 px wrapper allowance, preserving the card width and top alignment. No draw, timing, result, engine version, save-format, verifier or hosting change.
+
 ### Audio controls during play
 
 `AudioControls` in `src/ui/components/AudioControls.tsx` places the master mute and a 0–100 volume slider in the season playback header, the Dugout tools and the match-day competition row. The shared `useSoundOn` and `useSoundVolume` preferences update the existing master gain immediately and persist on the device, in the same keys used by Profile. Mute preserves the stored volume; moving the slider while muted sets the eventual level without enabling sound. Zero remains a valid silent level. The control supports keyboard adjustment, a visible muted state, translated labels and 44-pixel touch targets.

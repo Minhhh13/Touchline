@@ -20,7 +20,7 @@ export function LogoMark({ size = 'md', variant = 'colour', title, open = false 
   const px = toPx(size)
   const id = useSvgId('tl')
   const tier = markTier(px)
-  const html = useMemo(() => markSvgInner(id, { tier, variant, tile: open ? 'none' : undefined }), [id, tier, variant, open])
+  const html = useMemo(() => markSvgInner(id, { tier, variant, tile: open ? 'none' : undefined, themeable: true }), [id, tier, variant, open])
   return <svg className="logo-mark" width={px} height={px} viewBox={`0 0 ${MARK.grid} ${MARK.grid}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} focusable="false" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
@@ -46,18 +46,20 @@ export function Logo({ size = 'md', variant = 'colour', className }: { size?: Lo
 }
 
 /**
- * The primary lockup. It deliberately has no entrance, shine, rolling ball or looping flag:
- * the finished identity is present immediately. `hover` enables one restrained physical nudge
- * on fine pointers; reduced-motion removes even that.
+ * The primary lockup is present immediately. `hover` enables a small pointer nudge;
+ * `letters` opts the Home wordmark into its paused/reduced-motion-aware wave.
  */
-export function Lockup({ height = 64, animate = 'none', className, open = false }: { height?: number; animate?: 'none' | 'load' | 'hover'; className?: string; open?: boolean }) {
-  const cls = ['tl-lockup', animate === 'hover' && 'tl-hover', className].filter(Boolean).join(' ')
+export function Lockup({ height = 64, animate = 'none', className, open = false }: { height?: number; animate?: 'none' | 'load' | 'hover' | 'letters'; className?: string; open?: boolean }) {
+  const cls = ['tl-lockup', animate === 'hover' && 'tl-hover', animate === 'letters' && 'tl-letters', className].filter(Boolean).join(' ')
+  const word = (text: string, offset: number) => animate === 'letters'
+    ? [...text].map((letter, i) => <span className="tl-letter" key={i} style={{ animationDelay: `${(offset + i) * 90}ms` }}>{letter}</span>)
+    : text
   return (
     <span className={cls} style={{ '--tl-h': `${height}px` } as CSSProperties} role="img" aria-label={APP_NAME}>
       <LogoMark size={height} open={open} />
       <span className="tl-name" aria-hidden="true">
-        <span className="tl-touch">{WORDMARK[0]}</span>
-        <span className="wordmark-line">{WORDMARK[1]}</span>
+        <span className="tl-touch">{word(WORDMARK[0], 0)}</span>
+        <span className="wordmark-line">{word(WORDMARK[1], WORDMARK[0].length)}</span>
       </span>
     </span>
   )

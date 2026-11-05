@@ -93,4 +93,15 @@ describe('the Matchday Ledger UI contract', () => {
     expect(setupCss).toMatch(/@media \(max-width: 720px\)[\s\S]*\.setup-start\.bottom-bar[\s\S]*position: static/)
     expect(setupCss).toMatch(/\.setup-start \.step-head[\s\S]*display: flex/)
   })
+
+  it('gives the reel a gutter without taking width away from the card', () => {
+    expect(draftCss).toContain('calc(var(--draft-reel-width, 300px) + var(--space-4) - 2px)')
+    // This must beat the shared shell's 2px scrollbar allowance on wrapper columns.
+    expect(draftCss).toMatch(/\.app\.shell \.draft-page \.grid\.draft > \.col:first-child\s*\{\s*padding: var\(--space-4\) var\(--space-4\) var\(--space-4\) 0/)
+  })
+
+  it('pauses the Home lettering with the scenery and removes its movement for reduced motion', () => {
+    expect(homeCss).toMatch(/\[data-motion-paused='true'\] \.tl-letter\s*\{\s*animation-play-state: paused/)
+    expect(homeCss).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.home-lockup \.tl-letter \{ animation: none; \}/)
+  })
 })

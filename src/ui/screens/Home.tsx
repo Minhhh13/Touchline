@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, Clock, Dices, Globe, Menu, Moon, Pause, Play, Search, Shield, Sparkles, Sun, Swords, Timer, Trophy, X, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, Clock, Dices, Globe, Menu, Pause, Play, Search, Shield, Sparkles, Swords, Timer, Trophy, X, Zap, type LucideIcon } from 'lucide-react'
 import { todaysDailySeed, slotOf } from '@game/store'
 import { useStorePick } from '../useStorePick'
 import { resumeStatus } from '@game/logic/resume'
@@ -11,10 +11,10 @@ import { startingTeam, startingTeamName, teamShortName } from '../teamName'
 import { ConflictCards } from '../online/ConflictCard'
 import { TeamBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
+import { AppearanceButton } from '../components/Appearance'
 import { HomeWorld } from '../components/HomeWorld'
 import { SimulationTicker } from '../components/SimulationTicker'
 import { homeMotionPref, usePref } from '../viewerPrefs'
-import { toggledTheme, useResolvedTheme } from '../theme'
 import { withViewTransition } from '../motion'
 import { translator } from '../i18n'
 import { home } from '../i18n/en/home'
@@ -71,8 +71,7 @@ export function Home() {
     document.addEventListener('visibilitychange', update)
     return () => document.removeEventListener('visibilitychange', update)
   }, [])
-  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, setTheme, openArenaSetup: openArenaNow } = useStorePick('universe', 'game', 'go', 'abandonGame', 'profile', 'parked', 'resumeGame', 'discardParked', 'loadedLeagues', 'startGame', 'setTheme', 'openArenaSetup')
-  const theme = useResolvedTheme(profile.theme)
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStorePick('universe', 'game', 'go', 'abandonGame', 'profile', 'parked', 'resumeGame', 'discardParked', 'loadedLeagues', 'startGame', 'openArenaSetup')
   const scenePaused = !sceneMotion || !visible
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
@@ -185,9 +184,7 @@ export function Home() {
       <HomeWorld paused={scenePaused} />
       <div className="home-landing" inert={panel !== 'closed'}>
         <div className="home-tools">
-          <button type="button" className="home-theme-toggle" onClick={() => withViewTransition(() => setTheme(toggledTheme(theme)))} aria-label={t(theme === 'dark' ? 'dayPitch' : 'nightPitch')} title={t(theme === 'dark' ? 'dayPitch' : 'nightPitch')} data-testid="home-theme-toggle">
-            {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-          </button>
+          <AppearanceButton className="home-theme-toggle" testId="home-theme-toggle" />
           <button type="button" className="home-motion-toggle" onClick={() => setSceneMotion(!sceneMotion)} aria-label={t(sceneMotion ? 'pauseScenery' : 'resumeScenery')} title={t(sceneMotion ? 'pauseScenery' : 'resumeScenery')} aria-pressed={!sceneMotion} data-testid="home-motion-toggle">
             {sceneMotion ? <Pause size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
           </button>
@@ -198,7 +195,7 @@ export function Home() {
         </div>
 
         <div className="home-hero" aria-labelledby="home-title">
-          <h1 id="home-title" className="home-lockup"><Lockup height={64} open /></h1>
+          <h1 id="home-title" className="home-lockup"><Lockup height={64} animate="letters" open /></h1>
           <SimulationTicker paused={scenePaused} />
           <div className="home-actions">
             <button ref={playButton} type="button" className="home-play" onClick={() => openPanel('play')} aria-expanded={panel === 'play'} aria-controls="home-panel" data-testid="home-play">

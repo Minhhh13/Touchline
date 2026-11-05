@@ -9,8 +9,6 @@ export const home = catalog('home', {
   menu: 'Menu',
   pauseScenery: 'Pause scenery',
   resumeScenery: 'Resume scenery',
-  dayPitch: 'Switch to the day pitch',
-  nightPitch: 'Switch to the night pitch',
   simulations: '{n} games simulated',
   simulationEstimate: 'Estimated total from a verified starting count of 300,000. The display rises by one a minute; it is not live activity data.',
   close: 'Close',

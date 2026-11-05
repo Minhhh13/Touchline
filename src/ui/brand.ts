@@ -566,6 +566,8 @@ export interface MarkSvgOptions {
   tile?: 'rounded' | 'square' | 'none'
   /** The glyph's scale about the centre, to keep it inside a mask's safe zone. */
   scale?: number
+  /** Live app marks follow the palette; generated icons keep the fixed brand keyline. */
+  themeable?: boolean
 }
 
 /** The mark's inner SVG (defs and shapes) on the 64 grid. Every id starts with `id`. */
@@ -576,17 +578,19 @@ export function markSvgInner(id: string, o: MarkSvgOptions): string {
   let tile = ''
   if (variant !== 'mono' && o.tile !== 'none') {
     const fill = variant === 'colour' ? MARK.tile : '#ffffff'
-    const edge = variant === 'colour' ? MARK.keyline : MARK.tile
+    const edge = variant === 'colour' ? o.themeable ? `var(--brand-line, ${MARK.keyline})` : MARK.keyline : MARK.tile
     tile = `${o.tile === 'square' ? `<rect width="${g}" height="${g}" fill="${fill}"/>` : `<rect width="${g}" height="${g}" rx="${MARK.tileRadius}" fill="${fill}"/>`}<rect x="2" y="2" width="60" height="60" rx="1" fill="none" stroke="${edge}" stroke-width="2"/>`
   }
   const ink = o.tile === 'none' ? 'currentColor' : variant === 'colour' ? '#f5f1df' : variant === 'inverse' ? MARK.tile : 'currentColor'
   const flag = variant === 'mono' ? ink : MARK.red
   const ballInk = variant === 'colour' ? MARK.panel : ink
+  // The open mark's pole follows scene ink, but the football still needs white leather in daylight.
+  const ballPaper = variant === 'colour' ? '#f5f1df' : ink
   const glyph =
     `<path d="M18 12H34V16H42V20H38V24H30V28H18Z" fill="${flag}"/>` +
     `<rect x="14" y="10" width="4" height="42" fill="${ink}"/>` +
     `<rect x="8" y="50" width="48" height="3" fill="${ink}"/>` +
-    `<path d="M36 34H46V37H50V49H46V53H36V50H32V38H36Z" fill="${ink}"/>` +
+    `<path d="M36 34H46V37H50V49H46V53H36V50H32V38H36Z" fill="${ballPaper}"/>` +
     `<rect x="39" y="39" width="7" height="7" fill="${ballInk}"/>` +
     `<path d="M36 34H40V38H36ZM46 37H50V41H46ZM32 46H36V50H32Z" fill="${ballInk}"/>`
   const s = o.scale ?? 1

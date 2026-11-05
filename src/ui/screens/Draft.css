@@ -206,10 +206,12 @@
     overflow: hidden;
   }
   .draft-page .grid.draft {
+    /* Add the gutter to the track, preserving the reel card's existing width. */
+    grid-template-columns: calc(var(--draft-reel-width, 300px) + var(--space-4) - 2px) minmax(0, 1fr) var(--draft-pitch-width, 360px);
     gap: 0;
     border-top: var(--border);
   }
-  .draft-page .grid.draft > .col:first-child {
+  .app.shell .draft-page .grid.draft > .col:first-child {
     padding: var(--space-4) var(--space-4) var(--space-4) 0;
   }
   .draft-page .draft-squad {
@@ -280,6 +282,12 @@
   }
   .draft-page .draft-pitch:has(.pitch-wrap) .draft-bench-details > .plist {
     min-height: 0;
+  }
+}
+@media (min-width: 2200px) and (min-height: 1200px) {
+  .draft-page .grid.draft {
+    --draft-reel-width: 380px;
+    --draft-pitch-width: 500px;
   }
 }
 .draft-bench-details > summary { list-style: none; cursor: pointer; min-height: 36px; }

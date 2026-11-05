@@ -294,9 +294,9 @@ export function Draft() {
   const boxes = allBoxes.only([...(complete ? [] : ['needs']), ...(d.history.length > 0 || puLog.length > 0 ? ['log'] : []), 'pitch', ...(benchBox ? ['bench'] : [])])
   const pitchCol = boxes.on('pitch') || (benchBox && boxes.on('bench'))
   const draftGrid = boxes.grid([
-    { track: '300px', ids: [] },
+    { track: 'calc(var(--draft-reel-width, 300px) + var(--space-4) - 2px)', ids: [] },
     { track: 'minmax(0, 1fr)', ids: [] },
-    { track: '360px', ids: ['pitch', 'bench'] },
+    { track: 'var(--draft-pitch-width, 360px)', ids: ['pitch', 'bench'] },
   ])
   return (
     <div className="page draft-page">

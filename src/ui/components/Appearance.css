@@ -1,0 +1,26 @@
+.modal.appearance-dialog {
+  width: min(420px, 100%);
+}
+.appearance-options {
+  gap: var(--space-5);
+}
+.appearance-options .segmented {
+  width: 100%;
+}
+.appearance-options .segmented > button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+}
+.palette-swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.palette-swatch.slate { background: #b4cfc2; }
+.palette-swatch.midnight { background: #aecce7; }
+.palette-swatch.warm { background: #d9c39b; }
