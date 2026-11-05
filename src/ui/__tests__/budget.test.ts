@@ -66,7 +66,7 @@ describe('the first download stays small', () => {
 
   it('keeps the game screens\' sheet to what Home and the shell never draw', () => {
     const sheet = readFileSync(path.join(root, 'src/ui/gameScreens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    const shell = ['src/ui/App.tsx', 'src/ui/screens/Home.tsx', 'src/ui/components/bits.tsx', 'src/ui/components/Art.tsx', 'src/ui/components/Logo.tsx', 'src/ui/components/Flag.tsx', 'src/ui/components/SaveBanner.tsx', 'src/ui/components/SaveIssue.tsx', 'src/ui/components/ConfirmDialog.tsx', 'src/ui/online/ConflictCard.tsx', 'src/ui/screens/HowTo.tsx', 'src/ui/screens/Privacy.tsx', 'src/ui/components/HomeBadgeNudge.tsx', 'src/ui/online/AccountChip.tsx']
+    const shell = ['src/ui/App.tsx', 'src/ui/screens/Home.tsx', 'src/ui/components/bits.tsx', 'src/ui/components/Art.tsx', 'src/ui/components/Logo.tsx', 'src/ui/components/Flag.tsx', 'src/ui/components/SaveBanner.tsx', 'src/ui/components/SaveIssue.tsx', 'src/ui/components/ConfirmDialog.tsx', 'src/ui/online/ConflictCard.tsx', 'src/ui/screens/HowTo.tsx', 'src/ui/screens/Privacy.tsx', 'src/ui/online/AccountChip.tsx']
     const words = new Set(shell.flatMap((f) => readFileSync(path.join(root, f), 'utf8').match(/[\w-]+/g) ?? []))
     // Each selector names at least one class the first screen never renders, so none of it can style Home before it loads
     const selectors = [...sheet.matchAll(/(?:^|[;{}])\s*([^;{}@]+?)\s*\{/g)].map((m) => m[1]).filter((s) => !/^(from|to|\d+%)/.test(s.trim()))

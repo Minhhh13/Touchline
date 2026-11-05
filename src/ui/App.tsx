@@ -305,7 +305,7 @@ export function App() {
   else body = <Home />
 
   return (
-    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''} ${Capacitor.isNativePlatform() || (screen === 'game' && game?.phase === 'match' && !shell) ? 'dock-off' : ''}`} data-native={Capacitor.isNativePlatform() || undefined} ref={watchMainLandmark}>
+    <div className={`app ${shell ? 'shell' : ''} ${screen === 'home' ? 'home-stage' : ''} ${barHidden ? 'bar-hidden' : ''} ${Capacitor.isNativePlatform() || (screen === 'game' && game?.phase === 'match' && !shell) ? 'dock-off' : ''}`} data-native={Capacitor.isNativePlatform() || undefined} ref={watchMainLandmark}>
       <a className="skip-link" href="#main" onClick={skipToMain} data-testid="skip-link">
         {t('skipToContent')}
       </a>

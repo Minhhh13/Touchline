@@ -1,8 +1,8 @@
 /**
  * Home for a newcomer and an early player: first draft, Daily and main formats retain a clear order; the five more
  * formats come in with the first result, the Daily is pointed at once (the Try next
- * marker, not the nudge as well), Try next never sends a player to start a Season while one waits, and the next
- * badge says what is left in its own words. Server-rendered from the store, as `i18nScreens.test.ts` does.
+ * marker, not the nudge as well), and Try next never sends a player to start a Season while one waits.
+ * Server-rendered from the store, as `i18nScreens.test.ts` does.
  */
 import { describe, expect, it, vi } from 'vitest'
 vi.hoisted(() => {
@@ -17,7 +17,6 @@ import { SEASON_RULES } from '@engine/draft'
 import type { LeaderboardEntry, Profile } from '@game/types'
 import { show } from './qaSsr'
 import { Home } from '../screens/Home'
-import HomeBadgeNudge from '../components/HomeBadgeNudge'
 
 const u = loadTestUniverse(['england'])
 const fresh: Profile = { achievements: {}, leaderboard: [], dailyStreak: 0, lastDailyDate: null, dailyResults: {}, gamesPlayed: 0, seasonsSimulated: 0, theme: 'auto', managerName: '' }
@@ -35,17 +34,17 @@ const markedCard = (html: string): string | null => {
 }
 
 describe("a newcomer's Home", () => {
-  it('keeps the first draft and Daily ahead of every main format, with more formats introduced after a result', () => {
+  it('keeps one Play action on the scene, then the main formats in a hidden chooser with advanced formats deferred', () => {
     show({ ...base, profile: fresh })
     const html = render()
     const ids = testIds(html)
+    expect(ids).toContain('home-play')
     expect(ids).toContain('first-run')
-    expect(ids).toContain('first-draft')
     expect(ids).toContain('daily-card')
     expect(ids).toContain('season-card')
     for (const id of ['quick-card', 'dynasty-card', 'h2h-card']) expect(ids).toContain(id)
-    expect(ids.indexOf('first-draft')).toBeLessThan(ids.indexOf('daily-card'))
-    expect(ids.indexOf('daily-card')).toBeLessThan(ids.indexOf('quick-card'))
+    expect(ids.indexOf('home-play')).toBeLessThan(ids.indexOf('quick-card'))
+    expect(ids.indexOf('quick-card')).toBeLessThan(ids.indexOf('daily-card'))
     expect(ids).not.toContain('casual-row')
     expect(ids).not.toContain('arena-daily-card')
     expect(ids).not.toContain('next-up')
@@ -59,7 +58,6 @@ describe("a newcomer's Home", () => {
     for (const id of ['arena-daily-card', 'weekly-card', 'arena-cup-card', 'arena-gauntlet-card', 'runin-card']) expect(ids).toContain(id)
   })
 })
-
 describe("an early player's Try next", () => {
   it("marks today's Daily, and the hero's Daily nudge stands down so the Daily is pointed at once", () => {
     show({ ...base, profile: { ...fresh, leaderboard: [quick], seasonsSimulated: 1 } })
@@ -68,11 +66,11 @@ describe("an early player's Try next", () => {
     expect(testIds(html)).not.toContain('daily-nudge')
   })
 
-  it('keeps the Daily nudge once Try next has moved on', () => {
+  it('moves Try next to Season without repeating a Daily nudge on the landing scene', () => {
     show({ ...base, profile: { ...fresh, leaderboard: [quick, quick], seasonsSimulated: 2, dailyResults: { 'daily-2026-10-01': { points: 60, tier: 'MID_TABLE' } } } })
     const html = render()
     expect(markedCard(html)).toBe('season-card')
-    expect(testIds(html)).toContain('daily-nudge')
+    expect(testIds(html)).not.toContain('daily-nudge')
   })
 
   it('never marks Season while a Season waits on the resume strip, parked or current', () => {
@@ -83,21 +81,12 @@ describe("an early player's Try next", () => {
     const current = render()
     expect(markedCard(current)).toBeNull()
     const currentIds = testIds(current)
+    expect(currentIds).toContain('home-resume')
     expect(currentIds).toContain('resume-continue')
-    expect(currentIds.indexOf('resume-continue')).toBeLessThan(currentIds.indexOf('daily-card'))
+    expect(currentIds.indexOf('home-resume')).toBeLessThan(currentIds.indexOf('daily-card'))
     show({ ...base, profile, game: null, parked: { season } })
     expect(markedCard(render())).toBeNull()
     show({ ...base, profile, game: null, parked: {} })
     expect(markedCard(render())).toBe('season-card')
-  })
-})
-
-describe("Home's next badge", () => {
-  it("says what is left in the badge's own words, never a tier's fraction", () => {
-    show({ ...base, profile: { ...fresh, leaderboard: [quick], seasonsSimulated: 1 } })
-    const html = renderToString(createElement(HomeBadgeNudge, { onOpen: () => undefined }))
-    const text = html.replace(/<[^>]+>/g, '').replace(/&#x27;/g, "'")
-    expect(text).toMatch(/^Next badge: .+, .+ to go$/)
-    expect(text).not.toMatch(/ of \d+ for (bronze|silver|gold)/)
   })
 })
