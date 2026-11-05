@@ -47,7 +47,7 @@ describe('the flat TouchLine mark', () => {
     const mono = markSvgInner('m', { tier: 'mid', variant: 'mono' })
     const inverse = markSvgInner('i', { tier: 'mid', variant: 'inverse' })
     expect(colour).toContain(`<rect width="64" height="64" rx="${MARK.tileRadius}" fill="${MARK.tile}"/>`)
-    expect(mono).not.toContain('<rect')
+    expect(mono).not.toContain('<rect width="64" height="64"')
     expect(mono).toContain('currentColor')
     expect(inverse).toContain('fill="#ffffff"')
     expect(inverse).toContain(MARK.tile)
@@ -78,13 +78,15 @@ describe('the wordmark lockup', () => {
     expect(decorative).toContain('aria-hidden="true"')
   })
 
-  it('uses the dedicated brand face without changing the product typeface', () => {
+  it('uses the pixel display face while keeping Sora for body copy', () => {
     const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
     const html = readFileSync(new URL('../../../index.html', import.meta.url), 'utf8')
-    expect(css).toContain("--font-brand: 'Barlow Condensed'")
+    expect(css).toContain("--font-brand: 'Pixelify Sans'")
+    expect(css).toContain("--font-display: 'Pixelify Sans'")
+    expect(css).toContain("--font-body: 'Sora'")
     expect(css).toContain('font-family: var(--font-brand);')
     expect(css).toContain('.brand:active .tl-hover .logo-mark')
-    expect(html).toContain('family=Barlow+Condensed:wght@700;800')
+    expect(html).toContain('family=Pixelify+Sans:wght@400..700')
     expect(renderToStaticMarkup(createElement(Wordmark))).toContain('Touch<span class="wordmark-line">Line</span>')
   })
 })

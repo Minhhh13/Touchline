@@ -285,6 +285,7 @@ export function Home() {
         <div>
           <h1>{t('headline')}</h1>
         </div>
+        <img className="programme-mascot" src="/art/touchline-flag-mascot.png" alt="" aria-hidden="true" />
         <p className="programme-brand">{t('tagline')}</p>
       </header>
       <ConflictCards />

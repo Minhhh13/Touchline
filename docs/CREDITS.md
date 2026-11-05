@@ -37,7 +37,7 @@ SOFTWARE.
 
 [Lucide](https://lucide.dev) through the `lucide-react` package (pinned in `package.json`), under the [ISC License](https://github.com/lucide-icons/lucide/blob/main/LICENSE). Parts of Lucide derive from Feather icons (MIT). The licence text ships inside the package.
 
-The TouchLine mark and the wordmark are our own (`src/ui/brand.ts`), and so are the Home illustrations and the neon art (`src/ui/components/Art.tsx`): drawn for TouchLine, no photos or downloaded art.
+The TouchLine mark and wordmark are our own (`src/ui/brand.ts`). The original Home stadium and corner-flag mascot in `public/art/` were generated for TouchLine from project-specific prompts with OpenAI image generation; they contain no copied brand asset, real club crest, sponsor or player likeness. The interface illustrations in `src/ui/components/Art.tsx` are also TouchLine originals. No photo or downloaded third-party artwork ships.
 
 ## Sound
 
@@ -48,4 +48,4 @@ None to credit: every sound in TouchLine (the case reel's ticks, the season whoo
 
 [Sora](https://fonts.google.com/specimen/Sora) by Jonathan Barnbrook and Julián Moncada, under the [SIL Open Font License 1.1](https://openfontlicense.org). Served by Google Fonts (linked in `index.html`, the one third-party request the game makes when the online layer is off); the font files are not in the repository.
 
-[Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) by Jeremy Tribby, under the [SIL Open Font License 1.1](https://openfontlicense.org). It is used only for the TouchLine wordmark and is served in the same Google Fonts request as Sora.
+[Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans) by Stefie Justprince, under the [SIL Open Font License 1.1](https://openfontlicense.org). It is the TouchLine display and wordmark face and is served in the same Google Fonts request as Sora.

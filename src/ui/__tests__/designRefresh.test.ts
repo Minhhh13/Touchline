@@ -77,8 +77,11 @@ describe('the Matchday Ledger UI contract', () => {
     expect(timings).toEqual(Object.values(DURATION))
   })
 
-  it('uses ruled working surfaces instead of a generic card entrance', () => {
-    expect(homeCss).toContain('border-bottom: var(--border-strong)')
+  it('uses the stadium world and ruled working surfaces instead of a generic card entrance', () => {
+    expect(homeCss).toContain("url('/art/touchline-stadium-pixel.png')")
+    expect(homeCss).toContain('border-top: 3px solid var(--brand-line)')
+    expect(homeCss).toContain('@media (min-width: 1100px) and (max-height: 760px)')
+    expect(homeCss).toContain('.home-programme:has(.programme-tiles.casual)')
     expect(draftCss).toContain('border-block: var(--border-strong)')
     expect(css).not.toContain('animation: page-in')
     expect(css).not.toContain('@keyframes page-in')

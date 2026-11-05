@@ -8,7 +8,7 @@ import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/type
 import type { SeasonTier } from '@engine/types'
 import type { BadgeState, BadgeTier } from '@engine/badges'
 import type { Cabinet } from '@game/types'
-import { BRAND_COLOURS as C, MARK, WORDMARK, pennantPath, pentagonPath } from './brand'
+import { BRAND_COLOURS as C, MARK, WORDMARK } from './brand'
 import { tierName } from './format'
 import { exportDataUrl } from './exportFile'
 import type { CardVersus, Invite } from '@game/logic/shareInvite'
@@ -70,7 +70,7 @@ function ratingColour(v: number): string {
 /** The site's one family (--font-display and --font-body in styles.css). */
 const DISPLAY = "'Sora', 'Segoe UI', system-ui, sans-serif"
 const BODY = DISPLAY
-const BRAND = "'Barlow Condensed', 'Arial Narrow', sans-serif"
+const BRAND = "'Pixelify Sans', 'Segoe UI', sans-serif"
 
 /**
  * A canvas draws with whatever is loaded when it draws, so wait for the faces
@@ -80,7 +80,7 @@ async function cardFontsReady(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return
   const load = Promise.all([
     ...[400, 600, 700].map((w) => document.fonts.load(`${w} 40px 'Sora'`)),
-    document.fonts.load("800 40px 'Barlow Condensed'"),
+    document.fonts.load("700 40px 'Pixelify Sans'"),
   ]).then(() => undefined, () => undefined)
   await Promise.race([load, new Promise<void>((done) => setTimeout(done, 2000))])
 }
@@ -366,8 +366,8 @@ function drawInvite(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
 function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
   const u = h / MARK.grid
   const fontSize = h * 0.76
-  ctx.font = `800 ${fontSize}px ${BRAND}`
-  const [touch, line] = WORDMARK
+  ctx.font = `700 ${fontSize}px ${BRAND}`
+  const [touch, line] = WORDMARK.map((word) => word.toUpperCase())
   const wTouch = ctx.measureText(touch).width
   const wLine = ctx.measureText(line).width
   const gap = h * 0.16
@@ -377,35 +377,24 @@ function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: nu
   ctx.fillStyle = MARK.tile
   roundRect(ctx, 0, 0, h, h, MARK.tileRadius * u)
   ctx.fill()
-
-  const T = MARK.tiers.full
   ctx.save()
   ctx.scale(u, u)
+  ctx.strokeStyle = MARK.keyline
+  ctx.lineWidth = 2
+  ctx.strokeRect(2, 2, 60, 60)
   ctx.fillStyle = MARK.red
-  ctx.fill(new Path2D(pennantPath(T.pennant)))
-  ctx.strokeStyle = '#ffffff'
-  ctx.lineWidth = T.pole.w
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(T.pole.x, T.pole.y1)
-  ctx.lineTo(T.pole.x, T.pole.y2)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.lineWidth = T.line.w
-  ctx.moveTo(T.line.x1, T.line.y)
-  ctx.lineTo(T.line.x2, T.line.y)
-  ctx.stroke()
-  ctx.fillStyle = '#ffffff'
-  ctx.beginPath()
-  ctx.arc(T.ball.cx, T.ball.cy, T.ball.r, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = MARK.tile
-  ctx.fill(new Path2D(pentagonPath(T.ball.cx - T.ball.r * 0.14, T.ball.cy - T.ball.r * 0.2, T.ball.r * 0.52)))
+  ctx.fill(new Path2D('M18 12H34V16H42V20H38V24H30V28H18Z'))
+  ctx.fillStyle = '#f5f1df'
+  ctx.fillRect(14, 10, 4, 42)
+  ctx.fillRect(8, 50, 48, 3)
+  ctx.fill(new Path2D('M36 34H46V37H50V49H46V53H36V50H32V38H36Z'))
+  ctx.fillStyle = MARK.keyline
+  ctx.fillRect(39, 39, 7, 7)
   ctx.restore()
 
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.font = `800 ${fontSize}px ${BRAND}`
+  ctx.font = `700 ${fontSize}px ${BRAND}`
   const baseline = h / 2 + h * 0.01
   ctx.fillStyle = C.text
   ctx.fillText(touch, h + gap, baseline)

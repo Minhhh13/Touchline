@@ -70,14 +70,16 @@ const TINY_LINE = { x1: 8, x2: 60, y: 50, w: 4 }
  */
 export const MARK = {
   grid: 64,
-  /** Corner radius of the rounded tile. */
-  tileRadius: 12,
-  /** One flat cobalt: recognisable at favicon size and consistent with the action colour. */
-  tile: '#1f2de6',
+  /** A nearly square scorebox corner: crisp even at favicon size. */
+  tileRadius: 2,
+  /** The midnight scoreboard field behind the touchline glyph. */
+  tile: '#081427',
+  /** The cyan keyline shared by the HUD and mark. */
+  keyline: '#5ee7f7',
   /** Rendered size in px at which each tier starts. */
   tierFrom: { full: 64, mid: 22 },
   /** The pennant: flat red on the straight tier; cloth (folds, shade, a lit upper edge) on the waving ones (`pennantCloth`). */
-  red: '#ef4444',
+  red: '#ff5b7f',
   cloth: {
     /** The cloth facing the light and turned away from it; folds mix the red toward these. */
     light: '#ff8c7e',
@@ -569,25 +571,23 @@ export interface MarkSvgOptions {
 /** The mark's inner SVG (defs and shapes) on the 64 grid. Every id starts with `id`. */
 export function markSvgInner(id: string, o: MarkSvgOptions): string {
   void id
-  const T = MARK.tiers[o.tier]
   const variant = o.variant ?? 'colour'
   const g = MARK.grid
   let tile = ''
   if (variant !== 'mono') {
     const fill = variant === 'colour' ? MARK.tile : '#ffffff'
-    tile = o.tile === 'square' ? `<rect width="${g}" height="${g}" fill="${fill}"/>` : `<rect width="${g}" height="${g}" rx="${MARK.tileRadius}" fill="${fill}"/>`
+    const edge = variant === 'colour' ? MARK.keyline : MARK.tile
+    tile = `${o.tile === 'square' ? `<rect width="${g}" height="${g}" fill="${fill}"/>` : `<rect width="${g}" height="${g}" rx="${MARK.tileRadius}" fill="${fill}"/>`}<rect x="2" y="2" width="60" height="60" rx="1" fill="none" stroke="${edge}" stroke-width="2"/>`
   }
-  const ink = variant === 'colour' ? '#ffffff' : variant === 'inverse' ? MARK.tile : 'currentColor'
+  const ink = variant === 'colour' ? '#f5f1df' : variant === 'inverse' ? MARK.tile : 'currentColor'
   const flag = variant === 'mono' ? ink : MARK.red
-  const patch = tinyPatch(T.ball.cx, T.ball.cy, T.ball.r)
-  const ball = variant === 'colour'
-    ? `<circle cx="${T.ball.cx}" cy="${T.ball.cy}" r="${T.ball.r}" fill="#ffffff"/><path d="${patch}" fill="${MARK.tile}"/>`
-    : `<circle cx="${T.ball.cx}" cy="${T.ball.cy}" r="${r2(T.ball.r - T.line.w / 2)}" fill="none" stroke="${ink}" stroke-width="${T.line.w}"/><path d="${patch}" fill="${ink}"/>`
+  const ballInk = variant === 'colour' ? MARK.keyline : ink
   const glyph =
-    `<path d="${pennantPath(T.pennant)}" fill="${flag}"/>` +
-    `<line x1="${T.pole.x}" y1="${T.pole.y1}" x2="${T.pole.x}" y2="${T.pole.y2}" stroke="${ink}" stroke-width="${T.pole.w}" stroke-linecap="${T.caps}"/>` +
-    `<line x1="${T.line.x1}" y1="${T.line.y}" x2="${T.line.x2}" y2="${T.line.y}" stroke="${ink}" stroke-width="${T.line.w}" stroke-linecap="${T.caps}"/>` +
-    ball
+    `<path d="M18 12H34V16H42V20H38V24H30V28H18Z" fill="${flag}"/>` +
+    `<rect x="14" y="10" width="4" height="42" fill="${ink}"/>` +
+    `<rect x="8" y="50" width="48" height="3" fill="${ink}"/>` +
+    `<path d="M36 34H46V37H50V49H46V53H36V50H32V38H36Z" fill="${ink}"/>` +
+    `<rect x="39" y="39" width="7" height="7" fill="${ballInk}"/>`
   const s = o.scale ?? 1
   const t = r2((g / 2) * (1 - s))
   return `${tile}${s === 1 ? glyph : `<g transform="translate(${t} ${t}) scale(${s})">${glyph}</g>`}`
