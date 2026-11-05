@@ -9,6 +9,13 @@
   border-radius: var(--radius-m);
   border-top-color: var(--primary);
 }
+.dugout-page .cta-bar > .btns {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.dugout-page .cta-bar > .btns > .btn {
+  font-size: var(--fs-sm);
+}
 .dugout-page .tabs-row {
   padding-bottom: var(--space-2);
   border-bottom: var(--border);

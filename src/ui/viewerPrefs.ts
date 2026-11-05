@@ -53,11 +53,14 @@ export function usePref(p: ViewerPref): [boolean, (next: boolean) => void] {
   return [value, p.set]
 }
 
-/** Quick spin: the case reel runs in about 2.7 s instead of about 7 (`QUICK_TIMING` in reelCurve.ts). Off by default. */
+/** Quick spin: the case reel runs in about 1.6 s instead of 3.8 (`QUICK_TIMING` in reelCurve.ts). Off by default. */
 export const quickSpinPref = viewerPref('touchline-quick-spin', false)
 
 /** Skip reels: land cosmetic reel/dial animations immediately. Device-local and off by default. */
 export const skipReelsPref = viewerPref('touchline-skip-reels', false)
+
+/** The Home world's clouds, flags and ball. Pausing is device-local; reduced motion also stops the CSS loops. */
+export const homeMotionPref = viewerPref('touchline-home-motion', true)
 
 /** Key moments on the live pitch: the camera leans in on a big chance and every goal is replayed after its celebration (keyMoments.ts). On by default. */
 export const keyMomentsPref = viewerPref('touchline-key-moments', true)

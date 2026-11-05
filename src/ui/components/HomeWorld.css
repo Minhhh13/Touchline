@@ -1,0 +1,249 @@
+/* The camera and ground stay still. Small independent layers carry the breeze and training. */
+.home-world {
+  --dur-cloud-near: 100s;
+  --dur-cloud-far: 160s;
+  --dur-training-near: 30s;
+  --dur-training-far: 38s;
+  --dur-player-stride: 640ms;
+  --dur-tree-sway: 9s;
+  --dur-lamp-flicker: 19s;
+  --dur-flag-flutter: 2.6s;
+  --dur-training-ball: 1.4s;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(#96d6e1, #c4e9e4 78%);
+}
+.home-night-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% 14%, #dbe9e9 0 1px, transparent 1.5px),
+    radial-gradient(circle at 37% 9%, #aac9da 0 1px, transparent 1.5px),
+    radial-gradient(circle at 72% 17%, #dbe9e9 0 1px, transparent 1.5px),
+    radial-gradient(circle at 83% 8%, #aac9da 0 1px, transparent 1.5px),
+    radial-gradient(circle at 56% 24%, #aac9da 0 1px, transparent 1.5px),
+    linear-gradient(#0e2035, #294b61 80%);
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+:root[data-theme='dark'] .home-night-sky {
+  opacity: 1;
+}
+.home-cloud-bank {
+  position: absolute;
+  display: flex;
+  width: max(200%, 1920px);
+  height: clamp(120px, 20vh, 190px);
+  animation: home-cloud-drift var(--dur-cloud-near) linear infinite;
+}
+.home-cloud-bank img {
+  flex: 0 0 50%;
+  width: 50%;
+  height: 100%;
+}
+.home-cloud-bank-far {
+  top: 4%;
+  opacity: 0.65;
+  animation-duration: var(--dur-cloud-far);
+  animation-delay: -60s;
+}
+.home-cloud-bank-near {
+  top: 19%;
+  animation-delay: -24s;
+}
+:root[data-theme='dark'] .home-cloud-bank {
+  opacity: 0.12;
+}
+:root[data-theme='dark'] .home-cloud-bank-far {
+  opacity: 0.06;
+}
+@keyframes home-cloud-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.home-ground {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: max(100%, 1200px);
+  aspect-ratio: 3 / 1;
+  transform: translateX(-50%);
+}
+.home-ground > img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+.home-ground-night {
+  opacity: 0;
+}
+:root[data-theme='dark'] .home-ground-night {
+  opacity: 1;
+}
+:root[data-theme='dark'] .home-ground-day {
+  opacity: 0;
+}
+.home-lamp {
+  position: absolute;
+  top: 14%;
+  width: 2%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffefb3;
+  box-shadow: 0 0 18px 8px rgba(255, 239, 179, 0.25);
+  opacity: 0;
+}
+.home-lamp-left { left: 4.1%; }
+.home-lamp-right { right: 4.1%; }
+:root[data-theme='dark'] .home-lamp {
+  animation: home-lamp-flicker var(--dur-lamp-flicker) linear infinite;
+}
+:root[data-theme='dark'] .home-lamp-right { animation-delay: -7s; }
+@keyframes home-lamp-flicker {
+  0%, 69%, 73%, 100% { opacity: 0.22; }
+  70%, 72% { opacity: 0.08; }
+}
+.home-training-lane {
+  position: absolute;
+  left: 18%;
+  right: 20%;
+  bottom: 8%;
+  height: 60px;
+  overflow: hidden;
+}
+.home-player-route {
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: 72px;
+  animation: home-training-run var(--dur-training-near) linear infinite;
+}
+.home-player {
+  display: block;
+  width: 36px;
+  height: 100%;
+  overflow: hidden;
+}
+.home-player img {
+  display: block;
+  width: 400%;
+  max-width: none;
+  height: 100%;
+  image-rendering: pixelated;
+  animation: home-player-stride var(--dur-player-stride) steps(4, end) infinite;
+}
+.home-training-lane-far {
+  bottom: 22%;
+  left: 35%;
+  right: 10%;
+  height: 46px;
+  transform: scaleX(-1);
+}
+.home-training-lane-far .home-player-route {
+  height: 50px;
+  animation-duration: var(--dur-training-far);
+  animation-delay: -16s;
+}
+.home-training-lane-far .home-player { width: 25px; }
+.home-training-lane-far .home-player img { animation-delay: -160ms; }
+@keyframes home-training-run {
+  from { transform: translate3d(-60px, 0, 0); }
+  to { transform: translate3d(calc(100% + 60px), 0, 0); }
+}
+.home-training-ball {
+  position: absolute;
+  left: 33px;
+  bottom: 14px;
+  animation: home-training-ball-roll var(--dur-training-ball) linear infinite;
+}
+@keyframes home-training-ball-roll {
+  to { transform: rotate(360deg); }
+}
+@keyframes home-player-stride {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-100%, 0, 0); }
+}
+.home-tree {
+  position: absolute;
+  bottom: 6%;
+  width: clamp(140px, 18vw, 340px);
+}
+.home-tree-left { left: -10%; }
+.home-tree-right { right: -10%; transform: scaleX(-1); }
+.home-tree img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 95%;
+  animation: home-tree-sway var(--dur-tree-sway) var(--ease-in-out) infinite;
+}
+.home-tree-right img { animation-delay: -4s; }
+:root[data-theme='dark'] .home-tree img {
+  filter: brightness(0.48) saturate(0.7);
+}
+@keyframes home-tree-sway {
+  0%, 100% { transform: rotate(-0.7deg); }
+  50% { transform: rotate(0.7deg); }
+}
+.home-ground-flag {
+  position: absolute;
+  top: 67%;
+  width: 3px;
+  height: 28px;
+  background: #fff3dc;
+}
+.home-ground-flag i {
+  display: block;
+  width: 17px;
+  height: 11px;
+  margin-left: 3px;
+  background: #ff5b7f;
+  clip-path: polygon(0 0, 60% 0, 60% 18%, 100% 18%, 100% 55%, 65% 55%, 65% 100%, 0 100%);
+  transform-origin: left center;
+  animation: home-flag-flutter var(--dur-flag-flutter) var(--ease-in-out) infinite;
+}
+.home-ground-flag-left { left: 20%; }
+.home-ground-flag-right { right: 18%; }
+.home-ground-flag-right i { animation-delay: -0.9s; }
+@keyframes home-flag-flutter {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.84); }
+}
+.home-world[data-paused='true'] .home-cloud-bank,
+.home-world[data-paused='true'] .home-ground-flag i,
+.home-world[data-paused='true'] .home-player-route,
+.home-world[data-paused='true'] .home-player img,
+.home-world[data-paused='true'] .home-training-ball,
+.home-world[data-paused='true'] .home-tree img,
+.home-world[data-paused='true'] .home-lamp {
+  animation-play-state: paused;
+}
+@media (max-width: 720px) {
+  .home-ground { transform: translateX(-67%); }
+  .home-tree-left { left: -24%; }
+  .home-tree-right { right: -26%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-cloud-bank,
+  .home-ground-flag i,
+  .home-player-route,
+  .home-player img,
+  .home-training-ball,
+  .home-tree img,
+  .home-lamp {
+    animation: none;
+  }
+  .home-ground > img,
+  .home-night-sky { transition: none; }
+  .home-player-route { transform: translateX(48%); }
+  :root[data-theme='dark'] .home-lamp { opacity: 0.16; animation: none; }
+}
+
+@media (max-height: 500px) and (min-width: 500px) {
+  .home-ground { height: 78dvh; aspect-ratio: auto; }
+}

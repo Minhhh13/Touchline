@@ -1,7 +1,6 @@
 /**
- * The width of a line of the pitch's label type (Sora, semi-bold), measured on a canvas so a name or a role is judged by
- * what it will take on screen: Sora runs from 5.7 px a letter ("J. Jaaskelainen") to 7.4 ("Aubameyang") at 11 px, and a
- * flat estimate clipped the wide ones. Where there is no canvas (tests, a server) it falls back to a wide estimate.
+ * The width of a line in the pitch's label face, measured on a canvas. This must match the site's VT323 face;
+ * a conservative fallback keeps names inside their slots while the local font loads.
  * Presentation only: nothing here reaches the game.
  */
 
@@ -47,7 +46,7 @@ export function whenFontsReady(fonts: Fonts = typeof document === 'undefined' ? 
   return fontsWait
 }
 
-/** The width of `text` in px at `size` px, semi-bold. */
+/** The width of `text` in px at `size` px in VT323's regular weight. */
 export function textWidth(text: string, size: number): number {
   const key = `${size}|${text}`
   const hit = cache.get(key)
@@ -55,7 +54,7 @@ export function textWidth(text: string, size: number): number {
   const ctx = context()
   let w = (text.length * size * WIDE_CHAR) / 11
   if (ctx) {
-    ctx.font = `600 ${size}px Sora, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif`
+    ctx.font = `400 ${size}px VT323, monospace`
     const m = ctx.measureText(text).width
     if (m > 0) w = m
   }

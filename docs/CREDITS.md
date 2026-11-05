@@ -37,7 +37,7 @@ SOFTWARE.
 
 [Lucide](https://lucide.dev) through the `lucide-react` package (pinned in `package.json`), under the [ISC License](https://github.com/lucide-icons/lucide/blob/main/LICENSE). Parts of Lucide derive from Feather icons (MIT). The licence text ships inside the package.
 
-The TouchLine mark and wordmark are our own (`src/ui/brand.ts`). The original Home stadium and corner-flag mascot in `public/art/` were generated for TouchLine from project-specific prompts with OpenAI image generation; they contain no copied brand asset, real club crest, sponsor or player likeness. The interface illustrations in `src/ui/components/Art.tsx` are also TouchLine originals. No photo or downloaded third-party artwork ships.
+The TouchLine mark and wordmark are our own (`src/ui/brand.ts`). The original day/night ground, oak and generic footballer sprite strip in `public/art/` were made with built-in OpenAI image generation from project-specific briefs. They contain no copied brand asset, real club crest, sponsor or player likeness. The earlier generated stadium and corner-flag mascot are retained as release history. [HOME_ART.md](HOME_ART.md) records the current assets and final briefs. The cloud geometry and interface illustrations in `src/ui/components/Art.tsx` are TouchLine originals. No photo or downloaded third-party artwork ships.
 
 ## Sound
 
@@ -46,6 +46,4 @@ None to credit: every sound in TouchLine (the case reel's ticks, the season whoo
 
 ## Typeface
 
-[Sora](https://fonts.google.com/specimen/Sora) by Jonathan Barnbrook and Julián Moncada, under the [SIL Open Font License 1.1](https://openfontlicense.org). Served by Google Fonts (linked in `index.html`, the one third-party request the game makes when the online layer is off); the font files are not in the repository.
-
-[Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans) by Stefie Justprince, under the [SIL Open Font License 1.1](https://openfontlicense.org). It is the TouchLine display and wordmark face and is served in the same Google Fonts request as Sora.
+[VT323](https://fonts.google.com/specimen/VT323) by Peter Hull and the VT323 Project Authors, under the [SIL Open Font License 1.1](https://openfontlicense.org). Regular 400 is used for the wordmark, interface and figures, matching the owner's reference site's face. Latin, Latin Extended and Vietnamese WOFF2 subsets ship locally in `public/fonts/` with `OFL-VT323.txt`; no Google Fonts request is needed at runtime. Sora and Pixelify Sans were used by earlier releases.

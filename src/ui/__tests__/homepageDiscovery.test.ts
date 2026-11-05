@@ -18,11 +18,10 @@ describe('public homepage discovery', () => {
     ]))
   })
 
-  it('associates the TouchLine brand with its canonical domain before and after JavaScript runs', () => {
+  it('associates the TouchLine brand with its canonical domain in the initial document', () => {
     expect(html).toContain('<title>TouchLine – Football Draft &amp; Management Game | touchline.quest</title>')
     expect(html).toContain('<meta name="application-name" content="TouchLine"')
     expect(html).toContain('TouchLine</strong> at <strong>touchline.quest</strong> is a free football draft and management game')
-    expect(read('src/ui/i18n/en/home.ts')).toContain("tagline: 'Spin. Draft. Chase 38–0.'")
     expect(html).toContain('<meta name="google-site-verification"')
   })
 

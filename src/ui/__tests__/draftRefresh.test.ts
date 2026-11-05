@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Render the settled surface in SSR; its deferred odds calculation normally completes after the first paint.
+vi.mock('react', async (original) => ({ ...await original<typeof import('react')>(), useDeferredValue: <T>(value: T) => value }))
 const disk = vi.hoisted(() => {
   const values = new Map<string, string>()
   Object.defineProperty(globalThis, 'localStorage', {
@@ -56,6 +58,17 @@ function renderDraft(): string {
 beforeEach(() => disk.clear())
 
 describe('the refreshed draft team sheet and history', () => {
+  it('keeps the reel and Spin together before the secondary odds in reading order', () => {
+    startDraft()
+    const html = renderDraft()
+    const reel = html.indexOf('data-testid="case-reel"')
+    const spin = html.indexOf('spin-btn')
+    const odds = html.indexOf('data-testid="spin-odds"')
+    expect(reel).toBeGreaterThan(0)
+    expect(spin).toBeGreaterThan(reel)
+    expect(odds).toBeGreaterThan(spin)
+  })
+
   it('shows all eleven formation positions before the first spin in each draft mode', () => {
     for (const mode of ['quick', 'season', 'dynasty'] as const) {
       startDraft(mode)

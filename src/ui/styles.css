@@ -1,3 +1,5 @@
+@import './fonts.css';
+
 /* ------------------------------------------------------------------ tokens */
 /*
  * The TouchLine design system; docs/DESIGN_SYSTEM.md says what each token is for.
@@ -142,22 +144,22 @@
   --line-casing: rgba(241, 244, 255, 0.6);
   --pitch-cover: #f5c542;
   /* Type */
-  --font-brand: 'Pixelify Sans', 'Segoe UI', system-ui, sans-serif;
-  --font-display: 'Pixelify Sans', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
-  /* Figures (minutes, ratings, scores, stats): Sora, and every rule that names it sets tabular figures so columns line up */
+  --font-brand: 'VT323', ui-monospace, monospace;
+  --font-display: 'VT323', ui-monospace, monospace;
+  --font-body: 'VT323', ui-monospace, monospace;
+  /* VT323's figures are monospaced; explicit tabular figures keep fallbacks aligned too. */
   --mono: var(--font-body);
   /* Codes a reader types or copies (seeds, room codes, links, share text, keys): a true monospace */
   --code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* In rem (the same 11 to 64 px at the browser's default 16 px), so the type scale follows a reader's larger default text */
-  --fs-xs: 0.6875rem;
-  --fs-meta: 0.75rem;
-  --fs-sm: 0.8125rem;
-  --fs-base: 0.875rem;
-  --fs-h3: 1.1875rem;
-  --fs-h2: 1.5rem;
-  --fs-h1: 2.25rem;
-  --fs-hero: 4.5rem;
+  /* VT323 has a smaller cap height: raise the role sizes rather than squeezing pixel letters into 11px text. */
+  --fs-xs: 1rem;
+  --fs-meta: 1.125rem;
+  --fs-sm: 1.25rem;
+  --fs-base: 1.375rem;
+  --fs-h3: 1.5rem;
+  --fs-h2: 1.875rem;
+  --fs-h1: 2.75rem;
+  --fs-hero: 5.5rem;
   /* Space, shape, elevation */
   --space-1: 4px;
   --space-2: 8px;
@@ -321,7 +323,8 @@ body {
   accent-color: var(--primary);
   font-family: var(--font-body);
   font-size: var(--fs-base);
-  line-height: 1.45;
+  font-synthesis: none;
+  line-height: 1.25;
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -612,7 +615,7 @@ pre.mono,
   }
   .topbar nav button {
     padding: 6px 10px;
-    font-size: 13px; /* px: one row of six labels under 1100 px, like a tab bar it keeps its size at larger text */
+    font-size: 16px; /* px: the six-label phone dock; VT323 needs a larger cap height */
   }
 }
 /* The sun and moon: flips Light and Dark and stores the choice on the profile */
@@ -740,7 +743,7 @@ pre.mono,
     max-width: 100%;
     overflow: hidden;
     white-space: nowrap;
-    font-size: min(var(--fs-xs), 11px); /* px: a caption in a fixed nav cell, capped so larger text never clips it (the full label is read aloud) */
+    font-size: min(var(--fs-meta), 18px); /* px: a readable VT323 caption in the fixed phone dock */
     font-weight: 600;
     line-height: 1.1;
   }
@@ -2342,8 +2345,8 @@ kbd {
   line-height: 1;
 }
 .reel-season .lbl {
-  font-size: 12px; /* px: the reel geometry */
-  letter-spacing: 0.12em;
+  font-size: 16px; /* px: the reel geometry */
+  letter-spacing: 0.06em;
   color: var(--text-2);
 }
 .reel-season .lbl.twist {
@@ -2474,7 +2477,7 @@ kbd {
   overflow: hidden;
   font-family: var(--font-display, system-ui, sans-serif);
   font-weight: 700;
-  font-size: 20px; /* px: the reel geometry */
+  font-size: 26px; /* px: the reel geometry */
   letter-spacing: 0.02em;
   text-transform: uppercase;
   box-shadow: inset 0 0 0 3px var(--secondary, #fff), 0 0 12px color-mix(in srgb, var(--tier, transparent) 40%, transparent), 0 6px 14px rgba(0, 0, 0, 0.45);
@@ -2497,7 +2500,7 @@ kbd {
   padding: 1px 4px;
   border-radius: 4px;
   font-family: var(--font-body, system-ui, sans-serif);
-  font-size: 9px; /* px: the reel geometry */
+  font-size: 14px; /* px: the reel geometry */
   letter-spacing: 0.06em;
   line-height: 1.3;
   background: rgba(0, 0, 0, 0.62);
@@ -2571,14 +2574,14 @@ kbd {
 }
 .reel-club {
   font-family: var(--font-display, system-ui, sans-serif);
-  font-size: 19px; /* px: the reel geometry */
+  font-size: 26px; /* px: the reel geometry */
   font-weight: 700;
   text-transform: uppercase;
   line-height: 1;
   color: var(--text);
 }
 .reel-club-season {
-  font-size: 14px; /* px: the reel geometry */
+  font-size: 20px; /* px: the reel geometry */
   font-weight: 600;
   color: var(--text-2);
 }
@@ -3381,133 +3384,6 @@ table.tbl.contracts .btn.sm {
     flex: none;
   }
 }
-.modes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-3);
-}
-@media (min-width: 901px) {
-  /* Home's rows of three: Today and this week, then the three mode cards */
-  .modes.three {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-@media (max-width: 900px) {
-  .modes {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 520px) {
-  .modes {
-    grid-template-columns: 1fr;
-  }
-  .hero h1 {
-    font-size: calc(var(--fs-h1) * 1.4375);
-  }
-}
-.mode-card {
-  text-align: left;
-  padding: 0;
-  overflow: hidden;
-  border-radius: var(--radius);
-  background: var(--panel);
-  border: var(--border);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
-}
-/* The four cards enter one after another, after the hero text */
-.modes > * {
-  animation: rise var(--dur-4) var(--ease-out) backwards;
-  animation-delay: calc(var(--stagger) * 2);
-}
-.modes > :nth-child(2) {
-  animation-delay: calc(var(--stagger) * 3);
-}
-.modes > :nth-child(3) {
-  animation-delay: calc(var(--stagger) * 4);
-}
-.modes > :nth-child(4) {
-  animation-delay: calc(var(--stagger) * 5);
-}
-.mode-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--primary);
-  box-shadow: var(--shadow);
-}
-.mode-card:not(.daily):active {
-  transform: translateY(-1px) scale(0.985);
-  transition-duration: 60ms;
-}
-/* The picture on top, its icon badge sitting on the edge between picture and text */
-.mode-art {
-  position: relative;
-  display: block;
-  aspect-ratio: 2 / 1;
-  background: var(--art-sky-1);
-}
-.mode-art .mode-scene {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-bottom: var(--border);
-}
-/* The subject layer sits over the sky and is always drawn whole (Art.tsx `split`), however short the strip */
-.mode-art .mode-scene.scene-subject {
-  position: absolute;
-  inset: 0;
-  border-bottom: 0;
-}
-/* The neon in the picture brightens on hover; the drawing itself stays put */
-.mode-art .neon-halo,
-.mode-art .neon-core {
-  transition: opacity var(--dur-2) var(--ease-out);
-}
-.mode-card:hover .mode-scene,
-.mode-card-body:hover .mode-scene {
-  --neon-boost: 1.35;
-}
-.mode-icon {
-  position: absolute;
-  z-index: 1;
-  left: var(--space-4);
-  bottom: -20px;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-m);
-  background: var(--primary);
-  color: var(--on-primary);
-  border: 3px solid var(--panel);
-}
-.mode-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  flex: 1;
-  padding: 28px var(--space-4) var(--space-4);
-}
-.mode-card h3 {
-  color: var(--text);
-  font-size: var(--fs-h2);
-}
-.mode-card p {
-  color: var(--text-2);
-  font-size: var(--fs-sm);
-  margin: 0;
-}
-.mode-card .foot {
-  margin-top: auto;
-  padding-top: var(--space-2);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-meta);
-  color: var(--text-3);
-}
 .time-tag,
 .daily-today,
 .streak {
@@ -3530,241 +3406,11 @@ table.tbl.contracts .btn.sm {
 .streak {
   color: var(--gold-text);
 }
-.mode-go {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: var(--control-h);
-  /* plus the column's 4px gap: 12px under the footer, as the Daily card's button sits */
-  margin-top: var(--space-2);
-  border-radius: var(--radius-m);
-  border: var(--border-strong);
-  background: var(--raised);
-  color: var(--text);
-  font-weight: 600;
-  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
-}
-.mode-go svg {
-  transition: transform var(--dur-2) var(--ease-out);
-}
-.mode-card:hover .mode-go {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-}
-.mode-card:hover .mode-go svg {
-  transform: translateX(3px);
-}
-/* The Daily card starts the puzzle itself; its body is the way to the full setup for a team name */
-.mode-card.daily {
-  cursor: default;
-}
-.mode-card.daily:hover {
-  transform: none;
-  box-shadow: var(--panel-shadow, none);
-}
-.mode-card-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  text-align: left;
-  padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.mode-card-body:hover .mode-text {
-  background: var(--panel-2);
-}
-.mode-card-body .mode-text {
-  padding-bottom: var(--space-3);
-  transition: background var(--dur-1) var(--ease-out);
-}
-.mode-card.daily > .btn {
-  /* block buttons are 100% wide; inside the card the margins must come out of that width */
-  margin: 0 var(--space-4) var(--space-4);
-  width: auto;
-  align-self: stretch;
-}
-/* The second row: compact tiles, an icon and two short lines each */
-.home-tiles {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-}
-.home-tiles > * {
-  animation: rise var(--dur-4) var(--ease-out) backwards;
-  animation-delay: calc(var(--stagger) * 5);
-}
-.home-tiles > :nth-child(2) {
-  animation-delay: calc(var(--stagger) * 5.5);
-}
-.home-tiles > :nth-child(3) {
-  animation-delay: calc(var(--stagger) * 6);
-}
-.home-tiles > :nth-child(4) {
-  animation-delay: calc(var(--stagger) * 6.5);
-}
-.home-tile {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-  text-align: left;
-  padding: var(--space-3);
-  border-radius: var(--radius-m);
-  background: var(--panel);
-  border: var(--border);
-  cursor: pointer;
-  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
-}
-.home-tile.next-up,
-.mode-card.next-up {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
 .next-up-chip {
   align-self: flex-start;
   gap: 4px;
   color: var(--accent);
 }
-/* On a card with a picture on top, the marker sits on the picture's corner: in the text it pushed that card's title and button out of line with the other three (visual audit, QA round 8) */
-@media (min-width: 521px) {
-  .mode-card {
-    position: relative;
-  }
-  .mode-card .next-up-chip {
-    position: absolute;
-    z-index: 1;
-    top: var(--space-3);
-    right: var(--space-3);
-    background: var(--panel);
-  }
-}
-.home-tile:hover {
-  transform: translateY(-2px);
-  border-color: var(--primary);
-  box-shadow: var(--shadow);
-}
-.home-tile:active {
-  transform: scale(0.98);
-  transition-duration: 60ms;
-}
-.tile-icon {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-m);
-  background: var(--primary-soft);
-  color: var(--accent);
-}
-.tile-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.tile-text b {
-  font-size: var(--fs-base);
-}
-.tile-text span {
-  font-size: var(--fs-meta);
-  color: var(--text-3);
-}
-@media (max-width: 900px) {
-  .home-tiles {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-/* Phones: the mode cards become rows, a square picture beside the text, so all four fit in about one screen */
-@media (max-width: 520px) {
-  .mode-card:not(.daily),
-  .mode-card-body {
-    flex-direction: row;
-    align-items: stretch;
-  }
-  .mode-art {
-    flex: none;
-    width: 108px;
-    aspect-ratio: auto;
-    min-height: 108px;
-  }
-  .mode-art .mode-scene {
-    position: absolute;
-    inset: 0;
-    border-bottom: 0;
-    border-right: var(--border);
-  }
-  /* The square picture shows the middle of the scene: the subject layer is drawn twice as wide, its sides clipped */
-  .mode-art .mode-scene.scene-subject {
-    inset: 0 -50%;
-    width: auto;
-    border-right: 0;
-    clip-path: inset(0 25%);
-  }
-  .mode-icon {
-    left: auto;
-    right: -14px;
-    bottom: auto;
-    top: var(--space-3);
-    width: 34px;
-    height: 34px;
-  }
-  .mode-text {
-    padding: var(--space-3) var(--space-3) var(--space-3) 28px;
-  }
-  .mode-card h3 {
-    font-size: calc(var(--fs-h3) + 2px);
-  }
-  .mode-card.daily > .btn {
-    margin: 0 var(--space-3) var(--space-3);
-  }
-  .mode-go {
-    display: none;
-  }
-}
-@media (max-width: 720px) {
-  .hero {
-    min-height: 260px;
-  }
-  .hero-photo img {
-    object-position: 50% 75%;
-  }
-  .hero::before {
-    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--hero-shade) 72%, transparent) 62%, color-mix(in srgb, var(--hero-shade) 25%, transparent) 100%);
-  }
-  /* On a phone the lockup sits over the goal and a floodlight, so Daylight's pale scrim stays denser to the top */
-  :root[data-theme='light'] .hero::before {
-    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--hero-shade) 80%, transparent) 62%, color-mix(in srgb, var(--hero-shade) 62%, transparent) 100%);
-  }
-  .hero-content {
-    padding: var(--space-5) var(--space-4);
-  }
-  .hero h1 {
-    font-size: calc(var(--fs-h1) * 1.4375);
-  }
-  .hero .tag {
-    font-size: calc(var(--fs-base) + 2px);
-  }
-  .hero-stats {
-    gap: var(--space-4);
-    margin-top: var(--space-4);
-  }
-  .hero-stats dd {
-    font-size: calc(var(--fs-h2) - 2px);
-  }
-  .hero-stats dt {
-    letter-spacing: 0.04em;
-  }
-  .home-tile {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-  }
-}
-
 /* ------------------------------------------------------------------ motion */
 /*
  * The rules (DESIGN_SYSTEM.md section 12): 150 to 400 ms on the --dur tokens and
@@ -3784,10 +3430,14 @@ table.tbl.contracts .btn.sm {
 }
 /* View transitions keep a route change legible without replaying an entrance on every screen. */
 ::view-transition-old(root) {
-  animation: vt-out var(--dur-1) var(--ease-in-out) both;
+  animation: vt-out var(--dur-1) var(--ease-out) both;
 }
 ::view-transition-new(root) {
-  animation: none;
+  animation: vt-in var(--dur-2) var(--ease-out) both;
+}
+@keyframes vt-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 @keyframes vt-out {
   to {
@@ -13359,47 +13009,6 @@ table.tbl.contracts-overview .link-btn.name {
   }
 }
 
-/* ------------------------------------------------------------ casual modes */
-/* Home's casual row: five compact tiles (the Daily Arena, the Weekly, the Cup, the Gauntlet, the Run-in) above the four links */
-.home-tiles.casual {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-.home-tiles.casual .tile-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-}
-.home-tiles.casual .home-tile {
-  min-width: 0;
-  overflow: hidden;
-  /* Titles on one line across the row, whether the line under them wraps or not (visual audit, QA round 8) */
-  align-items: flex-start;
-}
-.home-tiles.casual .tile-text b,
-.home-tiles.casual .tile-text span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.home-tile:disabled {
-  opacity: 0.55;
-  cursor: default;
-  transform: none;
-}
-@media (max-width: 900px) {
-  .home-tiles.casual {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-/* On a phone the tiles stack their icon over the text, so the casual row's line wraps rather than being cut mid-word */
-@media (max-width: 520px) {
-  .home-tiles.casual .tile-text {
-    align-self: stretch;
-  }
-  .home-tiles.casual .tile-text span {
-    white-space: normal;
-  }
-}
 /* The arena hub: the head, then the opponent, the team sheet and the pitch with the calls as three boxes (`.page.fit`) */
 .arena-stats {
   grid-template-columns: repeat(2, auto);
@@ -14341,14 +13950,14 @@ table.tbl.tv-compact .tv-name {
 }
 @media (min-width: 2200px) and (min-height: 1200px) {
   :root {
-    --fs-xs: 0.8125rem;
-    --fs-meta: 0.875rem;
-    --fs-sm: 0.9375rem;
-    --fs-base: 1.0625rem;
-    --fs-h3: 1.4375rem;
-    --fs-h2: 1.8125rem;
-    --fs-h1: 2.375rem;
-    --fs-hero: 4.75rem;
+    --fs-xs: 1.25rem;
+    --fs-meta: 1.375rem;
+    --fs-sm: 1.5rem;
+    --fs-base: 1.625rem;
+    --fs-h3: 1.875rem;
+    --fs-h2: 2.25rem;
+    --fs-h1: 3.25rem;
+    --fs-hero: 6.5rem;
     --space-1: 5px;
     --space-2: 10px;
     --space-3: 14px;
@@ -15553,40 +15162,6 @@ table.tbl td.strong {
 }
 .sc-chances > :nth-child(n + 6) {
   animation-delay: calc(var(--stagger) * 1.5);
-}
-/* Home's casual row, the one row of tiles left under the four modes (the links that repeated the top bar's nav are
-   gone): a small "More modes" label over it, and the meta line takes two lines before it is cut (the Daily Arena's
-   "The Gauntlet on the Premier League wheel" was cut mid-word) */
-.home-more {
-  margin: 0 0 calc(-1 * var(--space-1));
-  padding-inline: var(--space-1);
-}
-/* Below the one-screen desktop the page is not a flex column with a gap, so the label sat flush on the Dynasty card (visual audit, QA round 8) */
-@media (max-width: 1099px) {
-  .home-more {
-    margin-top: var(--space-4);
-  }
-}
-.home-tiles.casual .tile-text span {
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-/* The mode cards keep their picture and lose the small icon badge on its edge (one picture is enough), so the text
-   starts at the card's own padding rather than under the badge */
-.mode-text {
-  padding-top: var(--space-4);
-}
-.app.shell .page.home .mode-text {
-  padding-top: var(--space-3);
-}
-@media (max-width: 520px) {
-  .mode-text {
-    padding-top: var(--space-3);
-    padding-left: var(--space-3);
-  }
 }
 /* Today's Daily as the current game: the card carries its result or its progress, with Clear or Abandon beside it */
 .daily-actions {
