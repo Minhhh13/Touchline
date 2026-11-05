@@ -61,6 +61,16 @@ describe('the flat TouchLine mark', () => {
 })
 
 describe('the wordmark lockup', () => {
+  it('ships every declared font subset as a valid offline-precached WOFF2 file', () => {
+    const css = ['fonts.css', 'readingFonts.css'].map((file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')).join('\n')
+    const worker = readFileSync(new URL('../../../public/sw.js', import.meta.url), 'utf8')
+    const paths = [...new Set([...css.matchAll(/url\('\/(fonts\/[^']+\.woff2)'\)/g)].map((m) => m[1]))]
+    expect(paths).toHaveLength(15)
+    for (const path of paths) {
+      expect(readFileSync(new URL(`../../../public/${path}`, import.meta.url)).subarray(0, 4).toString(), path).toBe('wOF2')
+      expect(worker, path).toContain(`'./${path}'`)
+    }
+  })
   it('carries the product name once as real text and no decorative animation copy', () => {
     const html = renderToStaticMarkup(createElement(Lockup, { height: 40, animate: 'hover' }))
     expect(html.replace(/<[^>]*>/g, '')).toBe('TouchLine')

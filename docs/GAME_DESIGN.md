@@ -1405,7 +1405,7 @@ The **Privacy and fair play** screen (`privacy`, `src/ui/screens/Privacy.tsx`, l
 
 ### Offline
 
-The site is hosted as a Render static site (build `npm ci && npm run build`, publish `dist`, auto-deployed from the repository); the GitHub Pages workflow was retired when the repository went private, and none came back when it went public again on 2026-10-27. `public/sw.js` is registered on production builds relative to the deploy path. The shell is network-first with an offline fallback. Hashed assets, icons, flags, world art and local font files are cache-first inside the build's cache; league packs are stale-while-revalidate. All three VT323 WOFF2 subsets and the day/night scenery are precached, so a second offline visit has the complete scene and font without Google Fonts. Each build stamps a fresh cache version and drops old caches.
+The site is hosted as a Render static site (build `npm ci && npm run build`, publish `dist`, auto-deployed from the repository); the GitHub Pages workflow was retired when the repository went private, and none came back when it went public again on 2026-10-27. `public/sw.js` is registered on production builds relative to the deploy path. The shell is network-first with an offline fallback. Hashed assets, icons, flags, world art and local font files are cache-first inside the build's cache; league packs are stale-while-revalidate. All 15 Barlow/VT323 WOFF2 subsets and the day/night scenery are precached, so a second offline visit has the complete scene and font without Google Fonts. Each build stamps a fresh cache version and drops old caches.
 
 ### Main-screen visual hierarchy
 
