@@ -123,6 +123,15 @@
 .home-lockup .wordmark-line {
   color: #ff426d;
 }
+.home-lockup .tl-letter {
+  display: inline-block;
+  animation: home-letter-bounce 3.6s var(--ease-in-out) infinite;
+}
+@keyframes home-letter-bounce {
+  0%, 40%, 100% { transform: translate3d(0, 0, 0); }
+  16% { transform: translate3d(0, -4px, 0); }
+  28% { transform: translate3d(0, 1px, 0); }
+}
 .home-hero > p {
   margin: var(--space-3) 0 0;
   color: rgba(7, 21, 38, 0.78);
@@ -141,7 +150,8 @@
   0%, 100% { transform: translate3d(0, 0, 0); }
   50% { transform: translate3d(0, -4px, 0); }
 }
-.home-scene[data-motion-paused='true'] .home-lockup {
+.home-scene[data-motion-paused='true'] .home-lockup,
+.home-scene[data-motion-paused='true'] .tl-letter {
   animation-play-state: paused;
 }
 :root[data-theme='dark'] .home-lockup .tl-lockup,
@@ -561,7 +571,8 @@
   .home-motion-toggle {
     display: none;
   }
-  .home-lockup { animation: none; }
+  .home-lockup,
+  .home-lockup .tl-letter { animation: none; }
   .home-menu-trigger,
   .home-motion-toggle,
   .home-theme-toggle,

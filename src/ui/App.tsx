@@ -18,7 +18,8 @@ import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
 import { DIGEST_MOOD_WORDINGS, digestMood, digestWinRun, digestWording } from './seasonDrama'
 import { Lockup, Logo } from './components/Logo'
-import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
+import { rememberThemePreference, useResolvedTheme } from './theme'
+import { AppearanceButton } from './components/Appearance'
 import { useDarkPalette } from './palette'
 import { withViewTransition } from './motion'
 import { useArenaWarmup } from './useArenaWarmup'
@@ -27,7 +28,7 @@ import { watchScrollFocus } from './scrollFocus'
 import { watchFocusRescue } from './focusRescue'
 import { watchTypingHold } from './typingHold'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, CalendarClock, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bandage, Banknote, BookOpen, Briefcase, CalendarClock, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Flame, Globe, House, MessageSquare, RectangleVertical, Search, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
@@ -88,7 +89,7 @@ const { setup: { Screen: Setup }, draft: { Screen: Draft }, kickOff: { Screen: K
 const AccountChip = lazy(() => import('./online/AccountChip').then((m) => ({ default: m.AccountChip })))
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStorePick('universe', 'loading', 'loadError', 'loadData', 'screen', 'go', 'game', 'h2h', 'profile', 'setTheme', 'offseason', 'dismissOffseason', 'digest', 'dismissDigest', 'abandonGame', 'openChallenge', 'playback', 'setupMode', 'pendingChallenge')
+  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStorePick('universe', 'loading', 'loadError', 'loadData', 'screen', 'go', 'game', 'h2h', 'profile', 'offseason', 'dismissOffseason', 'digest', 'dismissDigest', 'abandonGame', 'openChallenge', 'playback', 'setupMode', 'pendingChallenge')
   // An arena run's field strengths, worked out in idle moments while it drafts
   useArenaWarmup()
   // After the first finished game, ask the browser to keep the save through storage pressure (persistStorage.ts)
@@ -99,7 +100,7 @@ export function App() {
   const theme = useResolvedTheme(profile.theme)
   const [palette] = useDarkPalette()
   useLayoutEffect(() => { document.documentElement.setAttribute('data-palette', palette) }, [palette])
-  // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
+  // Top-bar navigation runs as View Transitions where the browser has them (motion.ts).
   const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
   // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back
   // A reload over a screen's chunk that did not load (lazyScreens.tsx, R14-O1) comes back to that screen, not Home
@@ -108,7 +109,6 @@ export function App() {
     if (back) go(back.screen, back.mode)
     // Once, on the page's first mount
   }, [])
-  const flipTheme = () => withViewTransition(() => setTheme(toggledTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')))
   const [barHidden, toggleBar] = useViewerFlag(TOPBAR_HIDDEN_KEY)
   // Focus follows the control that replaces the one just pressed (the toggle and the restore pill sit in the same spot)
   const barToggled = useRef(false)
@@ -363,16 +363,7 @@ export function App() {
             <AccountChip active={screen === 'account'} onOpen={() => nav('account')} />
           </Suspense>
         )}
-        <button
-          type="button"
-          className="theme-switch"
-          onClick={flipTheme}
-          aria-label={t(theme === 'dark' ? 'toLight' : 'toDark')}
-          title={t(theme === 'dark' ? 'lightMode' : 'darkMode')}
-          data-testid="theme-switch"
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+        <AppearanceButton />
         <button type="button" className="theme-switch topbar-toggle" onClick={flipBar} aria-label={t('hideBar')} aria-keyshortcuts={'\\'} title={t('hideBarKey')} data-testid="topbar-toggle" ref={toggleRef}>
           <ChevronUp size={18} />
         </button>

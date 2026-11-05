@@ -42,7 +42,7 @@ import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoun
 import { playSound } from '../sound/synth'
 import { useBadgeSound } from '../sound/useBadgeSound'
 import { quickSpinPref, skipReelsPref, usePref } from '../viewerPrefs'
-import { useDarkPalette } from '../palette'
+import { AppearanceControls } from '../components/AppearanceControls'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
 import { askConfirm } from '../confirm'
@@ -82,7 +82,7 @@ async function exportSave(): Promise<void> {
 }
 
 export function ProfileScreen() {
-  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStorePick('profile', 'universe', 'go', 'setManagerName', 'setTheme', 'showToast', 'resetTips')
+  const { profile, universe: u, go, setManagerName, showToast, resetTips } = useStorePick('profile', 'universe', 'go', 'setManagerName', 'showToast', 'resetTips')
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
   const [draftSound, setDraftSound] = useDraftSoundOn()
@@ -90,7 +90,6 @@ export function ProfileScreen() {
   const [volume, setVolume] = useSoundVolume()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   const [skipReels, setSkipReels] = usePref(skipReelsPref)
-  const [palette, setPalette] = useDarkPalette()
   const language = useLanguage()
   const [reportsOn, setReportsOn] = useState(errorReportsOn)
   const setReports = (on: boolean) => {
@@ -557,17 +556,7 @@ export function ProfileScreen() {
           <div className="panel col" data-testid="profile-settings">
             <h3 style={{ margin: 0 }}>{t('settings')}</h3>
             <div className="settings-grid">
-            <div className="field">
-              <span>
-                {t('theme')} <Info label={t('themeAbout')}>{t('themeInfo')}</Info>
-              </span>
-              <Segmented label={t('theme')} value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: t('auto'), hint: t('themeHint') }, { value: 'light', label: t('light') }, { value: 'dark', label: t('dark') }]} />
-            </div>
-            <div className="field" data-testid="dark-palette">
-              <span>{t('darkColours')}</span>
-              <Segmented label={t('darkColours')} value={palette} onChange={setPalette} options={[{ value: 'slate', label: t('paletteSlate') }, { value: 'midnight', label: t('paletteMidnight') }, { value: 'warm', label: t('paletteWarm') }]} />
-              <span className="small muted">{t('darkColoursHelp')}</span>
-            </div>
+            <AppearanceControls />
             <div className="field">
               <span>
                 <label htmlFor="language-select">{t('language')}</label> <Info label={t('languageAbout')}>{t('languageInfo')}</Info>

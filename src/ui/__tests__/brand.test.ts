@@ -58,6 +58,20 @@ describe('the flat TouchLine mark', () => {
     const actual = readFileSync(new URL('../../../public/favicon.svg', import.meta.url), 'utf8').trim()
     expect(actual).toBe(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">${markSvgInner('tl', { tier: 'tiny' })}</svg>`)
   })
+
+  it('keeps the open football white while the pole follows the scene ink', () => {
+    const svg = markSvgInner('day', { tier: 'full', tile: 'none' })
+    expect(svg).toContain('height="42" fill="currentColor"')
+    expect(svg).toContain('d="M36 34H46V37H50V49H46V53H36V50H32V38H36Z" fill="#f5f1df"')
+    expect(svg).toContain(`width="7" height="7" fill="${MARK.panel}"`)
+  })
+
+  it('lets app colour outlines follow the palette without recolouring exported or inverse icons', () => {
+    const live = renderToStaticMarkup(createElement(LogoMark, { size: 32 }))
+    expect(live).toContain(`stroke="var(--brand-line, ${MARK.keyline})"`)
+    expect(markSvgInner('icon', { tier: 'tiny' })).toContain(`stroke="${MARK.keyline}"`)
+    expect(markSvgInner('inverse', { tier: 'mid', variant: 'inverse', themeable: true })).toContain(`stroke="${MARK.tile}"`)
+  })
 })
 
 describe('the wordmark lockup', () => {
@@ -108,5 +122,15 @@ describe('the wordmark lockup', () => {
     expect(open).not.toContain('stroke-width="2"')
     expect(app).toContain('stroke-width="2"')
     expect(open).toContain('M18 12H34')
+  })
+
+  it('opts only Home into nine bouncing letters without repeating its accessible name', () => {
+    const home = renderToStaticMarkup(createElement(Lockup, { animate: 'letters', open: true }))
+    const header = renderToStaticMarkup(createElement(Lockup, { animate: 'hover' }))
+    expect(home.replace(/<[^>]*>/g, '')).toBe('TouchLine')
+    expect(home.match(/class="tl-letter"/g)).toHaveLength(9)
+    expect(home.match(/aria-label="TouchLine"/g)).toHaveLength(1)
+    expect(home).toContain('animation-delay:720ms')
+    expect(header).not.toContain('class="tl-letter"')
   })
 })
