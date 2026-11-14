@@ -1,12 +1,49 @@
 /* Native-only adjustments. The web uses main's layouts, safe-area tokens and navigation dock. */
-.app[data-native]::before {
+.app[data-native]:not(.home-stage):not(.bar-hidden)::before {
   content: '';
   position: fixed;
   inset: 0 0 auto;
   height: var(--safe-top);
-  background: var(--bg);
+  background: var(--brand-field-2);
   z-index: 35;
   pointer-events: none;
+}
+
+/* The ground extends behind the system bars. Only the sheet content needs space for the home indicator. */
+@media (max-width: 720px) {
+  .app[data-native] .home-panel-body {
+    padding-bottom: var(--safe-bottom);
+  }
+}
+@media (max-height: 500px) and (min-width: 721px) and (pointer: coarse) {
+  .app[data-native] .home-panel-layer {
+    padding-inline: max(var(--space-5), var(--safe-left)) max(var(--space-5), var(--safe-right));
+  }
+}
+
+/* The Home icon already links back to the ground. Leave the rest of this one row to navigation and appearance. */
+@media (max-width: 720px), (max-height: 500px) and (max-width: 1100px) and (pointer: coarse) {
+  .app[data-native] > .topbar {
+    flex-wrap: nowrap;
+    column-gap: var(--space-1);
+  }
+  .app[data-native] > .topbar .brand {
+    display: none;
+  }
+  .app[data-native] > .topbar nav {
+    order: 0;
+    flex: 1 1 0;
+    width: auto;
+    margin: 0;
+    justify-content: flex-start;
+  }
+  .app[data-native] > .topbar .theme-switch {
+    flex: 0 0 44px;
+    height: 44px;
+  }
+  .app[data-native] > .topbar .theme-switch::after {
+    inset: 0;
+  }
 }
 
 @media (max-width: 720px), (max-width: 1100px) and (pointer: coarse) {
@@ -59,9 +96,5 @@
   }
   .app[data-native] .briefing.checklist .brief > .btn {
     margin-left: auto;
-  }
-  .explore-head-actions {
-    width: 100%;
-    justify-content: space-between;
   }
 }

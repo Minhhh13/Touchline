@@ -51,4 +51,11 @@ describe('safe areas', () => {
     expect(DEVICE_INSETS['430x932']).toMatchObject({ top: 59, bottom: 34 })
     for (const [k, d] of Object.entries(DEVICE_INSETS)) expect(k).toBe(`${d.width}x${d.height}`)
   })
+
+  it('fits the native mode sheet to the home indicator and the landscape cutout', () => {
+    const native = css('mobile.css')
+    expect(native).toMatch(/\.app\[data-native\] \.home-panel-body \{[^}]*padding-bottom: var\(--safe-bottom\)/)
+    expect(native).toMatch(/\.app\[data-native\] \.home-panel-layer \{[^}]*padding-inline: max\(var\(--space-5\), var\(--safe-left\)\) max\(var\(--space-5\), var\(--safe-right\)\)/)
+    expect(native).toMatch(/\.app\[data-native\] > \.topbar nav button \{[^}]*min-width: 44px;[^}]*min-height: 44px;/)
+  })
 })

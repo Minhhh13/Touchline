@@ -28,6 +28,11 @@ export function resolveTheme(pref: ThemePreference, deviceLight: boolean): Resol
   return deviceLight ? 'light' : 'dark'
 }
 
+/** The scorebox header is dark even in Daylight. When it is absent, the clock sits over the scene or page. */
+export function statusBarSurface(theme: ResolvedTheme, headerVisible: boolean): ResolvedTheme {
+  return headerVisible ? 'dark' : theme
+}
+
 /** The top bar's switch flips what is on screen and stores the result, so Auto becomes a fixed choice after one tap. */
 export function toggledTheme(current: ResolvedTheme): ResolvedTheme {
   return current === 'dark' ? 'light' : 'dark'

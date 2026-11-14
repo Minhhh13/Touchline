@@ -1445,6 +1445,8 @@ Only live colour `LogoMark` outlines use `--brand-line`; standalone favicon/inst
 
 ### iOS development app
 
+The iPhone starts on the same training ground as the website. Play opens the mode sheet above the home indicator. The Daylight, Slate, Midnight and Warm appearances share the web palettes and fonts. Touch targets in the phone’s icon menu are at least 44 points. The clock follows the surface beneath it when the player opens or hides the dark game header.
+
 Capacitor bundles the same engine and offline packs in an iOS 16.4+ app. Native navigation uses accessible icons at the top; the web retains main's bottom dock. Native pre-season tasks remain in page flow. PNG cards use a native `UIImage` share sheet with Save Image; save files use temporary Cache exports with Save to Files. Result shares use the public homepage from the app and the current deployment URL from a browser. The completed Season/Dynasty game-by-game list keeps every result in an approximately six-row scroll box, and an accepted Dynasty job offer includes a next-season action. Device-local Skip reels is available in Profile without changing RNG draws or save data. Integration with main deliberately retains its Home, Setup, Draft, Tactics, matchday and Summary layouts; the earlier conflicting mobile experiments are listed in [IOS.md](IOS.md), alongside signing and release checks.
 
 ## 16. Roadmap

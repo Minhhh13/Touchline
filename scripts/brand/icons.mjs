@@ -2,10 +2,9 @@
 //
 //   node scripts/brand/icons.mjs
 //
-// Writes public/favicon.svg (the tiny tier: browsers draw it at 16 px) and
-// rasterises public/icons/icon-192.png, icon-512.png, icon-maskable-512.png and
-// apple-touch-icon.png (the full tier) with Playwright (an SVG in a page,
-// screenshotted at the exact size). Needs Node 22.18+ (it imports brand.ts
+// Writes the tiny web favicon and full-tier iOS launch mark as SVG.
+// Playwright rasterises the web and iOS app icons at each target size.
+// Needs Node 22.18+ (it imports brand.ts
 // directly) and Playwright with Chromium; set PLAYWRIGHT_MODULE to its entry
 // file if it is not installed in this project, and PLAYWRIGHT_EXECUTABLE to an
 // installed Chromium browser when Playwright's own browser is unavailable.
@@ -15,8 +14,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { markSvg, markTier } from '../../src/ui/brand.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const catalog = resolve(root, 'ios/App/App/Assets.xcassets')
+const appleMark = (px) => markSvg('tl', px, { tier: 'full', tile: 'square', scale: 0.94 })
 
 writeFileSync(resolve(root, 'public/favicon.svg'), markSvg('tl', 64, { tier: markTier(16) }) + '\n')
+writeFileSync(resolve(catalog, 'LaunchMark.imageset/LaunchMark.svg'), markSvg('tl', 120, { tier: 'full' }) + '\n')
 
 const targets = [
   { file: 'icons/icon-192.png', px: 192, svg: markSvg('tl', 192, { tier: markTier(192) }), transparent: true },
@@ -24,7 +26,8 @@ const targets = [
   // Maskable: full bleed, the glyph inside the 80% safe circle
   { file: 'icons/icon-maskable-512.png', px: 512, svg: markSvg('tl', 512, { tier: 'full', tile: 'square', scale: 0.78 }), transparent: false },
   // iOS rounds the corners itself and wants no transparency
-  { file: 'icons/apple-touch-icon.png', px: 180, svg: markSvg('tl', 180, { tier: 'full', tile: 'square', scale: 0.94 }), transparent: false },
+  { file: 'icons/apple-touch-icon.png', px: 180, svg: appleMark(180), transparent: false },
+  { file: resolve(catalog, 'AppIcon.appiconset/AppIcon-512@2x.png'), px: 1024, svg: appleMark(1024), transparent: false },
 ]
 
 const entry = process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright'
