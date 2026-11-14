@@ -20,15 +20,27 @@ After every web-code or asset change, run `npm run ios:sync` before building in 
 
 `capacitor.config.ts` uses `dist` as `webDir` and deliberately has no remote `server.url`. An app build contains the game; it does not depend on the hosted website to load. The web build keeps its service worker; native builds use their bundled files directly.
 
+## Home and appearance
+
+Home uses the web game’s day and night training ground. Play opens the same five modes. The mode sheet clears the home indicator in portrait and the camera cutout in landscape. Game screens use a single row of icon buttons with accessible names and 44-point touch targets on iPhone. Barlow is the reading face and VT323 is used for the wordmark and Home’s Play button.
+
+The launch screen and WebView backing use the device’s light or dark appearance. Once the game opens, Auto, Light or Dark and the selected dark palette (Slate, Midnight or Warm) control the scene. The clock uses light text above the dark navigation bar and follows the game appearance on Home or when the bar is hidden.
+
+To refresh the native app icon and vector launch mark after a brand change, run `node scripts/brand/icons.mjs` with the Playwright setup described in that script. It also generates the website’s install icons from the same flag and football.
+
+![Home in daylight and at night, followed by Season setup on iPhone 16 Pro Max Simulator](screenshots/ios-web-style.webp)
+
+The browser smoke covers Quick Draft through Summary and a managed Season match through half-time, the 70-minute stop and the final report. WebKit at 390 × 844 and 852 × 393 also exercised appearance, navigation and safe areas. Both the live website and this build run successfully with WebKit’s diagnostic for the Chromium-specific `interactive-widget` viewport option. [Desktop and phone browser comparison](screenshots/ios-web-style-browser.webp)
+
 ## Device signing and distribution
 
 `quest.touchline.app` is the development bundle identifier. Confirm the final identifier with the team's Apple Developer account before the first distribution upload. In Xcode, select App → Signing & Capabilities, choose the team's account and enable automatic signing. A Simulator build does not need a development team.
 
 For a physical iPhone, select the paired device in Xcode and run the app with that team's signing configuration. For TestFlight, configure the matching app record in App Store Connect, select a generic iOS device, archive a Release build and distribute the archive through Xcode Organizer. Do not commit certificates, provisioning profiles, Apple account credentials or local signing settings.
 
-The native icon and launch mark use the existing `markSvg` in `src/ui/brand.ts` (full tier, square tile, scale 0.78); the launch background follows the device appearance. This first target is a development build. Before TestFlight, confirm the app identifier, signing team, version/build number, privacy disclosures, support/privacy URLs and the complete device smoke. App Store submission is a separate release step.
+This target is a development build. Before TestFlight, confirm the app identifier, signing team, version/build number, privacy disclosures, support/privacy URLs and the complete device smoke. App Store submission is a separate release step.
 
-PNG cards are passed to the native share sheet as images, so choose **Save Image** to add one to Photos. Save exports remain files and offer **Save to Files**. Dismissing either sheet is a normal cancellation. A temporary save export stays in the app cache while its sheet is open and is removed when it closes; image cards need no temporary file. `NSPhotoLibraryAddUsageDescription` explains the add-only Photos request when the user chooses Save Image; the app does not read the photo library. The app privacy manifest declares the Filesystem plugin's file-timestamp API use (`C617.1`). The status-bar text follows the game's light/dark theme.
+PNG cards are passed to the native share sheet as images, so choose **Save Image** to add one to Photos. Save exports remain files and offer **Save to Files**. Dismissing either sheet is a normal cancellation. A temporary save export stays in the app cache while its sheet is open and is removed when it closes; image cards need no temporary file. `NSPhotoLibraryAddUsageDescription` explains the add-only Photos request when the user chooses Save Image; the app does not read the photo library. The app privacy manifest declares the Filesystem plugin's file-timestamp API use (`C617.1`).
 
 ## Optional online features
 

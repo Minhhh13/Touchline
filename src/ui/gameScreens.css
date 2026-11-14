@@ -723,6 +723,13 @@
   }
 }
 
+@media (max-width: 720px), (max-width: 1100px) and (pointer: coarse) {
+  .explore-head-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 /* Explore's Records view (ExploreRecords.tsx): one league's trivia, labelled as derived from the data */
 .explore-records-wrap {
   flex: 1;

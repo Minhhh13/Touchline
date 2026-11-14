@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rememberThemePreference, resolveTheme, toggledTheme, type ThemePreference } from '../theme'
+import { rememberThemePreference, resolveTheme, statusBarSurface, toggledTheme, type ThemePreference } from '../theme'
 
 describe('the theme setting', () => {
   it('Auto follows the device in both directions', () => {
@@ -11,6 +11,13 @@ describe('the theme setting', () => {
     for (const device of [true, false]) {
       expect(resolveTheme('light', device)).toBe('light')
       expect(resolveTheme('dark', device)).toBe('dark')
+    }
+  })
+
+  it('keeps the native clock legible over the dark scorebox, daylight sky and folded header', () => {
+    for (const theme of ['light', 'dark'] as const) {
+      expect(statusBarSurface(theme, true)).toBe('dark')
+      expect(statusBarSurface(theme, false)).toBe(theme)
     }
   })
 

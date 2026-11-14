@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { Lockup, LogoMark, Wordmark } from '../components/Logo'
-import { MARK, markSvgInner, markTier, pennantPath, type MarkTier } from '../brand'
+import { MARK, markSvg, markSvgInner, markTier, pennantPath, type MarkTier } from '../brand'
 
 const TIERS: MarkTier[] = ['full', 'mid', 'tiny']
 
@@ -57,6 +57,23 @@ describe('the flat TouchLine mark', () => {
   it('keeps the favicon generated from the tiny tier', () => {
     const actual = readFileSync(new URL('../../../public/favicon.svg', import.meta.url), 'utf8').trim()
     expect(actual).toBe(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">${markSvgInner('tl', { tier: 'tiny' })}</svg>`)
+  })
+
+  it('opens iOS with the same flag and day/night background as the bundled web app', () => {
+    const catalog = new URL('../../../ios/App/App/Assets.xcassets/', import.meta.url)
+    const mark = readFileSync(new URL('LaunchMark.imageset/LaunchMark.svg', catalog), 'utf8').trim()
+    expect(mark).toBe(markSvg('tl', 120, { tier: 'full' }))
+
+    const { colors } = JSON.parse(readFileSync(new URL('LaunchBackground.colorset/Contents.json', catalog), 'utf8')) as {
+      colors: { appearances?: { value: string }[]; color: { components: Record<'red' | 'green' | 'blue', string> } }[]
+    }
+    const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
+    const backgrounds = Object.fromEntries(colors.map(({ appearances, color: { components: c } }) => [
+      appearances?.find(a => a.value === 'dark') ? 'dark' : 'light',
+      '#' + [c.red, c.green, c.blue].map(channel => Number(channel).toString(16).padStart(2, '0')).join(''),
+    ]))
+    expect(backgrounds.dark).toBe(css.match(/:root\s*\{[^}]*?--bg:\s*(#[a-f\d]{6})/i)?.[1])
+    expect(backgrounds.light).toBe(css.match(/:root\[data-theme='light'\]\s*\{[^}]*?--bg:\s*(#[a-f\d]{6})/i)?.[1])
   })
 
   it('keeps the open football white while the pole follows the scene ink', () => {

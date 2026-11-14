@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { Capacitor } from '@capacitor/core'
 import { App } from './ui/App'
 import './ui/styles.css'
-import './ui/mobile.css'
 import { onlineConfig } from './online/config'
 import { whenScreensFetched } from './ui/lazyScreens'
 import { startLanguage } from './ui/i18n/language'
@@ -11,11 +10,17 @@ import { startLanguage } from './ui/i18n/language'
 // The viewer's language (Profile, Settings): English at once, a translation as soon as its chunk arrives
 startLanguage()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+function renderApp() {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}
+
+// The native sheet is bundled on the device. Apply its safe areas before the first frame.
+if (Capacitor.isNativePlatform()) void import('./ui/mobile.css').then(renderApp, renderApp)
+else renderApp()
 
 // Offline support: register the service worker on production builds only, relative to the deploy path. It caches
 // every built asset as it installs (public/sw.js), so it waits for the screens' chunks first (`prefetchScreens`, 30 s

@@ -18,7 +18,7 @@ import { clubName, outcomeClass, seasonLabel, signedValue } from './format'
 import { developmentLists } from './screenText'
 import { DIGEST_MOOD_WORDINGS, digestMood, digestWinRun, digestWording } from './seasonDrama'
 import { Lockup, Logo } from './components/Logo'
-import { rememberThemePreference, useResolvedTheme } from './theme'
+import { rememberThemePreference, statusBarSurface, useResolvedTheme } from './theme'
 import { AppearanceButton } from './components/Appearance'
 import { useDarkPalette } from './palette'
 import { withViewTransition } from './motion'
@@ -216,10 +216,12 @@ export function App() {
     root.setAttribute('data-theme', theme)
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
     if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
-    if (Capacitor.isNativePlatform()) {
-      void import('@capacitor/status-bar').then(({ StatusBar, Style }) => StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light })).catch(() => undefined)
-    }
-  }, [theme])
+  }, [theme, palette])
+  const statusSurface = statusBarSurface(theme, !!universe && !loading && !loadError && screen !== 'home' && !barHidden)
+  useLayoutEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    void import('@capacitor/status-bar').then(({ StatusBar, Style }) => StatusBar.setStyle({ style: statusSurface === 'dark' ? Style.Dark : Style.Light })).catch(() => undefined)
+  }, [statusSurface])
   useEffect(() => {
     rememberThemePreference(profile.theme)
   }, [profile.theme])

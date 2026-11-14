@@ -49,6 +49,13 @@ public class TouchlineImageSharePlugin: CAPPlugin, CAPBridgedPlugin {
 }
 
 final class TouchlineBridgeViewController: CAPBridgeViewController {
+    // Capacitor uses this colour for both the WebView and its scroll view before web content paints.
+    override func instanceDescriptor() -> InstanceDescriptor {
+        let descriptor = super.instanceDescriptor()
+        descriptor.backgroundColor = UIColor(named: "LaunchBackground")
+        return descriptor
+    }
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(TouchlineImageSharePlugin())
